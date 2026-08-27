@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+.venv/
+
+# Testing
+.pytest_cache/
+
+# Code quality
+.ruff_cache/
+
+# Localization
+*.mo
+
+# Generated frontend
+/src/tradefog/static/tradefog/css/tradefog.css
+/src/tradefog/static/tradefog/icons/tabler.svg
+
+# Local runtime
+.runtime/
+
+# Nix
+.direnv/
+/result
+/result-*

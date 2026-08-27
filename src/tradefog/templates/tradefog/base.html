@@ -1,0 +1,392 @@
+{% load i18n static %}
+{% get_current_language as current_language %}
+<!doctype html>
+<html lang="{{ current_language }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>{% block title %}Tradefog{% endblock %}</title>
+    <link rel="icon" href="{% static 'tradefog/images/favicon.svg' %}" type="image/svg+xml">
+    <link rel="icon" href="{% static 'tradefog/images/favicon-32x32.png' %}" sizes="32x32" type="image/png">
+    <link rel="icon" href="{% static 'tradefog/images/favicon.ico' %}" sizes="16x16 32x32 48x48">
+    <link rel="apple-touch-icon" href="{% static 'tradefog/images/apple-touch-icon.png' %}" sizes="180x180">
+    <link rel="stylesheet" href="{% static 'tradefog/vendor/pico/pico.min.css' %}">
+    <link rel="stylesheet" href="{% static 'tradefog/css/tradefog.css' %}">
+    {% block extra_head %}{% endblock %}
+  </head>
+  <body hx-headers='{"x-csrftoken": "{{ csrf_token }}"}'>
+    {% block body %}
+      <header class="container">
+        <hgroup>
+          <h1>Tradefog</h1>
+          <p>Pico component preview using the current project theme.</p>
+        </hgroup>
+        <nav>
+          <ul>
+            <li>
+              <details class="dropdown">
+                <summary role="button" class="secondary">Theme</summary>
+                <ul>
+                  <li><a href="#" data-theme-choice="system">System</a></li>
+                  <li><a href="#" data-theme-choice="light">Light</a></li>
+                  <li><a href="#" data-theme-choice="dark">Dark</a></li>
+                </ul>
+              </details>
+            </li>
+          </ul>
+        </nav>
+      </header>
+
+      <main class="container">
+        <section id="preview">
+          <h2>Preview</h2>
+          <p>
+            Review the setup, define invalidation, and keep risk within the
+            plan before entering a position.
+          </p>
+          <form onsubmit="event.preventDefault()">
+            <div class="grid">
+              <input type="text" name="instrument" placeholder="Instrument" aria-label="Instrument" required>
+              <input type="number" name="entry" placeholder="Entry price" aria-label="Entry price" required>
+              <button type="submit">Create draft</button>
+            </div>
+            <fieldset>
+              <label for="tracking">
+                <input type="checkbox" role="switch" id="tracking" name="tracking">
+                Track this position
+              </label>
+            </fieldset>
+          </form>
+        </section>
+
+        <section id="typography">
+          <h2>Typography</h2>
+          <p>
+            The journal should make plans and results easy to scan without
+            turning every value into a visual alert.
+          </p>
+          <blockquote>
+            “You cannot control the market. You can control how much you risk.”
+            <footer><cite>Tradefog</cite></footer>
+          </blockquote>
+
+          <h3>Lists</h3>
+          <ul>
+            <li>Review the current market context.</li>
+            <li>Define entry and invalidation.</li>
+            <li>Check the position risk.</li>
+            <li>Record the result and conclusion.</li>
+          </ul>
+
+          <h3>Inline text elements</h3>
+          <div class="grid">
+            <p><a href="#">Primary link</a></p>
+            <p><a href="#" class="secondary">Secondary link</a></p>
+            <p><a href="#" class="contrast">Contrast link</a></p>
+          </div>
+          <div class="grid">
+            <p><strong>Bold</strong></p>
+            <p><em>Italic</em></p>
+            <p><u>Underline</u></p>
+          </div>
+          <div class="grid">
+            <p><del>Deleted</del></p>
+            <p><ins>Inserted</ins></p>
+            <p><s>Strikethrough</s></p>
+          </div>
+          <div class="grid">
+            <p><small>Small</small></p>
+            <p>Result <sub>R</sub></p>
+            <p>Price <sup>2</sup></p>
+          </div>
+          <div class="grid">
+            <p><abbr title="Risk and reward" data-tooltip="Risk and reward">R/R</abbr></p>
+            <p><kbd>Ctrl</kbd> + <kbd>Enter</kbd></p>
+            <p><mark>Highlighted</mark></p>
+          </div>
+
+          <h3>Heading 3</h3>
+          <p>A section heading for a significant part of the current page.</p>
+          <h4>Heading 4</h4>
+          <p>A subsection heading for a smaller group of related values.</p>
+          <h5>Heading 5</h5>
+          <p>A compact heading for supporting information.</p>
+          <h6>Heading 6</h6>
+          <p>The smallest heading available in the document hierarchy.</p>
+
+          <figure>
+            <img src="{% static 'tradefog/images/app-icon.svg' %}" alt="Tradefog umbrella mark" width="160" height="160">
+            <figcaption>Current application mark.</figcaption>
+          </figure>
+        </section>
+
+        <section id="buttons">
+          <h2>Buttons</h2>
+          <p class="grid">
+            <button type="button">Primary</button>
+            <button type="button" class="secondary">Secondary</button>
+            <button type="button" class="contrast">Contrast</button>
+          </p>
+          <p class="grid">
+            <button type="button" class="outline">Primary outline</button>
+            <button type="button" class="outline secondary">Secondary outline</button>
+            <button type="button" class="outline contrast">Contrast outline</button>
+          </p>
+          <p class="grid">
+            <button type="button" disabled>Disabled</button>
+            <button type="button" aria-busy="true">Loading</button>
+          </p>
+        </section>
+
+        <section id="form">
+          <form onsubmit="event.preventDefault()">
+            <h2>Form elements</h2>
+            <label for="search">Search</label>
+            <input type="search" id="search" name="search" placeholder="Search">
+
+            <label for="text">Text</label>
+            <input type="text" id="text" name="text" placeholder="Text">
+            <small>Supporting text for the field above.</small>
+
+            <label for="select">Select</label>
+            <select id="select" name="select" required>
+              <option value="" selected>Select…</option>
+              <option>Manual tracking</option>
+              <option>Automatic tracking</option>
+            </select>
+
+            <label for="file">
+              File browser
+              <input type="file" id="file" name="file">
+            </label>
+
+            <label for="range">
+              Range slider
+              <input type="range" min="0" max="100" value="50" id="range" name="range">
+            </label>
+
+            <div class="grid">
+              <label for="valid">
+                Valid
+                <input type="text" id="valid" name="valid" placeholder="Valid" aria-invalid="false">
+              </label>
+              <label for="invalid">
+                Invalid
+                <input type="text" id="invalid" name="invalid" placeholder="Invalid" aria-invalid="true">
+              </label>
+              <label for="disabled">
+                Disabled
+                <input type="text" id="disabled" name="disabled" placeholder="Disabled" disabled>
+              </label>
+            </div>
+
+            <div class="grid">
+              <label for="date">
+                Date
+                <input type="date" id="date" name="date">
+              </label>
+              <label for="time">
+                Time
+                <input type="time" id="time" name="time">
+              </label>
+              <label for="color">
+                Color
+                <input type="color" id="color" name="color" value="#466b7a">
+              </label>
+            </div>
+
+            <div class="grid">
+              <fieldset>
+                <legend><strong>Checkboxes</strong></legend>
+                <label for="checkbox-1">
+                  <input type="checkbox" id="checkbox-1" name="checkbox-1" checked>
+                  Checkbox
+                </label>
+                <label for="checkbox-2">
+                  <input type="checkbox" id="checkbox-2" name="checkbox-2">
+                  Checkbox
+                </label>
+              </fieldset>
+              <fieldset>
+                <legend><strong>Radio buttons</strong></legend>
+                <label for="radio-1">
+                  <input type="radio" id="radio-1" name="radio" value="radio-1" checked>
+                  Radio button
+                </label>
+                <label for="radio-2">
+                  <input type="radio" id="radio-2" name="radio" value="radio-2">
+                  Radio button
+                </label>
+              </fieldset>
+              <fieldset>
+                <legend><strong>Switches</strong></legend>
+                <label for="switch-1">
+                  <input type="checkbox" id="switch-1" name="switch-1" role="switch" checked>
+                  Switch
+                </label>
+                <label for="switch-2">
+                  <input type="checkbox" id="switch-2" name="switch-2" role="switch">
+                  Switch
+                </label>
+              </fieldset>
+            </div>
+
+            <input type="reset" value="Reset">
+            <input type="submit" value="Submit">
+          </form>
+        </section>
+
+        <section id="tables">
+          <h2>Tables</h2>
+          <div class="overflow-auto">
+            <table class="striped">
+              <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Instrument</th>
+                  <th scope="col">Direction</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Risk</th>
+                  <th scope="col">Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">1</th>
+                  <td>BTC / USDT</td>
+                  <td>Long</td>
+                  <td><mark>Open</mark></td>
+                  <td>0.33%</td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <th scope="row">2</th>
+                  <td>ETH / USDT</td>
+                  <td>Short</td>
+                  <td>Closed</td>
+                  <td>0.33%</td>
+                  <td><ins>+3.0 R</ins></td>
+                </tr>
+                <tr>
+                  <th scope="row">3</th>
+                  <td>SOL / USDT</td>
+                  <td>Long</td>
+                  <td>Closed</td>
+                  <td>0.33%</td>
+                  <td><del>−1.0 R</del></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="modal">
+          <h2>Modal</h2>
+          <button type="button" class="contrast" data-modal-target="modal-example">
+            Launch demo modal
+          </button>
+        </section>
+
+        <section id="accordions">
+          <h2>Accordions</h2>
+          <details>
+            <summary>Closed accordion</summary>
+            <p>This content becomes visible when the disclosure is opened.</p>
+          </details>
+          <details open>
+            <summary>Open accordion</summary>
+            <ul>
+              <li>Market context reviewed.</li>
+              <li>Risk matches the plan.</li>
+              <li>Entry and invalidation are recorded.</li>
+            </ul>
+          </details>
+        </section>
+
+        <article id="article">
+          <header><h2>Article</h2></header>
+          <p>
+            Articles provide a visually separated surface with optional
+            sectioning headers and footers.
+          </p>
+          <footer><small>Supporting information belongs in the footer.</small></footer>
+        </article>
+
+        <section id="group">
+          <h2>Group</h2>
+          <form onsubmit="event.preventDefault()">
+            <fieldset role="group">
+              <input name="email" type="email" placeholder="Enter your email" autocomplete="email">
+              <input type="submit" value="Subscribe">
+            </fieldset>
+          </form>
+        </section>
+
+        <section id="progress">
+          <h2>Progress bars</h2>
+          <progress value="25" max="100">25%</progress>
+          <progress></progress>
+        </section>
+
+        <section id="loading">
+          <h2>Loading</h2>
+          <article aria-busy="true"></article>
+          <button type="button" aria-busy="true">Please wait…</button>
+        </section>
+      </main>
+
+      <footer class="container">
+        <small>
+          Component showcase adapted from the
+          <a href="https://github.com/picocss/examples/blob/master/v2-html/index.html">official Pico example</a>.
+        </small>
+      </footer>
+
+      <dialog id="modal-example">
+        <article>
+          <header>
+            <button type="button" aria-label="Close" rel="prev" data-modal-target="modal-example"></button>
+            <h3>Confirm your action</h3>
+          </header>
+          <p>
+            This is Pico's native dialog presentation without additional
+            application styling.
+          </p>
+          <footer>
+            <button type="button" class="secondary" data-modal-target="modal-example">Cancel</button>
+            <button type="button" autofocus data-modal-target="modal-example">Confirm</button>
+          </footer>
+        </article>
+      </dialog>
+    {% endblock %}
+
+    <script src="{% static 'tradefog/vendor/htmx/htmx.min.js' %}" defer></script>
+    <script>
+      const themeChoices = document.querySelectorAll("[data-theme-choice]");
+
+      function selectTheme(theme) {
+        if (theme === "system") {
+          document.documentElement.removeAttribute("data-theme");
+        } else {
+          document.documentElement.dataset.theme = theme;
+        }
+      }
+
+      for (const choice of themeChoices) {
+        choice.addEventListener("click", (event) => {
+          event.preventDefault();
+          selectTheme(choice.dataset.themeChoice);
+        });
+      }
+
+      for (const control of document.querySelectorAll("[data-modal-target]")) {
+        control.addEventListener("click", () => {
+          const dialog = document.getElementById(control.dataset.modalTarget);
+          dialog.open ? dialog.close() : dialog.showModal();
+        });
+      }
+    </script>
+    {% block extra_scripts %}{% endblock %}
+  </body>
+</html>

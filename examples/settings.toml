@@ -1,0 +1,51 @@
+# Copy this file to the platform-specific tradefog configuration path.
+# Replace every "!required" marker before using the related feature.
+
+[application]
+secret_key = "!required"
+debug = false
+allowed_hosts = []
+
+[database]
+active = "sqlite"
+
+[database.sqlite]
+# Default: <XDG_DATA_HOME>/tradefog/db.sqlite3
+# Relative paths are resolved from the directory containing this file.
+# path = "/path/to/db.sqlite3"
+
+[database.psql]
+name = "tradefog"
+user = "tradefog"
+password = "!required"
+host = "localhost"
+port = 5432
+
+[localization]
+time_zone = "UTC"
+
+[logging]
+level = "INFO"
+
+[static]
+url = "/static/"
+# Default: <XDG_CACHE_HOME>/tradefog/static
+# Relative paths are resolved from the directory containing this file.
+# root = "/path/to/static"
+
+[media]
+url = "/media/"
+# Default: <XDG_DATA_HOME>/tradefog/media
+# Relative paths are resolved from the directory containing this file.
+# root = "/path/to/media"
+
+# Any keyword argument accepted by the installed uvicorn.run is supported.
+[uvicorn]
+host = "127.0.0.1"
+port = 8000
+reload = false
+workers = 1
+proxy_headers = true
+forwarded_allow_ips = "127.0.0.1"
+access_log = true
+timeout_keep_alive = 5

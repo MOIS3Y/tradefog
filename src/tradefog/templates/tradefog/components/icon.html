@@ -1,0 +1,6 @@
+{% load static %}
+<svg class="tf-icon{% if class %} {{ class }}{% endif %}"
+     aria-hidden="true"
+     focusable="false">
+  <use href="{% static 'tradefog/icons/tabler.svg' %}#tabler-{{ name }}"></use>
+</svg>
