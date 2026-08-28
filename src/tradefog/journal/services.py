@@ -31,7 +31,7 @@ def restore_profile(profile: TradingProfile) -> None:
 
 
 def restore_instrument(instrument: ProfileInstrument) -> bool:
-    """Restore an instrument unless its active symbol is already in use."""
+    """Restore an instrument unless its active market is already in use."""
     if instrument.archived_at is None:
         return True
     try:

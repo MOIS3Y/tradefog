@@ -44,7 +44,7 @@
           <div class="card-body">
             <div class="row">
               <div class="col-12 col-md-5">
-                {% include "tradefog/components/form_field.html" with field=form.symbol %}
+                {% include "tradefog/components/form_field.html" with field=form.base_asset suffix=profile.capital_currency %}
               </div>
               <div class="col-12 col-md-7">
                 {% include "tradefog/components/form_field.html" with field=form.display_name %}

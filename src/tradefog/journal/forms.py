@@ -4,13 +4,17 @@
 # runtime classes cannot be parameterized.
 # pyright: reportAny=false, reportMissingTypeArgument=false, reportUnknownMemberType=false
 
-from typing import ClassVar, cast
+from typing import ClassVar, cast, override
 
 from django import forms
 from django.http import QueryDict
 from django.utils.translation import gettext_lazy as _
 
-from tradefog.journal.models import ProfileInstrument, TradingProfile
+from tradefog.journal.models import (
+    ACTIVE_MARKET_EXISTS,
+    ProfileInstrument,
+    TradingProfile,
+)
 
 
 class TradingProfileForm(forms.ModelForm):
@@ -53,6 +57,22 @@ class TradingProfileForm(forms.ModelForm):
             ),
         }
 
+    def __init__(
+        self,
+        data: QueryDict | None = None,
+        *,
+        instance: TradingProfile | None = None,
+    ) -> None:
+        """Mark the accounting asset immutable after instruments exist."""
+        super().__init__(data=data, instance=instance)
+        profile = cast(TradingProfile, self.instance)
+        if profile.pk is not None and profile.instruments.exists():
+            field = self.fields["capital_currency"]
+            field.disabled = True
+            field.help_text = _(
+                "Capital currency is locked because instruments exist."
+            )
+
     def clean_capital_currency(self) -> str:
         """Normalize the profile's accounting currency identifier."""
         value = self.cleaned_data.get("capital_currency")
@@ -71,8 +91,9 @@ class ProfileInstrumentForm(forms.ModelForm):
         *,
         instance: ProfileInstrument | None = None,
     ) -> None:
-        """Bind symbol validation to the profile being configured."""
-        super().__init__(data=data, instance=instance)
+        """Bind market validation to the profile being configured."""
+        bound_instance = instance or ProfileInstrument(profile=profile)
+        super().__init__(data=data, instance=bound_instance)
         self.profile = profile
 
     class Meta:
@@ -80,7 +101,7 @@ class ProfileInstrumentForm(forms.ModelForm):
 
         model: ClassVar[type[ProfileInstrument]] = ProfileInstrument
         fields: ClassVar[list[str]] = [
-            "symbol",
+            "base_asset",
             "display_name",
             "market_type",
             "price_step",
@@ -92,8 +113,8 @@ class ProfileInstrumentForm(forms.ModelForm):
             "minimum_quantity": _("Leave empty when the venue has no limit."),
         }
         widgets: ClassVar[dict[str, forms.Widget]] = {
-            "symbol": forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "BTC/USDT"}
+            "base_asset": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "BTC"}
             ),
             "display_name": forms.TextInput(attrs={"class": "form-control"}),
             "market_type": forms.Select(attrs={"class": "form-select"}),
@@ -111,18 +132,28 @@ class ProfileInstrumentForm(forms.ModelForm):
             ),
         }
 
-    def clean_symbol(self) -> str:
-        """Normalize and enforce active symbol uniqueness per profile."""
-        value = self.cleaned_data.get("symbol")
-        symbol = value.strip().upper() if isinstance(value, str) else ""
+    def clean_base_asset(self) -> str:
+        """Normalize the user-supplied side of the canonical pair."""
+        value = self.cleaned_data.get("base_asset")
+        return value.strip().upper() if isinstance(value, str) else ""
+
+    @override
+    def clean(self) -> dict[str, object] | None:
+        """Enforce active market uniqueness within the selected profile."""
+        cleaned_data = super().clean()
+        if cleaned_data is None:
+            return None
+        base_asset = cleaned_data.get("base_asset")
+        market_type = cleaned_data.get("market_type")
+        if not isinstance(base_asset, str) or not isinstance(market_type, str):
+            return cleaned_data
         instance = cast(ProfileInstrument, self.instance)
         duplicates = ProfileInstrument.objects.filter(
             profile=self.profile,
-            symbol=symbol,
+            base_asset=base_asset,
+            market_type=market_type,
             archived_at__isnull=True,
         ).exclude(pk=instance.pk)
         if duplicates.exists():
-            raise forms.ValidationError(
-                _("An active instrument with this symbol already exists.")
-            )
-        return symbol
+            self.add_error("base_asset", ACTIVE_MARKET_EXISTS)
+        return cleaned_data

@@ -35,4 +35,9 @@ class ProfileInstrumentAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissing
         "archived_at",
     )
     list_filter = ("market_type", "archived_at")
-    search_fields = ("symbol", "display_name", "profile__name")
+    search_fields = (
+        "base_asset",
+        "display_name",
+        "profile__capital_currency",
+        "profile__name",
+    )

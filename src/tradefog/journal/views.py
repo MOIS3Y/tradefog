@@ -11,7 +11,11 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from tradefog.accounts.models import User
 from tradefog.journal.forms import ProfileInstrumentForm, TradingProfileForm
-from tradefog.journal.models import ProfileInstrument, TradingProfile
+from tradefog.journal.models import (
+    ACTIVE_MARKET_EXISTS,
+    ProfileInstrument,
+    TradingProfile,
+)
 from tradefog.journal.services import (
     archive_instrument,
     archive_profile,
@@ -131,10 +135,12 @@ def profile_create(request: HttpRequest) -> HttpResponse:
 def profile_detail(request: HttpRequest, profile_id: int) -> HttpResponse:
     """Show one profile and its active venue instruments."""
     profile = _owned_profile(request, profile_id)
-    instruments = profile.instruments.filter(archived_at__isnull=True)
+    instruments = profile.instruments.filter(
+        archived_at__isnull=True
+    ).select_related("profile")
     archived_instruments = profile.instruments.filter(
         archived_at__isnull=False
-    )
+    ).select_related("profile")
     return render(
         request,
         "tradefog/journal/profile_detail.html",
@@ -287,7 +293,7 @@ def instrument_restore(
     else:
         messages.error(
             request,
-            _("This symbol is already used by an active instrument.")
+            ACTIVE_MARKET_EXISTS
             + " "
             + _("Archive that instrument before restoring this one."),
         )

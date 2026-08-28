@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tradefog\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-28 22:09+0900\n"
+"POT-Creation-Date: 2026-08-28 23:20+0900\n"
 "PO-Revision-Date: 2026-08-26 00:00+0900\n"
 "Last-Translator: tradefog maintainers\n"
 "Language-Team: Russian\n"
@@ -21,115 +21,127 @@ msgstr "Английский"
 msgid "Russian"
 msgstr "Русский"
 
-#: journal/forms.py:92
+#: journal/forms.py:73
+msgid "Capital currency is locked because instruments exist."
+msgstr "Валюта капитала заблокирована, поскольку в профиле есть инструменты."
+
+#: journal/forms.py:112
 msgid "Leave empty when the venue has no limit."
 msgstr "Оставьте пустым, если площадка не задаёт ограничение."
 
-#: journal/forms.py:126 journal/models.py:239
-msgid "An active instrument with this symbol already exists."
-msgstr "Активный инструмент с таким символом уже существует."
+#: journal/models.py:33
+msgid "Use letters, numbers, dots, underscores, or hyphens."
+msgstr "Используйте буквы, цифры, точки, подчёркивания или дефисы."
 
-#: journal/models.py:41
+#: journal/models.py:35
+msgid "An active instrument already uses this market."
+msgstr "Этот рынок уже используется активным инструментом."
+
+#: journal/models.py:37
+msgid "Capital currency is locked after the first instrument."
+msgstr "Валюта капитала блокируется после добавления первого инструмента."
+
+#: journal/models.py:53
 msgid "Name"
 msgstr "Название"
 
-#: journal/models.py:44
+#: journal/models.py:56
 msgid "Venue"
 msgstr "Площадка"
 
-#: journal/models.py:47
+#: journal/models.py:59
 msgid "Capital currency"
 msgstr "Валюта капитала"
 
-#: journal/models.py:49
+#: journal/models.py:62
 msgid "Currency used for capital, risk, and realized P&L."
 msgstr "Валюта для капитала, риска и реализованного P&L."
 
-#: journal/models.py:53
+#: journal/models.py:66
 msgid "Initial trading capital"
 msgstr "Начальный торговый капитал"
 
-#: journal/models.py:61
+#: journal/models.py:74
 msgid "Risk per trade, %"
 msgstr "Риск на сделку, %"
 
-#: journal/models.py:70
+#: journal/models.py:83
 msgid "Reward multiple"
 msgstr "Множитель прибыли"
 
-#: journal/models.py:76
+#: journal/models.py:89
 msgid "Target profit expressed as a multiple of trade risk."
 msgstr "Целевая прибыль в долях риска одной сделки."
 
-#: journal/models.py:82
+#: journal/models.py:95
 msgid "Daily risk limit, %"
 msgstr "Дневной лимит риска, %"
 
-#: journal/models.py:91
+#: journal/models.py:104
 msgid "Monthly target, %"
 msgstr "Месячная цель, %"
 
-#: journal/models.py:139
+#: journal/models.py:167
 msgid "The daily risk limit cannot be lower than the risk per trade."
 msgstr "Дневной лимит риска не может быть меньше риска на сделку."
 
-#: journal/models.py:156
+#: journal/models.py:184
 msgid "Spot"
 msgstr "Спот"
 
-#: journal/models.py:157
+#: journal/models.py:185
 msgid "Linear"
 msgstr "Линейный"
 
-#: journal/models.py:169
-msgid "Symbol"
-msgstr "Символ"
+#: journal/models.py:197
+msgid "Base asset"
+msgstr "Базовый актив"
 
-#: journal/models.py:171
-msgid "Venue symbol, for example BTC/USDT or AAPL."
-msgstr "Символ на площадке, например BTC/USDT или AAPL."
+#: journal/models.py:200
+msgid "The traded asset; profile capital is the quote asset."
+msgstr "Торгуемый актив; актив капитала профиля используется как котируемый."
 
-#: journal/models.py:174
+#: journal/models.py:203
 msgid "Display name"
 msgstr "Отображаемое название"
 
-#: journal/models.py:179
+#: journal/models.py:208
 msgid "Market type"
 msgstr "Тип рынка"
 
-#: journal/models.py:185 templates/tradefog/journal/profile_detail.html:109
+#: journal/models.py:214 templates/tradefog/journal/profile_detail.html:109
 msgid "Price step"
 msgstr "Шаг цены"
 
-#: journal/models.py:191 templates/tradefog/journal/profile_detail.html:110
+#: journal/models.py:220 templates/tradefog/journal/profile_detail.html:110
 msgid "Quantity step"
 msgstr "Шаг количества"
 
-#: journal/models.py:198
+#: journal/models.py:227
 msgid "Minimum quantity"
 msgstr "Минимальное количество"
 
-#: journal/models.py:208
+#: journal/models.py:237
 msgid "Minimum notional"
 msgstr "Минимальная сумма ордера"
 
-#: journal/models.py:215
+#: journal/models.py:244
 msgid "Minimum order value in the profile capital currency."
 msgstr "Минимальная сумма ордера в валюте капитала профиля."
 
-#: journal/views.py:193
+#: journal/models.py:286
+msgid "The traded asset must differ from the capital asset."
+msgstr "Торгуемый актив должен отличаться от актива капитала."
+
+#: journal/views.py:199
 msgid "Profile restored."
 msgstr "Профиль восстановлен."
 
-#: journal/views.py:286
+#: journal/views.py:292
 msgid "Instrument restored."
 msgstr "Инструмент восстановлен."
 
-#: journal/views.py:290
-msgid "This symbol is already used by an active instrument."
-msgstr "Этот символ уже используется активным инструментом."
-
-#: journal/views.py:292
+#: journal/views.py:298
 msgid "Archive that instrument before restoring this one."
 msgstr "Архивируйте его перед восстановлением этого инструмента."
 
@@ -315,8 +327,8 @@ msgid "Profile instruments"
 msgstr "Инструменты профиля"
 
 #: templates/tradefog/journal/profile_detail.html:90
-msgid "Symbols and order constraints specific to this venue."
-msgstr "Символы и ограничения ордеров для этой площадки."
+msgid "Assets and order constraints specific to this venue."
+msgstr "Активы и ограничения ордеров для этой площадки."
 
 #: templates/tradefog/journal/profile_detail.html:107
 #: templates/tradefog/journal/profile_detail.html:189
@@ -342,8 +354,8 @@ msgid "No instruments configured"
 msgstr "Инструменты не настроены"
 
 #: templates/tradefog/journal/profile_detail.html:166
-msgid "Add the first symbol before preparing trades for this profile."
-msgstr "Добавьте первый символ перед подготовкой сделок в этом профиле."
+msgid "Add the first asset before preparing trades for this profile."
+msgstr "Добавьте первый актив перед подготовкой сделок в этом профиле."
 
 #: templates/tradefog/journal/profile_detail.html:177
 msgid "Archived instruments"

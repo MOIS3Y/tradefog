@@ -2,7 +2,14 @@
   <label class="form-label" for="{{ field.id_for_label }}">
     {{ field.label }}
   </label>
-  {{ field }}
+  {% if suffix %}
+    <div class="input-group">
+      {{ field }}
+      <span class="input-group-text">/ {{ suffix }}</span>
+    </div>
+  {% else %}
+    {{ field }}
+  {% endif %}
   {% if field.help_text %}
     <div class="form-hint">{{ field.help_text }}</div>
   {% endif %}

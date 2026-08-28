@@ -11,7 +11,11 @@ from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import (
+    MaxValueValidator,
+    MinValueValidator,
+    RegexValidator,
+)
 from django.db import models
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -24,6 +28,14 @@ PERCENTAGE_VALIDATORS = [
     MinValueValidator(Decimal("0.001")),
     MaxValueValidator(Decimal(100)),
 ]
+ASSET_IDENTIFIER = RegexValidator(
+    regex=r"^[A-Za-z0-9][A-Za-z0-9._-]*$",
+    message=_("Use letters, numbers, dots, underscores, or hyphens."),
+)
+ACTIVE_MARKET_EXISTS = _("An active instrument already uses this market.")
+CAPITAL_CURRENCY_LOCKED = _(
+    "Capital currency is locked after the first instrument."
+)
 
 
 class TradingProfile(models.Model):
@@ -46,6 +58,7 @@ class TradingProfile(models.Model):
     capital_currency: models.CharField[str, str] = models.CharField(
         _("Capital currency"),
         max_length=12,
+        validators=[ASSET_IDENTIFIER],
         help_text=_("Currency used for capital, risk, and realized P&L."),
     )
     initial_capital: models.DecimalField[Decimal, Decimal] = (
@@ -126,6 +139,21 @@ class TradingProfile(models.Model):
         self.name = self.name.strip()
         self.venue_name = self.venue_name.strip()
         self.capital_currency = self.capital_currency.strip().upper()
+        if not self._state.adding:
+            original_currency = (
+                type(self)
+                .objects.filter(pk=self.id)
+                .values_list("capital_currency", flat=True)
+                .first()
+            )
+            if (
+                original_currency is not None
+                and original_currency != self.capital_currency
+                and self.instruments.exists()
+            ):
+                raise ValidationError(
+                    {"capital_currency": CAPITAL_CURRENCY_LOCKED}
+                )
         daily_limit = cast(Decimal | None, self.daily_risk_limit_percent)
         trade_risk = cast(Decimal | None, self.risk_per_trade_percent)
         if (
@@ -165,10 +193,11 @@ class ProfileInstrument(models.Model):
             related_name="instruments",
         )
     )
-    symbol: models.CharField[str, str] = models.CharField(
-        _("Symbol"),
-        max_length=40,
-        help_text=_("Venue symbol, for example BTC/USDT or AAPL."),
+    base_asset: models.CharField[str, str] = models.CharField(
+        _("Base asset"),
+        max_length=20,
+        validators=[ASSET_IDENTIFIER],
+        help_text=_("The traded asset; profile capital is the quote asset."),
     )
     display_name: models.CharField[str, str] = models.CharField(
         _("Display name"),
@@ -227,31 +256,47 @@ class ProfileInstrument(models.Model):
     )
 
     class Meta:
-        """Keep active symbols unique within each trading profile."""
+        """Keep active markets unique within each trading profile."""
 
-        ordering: ClassVar[list[str]] = ["symbol", "id"]
+        ordering: ClassVar[list[str]] = ["base_asset", "market_type", "id"]
         constraints: ClassVar[list[models.BaseConstraint]] = [
             models.UniqueConstraint(
-                fields=["profile", "symbol"],
+                fields=["profile", "base_asset", "market_type"],
                 condition=models.Q(archived_at__isnull=True),
-                name="unique_active_profile_instrument_symbol",
-                violation_error_message=_(
-                    "An active instrument with this symbol already exists."
-                ),
+                name="unique_active_profile_instrument_market",
+                violation_error_message=ACTIVE_MARKET_EXISTS,
             )
         ]
 
     @override
     def __str__(self) -> str:
-        """Return the venue symbol and its owning profile."""
+        """Return the canonical market pair and its owning profile."""
         return f"{self.symbol} — {self.profile.name}"
 
     @override
     def clean(self) -> None:
-        """Normalize the venue symbol and optional display name."""
+        """Normalize the base asset and optional display name."""
         super().clean()
-        self.symbol = self.symbol.strip().upper()
+        self.base_asset = self.base_asset.strip().upper()
         self.display_name = self.display_name.strip()
+        if self.base_asset == self.profile.capital_currency:
+            raise ValidationError(
+                {
+                    "base_asset": _(
+                        "The traded asset must differ from the capital asset."
+                    )
+                }
+            )
+
+    @property
+    def quote_asset(self) -> str:
+        """Return the profile asset in which this market is settled."""
+        return self.profile.capital_currency
+
+    @property
+    def symbol(self) -> str:
+        """Return the canonical pair shown in the journal interface."""
+        return f"{self.base_asset}/{self.quote_asset}"
 
     @property
     def is_archived(self) -> bool:

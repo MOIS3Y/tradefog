@@ -2,11 +2,12 @@
 
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import override
-from pytest import mark
+from pytest import mark, raises
 
 from tradefog.accounts.models import User
 from tradefog.journal.models import ProfileInstrument, TradingProfile
@@ -31,7 +32,7 @@ def profile_data(**overrides: str) -> dict[str, str]:
 def instrument_data(**overrides: str) -> dict[str, str]:
     """Return a complete valid instrument form payload."""
     data = {
-        "symbol": "btc/usdt",
+        "base_asset": "btc",
         "display_name": "Bitcoin",
         "market_type": ProfileInstrument.MarketType.SPOT,
         "price_step": "0.01",
@@ -155,6 +156,37 @@ def test_profile_can_be_edited_and_archived_without_deletion() -> None:
 
 
 @mark.django_db
+def test_capital_currency_is_locked_after_adding_an_instrument() -> None:
+    """Existing markets must retain the profile settlement asset."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    _ = ProfileInstrument.objects.create(
+        profile=profile,
+        base_asset="BTC",
+        price_step=Decimal("0.01"),
+        quantity_step=Decimal("0.001"),
+    )
+    client = Client()
+    client.force_login(user)
+
+    form_response = client.get(f"/en/profiles/{profile.id}/edit/")
+    post_response = client.post(
+        f"/en/profiles/{profile.id}/edit/",
+        profile_data(capital_currency="EUR"),
+    )
+
+    profile.refresh_from_db()
+    assert b'name="capital_currency"' in form_response.content
+    assert b"disabled" in form_response.content
+    assert post_response.status_code == 302
+    assert profile.capital_currency == "USD"
+
+    profile.capital_currency = "EUR"
+    with raises(ValidationError):
+        profile.full_clean()
+
+
+@mark.django_db
 def test_archived_profile_is_listed_and_can_be_restored() -> None:
     """An owner should be able to recover an archived profile."""
     user = User.objects.create_user(username="trader")
@@ -209,20 +241,86 @@ def test_user_adds_normalized_instrument_to_profile() -> None:
     assert response.status_code == 302
     assert response.headers["Location"] == profile.get_absolute_url()
     assert instrument.profile == profile
-    assert instrument.symbol == "BTC/USDT"
+    assert instrument.base_asset == "BTC"
+    assert instrument.symbol == "BTC/USD"
     assert instrument.price_step == Decimal("0.010000000000")
 
 
 @mark.django_db
-def test_duplicate_active_symbol_is_rejected_but_archived_symbol_is_reusable() -> (
+def test_instrument_form_accepts_only_a_base_asset() -> None:
+    """The quote asset must always come from the selected profile."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    client = Client()
+    client.force_login(user)
+
+    response = client.post(
+        f"/en/profiles/{profile.id}/instruments/new/",
+        instrument_data(base_asset="BTC/USDT"),
+    )
+
+    assert response.status_code == 200
+    assert not ProfileInstrument.objects.exists()
+    assert b"letters, numbers, dots, underscores, or hyphens" in (
+        response.content
+    )
+
+
+@mark.django_db
+def test_base_asset_must_differ_from_profile_capital() -> None:
+    """A profile cannot contain a market that trades an asset for itself."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    client = Client()
+    client.force_login(user)
+
+    response = client.post(
+        f"/en/profiles/{profile.id}/instruments/new/",
+        instrument_data(base_asset="usd"),
+    )
+
+    assert response.status_code == 200
+    assert not ProfileInstrument.objects.exists()
+    assert b"must differ from the capital asset" in response.content
+
+
+@mark.django_db
+def test_spot_and_linear_markets_can_share_a_base_asset() -> None:
+    """Market type distinguishes instruments with the same canonical pair."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    _ = ProfileInstrument.objects.create(
+        profile=profile,
+        base_asset="BTC",
+        market_type=ProfileInstrument.MarketType.SPOT,
+        price_step=Decimal("0.01"),
+        quantity_step=Decimal("0.001"),
+    )
+    client = Client()
+    client.force_login(user)
+
+    response = client.post(
+        f"/en/profiles/{profile.id}/instruments/new/",
+        instrument_data(
+            base_asset="btc",
+            market_type=ProfileInstrument.MarketType.LINEAR,
+        ),
+    )
+
+    assert response.status_code == 302
+    assert ProfileInstrument.objects.filter(base_asset="BTC").count() == 2
+
+
+@mark.django_db
+def test_duplicate_active_market_is_rejected_but_archived_market_is_reusable() -> (
     None
 ):
-    """Only active instruments should reserve their normalized symbol."""
+    """Only active instruments should reserve their normalized market."""
     user = User.objects.create_user(username="trader")
     profile = create_profile(user)
     existing = ProfileInstrument.objects.create(
         profile=profile,
-        symbol="BTC/USDT",
+        base_asset="BTC",
         market_type=ProfileInstrument.MarketType.SPOT,
         price_step=Decimal("0.01"),
         quantity_step=Decimal("0.00001"),
@@ -232,23 +330,23 @@ def test_duplicate_active_symbol_is_rejected_but_archived_symbol_is_reusable() -
 
     duplicate_response = client.post(
         f"/en/profiles/{profile.id}/instruments/new/",
-        instrument_data(symbol="btc/usdt"),
+        instrument_data(base_asset="btc"),
     )
     archive_response = client.post(
         f"/en/profiles/{profile.id}/instruments/{existing.id}/archive/"
     )
     replacement_response = client.post(
         f"/en/profiles/{profile.id}/instruments/new/",
-        instrument_data(symbol="btc/usdt"),
+        instrument_data(base_asset="btc"),
     )
 
     assert duplicate_response.status_code == 200
-    assert b"active instrument with this symbol already exists" in (
+    assert b"active instrument already uses this market" in (
         duplicate_response.content
     )
     assert archive_response.status_code == 302
     assert replacement_response.status_code == 302
-    assert ProfileInstrument.objects.filter(symbol="BTC/USDT").count() == 2
+    assert ProfileInstrument.objects.filter(base_asset="BTC").count() == 2
 
 
 @mark.django_db
@@ -258,7 +356,7 @@ def test_archived_instrument_can_be_restored() -> None:
     profile = create_profile(user)
     instrument = ProfileInstrument.objects.create(
         profile=profile,
-        symbol="ETH/USD",
+        base_asset="ETH",
         price_step=Decimal("0.01"),
         quantity_step=Decimal("0.001"),
         archived_at=timezone.now(),
@@ -278,20 +376,20 @@ def test_archived_instrument_can_be_restored() -> None:
 
 
 @mark.django_db
-def test_instrument_restore_reports_active_symbol_conflict() -> None:
-    """An archived symbol cannot displace an existing active instrument."""
+def test_instrument_restore_reports_active_market_conflict() -> None:
+    """An archived market cannot displace an existing active instrument."""
     user = User.objects.create_user(username="trader")
     profile = create_profile(user)
     archived = ProfileInstrument.objects.create(
         profile=profile,
-        symbol="ETH/USD",
+        base_asset="ETH",
         price_step=Decimal("0.01"),
         quantity_step=Decimal("0.001"),
         archived_at=timezone.now(),
     )
     _ = ProfileInstrument.objects.create(
         profile=profile,
-        symbol="ETH/USD",
+        base_asset="ETH",
         price_step=Decimal("0.01"),
         quantity_step=Decimal("0.001"),
     )
@@ -305,7 +403,7 @@ def test_instrument_restore_reports_active_symbol_conflict() -> None:
 
     archived.refresh_from_db()
     assert archived.archived_at is not None
-    assert b"already used by an active instrument" in response.content
+    assert b"active instrument already uses this market" in response.content
 
 
 @mark.django_db
@@ -316,7 +414,7 @@ def test_instrument_routes_require_matching_owned_profile() -> None:
     second_profile = create_profile(user, "Second")
     instrument = ProfileInstrument.objects.create(
         profile=first_profile,
-        symbol="ETH/USD",
+        base_asset="ETH",
         price_step=Decimal("0.01"),
         quantity_step=Decimal("0.001"),
     )
