@@ -21,19 +21,35 @@
     <div class="page">
       <header class="navbar navbar-expand-md d-print-none">
         <div class="container-xl">
-          <a class="navbar-brand" href="{% url 'home' %}">
-            <img class="navbar-brand-image"
-                 src="{% static 'tradefog/images/logo.svg' %}"
-                 alt=""
-                 width="28"
-                 height="28">
-            <span class="d-none d-sm-inline">Tradefog</span>
-          </a>
+          {% if user.is_authenticated %}
+            <button class="navbar-toggler"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#navbar-menu"
+                    aria-controls="navbar-menu"
+                    aria-expanded="false"
+                    aria-label="{% translate 'Toggle navigation' %}">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+          {% endif %}
 
-          <nav class="navbar-nav flex-row order-md-last ms-auto align-items-center gap-1"
-               aria-label="{% translate 'Primary navigation' %}">
+          <div class="navbar-brand navbar-brand-autodark pe-0 pe-md-3">
+            <a class="d-flex align-items-center gap-2 text-reset text-decoration-none"
+               href="{% url 'home' %}"
+               aria-label="Tradefog">
+              <img class="navbar-brand-image"
+                   src="{% static 'tradefog/images/logo.svg' %}"
+                   alt=""
+                   width="28"
+                   height="28">
+              <span>Tradefog</span>
+            </a>
+          </div>
+
+          <nav class="navbar-nav flex-row order-md-last ms-auto align-items-center"
+               aria-label="{% translate 'Application controls' %}">
             <div class="nav-item dropdown">
-              <button class="btn btn-animate-icon btn-animate-icon-move-start"
+              <button class="nav-link px-2 border-0 bg-transparent"
                       type="button"
                       data-bs-toggle="dropdown"
                       aria-expanded="false"
@@ -59,7 +75,7 @@
             </div>
 
             <div class="nav-item">
-              <button class="btn btn-icon"
+              <button class="nav-link px-2 border-0 bg-transparent"
                       type="button"
                       data-theme-toggle
                       data-label-auto="{% translate 'Theme: Auto' %}"
@@ -73,27 +89,79 @@
             </div>
 
             {% if user.is_authenticated %}
-              <div class="nav-item d-none d-sm-flex">
-                <span class="nav-link d-flex lh-1 text-reset align-items-center gap-2 px-2">
-                  {% include "tradefog/components/icon.html" with name="user-circle" class="icon-2" %}
-                  <span>{{ user.get_username }}</span>
-                </span>
-              </div>
-              <div class="nav-item">
-                <form class="m-0" action="{% url 'logout' %}" method="post">
-                  {% csrf_token %}
-                  <button class="btn btn-icon btn-animate-icon"
-                          type="submit"
-                          aria-label="{% translate 'Log out' %}"
-                          title="{% translate 'Log out' %}">
-                    {% include "tradefog/components/icon.html" with name="logout" class="" %}
-                  </button>
-                </form>
+              <div class="nav-item dropdown">
+                <button class="nav-link d-flex lh-1 p-0 ps-2 border-0 bg-transparent"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        aria-label="{% translate 'Open user menu' %}">
+                  <span class="avatar avatar-sm" aria-hidden="true">
+                    {% if user.first_name %}
+                      {{ user.first_name|first|upper }}
+                    {% else %}
+                      {{ user.get_username|first|upper }}
+                    {% endif %}
+                  </span>
+                  <span class="d-none d-xl-block ps-2 text-start">
+                    <span class="d-block">
+                      {{ user.get_full_name|default:user.get_username }}
+                    </span>
+                    <span class="d-block mt-1 small text-secondary">
+                      {{ user.get_username }}
+                    </span>
+                  </span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+                  <span class="dropdown-item disabled" aria-disabled="true">
+                    {% include "tradefog/components/icon.html" with name="settings" class="icon-2" %}
+                    {% translate "Settings" %}
+                  </span>
+                  <div class="dropdown-divider"></div>
+                  <form class="m-0" action="{% url 'logout' %}" method="post">
+                    {% csrf_token %}
+                    <button class="dropdown-item" type="submit">
+                      {% include "tradefog/components/icon.html" with name="logout" class="icon-2" %}
+                      {% translate "Log out" %}
+                    </button>
+                  </form>
+                </div>
               </div>
             {% endif %}
           </nav>
         </div>
       </header>
+
+      {% if user.is_authenticated %}
+        <header class="navbar-expand-md d-print-none">
+          <div class="collapse navbar-collapse" id="navbar-menu">
+            <div class="navbar">
+              <div class="container-xl">
+                <ul class="navbar-nav"
+                    aria-label="{% translate 'Primary navigation' %}">
+                  <li class="nav-item{% if request.resolver_match.url_name == 'home' %} active{% endif %}">
+                    <a class="nav-link" href="{% url 'home' %}"
+                       {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>
+                      <span class="nav-link-icon d-md-none d-lg-inline-block">
+                        {% include "tradefog/components/icon.html" with name="home" class="icon-1" %}
+                      </span>
+                      <span class="nav-link-title">{% translate "Home" %}</span>
+                    </a>
+                  </li>
+                  <li class="nav-item{% if 'profiles/' in request.resolver_match.route %} active{% endif %}">
+                    <a class="nav-link" href="{% url 'profile_overview' %}"
+                       {% if 'profiles/' in request.resolver_match.route %}aria-current="page"{% endif %}>
+                      <span class="nav-link-icon d-md-none d-lg-inline-block">
+                        {% include "tradefog/components/icon.html" with name="notebook" class="icon-1" %}
+                      </span>
+                      <span class="nav-link-title">{% translate "Profiles" %}</span>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </header>
+      {% endif %}
 
       <main class="page-wrapper">
         {% block page_header %}{% endblock %}
@@ -101,9 +169,13 @@
           <div class="container-xl">
             {% if messages %}
               {% for message in messages %}
-                <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}"
+                <div class="alert alert-dismissible {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}"
                      role="alert">
                   {{ message }}
+                  <button class="btn-close"
+                          type="button"
+                          data-bs-dismiss="alert"
+                          aria-label="{% translate 'Close' %}"></button>
                 </div>
               {% endfor %}
             {% endif %}

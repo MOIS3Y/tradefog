@@ -265,12 +265,17 @@
               python -m tradefog.assets.build
             }
 
+            tradefog_collect_static() {
+              python -m tradefog setup --collect-static
+            }
+
             tradefog_reset_environment
             tradefog_set_repository_root
             tradefog_prepare_runtime_directories
             tradefog_prepare_configuration
             tradefog_compile_translations
             tradefog_build_frontend_assets
+            tradefog_collect_static
 
             unset -f \
               tradefog_reset_environment \
@@ -278,7 +283,8 @@
               tradefog_prepare_runtime_directories \
               tradefog_prepare_configuration \
               tradefog_compile_translations \
-              tradefog_build_frontend_assets
+              tradefog_build_frontend_assets \
+              tradefog_collect_static
           '';
         };
       }

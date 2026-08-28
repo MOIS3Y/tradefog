@@ -24,8 +24,9 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     assert "function selectTheme" not in rendered_template
     assert "tradefog/images/favicon.svg" in rendered_template
     assert "data-theme-toggle" in rendered_template
-    assert "btn-animate-icon" in rendered_template
-    assert "btn-animate-icon-move-start" in rendered_template
+    assert "navbar-brand-autodark" in rendered_template
+    assert "btn-animate-icon" not in rendered_template
+    assert "btn-animate-icon-move-start" not in rendered_template
     assert "btn-animate-icon-rotate" not in rendered_template
     assert "tf-navbar-control" not in rendered_template
     assert 'data-theme-choice="system"' not in rendered_template

@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tradefog\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-28 23:20+0900\n"
+"POT-Creation-Date: 2026-08-28 23:59+0900\n"
 "PO-Revision-Date: 2026-08-26 00:00+0900\n"
 "Last-Translator: tradefog maintainers\n"
 "Language-Team: Russian\n"
@@ -25,7 +25,7 @@ msgstr "Русский"
 msgid "Capital currency is locked because instruments exist."
 msgstr "Валюта капитала заблокирована, поскольку в профиле есть инструменты."
 
-#: journal/forms.py:112
+#: journal/forms.py:113
 msgid "Leave empty when the venue has no limit."
 msgstr "Оставьте пустым, если площадка не задаёт ограничение."
 
@@ -161,29 +161,54 @@ msgstr "Имя пользователя"
 msgid "Password"
 msgstr "Пароль"
 
-#: templates/tradefog/base.html:34
-msgid "Primary navigation"
-msgstr "Основная навигация"
+#: templates/tradefog/base.html:31
+msgid "Toggle navigation"
+msgstr "Переключить навигацию"
 
-#: templates/tradefog/base.html:40
+#: templates/tradefog/base.html:50
+msgid "Application controls"
+msgstr "Элементы управления приложением"
+
+#: templates/tradefog/base.html:56
 msgid "Language"
 msgstr "Язык"
 
-#: templates/tradefog/base.html:65 templates/tradefog/base.html:71
+#: templates/tradefog/base.html:81 templates/tradefog/base.html:87
 msgid "Theme: Auto"
 msgstr "Тема: автоматически"
 
-#: templates/tradefog/base.html:66
+#: templates/tradefog/base.html:82
 msgid "Theme: Dark"
 msgstr "Тема: тёмная"
 
-#: templates/tradefog/base.html:67
+#: templates/tradefog/base.html:83
 msgid "Theme: Light"
 msgstr "Тема: светлая"
 
-#: templates/tradefog/base.html:87 templates/tradefog/base.html:88
+#: templates/tradefog/base.html:97
+msgid "Open user menu"
+msgstr "Открыть меню пользователя"
+
+#: templates/tradefog/base.html:108
+msgid "Settings"
+msgstr "Настройки"
+
+#: templates/tradefog/base.html:115
 msgid "Log out"
 msgstr "Выйти"
+
+#: templates/tradefog/base.html:131
+msgid "Primary navigation"
+msgstr "Основная навигация"
+
+#: templates/tradefog/base.html:138 templates/tradefog/home.html:4
+#: templates/tradefog/home.html:9
+msgid "Home"
+msgstr "Главная"
+
+#: templates/tradefog/base.html:147
+msgid "Profiles"
+msgstr "Профили"
 
 #: templates/tradefog/journal/archive_confirm.html:4
 msgid "Confirm archive"
@@ -406,6 +431,10 @@ msgstr "Открыть профиль"
 #: templates/tradefog/journal/profile_overview.html:103
 msgid "No trading profiles yet"
 msgstr "Торговых профилей пока нет"
+
+#: templates/tradefog/base.html
+msgid "Close"
+msgstr "Закрыть"
 
 #: templates/tradefog/journal/profile_overview.html:106
 msgid ""

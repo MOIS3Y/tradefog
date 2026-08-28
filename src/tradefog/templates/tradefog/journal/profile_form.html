@@ -81,7 +81,7 @@
           </div>
           <div class="card-footer d-flex justify-content-end gap-2">
             <a class="btn"
-               href="{% if editing %}{{ profile.get_absolute_url }}{% else %}{% url 'home' %}{% endif %}">
+               href="{% if editing %}{{ profile.get_absolute_url }}{% else %}{% url 'profile_overview' %}{% endif %}">
               {% translate "Cancel" %}
             </a>
             <button class="btn btn-primary" type="submit">

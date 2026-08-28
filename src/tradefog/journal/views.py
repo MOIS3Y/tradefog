@@ -178,7 +178,7 @@ def profile_archive(request: HttpRequest, profile_id: int) -> HttpResponse:
     profile = _owned_profile(request, profile_id)
     if request.method == "POST":
         archive_profile(profile)
-        return redirect("home")
+        return redirect("profile_overview")
     return render(
         request,
         "tradefog/journal/archive_confirm.html",

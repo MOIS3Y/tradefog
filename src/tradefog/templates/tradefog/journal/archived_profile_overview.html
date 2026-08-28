@@ -9,14 +9,14 @@
       <div class="row g-2 align-items-center">
         <div class="col">
           <div class="page-pretitle">
-            <a class="text-secondary" href="{% url 'home' %}">
+            <a class="text-secondary" href="{% url 'profile_overview' %}">
               {% translate "Trading profiles" %}
             </a>
           </div>
           <h1 class="page-title">{% translate "Archived profiles" %}</h1>
         </div>
         <div class="col-auto ms-auto">
-          <a class="btn btn-animate-icon" href="{% url 'home' %}">
+          <a class="btn btn-animate-icon" href="{% url 'profile_overview' %}">
             {% include "tradefog/components/icon.html" with name="chevron-left" class="icon-2" %}
             {% translate "Back to active profiles" %}
           </a>

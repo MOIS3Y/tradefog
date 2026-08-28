@@ -16,7 +16,7 @@ def test_application_uses_custom_user_model() -> None:
 
 @mark.django_db
 def test_anonymous_user_is_redirected_to_localized_login() -> None:
-    """The profile overview should require authentication."""
+    """The application home should require authentication."""
     response = Client().get("/en/")
 
     assert response.status_code == 302
@@ -24,10 +24,12 @@ def test_anonymous_user_is_redirected_to_localized_login() -> None:
 
 
 @mark.django_db
-def test_user_can_sign_in_and_open_profile_overview() -> None:
-    """A valid account should reach the protected application root."""
+def test_user_can_sign_in_and_open_home() -> None:
+    """A valid account should reach the protected application home."""
     _ = User.objects.create_user(
         username="trader",
+        first_name="Ada",
+        last_name="Lovelace",
         password="correct-horse-battery-staple",
     )
     client = Client()
@@ -43,10 +45,15 @@ def test_user_can_sign_in_and_open_profile_overview() -> None:
     assert response.status_code == 302
     assert response.headers["Location"] == "/en/"
 
-    overview = client.get("/en/")
+    home = client.get("/en/")
 
-    assert overview.status_code == 200
-    assert b"No trading profiles yet" in overview.content
+    assert home.status_code == 200
+    assert b"Home" in home.content
+    assert b'href="/en/profiles/"' in home.content
+    assert b"Open user menu" in home.content
+    assert b"Ada Lovelace" in home.content
+    assert b"trader" in home.content
+    assert b"Settings" in home.content
 
 
 @mark.django_db
@@ -67,7 +74,7 @@ def test_invalid_credentials_are_explained_and_highlighted() -> None:
 
 
 @mark.django_db
-def test_profile_overview_uses_url_language() -> None:
+def test_home_uses_url_language() -> None:
     """The language prefix should select the rendered translation."""
     user = User.objects.create_user(username="trader")
     client = Client()
@@ -76,7 +83,7 @@ def test_profile_overview_uses_url_language() -> None:
     response = client.get("/ru/")
 
     assert response.status_code == 200
-    assert "Торговые профили" in response.content.decode()
+    assert "Главная" in response.content.decode()
 
 
 @mark.django_db

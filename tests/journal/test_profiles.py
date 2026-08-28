@@ -83,7 +83,7 @@ def test_profile_overview_is_owner_scoped() -> None:
     client = Client()
     client.force_login(owner)
 
-    response = client.get("/en/")
+    response = client.get("/en/profiles/")
     content = response.content.decode()
 
     assert response.status_code == 200
@@ -147,7 +147,7 @@ def test_profile_can_be_edited_and_archived_without_deletion() -> None:
 
     profile.refresh_from_db()
     assert edit_response.status_code == 302
-    assert archive_response.headers["Location"] == "/en/"
+    assert archive_response.headers["Location"] == "/en/profiles/"
     assert profile.name == "Conservative"
     assert profile.owner == user
     assert profile.archived_at is not None
@@ -198,12 +198,16 @@ def test_archived_profile_is_listed_and_can_be_restored() -> None:
 
     archive_response = client.get("/en/profiles/archived/")
     restore_response = client.post(f"/en/profiles/{profile.id}/restore/")
+    message_response = client.get(profile.get_absolute_url())
 
     profile.refresh_from_db()
     assert archive_response.status_code == 200
     assert profile.name in archive_response.content.decode()
     assert restore_response.status_code == 302
     assert restore_response.headers["Location"] == profile.get_absolute_url()
+    assert b"Profile restored." in message_response.content
+    assert b'alert-dismissible' in message_response.content
+    assert b'data-bs-dismiss="alert"' in message_response.content
     assert profile.archived_at is None
 
 
@@ -436,6 +440,7 @@ def test_instrument_routes_require_matching_owned_profile() -> None:
 def test_journal_routes_follow_the_active_language() -> None:
     """Every journal action should retain the explicit language prefix."""
     with override("en"):
+        assert reverse("profile_overview") == "/en/profiles/"
         assert reverse("profile_create") == "/en/profiles/new/"
         assert reverse("profile_detail", args=[7]) == "/en/profiles/7/"
         assert reverse("archived_profile_overview") == (
@@ -446,6 +451,7 @@ def test_journal_routes_follow_the_active_language() -> None:
         )
 
     with override("ru"):
+        assert reverse("profile_overview") == "/ru/profiles/"
         assert reverse("profile_create") == "/ru/profiles/new/"
         assert reverse("profile_detail", args=[7]) == "/ru/profiles/7/"
         assert reverse("instrument_create", args=[7]) == (

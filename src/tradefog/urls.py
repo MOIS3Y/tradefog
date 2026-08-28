@@ -6,12 +6,15 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import include, path
 from django.views.i18n import JavaScriptCatalog, set_language
 
+from tradefog import views
+
 urlpatterns = i18n_patterns(
     path(
         "set-language/",
         set_language,
         name="set_language",
     ),
+    path("", views.home, name="home"),
     path("", include("tradefog.journal.urls")),
     path(
         "login/",
