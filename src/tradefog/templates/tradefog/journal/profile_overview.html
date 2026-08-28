@@ -1,0 +1,120 @@
+{% extends "tradefog/base.html" %}
+{% load i18n journal %}
+
+{% block title %}{% translate "Trading profiles" %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          <div class="page-pretitle">{% translate "Profile overview" %}</div>
+          <h1 class="page-title">{% translate "Trading profiles" %}</h1>
+        </div>
+        <div class="col-auto ms-auto d-flex gap-2">
+          {% if archived_profile_count %}
+            <a class="btn"
+               href="{% url 'archived_profile_overview' %}">
+              {% include "tradefog/components/icon.html" with name="archive" class="icon-2" %}
+              {% translate "Archive" context "noun" %}
+              <span class="badge bg-secondary-lt ms-1">
+                {{ archived_profile_count }}
+              </span>
+            </a>
+          {% endif %}
+          <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+             href="{% url 'profile_create' %}">
+            {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+            {% translate "Create profile" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% if profiles %}
+    <div class="row row-cards">
+      {% for profile in profiles %}
+        <div class="col-12 col-lg-6">
+          <article class="card h-100">
+            <div class="card-body">
+              <div class="d-flex align-items-start gap-3 mb-4">
+                <span class="avatar bg-primary-lt">
+                  {% include "tradefog/components/icon.html" with name="notebook" class="" %}
+                </span>
+                <div class="flex-fill min-w-0">
+                  <h2 class="card-title mb-1">
+                    <a class="text-reset" href="{{ profile.get_absolute_url }}">
+                      {{ profile.name }}
+                    </a>
+                  </h2>
+                  <div class="text-secondary">
+                    {{ profile.venue_name }} · {{ profile.capital_currency }}
+                  </div>
+                </div>
+                <a class="btn btn-icon"
+                   href="{{ profile.get_absolute_url }}"
+                   aria-label="{% translate 'Open profile' %}"
+                   title="{% translate 'Open profile' %}">
+                  {% include "tradefog/components/icon.html" with name="chevron-right" class="" %}
+                </a>
+              </div>
+
+              <div class="datagrid">
+                <div class="datagrid-item">
+                  <div class="datagrid-title">{% translate "Initial capital" %}</div>
+                  <div class="datagrid-content">
+                    {{ profile.initial_capital|compact_decimal }}
+                    {{ profile.capital_currency }}
+                  </div>
+                </div>
+                <div class="datagrid-item">
+                  <div class="datagrid-title">{% translate "Risk per trade" %}</div>
+                  <div class="datagrid-content">
+                    {{ profile.risk_per_trade_percent|compact_decimal }}%
+                  </div>
+                </div>
+                <div class="datagrid-item">
+                  <div class="datagrid-title">{% translate "Risk/reward" %}</div>
+                  <div class="datagrid-content">
+                    1:{{ profile.reward_multiple|compact_decimal }}
+                  </div>
+                </div>
+                <div class="datagrid-item">
+                  <div class="datagrid-title">{% translate "Daily risk limit" %}</div>
+                  <div class="datagrid-content">
+                    {{ profile.daily_risk_limit_percent|compact_decimal }}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <section class="empty empty-bordered" aria-labelledby="empty-state-title">
+      <div class="empty-icon">
+        {% include "tradefog/components/icon.html" with name="notebook" class="" %}
+      </div>
+      <h2 class="empty-title" id="empty-state-title">
+        {% translate "No trading profiles yet" %}
+      </h2>
+      <p class="empty-subtitle text-secondary">
+        {% blocktranslate trimmed %}
+          Create a profile to separate capital, venue instruments, and risk
+          rules from the rest of your journal.
+        {% endblocktranslate %}
+      </p>
+      <div class="empty-action">
+        <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+           href="{% url 'profile_create' %}">
+          {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+          {% translate "Create profile" %}
+        </a>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

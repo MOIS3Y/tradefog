@@ -99,6 +99,14 @@
         {% block page_header %}{% endblock %}
         <div class="page-body">
           <div class="container-xl">
+            {% if messages %}
+              {% for message in messages %}
+                <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}"
+                     role="alert">
+                  {{ message }}
+                </div>
+              {% endfor %}
+            {% endif %}
             {% block content %}{% endblock %}
           </div>
         </div>

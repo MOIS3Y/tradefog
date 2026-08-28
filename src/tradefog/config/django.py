@@ -18,6 +18,7 @@ class DjangoSettings(ConfigSection):
             "django_typer",
             "tradefog.accounts.apps.AccountsConfig",
             "tradefog.cli.apps.CliConfig",
+            "tradefog.journal.apps.JournalConfig",
         ]
 
     def middleware(self) -> list[str]:

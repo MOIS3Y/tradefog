@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tradefog\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-26 14:57+0000\n"
+"POT-Creation-Date: 2026-08-28 22:09+0900\n"
 "PO-Revision-Date: 2026-08-26 00:00+0900\n"
 "Last-Translator: tradefog maintainers\n"
 "Language-Team: Russian\n"
@@ -13,56 +13,392 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: tests/test_localization.py:37 src/tradefog/config/localization.py:25
+#: config/localization.py:25
 msgid "English"
 msgstr "Английский"
 
-#: tests/test_localization.py:38 src/tradefog/config/localization.py:26
+#: config/localization.py:26
 msgid "Russian"
 msgstr "Русский"
 
-msgid "Primary navigation"
-msgstr "Основная навигация"
+#: journal/forms.py:92
+msgid "Leave empty when the venue has no limit."
+msgstr "Оставьте пустым, если площадка не задаёт ограничение."
 
-msgid "Language"
-msgstr "Язык"
+#: journal/forms.py:126 journal/models.py:239
+msgid "An active instrument with this symbol already exists."
+msgstr "Активный инструмент с таким символом уже существует."
 
-msgid "Theme: Auto"
-msgstr "Тема: автоматически"
+#: journal/models.py:41
+msgid "Name"
+msgstr "Название"
 
-msgid "Theme: Dark"
-msgstr "Тема: тёмная"
+#: journal/models.py:44
+msgid "Venue"
+msgstr "Площадка"
 
-msgid "Theme: Light"
-msgstr "Тема: светлая"
+#: journal/models.py:47
+msgid "Capital currency"
+msgstr "Валюта капитала"
 
-msgid "Log out"
-msgstr "Выйти"
+#: journal/models.py:49
+msgid "Currency used for capital, risk, and realized P&L."
+msgstr "Валюта для капитала, риска и реализованного P&L."
 
-msgid "Profile overview"
-msgstr "Обзор профилей"
+#: journal/models.py:53
+msgid "Initial trading capital"
+msgstr "Начальный торговый капитал"
 
-msgid "Trading profiles"
-msgstr "Торговые профили"
+#: journal/models.py:61
+msgid "Risk per trade, %"
+msgstr "Риск на сделку, %"
 
-msgid "No trading profiles yet"
-msgstr "Торговых профилей пока нет"
+#: journal/models.py:70
+msgid "Reward multiple"
+msgstr "Множитель прибыли"
 
-msgid ""
-"Profiles keep capital, instruments, and risk rules separate. Your profiles "
-"will appear here."
-msgstr ""
-"Профили разделяют капитал, инструменты и правила риска. Здесь появятся ваши "
-"профили."
+#: journal/models.py:76
+msgid "Target profit expressed as a multiple of trade risk."
+msgstr "Целевая прибыль в долях риска одной сделки."
 
+#: journal/models.py:82
+msgid "Daily risk limit, %"
+msgstr "Дневной лимит риска, %"
+
+#: journal/models.py:91
+msgid "Monthly target, %"
+msgstr "Месячная цель, %"
+
+#: journal/models.py:139
+msgid "The daily risk limit cannot be lower than the risk per trade."
+msgstr "Дневной лимит риска не может быть меньше риска на сделку."
+
+#: journal/models.py:156
+msgid "Spot"
+msgstr "Спот"
+
+#: journal/models.py:157
+msgid "Linear"
+msgstr "Линейный"
+
+#: journal/models.py:169
+msgid "Symbol"
+msgstr "Символ"
+
+#: journal/models.py:171
+msgid "Venue symbol, for example BTC/USDT or AAPL."
+msgstr "Символ на площадке, например BTC/USDT или AAPL."
+
+#: journal/models.py:174
+msgid "Display name"
+msgstr "Отображаемое название"
+
+#: journal/models.py:179
+msgid "Market type"
+msgstr "Тип рынка"
+
+#: journal/models.py:185 templates/tradefog/journal/profile_detail.html:109
+msgid "Price step"
+msgstr "Шаг цены"
+
+#: journal/models.py:191 templates/tradefog/journal/profile_detail.html:110
+msgid "Quantity step"
+msgstr "Шаг количества"
+
+#: journal/models.py:198
+msgid "Minimum quantity"
+msgstr "Минимальное количество"
+
+#: journal/models.py:208
+msgid "Minimum notional"
+msgstr "Минимальная сумма ордера"
+
+#: journal/models.py:215
+msgid "Minimum order value in the profile capital currency."
+msgstr "Минимальная сумма ордера в валюте капитала профиля."
+
+#: journal/views.py:193
+msgid "Profile restored."
+msgstr "Профиль восстановлен."
+
+#: journal/views.py:286
+msgid "Instrument restored."
+msgstr "Инструмент восстановлен."
+
+#: journal/views.py:290
+msgid "This symbol is already used by an active instrument."
+msgstr "Этот символ уже используется активным инструментом."
+
+#: journal/views.py:292
+msgid "Archive that instrument before restoring this one."
+msgstr "Архивируйте его перед восстановлением этого инструмента."
+
+#: templates/registration/login.html:4 templates/registration/login.html:67
 msgid "Sign in"
 msgstr "Войти"
 
+#: templates/registration/login.html:12
 msgid "Welcome!"
 msgstr "Добро пожаловать!"
 
+#: templates/registration/login.html:30
 msgid "Username"
 msgstr "Имя пользователя"
 
+#: templates/registration/login.html:49
 msgid "Password"
 msgstr "Пароль"
+
+#: templates/tradefog/base.html:34
+msgid "Primary navigation"
+msgstr "Основная навигация"
+
+#: templates/tradefog/base.html:40
+msgid "Language"
+msgstr "Язык"
+
+#: templates/tradefog/base.html:65 templates/tradefog/base.html:71
+msgid "Theme: Auto"
+msgstr "Тема: автоматически"
+
+#: templates/tradefog/base.html:66
+msgid "Theme: Dark"
+msgstr "Тема: тёмная"
+
+#: templates/tradefog/base.html:67
+msgid "Theme: Light"
+msgstr "Тема: светлая"
+
+#: templates/tradefog/base.html:87 templates/tradefog/base.html:88
+msgid "Log out"
+msgstr "Выйти"
+
+#: templates/tradefog/journal/archive_confirm.html:4
+msgid "Confirm archive"
+msgstr "Подтверждение архивации"
+
+#: templates/tradefog/journal/archive_confirm.html:16
+msgid "Archive this profile?"
+msgstr "Архивировать этот профиль?"
+
+#: templates/tradefog/journal/archive_confirm.html:18
+msgid "Archive this instrument?"
+msgstr "Архивировать этот инструмент?"
+
+#: templates/tradefog/journal/archive_confirm.html:22
+#, python-format
+msgid ""
+"\n"
+"              %(object_name)s will disappear from active journal workflows.\n"
+"              Existing history will not be deleted.\n"
+"            "
+msgstr ""
+"\n"
+"              %(object_name)s будет исключён из активных разделов журнала. "
+"Существующая\n"
+"              история не будет удалена.\n"
+"            "
+
+#: templates/tradefog/journal/archive_confirm.html:30
+#: templates/tradefog/journal/instrument_form.html:71
+#: templates/tradefog/journal/profile_form.html:85
+msgid "Cancel"
+msgstr "Отмена"
+
+#: templates/tradefog/journal/archive_confirm.html:32
+#: templates/tradefog/journal/profile_detail.html:29
+msgid "Archive"
+msgstr "Архивировать"
+
+#: templates/tradefog/journal/archived_profile_overview.html:4
+#: templates/tradefog/journal/archived_profile_overview.html:16
+msgid "Archived profiles"
+msgstr "Архивные профили"
+
+#: templates/tradefog/journal/archived_profile_overview.html:13
+#: templates/tradefog/journal/profile_detail.html:13
+#: templates/tradefog/journal/profile_overview.html:4
+#: templates/tradefog/journal/profile_overview.html:12
+msgid "Trading profiles"
+msgstr "Торговые профили"
+
+#: templates/tradefog/journal/archived_profile_overview.html:21
+msgid "Back to active profiles"
+msgstr "Вернуться к активным профилям"
+
+#: templates/tradefog/journal/archived_profile_overview.html:45
+#, python-format
+msgid "Archived %(archived_at)s"
+msgstr "В архиве с %(archived_at)s"
+
+#: templates/tradefog/journal/archived_profile_overview.html:54
+#: templates/tradefog/journal/profile_detail.html:215
+msgid "Restore"
+msgstr "Восстановить"
+
+#: templates/tradefog/journal/archived_profile_overview.html:67
+msgid "The archive is empty"
+msgstr "Архив пуст"
+
+#: templates/tradefog/journal/archived_profile_overview.html:69
+msgid "Archived profiles will remain available here for restoration."
+msgstr "Архивные профили будут доступны здесь для восстановления."
+
+#: templates/tradefog/journal/instrument_form.html:5
+#: templates/tradefog/journal/instrument_form.html:16
+#: templates/tradefog/journal/profile_detail.html:142
+#: templates/tradefog/journal/profile_detail.html:143
+msgid "Edit instrument"
+msgstr "Редактировать инструмент"
+
+#: templates/tradefog/journal/instrument_form.html:5
+#: templates/tradefog/journal/instrument_form.html:16
+#: templates/tradefog/journal/instrument_form.html:74
+#: templates/tradefog/journal/profile_detail.html:97
+msgid "Add instrument"
+msgstr "Добавить инструмент"
+
+#: templates/tradefog/journal/instrument_form.html:38
+msgid "Venue instrument"
+msgstr "Инструмент площадки"
+
+#: templates/tradefog/journal/instrument_form.html:40
+msgid "Precision and minimums are used to validate future position plans."
+msgstr "Точность и минимумы будут использоваться при проверке плана позиции."
+
+#: templates/tradefog/journal/instrument_form.html:74
+#: templates/tradefog/journal/profile_form.html:88
+msgid "Save changes"
+msgstr "Сохранить изменения"
+
+#: templates/tradefog/journal/profile_detail.html:25
+#: templates/tradefog/journal/profile_form.html:5
+#: templates/tradefog/journal/profile_form.html:16
+msgid "Edit profile"
+msgstr "Редактировать профиль"
+
+#: templates/tradefog/journal/profile_detail.html:42
+#: templates/tradefog/journal/profile_form.html:60
+msgid "Risk mandate"
+msgstr "Параметры риска"
+
+#: templates/tradefog/journal/profile_detail.html:45
+msgid "Profile defaults used when a monthly period is created."
+msgstr "Настройки профиля для создания нового месячного периода."
+
+#: templates/tradefog/journal/profile_detail.html:52
+#: templates/tradefog/journal/profile_overview.html:67
+msgid "Initial capital"
+msgstr "Начальный капитал"
+
+#: templates/tradefog/journal/profile_detail.html:58
+#: templates/tradefog/journal/profile_overview.html:74
+msgid "Risk per trade"
+msgstr "Риск на сделку"
+
+#: templates/tradefog/journal/profile_detail.html:64
+#: templates/tradefog/journal/profile_overview.html:80
+msgid "Risk/reward"
+msgstr "Риск/прибыль"
+
+#: templates/tradefog/journal/profile_detail.html:68
+#: templates/tradefog/journal/profile_overview.html:86
+msgid "Daily risk limit"
+msgstr "Дневной лимит риска"
+
+#: templates/tradefog/journal/profile_detail.html:74
+msgid "Monthly target"
+msgstr "Месячная цель"
+
+#: templates/tradefog/journal/profile_detail.html:87
+msgid "Profile instruments"
+msgstr "Инструменты профиля"
+
+#: templates/tradefog/journal/profile_detail.html:90
+msgid "Symbols and order constraints specific to this venue."
+msgstr "Символы и ограничения ордеров для этой площадки."
+
+#: templates/tradefog/journal/profile_detail.html:107
+#: templates/tradefog/journal/profile_detail.html:189
+msgid "Instrument"
+msgstr "Инструмент"
+
+#: templates/tradefog/journal/profile_detail.html:108
+#: templates/tradefog/journal/profile_detail.html:190
+msgid "Type"
+msgstr "Тип"
+
+#: templates/tradefog/journal/profile_detail.html:111
+msgid "Minimum order"
+msgstr "Минимальный ордер"
+
+#: templates/tradefog/journal/profile_detail.html:148
+#: templates/tradefog/journal/profile_detail.html:149
+msgid "Archive instrument"
+msgstr "Архивировать инструмент"
+
+#: templates/tradefog/journal/profile_detail.html:164
+msgid "No instruments configured"
+msgstr "Инструменты не настроены"
+
+#: templates/tradefog/journal/profile_detail.html:166
+msgid "Add the first symbol before preparing trades for this profile."
+msgstr "Добавьте первый символ перед подготовкой сделок в этом профиле."
+
+#: templates/tradefog/journal/profile_detail.html:177
+msgid "Archived instruments"
+msgstr "Архивные инструменты"
+
+#: templates/tradefog/journal/profile_detail.html:180
+msgid "Restore an instrument to use it in new trades."
+msgstr "Восстановите инструмент, чтобы использовать его в новых сделках."
+
+#: templates/tradefog/journal/profile_detail.html:191
+msgid "Archived"
+msgstr "В архиве"
+
+#: templates/tradefog/journal/profile_form.html:5
+#: templates/tradefog/journal/profile_form.html:16
+#: templates/tradefog/journal/profile_form.html:88
+#: templates/tradefog/journal/profile_overview.html:28
+#: templates/tradefog/journal/profile_overview.html:115
+msgid "Create profile"
+msgstr "Создать профиль"
+
+#: templates/tradefog/journal/profile_form.html:14
+msgid "Trading profile"
+msgstr "Торговый профиль"
+
+#: templates/tradefog/journal/profile_form.html:37
+msgid "Profile identity"
+msgstr "Основные сведения"
+
+#: templates/tradefog/journal/profile_form.html:62
+msgid "These values become the defaults for future monthly periods."
+msgstr "Эти значения станут настройками будущих месячных периодов."
+
+#: templates/tradefog/journal/profile_overview.html:11
+msgid "Profile overview"
+msgstr "Обзор профилей"
+
+#: templates/tradefog/journal/profile_overview.html:19
+msgctxt "noun"
+msgid "Archive"
+msgstr "Архив"
+
+#: templates/tradefog/journal/profile_overview.html:59
+#: templates/tradefog/journal/profile_overview.html:60
+msgid "Open profile"
+msgstr "Открыть профиль"
+
+#: templates/tradefog/journal/profile_overview.html:103
+msgid "No trading profiles yet"
+msgstr "Торговых профилей пока нет"
+
+#: templates/tradefog/journal/profile_overview.html:106
+msgid ""
+"Create a profile to separate capital, venue instruments, and risk rules from "
+"the rest of your journal."
+msgstr ""
+"Создайте профиль, чтобы отделить его капитал, инструменты площадки и правила "
+"риска от остального журнала."

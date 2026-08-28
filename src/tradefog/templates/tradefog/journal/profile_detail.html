@@ -1,0 +1,226 @@
+{% extends "tradefog/base.html" %}
+{% load i18n journal %}
+
+{% block title %}{{ profile.name }} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            <a class="text-secondary" href="{% url 'home' %}">
+              {% translate "Trading profiles" %}
+            </a>
+          </div>
+          <h1 class="page-title">{{ profile.name }}</h1>
+          <div class="text-secondary mt-1">
+            {{ profile.venue_name }} · {{ profile.capital_currency }}
+          </div>
+        </div>
+        <div class="col-auto ms-auto d-flex gap-2">
+          <a class="btn btn-animate-icon"
+             href="{% url 'profile_edit' profile.id %}">
+            {% include "tradefog/components/icon.html" with name="pencil" class="icon-2" %}
+            {% translate "Edit profile" %}
+          </a>
+          <a class="btn btn-outline-danger"
+             href="{% url 'profile_archive' profile.id %}">
+            {% translate "Archive" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <section class="card mb-4" aria-labelledby="risk-mandate-title">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title" id="risk-mandate-title">
+          {% translate "Risk mandate" %}
+        </h2>
+        <p class="card-subtitle">
+          {% translate "Profile defaults used when a monthly period is created." %}
+        </p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="datagrid">
+        <div class="datagrid-item">
+          <div class="datagrid-title">{% translate "Initial capital" %}</div>
+          <div class="datagrid-content">
+            {{ profile.initial_capital|compact_decimal }} {{ profile.capital_currency }}
+          </div>
+        </div>
+        <div class="datagrid-item">
+          <div class="datagrid-title">{% translate "Risk per trade" %}</div>
+          <div class="datagrid-content">
+            {{ profile.risk_per_trade_percent|compact_decimal }}%
+          </div>
+        </div>
+        <div class="datagrid-item">
+          <div class="datagrid-title">{% translate "Risk/reward" %}</div>
+          <div class="datagrid-content">1:{{ profile.reward_multiple|compact_decimal }}</div>
+        </div>
+        <div class="datagrid-item">
+          <div class="datagrid-title">{% translate "Daily risk limit" %}</div>
+          <div class="datagrid-content">
+            {{ profile.daily_risk_limit_percent|compact_decimal }}%
+          </div>
+        </div>
+        <div class="datagrid-item">
+          <div class="datagrid-title">{% translate "Monthly target" %}</div>
+          <div class="datagrid-content">
+            {{ profile.monthly_target_percent|compact_decimal }}%
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="instruments-title">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title" id="instruments-title">
+          {% translate "Profile instruments" %}
+        </h2>
+        <p class="card-subtitle">
+          {% translate "Symbols and order constraints specific to this venue." %}
+        </p>
+      </div>
+      <div class="card-actions">
+        <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+           href="{% url 'instrument_create' profile.id %}">
+          {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+          {% translate "Add instrument" %}
+        </a>
+      </div>
+    </div>
+
+    {% if instruments %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>{% translate "Instrument" %}</th>
+              <th>{% translate "Type" %}</th>
+              <th>{% translate "Price step" %}</th>
+              <th>{% translate "Quantity step" %}</th>
+              <th>{% translate "Minimum order" %}</th>
+              <th class="w-1"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for instrument in instruments %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ instrument.symbol }}</div>
+                  {% if instrument.display_name %}
+                    <div class="text-secondary small">{{ instrument.display_name }}</div>
+                  {% endif %}
+                </td>
+                <td>{{ instrument.get_market_type_display }}</td>
+                <td class="text-nowrap">{{ instrument.price_step|compact_decimal }}</td>
+                <td class="text-nowrap">{{ instrument.quantity_step|compact_decimal }}</td>
+                <td class="text-nowrap">
+                  {% if instrument.minimum_quantity %}
+                    {{ instrument.minimum_quantity|compact_decimal }}
+                  {% else %}—{% endif %}
+                  {% if instrument.minimum_notional %}
+                    <div class="text-secondary small">
+                      {{ instrument.minimum_notional|compact_decimal }}
+                      {{ profile.capital_currency }}
+                    </div>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="btn-list flex-nowrap">
+                    <a class="btn btn-icon"
+                       href="{% url 'instrument_edit' profile.id instrument.id %}"
+                       aria-label="{% translate 'Edit instrument' %}"
+                       title="{% translate 'Edit instrument' %}">
+                      {% include "tradefog/components/icon.html" with name="pencil" class="" %}
+                    </a>
+                    <a class="btn btn-icon btn-outline-danger"
+                       href="{% url 'instrument_archive' profile.id instrument.id %}"
+                       aria-label="{% translate 'Archive instrument' %}"
+                       title="{% translate 'Archive instrument' %}">
+                      {% include "tradefog/components/icon.html" with name="trash" class="" %}
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty py-5">
+        <div class="empty-icon">
+          {% include "tradefog/components/icon.html" with name="chart-candle" class="" %}
+        </div>
+        <p class="empty-title">{% translate "No instruments configured" %}</p>
+        <p class="empty-subtitle text-secondary">
+          {% translate "Add the first symbol before preparing trades for this profile." %}
+        </p>
+      </div>
+    {% endif %}
+  </section>
+
+  {% if archived_instruments %}
+    <section class="card mt-4" aria-labelledby="archived-instruments-title">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title" id="archived-instruments-title">
+            {% translate "Archived instruments" %}
+          </h2>
+          <p class="card-subtitle">
+            {% translate "Restore an instrument to use it in new trades." %}
+          </p>
+        </div>
+        <span class="badge bg-secondary-lt">{{ archived_instruments|length }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>{% translate "Instrument" %}</th>
+              <th>{% translate "Type" %}</th>
+              <th>{% translate "Archived" %}</th>
+              <th class="w-1"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for instrument in archived_instruments %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ instrument.symbol }}</div>
+                  {% if instrument.display_name %}
+                    <div class="text-secondary small">{{ instrument.display_name }}</div>
+                  {% endif %}
+                </td>
+                <td>{{ instrument.get_market_type_display }}</td>
+                <td class="text-secondary text-nowrap">
+                  {{ instrument.archived_at|date:"SHORT_DATE_FORMAT" }}
+                </td>
+                <td>
+                  <form class="m-0"
+                        action="{% url 'instrument_restore' profile.id instrument.id %}"
+                        method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-animate-icon" type="submit">
+                      {% include "tradefog/components/icon.html" with name="restore" class="icon-2" %}
+                      {% translate "Restore" %}
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

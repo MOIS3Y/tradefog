@@ -3,10 +3,8 @@
 from django.conf.urls.i18n import i18n_patterns
 from django.contrib import admin
 from django.contrib.auth.views import LoginView, LogoutView
-from django.urls import path
+from django.urls import include, path
 from django.views.i18n import JavaScriptCatalog, set_language
-
-from tradefog.views import HomeView
 
 urlpatterns = i18n_patterns(
     path(
@@ -14,11 +12,7 @@ urlpatterns = i18n_patterns(
         set_language,
         name="set_language",
     ),
-    path(
-        "",
-        HomeView.as_view(),
-        name="home",
-    ),
+    path("", include("tradefog.journal.urls")),
     path(
         "login/",
         LoginView.as_view(template_name="registration/login.html"),
