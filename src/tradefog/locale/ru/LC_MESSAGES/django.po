@@ -20,3 +20,49 @@ msgstr "Английский"
 #: tests/test_localization.py:38 src/tradefog/config/localization.py:26
 msgid "Russian"
 msgstr "Русский"
+
+msgid "Primary navigation"
+msgstr "Основная навигация"
+
+msgid "Language"
+msgstr "Язык"
+
+msgid "Theme: Auto"
+msgstr "Тема: автоматически"
+
+msgid "Theme: Dark"
+msgstr "Тема: тёмная"
+
+msgid "Theme: Light"
+msgstr "Тема: светлая"
+
+msgid "Log out"
+msgstr "Выйти"
+
+msgid "Profile overview"
+msgstr "Обзор профилей"
+
+msgid "Trading profiles"
+msgstr "Торговые профили"
+
+msgid "No trading profiles yet"
+msgstr "Торговых профилей пока нет"
+
+msgid ""
+"Profiles keep capital, instruments, and risk rules separate. Your profiles "
+"will appear here."
+msgstr ""
+"Профили разделяют капитал, инструменты и правила риска. Здесь появятся ваши "
+"профили."
+
+msgid "Sign in"
+msgstr "Войти"
+
+msgid "Welcome!"
+msgstr "Добро пожаловать!"
+
+msgid "Username"
+msgstr "Имя пользователя"
+
+msgid "Password"
+msgstr "Пароль"

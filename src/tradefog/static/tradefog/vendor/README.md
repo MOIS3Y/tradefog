@@ -5,7 +5,7 @@ CDN or a JavaScript package manager.
 
 | Resource | Version | License | Source |
 | --- | --- | --- | --- |
-| Pico CSS | 2.1.1 | MIT | https://github.com/picocss/pico |
+| Tabler UI | 1.4.0 | MIT | https://github.com/tabler/tabler |
 | htmx | 2.0.9 | 0BSD | https://github.com/bigskysoftware/htmx |
 | Tabler Icons | 3.46.0 | MIT | https://github.com/tabler/tabler-icons |
 

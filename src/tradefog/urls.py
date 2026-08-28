@@ -2,19 +2,32 @@
 
 from django.conf.urls.i18n import i18n_patterns
 from django.contrib import admin
-from django.urls import include, path
-from django.views.generic import TemplateView
-from django.views.i18n import JavaScriptCatalog
+from django.contrib.auth.views import LoginView, LogoutView
+from django.urls import path
+from django.views.i18n import JavaScriptCatalog, set_language
 
-urlpatterns = [
-    path("i18n/", include("django.conf.urls.i18n")),
-]
+from tradefog.views import HomeView
 
-urlpatterns += i18n_patterns(
+urlpatterns = i18n_patterns(
+    path(
+        "set-language/",
+        set_language,
+        name="set_language",
+    ),
     path(
         "",
-        TemplateView.as_view(template_name="tradefog/base.html"),
+        HomeView.as_view(),
         name="home",
+    ),
+    path(
+        "login/",
+        LoginView.as_view(template_name="registration/login.html"),
+        name="login",
+    ),
+    path(
+        "logout/",
+        LogoutView.as_view(),
+        name="logout",
     ),
     path(
         "jsi18n/",

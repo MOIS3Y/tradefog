@@ -1,44 +1,15 @@
-$brand-color: #466b7a;
-$brand-color-hover: #385866;
-$brand-color-dark: #82a8b6;
-
-:root:not([data-theme="dark"]),
-[data-theme="light"] {
-  --pico-primary: #{$brand-color};
-  --pico-primary-background: #{$brand-color};
-  --pico-primary-border: #{$brand-color};
-  --pico-primary-hover: #{$brand-color-hover};
-  --pico-primary-hover-background: #{$brand-color-hover};
-  --pico-primary-hover-border: #{$brand-color-hover};
-  --pico-primary-focus: rgb(70 107 122 / 25%);
-  --pico-primary-inverse: #fff;
+.tf-theme-icon {
+  display: none;
 }
 
-@mixin dark-brand-theme {
-  --pico-primary: #{$brand-color-dark};
-  --pico-primary-background: #{$brand-color};
-  --pico-primary-border: #{$brand-color};
-  --pico-primary-hover: #a1c1cb;
-  --pico-primary-hover-background: #527d8d;
-  --pico-primary-hover-border: #527d8d;
-  --pico-primary-focus: rgb(130 168 182 / 30%);
-  --pico-primary-inverse: #fff;
-}
-
-@media only screen and (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    @include dark-brand-theme;
-  }
-}
-
-[data-theme="dark"] {
-  @include dark-brand-theme;
-}
-
-.tf-icon {
+[data-theme-choice="auto"] .tf-theme-icon-auto,
+[data-theme-choice="dark"] .tf-theme-icon-dark,
+[data-theme-choice="light"] .tf-theme-icon-light {
   display: inline-block;
-  width: 1.25em;
-  height: 1.25em;
-  flex: 0 0 auto;
-  vertical-align: -0.2em;
+}
+
+.tf-auth-shell {
+  display: grid;
+  min-height: calc(100vh - 10rem);
+  align-items: center;
 }

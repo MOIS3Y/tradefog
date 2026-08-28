@@ -6,6 +6,22 @@ from tradefog.config.base import ConfigSection
 class AuthenticationSettings(ConfigSection):
     """Provide fixed Django authentication settings."""
 
+    def user_model(self) -> str:
+        """Return the configured application user model."""
+        return "accounts.User"
+
+    def login_url(self) -> str:
+        """Return the named login route."""
+        return "login"
+
+    def login_redirect_url(self) -> str:
+        """Return the route used after a successful login."""
+        return "home"
+
+    def logout_redirect_url(self) -> str:
+        """Return the route used after logout."""
+        return "login"
+
     def password_validators(self) -> list[dict[str, str]]:
         """Return the enabled Django password validators."""
         validator_prefix = "django.contrib.auth.password_validation"

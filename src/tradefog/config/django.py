@@ -16,6 +16,7 @@ class DjangoSettings(ConfigSection):
             "django.contrib.messages",
             "django.contrib.staticfiles",
             "django_typer",
+            "tradefog.accounts.apps.AccountsConfig",
             "tradefog.cli.apps.CliConfig",
         ]
 

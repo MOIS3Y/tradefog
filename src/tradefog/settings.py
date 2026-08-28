@@ -28,7 +28,11 @@ DATABASES = _config.database.django_databases()
 
 # Authentication
 
+AUTH_USER_MODEL = _config.authentication.user_model()
 AUTH_PASSWORD_VALIDATORS = _config.authentication.password_validators()
+LOGIN_URL = _config.authentication.login_url()
+LOGIN_REDIRECT_URL = _config.authentication.login_redirect_url()
+LOGOUT_REDIRECT_URL = _config.authentication.logout_redirect_url()
 
 # Localization
 

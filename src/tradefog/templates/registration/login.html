@@ -1,0 +1,75 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Sign in" %} · Tradefog{% endblock %}
+
+{% block content %}
+  <section class="tf-auth-shell" aria-labelledby="sign-in-title">
+    <div class="container container-tight py-4">
+      <div class="card card-md">
+        <div class="card-body">
+          <h1 class="h2 text-center mb-4" id="sign-in-title">
+            {% translate "Welcome!" %}
+          </h1>
+
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger d-flex align-items-start gap-2"
+                 id="login-error"
+                 role="alert">
+              {% include "tradefog/components/icon.html" with name="circle-x" class="alert-icon" %}
+              <div>
+                {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label" for="{{ form.username.id_for_label }}">
+                {% translate "Username" %}
+              </label>
+              <input class="form-control{% if form.username.errors or form.non_field_errors %} is-invalid{% endif %}"
+                     id="{{ form.username.id_for_label }}"
+                     name="{{ form.username.html_name }}"
+                     type="text"
+                     value="{{ form.username.value|default:'' }}"
+                     autocomplete="username"
+                     required
+                     autofocus
+                     {% if form.username.errors or form.non_field_errors %}aria-invalid="true"{% endif %}
+                     {% if form.non_field_errors %}aria-describedby="login-error"{% endif %}>
+              {% for error in form.username.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label" for="{{ form.password.id_for_label }}">
+                {% translate "Password" %}
+              </label>
+              <input class="form-control{% if form.password.errors or form.non_field_errors %} is-invalid{% endif %}"
+                     id="{{ form.password.id_for_label }}"
+                     name="{{ form.password.html_name }}"
+                     type="password"
+                     autocomplete="current-password"
+                     required
+                     {% if form.password.errors or form.non_field_errors %}aria-invalid="true"{% endif %}
+                     {% if form.non_field_errors %}aria-describedby="login-error"{% endif %}>
+              {% for error in form.password.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            <div class="form-footer">
+              <button class="btn btn-primary w-100" type="submit">
+                {% translate "Sign in" %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

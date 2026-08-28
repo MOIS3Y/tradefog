@@ -147,6 +147,10 @@ def test_model_defaults_are_used_without_config_file(
     assert config.logging.level == "INFO"
     assert config.database.active == "sqlite"
     assert config.media.url == "/media/"
+    assert config.authentication.user_model() == "accounts.User"
+    assert config.authentication.login_url() == "login"
+    assert config.authentication.login_redirect_url() == "home"
+    assert config.authentication.logout_redirect_url() == "login"
 
 
 def test_structural_localization_setting_is_rejected(
