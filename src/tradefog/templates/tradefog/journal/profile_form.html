@@ -38,11 +38,22 @@
           </div>
           <div class="card-body">
             <div class="row">
-              <div class="col-12 col-md-6">
+              <div class="col-12 col-md-8">
                 {% include "tradefog/components/form_field.html" with field=form.name %}
               </div>
-              <div class="col-12 col-md-6">
-                {% include "tradefog/components/form_field.html" with field=form.venue_name %}
+              <div class="col-12 col-md-4">
+                <div class="mb-3">
+                  <label class="form-label" for="profile-provider">
+                    {% translate "Execution provider" %}
+                  </label>
+                  <select class="form-select" id="profile-provider" disabled>
+                    <option selected>{% translate "Manual" %}</option>
+                    <option disabled>{% translate "Bybit (coming later)" %}</option>
+                  </select>
+                  <div class="form-hint">
+                    {% translate "Exchange connections are added only with a working adapter." %}
+                  </div>
+                </div>
               </div>
               <div class="col-12 col-md-4">
                 {% include "tradefog/components/form_field.html" with field=form.capital_currency %}
@@ -59,7 +70,7 @@
             <div>
               <h2 class="card-title">{% translate "Risk mandate" %}</h2>
               <p class="card-subtitle">
-                {% translate "These values become the defaults for future monthly periods." %}
+                {% translate "One explicit risk policy applies throughout this profile." %}
               </p>
             </div>
           </div>
@@ -69,13 +80,16 @@
                 {% include "tradefog/components/form_field.html" with field=form.risk_per_trade_percent %}
               </div>
               <div class="col-12 col-md-6">
-                {% include "tradefog/components/form_field.html" with field=form.reward_multiple %}
+                {% include "tradefog/components/form_field.html" with field=form.risk_stop_capital %}
               </div>
               <div class="col-12 col-md-6">
-                {% include "tradefog/components/form_field.html" with field=form.daily_risk_limit_percent %}
-              </div>
-              <div class="col-12 col-md-6">
-                {% include "tradefog/components/form_field.html" with field=form.monthly_target_percent %}
+                <div class="mb-3">
+                  <div class="form-label">{% translate "Risk/reward" %}</div>
+                  <div class="form-control-plaintext">1:3</div>
+                  <div class="form-hint">
+                    {% translate "Tradefog derives take profit from this fixed strategy rule." %}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

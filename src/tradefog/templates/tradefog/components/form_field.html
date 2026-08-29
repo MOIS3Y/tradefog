@@ -5,7 +5,8 @@
   {% if suffix %}
     <div class="input-group">
       {{ field }}
-      <span class="input-group-text">/ {{ suffix }}</span>
+      <span class="input-group-text">/</span>
+      <span class="input-group-text">{{ suffix }}</span>
     </div>
   {% else %}
     {{ field }}

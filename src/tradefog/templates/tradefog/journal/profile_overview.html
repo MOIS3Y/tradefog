@@ -50,8 +50,9 @@
                       {{ profile.name }}
                     </a>
                   </h2>
-                  <div class="text-secondary">
-                    {{ profile.venue_name }} · {{ profile.capital_currency }}
+                  <div class="d-flex align-items-center gap-2 text-secondary">
+                    <span>{{ profile.get_provider_display }} · {{ profile.capital_currency }}</span>
+                    {% include "tradefog/journal/partials/profile_status.html" %}
                   </div>
                 </div>
                 <a class="btn btn-icon"
@@ -64,9 +65,9 @@
 
               <div class="datagrid">
                 <div class="datagrid-item">
-                  <div class="datagrid-title">{% translate "Initial capital" %}</div>
+                  <div class="datagrid-title">{% translate "Current capital" %}</div>
                   <div class="datagrid-content">
-                    {{ profile.initial_capital|compact_decimal }}
+                    {{ profile.current_capital|compact_decimal }}
                     {{ profile.capital_currency }}
                   </div>
                 </div>
@@ -77,15 +78,16 @@
                   </div>
                 </div>
                 <div class="datagrid-item">
-                  <div class="datagrid-title">{% translate "Risk/reward" %}</div>
+                  <div class="datagrid-title">{% translate "Risk stop" %}</div>
                   <div class="datagrid-content">
-                    1:{{ profile.reward_multiple|compact_decimal }}
+                    {{ profile.risk_stop_capital|compact_decimal }}
+                    {{ profile.capital_currency }}
                   </div>
                 </div>
                 <div class="datagrid-item">
-                  <div class="datagrid-title">{% translate "Daily risk limit" %}</div>
+                  <div class="datagrid-title">{% translate "Risk/reward" %}</div>
                   <div class="datagrid-content">
-                    {{ profile.daily_risk_limit_percent|compact_decimal }}%
+                    1:3
                   </div>
                 </div>
               </div>
@@ -104,7 +106,7 @@
       </h2>
       <p class="empty-subtitle text-secondary">
         {% blocktranslate trimmed %}
-          Create a profile to separate capital, venue instruments, and risk
+          Create a profile to separate capital, instruments, and risk
           rules from the rest of your journal.
         {% endblocktranslate %}
       </p>

@@ -4,7 +4,11 @@ from typing import final
 
 from django.contrib import admin
 
-from tradefog.journal.models import ProfileInstrument, TradingProfile
+from tradefog.journal.models import (
+    CapitalOperation,
+    ProfileInstrument,
+    TradingProfile,
+)
 
 
 @admin.register(TradingProfile)
@@ -15,12 +19,27 @@ class TradingProfileAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissingTyp
     list_display = (
         "name",
         "owner",
-        "venue_name",
+        "provider",
         "capital_currency",
-        "archived_at",
+        "status",
     )
-    list_filter = ("capital_currency", "archived_at")
-    search_fields = ("name", "venue_name", "owner__username")
+    list_filter = ("provider", "capital_currency", "status")
+    search_fields = ("name", "owner__username")
+
+
+@admin.register(CapitalOperation)
+@final
+class CapitalOperationAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissingTypeArgument]
+    """Expose explicit profile allocation changes for support."""
+
+    list_display = (
+        "profile",
+        "operation_type",
+        "amount",
+        "created_at",
+    )
+    list_filter = ("operation_type",)
+    search_fields = ("profile__name", "profile__owner__username", "note")
 
 
 @admin.register(ProfileInstrument)

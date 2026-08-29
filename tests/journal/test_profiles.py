@@ -11,19 +11,17 @@ from pytest import mark, raises
 
 from tradefog.accounts.models import User
 from tradefog.journal.models import ProfileInstrument, TradingProfile
+from tradefog.journal.services import archive_profile
 
 
 def profile_data(**overrides: str) -> dict[str, str]:
     """Return a complete valid profile form payload."""
     data = {
         "name": "Primary",
-        "venue_name": "Kraken",
         "capital_currency": "usd",
         "initial_capital": "10000",
-        "risk_per_trade_percent": "0.33",
-        "reward_multiple": "3",
-        "daily_risk_limit_percent": "1",
-        "monthly_target_percent": "3",
+        "risk_per_trade_percent": "1",
+        "risk_stop_capital": "9000",
     }
     data.update(overrides)
     return data
@@ -49,9 +47,9 @@ def create_profile(owner: User, name: str = "Primary") -> TradingProfile:
     return TradingProfile.objects.create(
         owner=owner,
         name=name,
-        venue_name="Kraken",
         capital_currency="USD",
         initial_capital=Decimal(10000),
+        risk_stop_capital=Decimal(9000),
     )
 
 
@@ -69,8 +67,10 @@ def test_user_creates_normalized_profile() -> None:
     assert response.headers["Location"] == f"/en/profiles/{profile.id}/"
     assert profile.owner == user
     assert profile.capital_currency == "USD"
-    assert profile.risk_per_trade_percent == Decimal("0.330")
-    assert profile.reward_multiple == Decimal("3.00")
+    assert profile.provider == TradingProfile.Provider.MANUAL
+    assert profile.risk_per_trade_percent == Decimal("1.000")
+    assert profile.risk_stop_capital == Decimal("9000.00000000")
+    assert profile.status == TradingProfile.Status.ACTIVE.value
 
 
 @mark.django_db
@@ -111,24 +111,78 @@ def test_foreign_profile_routes_return_not_found() -> None:
 
 
 @mark.django_db
-def test_profile_validation_explains_inconsistent_daily_risk() -> None:
-    """A daily budget below one trade's risk should be rejected in place."""
+def test_profile_stop_must_be_below_current_capital() -> None:
+    """A new profile should not begin at or beyond its stop threshold."""
     user = User.objects.create_user(username="trader")
     client = Client()
     client.force_login(user)
 
     response = client.post(
         "/en/profiles/new/",
-        profile_data(
-            risk_per_trade_percent="1",
-            daily_risk_limit_percent="0.33",
-        ),
+        profile_data(risk_stop_capital="11000"),
     )
 
     assert response.status_code == 200
     assert not TradingProfile.objects.exists()
-    assert b"daily risk limit cannot be lower" in response.content
-    assert b"tf-field-invalid" in response.content
+    assert b"Risk stop must be lower than current capital" in response.content
+
+
+@mark.django_db
+def test_profile_form_exposes_only_current_strategy_configuration() -> None:
+    """The form should not expose provider or removed period settings."""
+    user = User.objects.create_user(username="trader")
+    client = Client()
+    client.force_login(user)
+
+    response = client.get("/en/profiles/new/")
+
+    assert response.status_code == 200
+    assert b'name="provider"' not in response.content
+    assert b'name="reward_multiple"' not in response.content
+    assert b'name="daily_risk_limit_percent"' not in response.content
+    assert b'name="monthly_target_percent"' not in response.content
+    assert b"1:3" in response.content
+    assert b"Bybit (coming later)" in response.content
+    assert b"disabled" in response.content
+
+
+@mark.django_db
+def test_editing_absolute_stop_recalculates_profile_status() -> None:
+    """The mutable stop should immediately update operational state."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    profile.risk_stop_capital = Decimal(10000)
+    profile.status = TradingProfile.Status.RISK_STOPPED.value
+    profile.save(update_fields=["risk_stop_capital", "status"])
+    client = Client()
+    client.force_login(user)
+
+    response = client.post(
+        f"/en/profiles/{profile.id}/edit/",
+        profile_data(risk_stop_capital="9000"),
+    )
+
+    profile.refresh_from_db()
+    assert response.status_code == 302
+    assert profile.risk_stop_capital == Decimal("9000.00000000")
+    assert profile.status == TradingProfile.Status.ACTIVE.value
+
+
+@mark.django_db
+def test_profile_form_compacts_stored_decimal_values() -> None:
+    """Editing should show meaningful digits rather than storage padding."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    client = Client()
+    client.force_login(user)
+
+    response = client.get(f"/en/profiles/{profile.id}/edit/")
+
+    assert response.status_code == 200
+    assert b'value="10000"' in response.content
+    assert b'value="9000"' in response.content
+    assert b'value="1"' in response.content
+    assert b'value="10000.00000000"' not in response.content
 
 
 @mark.django_db
@@ -151,6 +205,7 @@ def test_profile_can_be_edited_and_archived_without_deletion() -> None:
     assert profile.name == "Conservative"
     assert profile.owner == user
     assert profile.archived_at is not None
+    assert profile.status == TradingProfile.Status.ARCHIVED.value
     assert TradingProfile.objects.filter(id=profile.id).exists()
     assert client.get(f"/en/profiles/{profile.id}/").status_code == 404
 
@@ -191,8 +246,7 @@ def test_archived_profile_is_listed_and_can_be_restored() -> None:
     """An owner should be able to recover an archived profile."""
     user = User.objects.create_user(username="trader")
     profile = create_profile(user)
-    profile.archived_at = timezone.now()
-    profile.save(update_fields=["archived_at"])
+    archive_profile(profile)
     client = Client()
     client.force_login(user)
 
@@ -206,9 +260,10 @@ def test_archived_profile_is_listed_and_can_be_restored() -> None:
     assert restore_response.status_code == 302
     assert restore_response.headers["Location"] == profile.get_absolute_url()
     assert b"Profile restored." in message_response.content
-    assert b'alert-dismissible' in message_response.content
+    assert b"alert-dismissible" in message_response.content
     assert b'data-bs-dismiss="alert"' in message_response.content
     assert profile.archived_at is None
+    assert profile.status == TradingProfile.Status.ACTIVE.value
 
 
 @mark.django_db
@@ -217,8 +272,7 @@ def test_profile_restore_is_owner_scoped_and_post_only() -> None:
     owner = User.objects.create_user(username="owner")
     stranger = User.objects.create_user(username="stranger")
     profile = create_profile(owner)
-    profile.archived_at = timezone.now()
-    profile.save(update_fields=["archived_at"])
+    archive_profile(profile)
     client = Client()
     client.force_login(stranger)
 
@@ -449,6 +503,9 @@ def test_journal_routes_follow_the_active_language() -> None:
         assert reverse("instrument_create", args=[7]) == (
             "/en/profiles/7/instruments/new/"
         )
+        assert reverse("capital_deposit", args=[7]) == (
+            "/en/profiles/7/capital/deposit/"
+        )
 
     with override("ru"):
         assert reverse("profile_overview") == "/ru/profiles/"
@@ -456,4 +513,7 @@ def test_journal_routes_follow_the_active_language() -> None:
         assert reverse("profile_detail", args=[7]) == "/ru/profiles/7/"
         assert reverse("instrument_create", args=[7]) == (
             "/ru/profiles/7/instruments/new/"
+        )
+        assert reverse("capital_withdraw", args=[7]) == (
+            "/ru/profiles/7/capital/withdraw/"
         )

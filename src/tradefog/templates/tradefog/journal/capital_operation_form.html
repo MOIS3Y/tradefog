@@ -1,0 +1,62 @@
+{% extends "tradefog/base.html" %}
+{% load i18n journal %}
+
+{% block title %}{% translate "Edit capital operation" %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            <a class="text-secondary" href="{{ profile.get_absolute_url }}">
+              {{ profile.name }}
+            </a>
+          </div>
+          <h1 class="page-title">{% translate "Edit capital operation" %}</h1>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">{{ operation.get_operation_type_display }}</h2>
+              <p class="card-subtitle">
+                {% blocktranslate with recorded=operation.created_at|date:"SHORT_DATETIME_FORMAT" %}Recorded {{ recorded }}{% endblocktranslate %}
+              </p>
+            </div>
+          </div>
+          <div class="card-body">
+            {% for error in form.non_field_errors %}
+              <div class="alert alert-danger" role="alert">{{ error }}</div>
+            {% endfor %}
+            {% include "tradefog/components/form_field.html" with field=form.amount %}
+            {% include "tradefog/components/form_field.html" with field=form.note %}
+          </div>
+          <div class="card-footer d-flex justify-content-between gap-2">
+            <a class="btn btn-outline-danger"
+               href="{% url 'capital_operation_delete' profile.id operation.id %}">
+              {% translate "Delete" %}
+            </a>
+            <div class="d-flex gap-2">
+              <a class="btn" href="{{ profile.get_absolute_url }}">
+                {% translate "Cancel" %}
+              </a>
+              <button class="btn btn-primary" type="submit">
+                {% translate "Save changes" %}
+              </button>
+            </div>
+          </div>
+        </section>
+      </form>
+    </div>
+  </div>
+{% endblock %}

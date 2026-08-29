@@ -1,4 +1,4 @@
-"""Core models for trading profiles and their instruments."""
+"""Core models for trading profiles, capital, and instruments."""
 
 # Django injects primary keys and reverse managers into model classes.
 # pyright: reportUninitializedInstanceVariable=false
@@ -17,6 +17,7 @@ from django.core.validators import (
     RegexValidator,
 )
 from django.db import models
+from django.db.models import Sum
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
     from tradefog.accounts.models import User
 
 POSITIVE_VALUE = MinValueValidator(Decimal("0.000000000001"))
+NON_NEGATIVE_VALUE = MinValueValidator(Decimal(0))
 PERCENTAGE_VALIDATORS = [
     MinValueValidator(Decimal("0.001")),
     MaxValueValidator(Decimal(100)),
@@ -36,12 +38,27 @@ ACTIVE_MARKET_EXISTS = _("An active instrument already uses this market.")
 CAPITAL_CURRENCY_LOCKED = _(
     "Capital currency is locked after the first instrument."
 )
+PROVIDER_LOCKED = _("The execution provider cannot be changed.")
 
 
 class TradingProfile(models.Model):
-    """A user-owned capital allocation with one set of risk rules."""
+    """A user-owned virtual capital allocation with fixed risk rules."""
+
+    class Provider(models.TextChoices):
+        """Execution providers currently available to profile owners."""
+
+        MANUAL = "MANUAL", _("Manual")
+
+    class Status(models.TextChoices):
+        """Operational states derived from capital and user archiving."""
+
+        ACTIVE = "ACTIVE", _("Active")
+        AT_RISK = "AT_RISK", _("At risk")
+        RISK_STOPPED = "RISK_STOPPED", _("Risk stopped")
+        ARCHIVED = "ARCHIVED", _("Archived")
 
     id: int
+    capital_operations: models.Manager[CapitalOperation]
     instruments: models.Manager[ProfileInstrument]
 
     owner: models.ForeignKey[User, User] = models.ForeignKey(
@@ -52,8 +69,12 @@ class TradingProfile(models.Model):
     name: models.CharField[str, str] = models.CharField(
         _("Name"), max_length=100
     )
-    venue_name: models.CharField[str, str] = models.CharField(
-        _("Venue"), max_length=100
+    provider: models.CharField[str, str] = models.CharField(
+        _("Execution provider"),
+        max_length=20,
+        choices=Provider,
+        default=Provider.MANUAL,
+        editable=False,
     )
     capital_currency: models.CharField[str, str] = models.CharField(
         _("Capital currency"),
@@ -74,39 +95,28 @@ class TradingProfile(models.Model):
             _("Risk per trade, %"),
             max_digits=6,
             decimal_places=3,
-            default=Decimal("0.330"),
-            validators=PERCENTAGE_VALIDATORS,
-        )
-    )
-    reward_multiple: models.DecimalField[Decimal, Decimal] = (
-        models.DecimalField(
-            _("Reward multiple"),
-            max_digits=6,
-            decimal_places=2,
-            default=Decimal("3.00"),
-            validators=[MinValueValidator(Decimal("0.01"))],
-            help_text=_(
-                "Target profit expressed as a multiple of trade risk."
-            ),
-        )
-    )
-    daily_risk_limit_percent: models.DecimalField[Decimal, Decimal] = (
-        models.DecimalField(
-            _("Daily risk limit, %"),
-            max_digits=6,
-            decimal_places=3,
             default=Decimal("1.000"),
             validators=PERCENTAGE_VALIDATORS,
         )
     )
-    monthly_target_percent: models.DecimalField[Decimal, Decimal] = (
+    risk_stop_capital: models.DecimalField[Decimal, Decimal] = (
         models.DecimalField(
-            _("Monthly target, %"),
-            max_digits=6,
-            decimal_places=3,
-            default=Decimal("3.000"),
-            validators=PERCENTAGE_VALIDATORS,
+            _("Risk stop capital"),
+            max_digits=24,
+            decimal_places=8,
+            validators=[NON_NEGATIVE_VALUE],
+            help_text=_(
+                "Trading should stop when current capital reaches this "
+                + "absolute amount."
+            ),
         )
+    )
+    status: models.CharField[str, str] = models.CharField(
+        _("Status"),
+        max_length=20,
+        choices=Status,
+        default=Status.ACTIVE,
+        editable=False,
     )
     archived_at: models.DateTimeField[datetime | None, datetime | None] = (
         models.DateTimeField(null=True, blank=True, editable=False)
@@ -134,49 +144,182 @@ class TradingProfile(models.Model):
 
     @override
     def clean(self) -> None:
-        """Normalize profile identifiers and validate related risk limits."""
+        """Normalize identifiers and enforce immutable profile context."""
         super().clean()
         self.name = self.name.strip()
-        self.venue_name = self.venue_name.strip()
         self.capital_currency = self.capital_currency.strip().upper()
-        if not self._state.adding:
-            original_currency = (
-                type(self)
-                .objects.filter(pk=self.id)
-                .values_list("capital_currency", flat=True)
-                .first()
-            )
-            if (
-                original_currency is not None
-                and original_currency != self.capital_currency
-                and self.instruments.exists()
-            ):
-                raise ValidationError(
-                    {"capital_currency": CAPITAL_CURRENCY_LOCKED}
-                )
-        daily_limit = cast(Decimal | None, self.daily_risk_limit_percent)
-        trade_risk = cast(Decimal | None, self.risk_per_trade_percent)
+        if self._state.adding:
+            return
+        original = (
+            type(self)
+            .objects.filter(pk=self.id)
+            .values("capital_currency", "provider")
+            .first()
+        )
+        if original is None:
+            return
+        if original["provider"] != self.provider:
+            raise ValidationError({"provider": PROVIDER_LOCKED})
         if (
-            daily_limit is not None
-            and trade_risk is not None
-            and daily_limit < trade_risk
+            original["capital_currency"] != self.capital_currency
+            and self.instruments.exists()
         ):
             raise ValidationError(
-                {
-                    "daily_risk_limit_percent": _(
-                        "The daily risk limit cannot be lower than the risk per trade."
-                    )
-                }
+                {"capital_currency": CAPITAL_CURRENCY_LOCKED}
             )
+
+    @property
+    def capital_operation_total(self) -> Decimal:
+        """Return net explicit capital allocated after profile creation."""
+        rows = self.capital_operations.values("operation_type").annotate(
+            total=Sum("amount")
+        )
+        totals = {
+            cast(str, row["operation_type"]): cast(Decimal, row["total"])
+            for row in rows
+        }
+        deposits = totals.get(
+            CapitalOperation.Type.DEPOSIT.value,
+            Decimal(0),
+        )
+        withdrawals = totals.get(
+            CapitalOperation.Type.WITHDRAWAL.value,
+            Decimal(0),
+        )
+        return deposits - withdrawals
+
+    @property
+    def realized_pnl_total(self) -> Decimal:
+        """Return realized trade P&L included in capital.
+
+        Trades are introduced in Stage 4. Keeping this boundary explicit makes
+        the capital formula ready for that source without coupling capital
+        operations to the future trade model.
+        """
+        return Decimal(0)
+
+    @property
+    def current_capital(self) -> Decimal:
+        """Derive current virtual capital from persisted financial facts."""
+        return (
+            self.initial_capital
+            + self.capital_operation_total
+            + self.realized_pnl_total
+        )
+
+    @property
+    def risk_base(self) -> Decimal:
+        """Return the capital base used for the next position plan."""
+        return max(self.initial_capital, self.current_capital)
+
+    @property
+    def risk_amount(self) -> Decimal:
+        """Return the unrounded monetary risk for the next trade."""
+        return self.risk_base * self.risk_per_trade_percent / Decimal(100)
+
+    @property
+    def reserved_risk(self) -> Decimal:
+        """Return risk reserved by pending and open trades.
+
+        Stage 4 adds trade reservations. Profiles expose the boundary now so
+        profile-state calculations do not need to change their public shape.
+        """
+        return Decimal(0)
+
+    @property
+    def worst_case_capital(self) -> Decimal:
+        """Return capital after every currently reserved risk is lost."""
+        return self.current_capital - self.reserved_risk
+
+    @property
+    def risk_capacity(self) -> Decimal:
+        """Return capital remaining above the stop in the worst case."""
+        return self.worst_case_capital - self.risk_stop_capital
+
+    @property
+    def calculated_status(self) -> str:
+        """Derive the operational status from current financial facts."""
+        if self.status == self.Status.ARCHIVED.value:
+            return self.Status.ARCHIVED.value
+        if self.current_capital <= self.risk_stop_capital:
+            return self.Status.RISK_STOPPED.value
+        if self.worst_case_capital <= self.risk_stop_capital:
+            return self.Status.AT_RISK.value
+        return self.Status.ACTIVE.value
 
     @property
     def is_archived(self) -> bool:
         """Return whether the profile is hidden from active workflows."""
-        return self.archived_at is not None
+        return self.status == self.Status.ARCHIVED.value
+
+
+class CapitalOperation(models.Model):
+    """An explicit change to the virtual capital allocated to a profile."""
+
+    class Type(models.TextChoices):
+        """Supported directions for changing allocated capital."""
+
+        DEPOSIT = "DEPOSIT", _("Deposit")
+        WITHDRAWAL = "WITHDRAWAL", _("Withdrawal")
+
+    id: int
+
+    profile: models.ForeignKey[TradingProfile, TradingProfile] = (
+        models.ForeignKey(
+            TradingProfile,
+            on_delete=models.CASCADE,
+            related_name="capital_operations",
+        )
+    )
+    operation_type: models.CharField[str, str] = models.CharField(
+        _("Operation"),
+        max_length=20,
+        choices=Type,
+    )
+    amount: models.DecimalField[Decimal, Decimal] = models.DecimalField(
+        _("Amount"),
+        max_digits=24,
+        decimal_places=8,
+        validators=[POSITIVE_VALUE],
+    )
+    note: models.CharField[str, str] = models.CharField(
+        _("Note"),
+        max_length=200,
+        blank=True,
+    )
+    created_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now_add=True)
+    )
+    updated_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now=True)
+    )
+
+    class Meta:
+        """Show the newest allocation changes first."""
+
+        ordering: ClassVar[list[str]] = ["-created_at", "-id"]
+
+    @override
+    def __str__(self) -> str:
+        """Return a concise administrative representation."""
+        return f"{self.operation_type.title()} {self.amount}"
+
+    @override
+    def clean(self) -> None:
+        """Normalize the optional user note."""
+        super().clean()
+        self.note = self.note.strip()
+
+    @property
+    def signed_amount(self) -> Decimal:
+        """Return the operation's contribution to current capital."""
+        if self.operation_type == self.Type.WITHDRAWAL.value:
+            return -self.amount
+        return self.amount
 
 
 class ProfileInstrument(models.Model):
-    """A venue-specific linear instrument available to one profile."""
+    """A provider-specific instrument available to one profile."""
 
     class MarketType(models.TextChoices):
         """Instrument types supported by the initial journal."""

@@ -1,0 +1,35 @@
+{% extends "tradefog/base.html" %}
+{% load i18n journal %}
+
+{% block title %}{% translate "Delete capital operation" %} · Tradefog{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+      <section class="card">
+        <div class="card-body text-center py-5">
+          <div class="avatar avatar-lg bg-red-lt mb-3">
+            {% include "tradefog/components/icon.html" with name="trash" class="" %}
+          </div>
+          <h1 class="h2">{% translate "Delete capital operation?" %}</h1>
+          <p class="text-secondary">
+            {{ operation.get_operation_type_display }} ·
+            {{ operation.amount|compact_decimal }} {{ profile.capital_currency }}
+          </p>
+          <p class="text-secondary">
+            {% translate "Current capital and profile status will be recalculated." %}
+          </p>
+          <form method="post" class="d-flex justify-content-center gap-2">
+            {% csrf_token %}
+            <a class="btn" href="{{ profile.get_absolute_url }}">
+              {% translate "Cancel" %}
+            </a>
+            <button class="btn btn-danger" type="submit">
+              {% translate "Delete" %}
+            </button>
+          </form>
+        </div>
+      </section>
+    </div>
+  </div>
+{% endblock %}

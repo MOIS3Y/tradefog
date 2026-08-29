@@ -33,6 +33,26 @@ urlpatterns = [
         name="profile_restore",
     ),
     path(
+        "profiles/<int:profile_id>/capital/deposit/",
+        views.capital_deposit,
+        name="capital_deposit",
+    ),
+    path(
+        "profiles/<int:profile_id>/capital/withdraw/",
+        views.capital_withdraw,
+        name="capital_withdraw",
+    ),
+    path(
+        "profiles/<int:profile_id>/capital/<int:operation_id>/edit/",
+        views.capital_operation_edit,
+        name="capital_operation_edit",
+    ),
+    path(
+        "profiles/<int:profile_id>/capital/<int:operation_id>/delete/",
+        views.capital_operation_delete,
+        name="capital_operation_delete",
+    ),
+    path(
         "profiles/<int:profile_id>/instruments/new/",
         views.instrument_create,
         name="instrument_create",

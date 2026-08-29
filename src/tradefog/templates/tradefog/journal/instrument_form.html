@@ -11,7 +11,9 @@
     <div class="container-xl">
       <div class="row g-2 align-items-center">
         <div class="col">
-          <div class="page-pretitle">{{ profile.name }} · {{ profile.venue_name }}</div>
+          <div class="page-pretitle">
+            {{ profile.name }} · {{ profile.get_provider_display }}
+          </div>
           <h1 class="page-title">
             {% if editing %}{% translate "Edit instrument" %}{% else %}{% translate "Add instrument" %}{% endif %}
           </h1>
@@ -35,7 +37,7 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <h2 class="card-title">{% translate "Venue instrument" %}</h2>
+              <h2 class="card-title">{% translate "Profile instrument" %}</h2>
               <p class="card-subtitle">
                 {% translate "Precision and minimums are used to validate future position plans." %}
               </p>

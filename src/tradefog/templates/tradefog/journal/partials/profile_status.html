@@ -1,0 +1,10 @@
+{% load i18n %}
+{% if profile.status == "ACTIVE" %}
+  <span class="badge bg-green-lt">{% translate "Active" %}</span>
+{% elif profile.status == "AT_RISK" %}
+  <span class="badge bg-yellow-lt">{% translate "At risk" %}</span>
+{% elif profile.status == "RISK_STOPPED" %}
+  <span class="badge bg-red-lt">{% translate "Risk stopped" %}</span>
+{% else %}
+  <span class="badge bg-secondary-lt">{% translate "Archived" %}</span>
+{% endif %}

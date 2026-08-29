@@ -13,9 +13,12 @@
               {% translate "Trading profiles" %}
             </a>
           </div>
-          <h1 class="page-title">{{ profile.name }}</h1>
+          <div class="d-flex align-items-center gap-2">
+            <h1 class="page-title">{{ profile.name }}</h1>
+            {% include "tradefog/journal/partials/profile_status.html" %}
+          </div>
           <div class="text-secondary mt-1">
-            {{ profile.venue_name }} · {{ profile.capital_currency }}
+            {{ profile.get_provider_display }} · {{ profile.capital_currency }}
           </div>
         </div>
         <div class="col-auto ms-auto d-flex gap-2">
@@ -35,23 +38,71 @@
 {% endblock %}
 
 {% block content %}
-  <section class="card mb-4" aria-labelledby="risk-mandate-title">
+  {% if profile.status == "RISK_STOPPED" %}
+    <div class="alert alert-danger" role="alert">
+      <div class="d-flex">
+        <div>
+          {% include "tradefog/components/icon.html" with name="alert-triangle" class="icon alert-icon" %}
+        </div>
+        <div>
+          <h2 class="alert-title">{% translate "Risk stop reached" %}</h2>
+          <div class="text-secondary">
+            {% translate "Current capital is at or below the explicit stop. Review the allocation before planning another trade." %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% elif profile.status == "AT_RISK" %}
+    <div class="alert alert-warning" role="alert">
+      <div class="d-flex">
+        <div>
+          {% include "tradefog/components/icon.html" with name="alert-triangle" class="icon alert-icon" %}
+        </div>
+        <div>
+          <h2 class="alert-title">{% translate "Open risk reaches the stop" %}</h2>
+          <div class="text-secondary">
+            {% translate "Pending and open trades could move capital to the configured stop." %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <section class="card mb-4" aria-labelledby="capital-title">
     <div class="card-header">
       <div>
-        <h2 class="card-title" id="risk-mandate-title">
-          {% translate "Risk mandate" %}
+        <h2 class="card-title" id="capital-title">
+          {% translate "Capital and risk" %}
         </h2>
         <p class="card-subtitle">
-          {% translate "Profile defaults used when a monthly period is created." %}
+          {% translate "Virtual allocation used for future position plans." %}
         </p>
       </div>
     </div>
     <div class="card-body">
       <div class="datagrid">
         <div class="datagrid-item">
+          <div class="datagrid-title">{% translate "Current capital" %}</div>
+          <div class="datagrid-content fs-3 fw-semibold">
+            {{ current_capital|compact_decimal }} {{ profile.capital_currency }}
+          </div>
+        </div>
+        <div class="datagrid-item">
           <div class="datagrid-title">{% translate "Initial capital" %}</div>
           <div class="datagrid-content">
             {{ profile.initial_capital|compact_decimal }} {{ profile.capital_currency }}
+          </div>
+        </div>
+        <div class="datagrid-item">
+          <div class="datagrid-title">{% translate "Risk stop" %}</div>
+          <div class="datagrid-content">
+            {{ profile.risk_stop_capital|compact_decimal }} {{ profile.capital_currency }}
+          </div>
+        </div>
+        <div class="datagrid-item">
+          <div class="datagrid-title">{% translate "Risk capacity" %}</div>
+          <div class="datagrid-content">
+            {{ risk_capacity|compact_decimal }} {{ profile.capital_currency }}
           </div>
         </div>
         <div class="datagrid-item">
@@ -61,24 +112,156 @@
           </div>
         </div>
         <div class="datagrid-item">
+          <div class="datagrid-title">{% translate "Next trade risk" %}</div>
+          <div class="datagrid-content">
+            {{ risk_amount|compact_decimal }} {{ profile.capital_currency }}
+          </div>
+        </div>
+        <div class="datagrid-item">
           <div class="datagrid-title">{% translate "Risk/reward" %}</div>
-          <div class="datagrid-content">1:{{ profile.reward_multiple|compact_decimal }}</div>
+          <div class="datagrid-content">1:3</div>
         </div>
         <div class="datagrid-item">
-          <div class="datagrid-title">{% translate "Daily risk limit" %}</div>
-          <div class="datagrid-content">
-            {{ profile.daily_risk_limit_percent|compact_decimal }}%
-          </div>
-        </div>
-        <div class="datagrid-item">
-          <div class="datagrid-title">{% translate "Monthly target" %}</div>
-          <div class="datagrid-content">
-            {{ profile.monthly_target_percent|compact_decimal }}%
-          </div>
+          <div class="datagrid-title">{% translate "Execution provider" %}</div>
+          <div class="datagrid-content">{{ profile.get_provider_display }}</div>
         </div>
       </div>
     </div>
   </section>
+
+  <div class="row row-cards mb-4">
+    <div class="col-12 col-lg-6">
+      <section class="card h-100" aria-labelledby="deposit-title">
+        <div class="card-status-top bg-success"></div>
+        <form action="{% url 'capital_deposit' profile.id %}"
+              method="post"
+              novalidate>
+          {% csrf_token %}
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="deposit-title">
+                {% include "tradefog/components/icon.html" with name="plus" class="icon text-success me-1" %}
+                {% translate "Add capital" %}
+              </h2>
+              <p class="card-subtitle">
+                {% translate "Increase the allocation available to future trades." %}
+              </p>
+            </div>
+          </div>
+          <div class="card-body">
+            {% for error in deposit_form.non_field_errors %}
+              <div class="alert alert-danger" role="alert">{{ error }}</div>
+            {% endfor %}
+            {% include "tradefog/components/form_field.html" with field=deposit_form.amount %}
+            {% include "tradefog/components/form_field.html" with field=deposit_form.note %}
+          </div>
+          <div class="card-footer text-end">
+            <button class="btn btn-primary" type="submit">
+              {% translate "Add capital" %}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+    <div class="col-12 col-lg-6">
+      <section class="card h-100" aria-labelledby="withdraw-title">
+        <div class="card-status-top bg-orange"></div>
+        <form action="{% url 'capital_withdraw' profile.id %}"
+              method="post"
+              novalidate>
+          {% csrf_token %}
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="withdraw-title">
+                {% include "tradefog/components/icon.html" with name="minus" class="icon text-orange me-1" %}
+                {% translate "Withdraw capital" %}
+              </h2>
+              <p class="card-subtitle">
+                {% translate "Reduce the virtual allocation without changing trade results." %}
+              </p>
+            </div>
+          </div>
+          <div class="card-body">
+            {% for error in withdrawal_form.non_field_errors %}
+              <div class="alert alert-danger" role="alert">{{ error }}</div>
+            {% endfor %}
+            {% include "tradefog/components/form_field.html" with field=withdrawal_form.amount %}
+            {% include "tradefog/components/form_field.html" with field=withdrawal_form.note %}
+          </div>
+          <div class="card-footer text-end">
+            <button class="btn" type="submit">
+              {% translate "Withdraw capital" %}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  {% if capital_operations %}
+    <section class="card mb-4" aria-labelledby="capital-history-title">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title" id="capital-history-title">
+            {% translate "Capital history" %}
+          </h2>
+          <p class="card-subtitle">
+            {% translate "Allocation changes are recorded when they are made in Tradefog." %}
+          </p>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>{% translate "Operation" %}</th>
+              <th>{% translate "Amount" %}</th>
+              <th>{% translate "Note" %}</th>
+              <th>{% translate "Recorded" %}</th>
+              <th class="w-1"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for operation in capital_operations %}
+              <tr>
+                <td>
+                  {% if operation.operation_type == "DEPOSIT" %}
+                    <span class="badge bg-green-lt">{% translate "Deposit" %}</span>
+                  {% else %}
+                    <span class="badge bg-orange-lt">{% translate "Withdrawal" %}</span>
+                  {% endif %}
+                </td>
+                <td class="text-nowrap fw-semibold">
+                  {% if operation.operation_type == "DEPOSIT" %}+{% else %}−{% endif %}{{ operation.amount|compact_decimal }}
+                  {{ profile.capital_currency }}
+                </td>
+                <td class="text-secondary">{{ operation.note|default:"—" }}</td>
+                <td class="text-secondary text-nowrap">
+                  {{ operation.created_at|date:"SHORT_DATETIME_FORMAT" }}
+                </td>
+                <td>
+                  <div class="btn-list flex-nowrap">
+                    <a class="btn btn-icon"
+                       href="{% url 'capital_operation_edit' profile.id operation.id %}"
+                       aria-label="{% translate 'Edit capital operation' %}"
+                       title="{% translate 'Edit capital operation' %}">
+                      {% include "tradefog/components/icon.html" with name="pencil" class="" %}
+                    </a>
+                    <a class="btn btn-icon btn-outline-danger"
+                       href="{% url 'capital_operation_delete' profile.id operation.id %}"
+                       aria-label="{% translate 'Delete capital operation' %}"
+                       title="{% translate 'Delete capital operation' %}">
+                      {% include "tradefog/components/icon.html" with name="trash" class="" %}
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
 
   <section class="card" aria-labelledby="instruments-title">
     <div class="card-header">
@@ -87,7 +270,7 @@
           {% translate "Profile instruments" %}
         </h2>
         <p class="card-subtitle">
-          {% translate "Assets and order constraints specific to this venue." %}
+          {% translate "Spot and linear markets sharing this profile allocation." %}
         </p>
       </div>
       <div class="card-actions">
@@ -163,7 +346,7 @@
         </div>
         <p class="empty-title">{% translate "No instruments configured" %}</p>
         <p class="empty-subtitle text-secondary">
-          {% translate "Add the first asset before preparing trades for this profile." %}
+          {% translate "Add the first market available to this profile." %}
         </p>
       </div>
     {% endif %}
