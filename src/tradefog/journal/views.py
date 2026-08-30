@@ -1,4 +1,4 @@
-"""Owner-scoped HTTP views for profiles, capital, and instruments."""
+"""Owner-scoped HTTP views for assets, profiles, pairs, and trades."""
 
 from decimal import Decimal
 from typing import cast
@@ -8,30 +8,46 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods, require_POST
 
 from tradefog.accounts.models import User
+from tradefog.journal.calculations import PositionPlan, PositionPlanError
 from tradefog.journal.forms import (
+    AssetForm,
     CapitalOperationForm,
-    ProfileInstrumentForm,
+    CloseTradeForm,
+    ProfileTradingPairForm,
+    TradeDateForm,
+    TradeDraftForm,
     TradingProfileForm,
 )
 from tradefog.journal.models import (
-    ACTIVE_MARKET_EXISTS,
+    ACTIVE_PAIR_EXISTS,
+    Asset,
     CapitalOperation,
-    ProfileInstrument,
+    ProfileTradingPair,
+    Trade,
     TradingProfile,
 )
 from tradefog.journal.services import (
-    archive_instrument,
+    archive_asset,
     archive_profile,
+    archive_trading_pair,
+    calculate_trade_plan,
+    cancel_trade,
+    close_trade,
     create_capital_operation,
     delete_capital_operation,
-    restore_instrument,
+    open_trade,
+    restore_asset,
     restore_profile,
+    restore_trading_pair,
+    submit_trade,
     sync_profile_status,
     update_capital_operation,
+    update_trade_result,
 )
 
 
@@ -64,6 +80,21 @@ def _owned_archived_profile(
     )
 
 
+def _owned_asset(
+    request: HttpRequest,
+    asset_id: int,
+    *,
+    archived: bool = False,
+) -> Asset:
+    """Resolve one asset inside the authenticated ownership boundary."""
+    return get_object_or_404(
+        Asset,
+        id=asset_id,
+        owner=_request_owner(request),
+        archived_at__isnull=not archived,
+    )
+
+
 def _owned_capital_operation(
     profile: TradingProfile,
     operation_id: int,
@@ -76,27 +107,39 @@ def _owned_capital_operation(
     )
 
 
-def _owned_instrument(
+def _owned_trading_pair(
     profile: TradingProfile,
-    instrument_id: int,
-) -> ProfileInstrument:
-    """Resolve an active instrument belonging to the selected profile."""
+    pair_id: int,
+) -> ProfileTradingPair:
+    """Resolve an active trading pair belonging to the selected profile."""
     return get_object_or_404(
-        ProfileInstrument,
-        id=instrument_id,
+        ProfileTradingPair.objects.select_related("asset"),
+        id=pair_id,
         profile=profile,
         archived_at__isnull=True,
     )
 
 
-def _owned_archived_instrument(
-    profile: TradingProfile,
-    instrument_id: int,
-) -> ProfileInstrument:
-    """Resolve an archived instrument belonging to an active profile."""
+def _owned_trade(request: HttpRequest, trade_id: int) -> Trade:
+    """Resolve one trade through its profile ownership boundary."""
     return get_object_or_404(
-        ProfileInstrument,
-        id=instrument_id,
+        Trade.objects.select_related(
+            "profile__capital_asset",
+            "trading_pair__asset",
+        ),
+        id=trade_id,
+        profile__owner=_request_owner(request),
+    )
+
+
+def _owned_archived_trading_pair(
+    profile: TradingProfile,
+    pair_id: int,
+) -> ProfileTradingPair:
+    """Resolve an archived pair belonging to an active profile."""
+    return get_object_or_404(
+        ProfileTradingPair.objects.select_related("asset"),
+        id=pair_id,
         profile=profile,
         archived_at__isnull=False,
     )
@@ -123,12 +166,12 @@ def _profile_detail_context(
         "reserved_risk": reserved_risk,
         "worst_case_capital": worst_case_capital,
         "risk_capacity": worst_case_capital - profile.risk_stop_capital,
-        "instruments": profile.instruments.filter(
+        "trading_pairs": profile.trading_pairs.filter(
             archived_at__isnull=True
-        ).select_related("profile"),
-        "archived_instruments": profile.instruments.filter(
+        ).select_related("asset", "profile__capital_asset"),
+        "archived_trading_pairs": profile.trading_pairs.filter(
             archived_at__isnull=False
-        ).select_related("profile"),
+        ).select_related("asset", "profile__capital_asset"),
         "capital_operations": profile.capital_operations.all(),
         "deposit_form": deposit_form
         or CapitalOperationForm(CapitalOperation.Type.DEPOSIT.value),
@@ -172,6 +215,80 @@ def _add_validation_errors(
 
 
 @login_required
+def asset_overview(request: HttpRequest) -> HttpResponse:
+    """List reusable asset identities owned by the authenticated user."""
+    assets = Asset.objects.filter(owner=_request_owner(request))
+    return render(
+        request,
+        "tradefog/journal/asset_overview.html",
+        {
+            "assets": assets.filter(archived_at__isnull=True),
+            "archived_assets": assets.filter(archived_at__isnull=False),
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def asset_create(request: HttpRequest) -> HttpResponse:
+    """Create one canonical user-owned asset identity."""
+    asset = Asset(owner=_request_owner(request))
+    form = AssetForm(
+        request.POST if request.method == "POST" else None,
+        instance=asset,
+    )
+    if request.method == "POST" and form.is_valid():
+        created_asset = cast(Asset, form.save(commit=False))
+        created_asset.owner = _request_owner(request)
+        created_asset.save()
+        messages.success(request, _("Asset created."))
+        return redirect("asset_overview")
+    return render(
+        request,
+        "tradefog/journal/asset_form.html",
+        {"form": form, "editing": False},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def asset_edit(request: HttpRequest, asset_id: int) -> HttpResponse:
+    """Correct one active user-owned asset."""
+    asset = _owned_asset(request, asset_id)
+    form = AssetForm(
+        request.POST if request.method == "POST" else None,
+        instance=asset,
+    )
+    if request.method == "POST" and form.is_valid():
+        _updated_asset = cast(Asset, form.save())
+        messages.success(request, _("Asset updated."))
+        return redirect("asset_overview")
+    return render(
+        request,
+        "tradefog/journal/asset_form.html",
+        {"form": form, "editing": True, "asset": asset},
+    )
+
+
+@login_required
+@require_POST
+def asset_archive(request: HttpRequest, asset_id: int) -> HttpResponse:
+    """Archive an asset while preserving existing pair references."""
+    archive_asset(_owned_asset(request, asset_id))
+    messages.success(request, _("Asset archived."))
+    return redirect("asset_overview")
+
+
+@login_required
+@require_POST
+def asset_restore(request: HttpRequest, asset_id: int) -> HttpResponse:
+    """Restore an archived asset to profile and pair selectors."""
+    restore_asset(_owned_asset(request, asset_id, archived=True))
+    messages.success(request, _("Asset restored."))
+    return redirect("asset_overview")
+
+
+@login_required
 def profile_overview(request: HttpRequest) -> HttpResponse:
     """List non-archived profiles owned by the authenticated user."""
     profiles = TradingProfile.objects.filter(owner=_request_owner(request))
@@ -208,6 +325,7 @@ def archived_profile_overview(request: HttpRequest) -> HttpResponse:
 def profile_create(request: HttpRequest) -> HttpResponse:
     """Create a manual trading profile for the authenticated user."""
     form = TradingProfileForm(
+        _request_owner(request),
         request.POST if request.method == "POST" else None
     )
     if request.method == "POST" and form.is_valid():
@@ -235,6 +353,7 @@ def profile_edit(request: HttpRequest, profile_id: int) -> HttpResponse:
     """Edit an active profile owned by the authenticated user."""
     profile = _owned_profile(request, profile_id)
     form = TradingProfileForm(
+        _request_owner(request),
         request.POST if request.method == "POST" else None,
         instance=profile,
     )
@@ -387,77 +506,77 @@ def capital_operation_delete(
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def instrument_create(
+def trading_pair_create(
     request: HttpRequest,
     profile_id: int,
 ) -> HttpResponse:
-    """Add a provider-specific instrument to an owned profile."""
+    """Add a provider-specific trading pair to an owned profile."""
     profile = _owned_profile(request, profile_id)
-    form = ProfileInstrumentForm(
+    form = ProfileTradingPairForm(
         profile,
         request.POST if request.method == "POST" else None,
     )
     if request.method == "POST" and form.is_valid():
-        instrument = cast(ProfileInstrument, form.save(commit=False))
-        instrument.profile = profile
-        instrument.save()
+        trading_pair = cast(ProfileTradingPair, form.save(commit=False))
+        trading_pair.profile = profile
+        trading_pair.save()
         return redirect("profile_detail", profile_id=profile.id)
     return render(
         request,
-        "tradefog/journal/instrument_form.html",
+        "tradefog/journal/trading_pair_form.html",
         {"form": form, "editing": False, "profile": profile},
     )
 
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def instrument_edit(
+def trading_pair_edit(
     request: HttpRequest,
     profile_id: int,
-    instrument_id: int,
+    pair_id: int,
 ) -> HttpResponse:
-    """Edit an active instrument within an owned profile."""
+    """Edit an active trading pair within an owned profile."""
     profile = _owned_profile(request, profile_id)
-    instrument = _owned_instrument(profile, instrument_id)
-    form = ProfileInstrumentForm(
+    trading_pair = _owned_trading_pair(profile, pair_id)
+    form = ProfileTradingPairForm(
         profile,
         request.POST if request.method == "POST" else None,
-        instance=instrument,
+        instance=trading_pair,
     )
     if request.method == "POST" and form.is_valid():
-        _ = cast(ProfileInstrument, form.save())
+        _ = cast(ProfileTradingPair, form.save())
         return redirect("profile_detail", profile_id=profile.id)
     return render(
         request,
-        "tradefog/journal/instrument_form.html",
+        "tradefog/journal/trading_pair_form.html",
         {
             "form": form,
             "editing": True,
             "profile": profile,
-            "instrument": instrument,
+            "trading_pair": trading_pair,
         },
     )
 
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def instrument_archive(
+def trading_pair_archive(
     request: HttpRequest,
     profile_id: int,
-    instrument_id: int,
+    pair_id: int,
 ) -> HttpResponse:
-    """Confirm and archive an instrument within an owned profile."""
+    """Confirm and archive a trading pair within an owned profile."""
     profile = _owned_profile(request, profile_id)
-    instrument = _owned_instrument(profile, instrument_id)
+    trading_pair = _owned_trading_pair(profile, pair_id)
     if request.method == "POST":
-        archive_instrument(instrument)
+        archive_trading_pair(trading_pair)
         return redirect("profile_detail", profile_id=profile.id)
     return render(
         request,
         "tradefog/journal/archive_confirm.html",
         {
-            "object": instrument,
-            "object_kind": "instrument",
+            "object": trading_pair,
+            "object_kind": "trading_pair",
             "cancel_url": profile.get_absolute_url(),
         },
     )
@@ -465,21 +584,386 @@ def instrument_archive(
 
 @login_required
 @require_POST
-def instrument_restore(
+def trading_pair_restore(
     request: HttpRequest,
     profile_id: int,
-    instrument_id: int,
+    pair_id: int,
 ) -> HttpResponse:
-    """Restore an archived instrument within an owned active profile."""
+    """Restore an archived pair within an owned active profile."""
     profile = _owned_profile(request, profile_id)
-    instrument = _owned_archived_instrument(profile, instrument_id)
-    if restore_instrument(instrument):
-        messages.success(request, _("Instrument restored."))
+    trading_pair = _owned_archived_trading_pair(profile, pair_id)
+    if restore_trading_pair(trading_pair):
+        messages.success(request, _("Trading pair restored."))
     else:
         messages.error(
             request,
-            ACTIVE_MARKET_EXISTS
+            ACTIVE_PAIR_EXISTS
             + " "
-            + _("Archive that instrument before restoring this one."),
+            + _("Archive that pair before restoring this one."),
         )
     return redirect("profile_detail", profile_id=profile.id)
+
+
+def _draft_plan(
+    form: TradeDraftForm,
+) -> tuple[PositionPlan | None, str | None]:
+    """Validate draft input and return a preview or one focused error."""
+    if not form.is_valid():
+        errors = [
+            str(error) for errors in form.errors.values() for error in errors
+        ]
+        return None, errors[0] if errors else _(
+            "Complete the position fields."
+        )
+    trade = cast(Trade, form.save(commit=False))
+    try:
+        return calculate_trade_plan(trade), None
+    except PositionPlanError as error:
+        return None, error.message
+
+
+def _draft_trading_pair(form: TradeDraftForm) -> ProfileTradingPair | None:
+    """Return the validated trading pair selected in a draft form."""
+    if not hasattr(form, "cleaned_data"):
+        return None
+    trading_pair = form.cleaned_data.get("trading_pair")
+    if isinstance(trading_pair, ProfileTradingPair):
+        return trading_pair
+    return None
+
+
+def _plan_context(
+    profile: TradingProfile,
+    plan: PositionPlan | None,
+) -> dict[str, object]:
+    """Add advisory capacity values for a calculated draft plan."""
+    if plan is None:
+        return {}
+    remaining_capacity = profile.risk_capacity - plan.planned_risk_amount
+    return {
+        "plan_remaining_capacity": remaining_capacity,
+        "plan_breached": remaining_capacity <= 0,
+        "plan_notional_breached": plan.notional > profile.current_capital,
+    }
+
+
+def _trade_workspace_context(
+    trade: Trade,
+    *,
+    form: TradeDraftForm | None = None,
+) -> dict[str, object]:
+    """Build the trade workspace context for draft and frozen plans."""
+    context: dict[str, object] = {
+        "trade": trade,
+        "profile": trade.profile,
+        "trading_pair": trade.trading_pair,
+    }
+    if trade.status != Trade.Status.DRAFT.value:
+        return context
+    if form is None:
+        draft_form = TradeDraftForm(
+            trade.profile,
+            instance=trade,
+            plan_url=reverse("trade_plan", kwargs={"trade_id": trade.id}),
+        )
+        try:
+            plan, plan_error = calculate_trade_plan(trade), None
+        except PositionPlanError as error:
+            plan, plan_error = None, error.message
+    else:
+        draft_form = form
+        plan, plan_error = _draft_plan(draft_form)
+    context.update(
+        {"form": draft_form, "plan": plan, "plan_error": plan_error}
+    )
+    selected_pair = _draft_trading_pair(draft_form)
+    if plan is not None and selected_pair is not None:
+        context["trading_pair"] = selected_pair
+    context.update(_plan_context(trade.profile, plan))
+    return context
+
+
+@login_required
+def trade_overview(request: HttpRequest) -> HttpResponse:
+    """List journal decisions across every profile owned by the user."""
+    trades = Trade.objects.filter(
+        profile__owner=_request_owner(request)
+    ).select_related(
+        "profile__capital_asset",
+        "trading_pair__asset",
+    )
+    return render(
+        request,
+        "tradefog/journal/trade_overview.html",
+        {"trades": trades},
+    )
+
+
+@login_required
+def trade_profile_select(request: HttpRequest) -> HttpResponse:
+    """Select the explicit profile context for a new trade."""
+    profiles = (
+        TradingProfile.objects.filter(owner=_request_owner(request))
+        .exclude(status=TradingProfile.Status.ARCHIVED.value)
+        .filter(trading_pairs__archived_at__isnull=True)
+        .distinct()
+    )
+    return render(
+        request,
+        "tradefog/journal/trade_profile_select.html",
+        {"profiles": profiles},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def trade_create(request: HttpRequest, profile_id: int) -> HttpResponse:
+    """Create one editable trade draft in an explicit profile context."""
+    profile = _owned_profile(request, profile_id)
+    if not profile.trading_pairs.filter(archived_at__isnull=True).exists():
+        messages.error(request, _("Add an active trading pair first."))
+        return redirect("profile_detail", profile_id=profile.id)
+    plan_url = reverse("new_trade_plan", kwargs={"profile_id": profile.id})
+    form = TradeDraftForm(
+        profile,
+        request.POST if request.method == "POST" else None,
+        plan_url=plan_url,
+    )
+    if request.method == "POST" and form.is_valid():
+        trade = cast(Trade, form.save(commit=False))
+        trade.profile = profile
+        trade.save()
+        return redirect("trade_detail", trade_id=trade.id)
+    plan, plan_error = (
+        _draft_plan(form) if request.method == "POST" else (None, None)
+    )
+    return render(
+        request,
+        "tradefog/journal/trade_form.html",
+        {
+            "form": form,
+            "profile": profile,
+            "creating": True,
+            "plan": plan,
+            "plan_error": plan_error,
+            "trading_pair": _draft_trading_pair(form),
+            **_plan_context(profile, plan),
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def trade_detail(request: HttpRequest, trade_id: int) -> HttpResponse:
+    """Show a trade workspace and update its editable draft facts."""
+    trade = _owned_trade(request, trade_id)
+    if trade.status == Trade.Status.DRAFT.value and request.method == "POST":
+        form = TradeDraftForm(
+            trade.profile,
+            request.POST,
+            instance=trade,
+            plan_url=reverse("trade_plan", kwargs={"trade_id": trade.id}),
+        )
+        if form.is_valid():
+            _saved_trade = cast(Trade, form.save())
+            messages.success(request, _("Draft saved."))
+            return redirect("trade_detail", trade_id=trade.id)
+        context = _trade_workspace_context(trade, form=form)
+    else:
+        context = _trade_workspace_context(trade)
+    return render(request, "tradefog/journal/trade_detail.html", context)
+
+
+def _render_plan_preview(
+    request: HttpRequest,
+    form: TradeDraftForm,
+) -> HttpResponse:
+    """Render the independently replaceable position-plan preview."""
+    plan, plan_error = _draft_plan(form)
+    return render(
+        request,
+        "tradefog/journal/partials/trade_plan.html",
+        {
+            "plan": plan,
+            "plan_error": plan_error,
+            "profile": form.profile,
+            "trading_pair": _draft_trading_pair(form),
+            **_plan_context(form.profile, plan),
+        },
+    )
+
+
+@login_required
+@require_POST
+def new_trade_plan(request: HttpRequest, profile_id: int) -> HttpResponse:
+    """Preview an unsaved draft plan for one owned profile."""
+    profile = _owned_profile(request, profile_id)
+    return _render_plan_preview(
+        request,
+        TradeDraftForm(profile, request.POST),
+    )
+
+
+@login_required
+@require_POST
+def trade_plan(request: HttpRequest, trade_id: int) -> HttpResponse:
+    """Preview edits to an existing owned draft without persisting them."""
+    trade = _owned_trade(request, trade_id)
+    if trade.status != Trade.Status.DRAFT.value:
+        return HttpResponse(status=409)
+    return _render_plan_preview(
+        request,
+        TradeDraftForm(trade.profile, request.POST, instance=trade),
+    )
+
+
+def _transition_error(request: HttpRequest, error: ValidationError) -> None:
+    """Present a lifecycle conflict without exposing an exception page."""
+    messages.error(request, " ".join(error.messages))
+
+
+@login_required
+@require_POST
+def trade_submit(request: HttpRequest, trade_id: int) -> HttpResponse:
+    """Freeze an owned draft and reserve its pending-entry risk."""
+    trade = _owned_trade(request, trade_id)
+    try:
+        frozen_trade = submit_trade(trade)
+    except (ValidationError, PositionPlanError) as error:
+        if isinstance(error, PositionPlanError):
+            messages.error(request, error.message)
+        else:
+            _transition_error(request, error)
+    else:
+        if frozen_trade.risk_limit_breached:
+            messages.warning(
+                request,
+                _("Order recorded with a risk-stop breach."),
+            )
+        else:
+            messages.success(request, _("Order marked as pending entry."))
+    return redirect("trade_detail", trade_id=trade.id)
+
+
+@login_required
+@require_POST
+def trade_open(request: HttpRequest, trade_id: int) -> HttpResponse:
+    """Mark an owned pending order as filled."""
+    trade = _owned_trade(request, trade_id)
+    try:
+        _opened_trade = open_trade(trade)
+    except ValidationError as error:
+        _transition_error(request, error)
+    else:
+        messages.success(request, _("Position marked as open."))
+    return redirect("trade_detail", trade_id=trade.id)
+
+
+@login_required
+@require_POST
+def trade_cancel(request: HttpRequest, trade_id: int) -> HttpResponse:
+    """Cancel an owned draft or pending order."""
+    trade = _owned_trade(request, trade_id)
+    try:
+        _cancelled_trade = cancel_trade(trade)
+    except ValidationError as error:
+        _transition_error(request, error)
+    else:
+        messages.success(request, _("Trade cancelled."))
+    return redirect("trade_detail", trade_id=trade.id)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def trade_close(request: HttpRequest, trade_id: int) -> HttpResponse:
+    """Close a position or correct its aggregate realized result."""
+    trade = _owned_trade(request, trade_id)
+    if trade.status not in {
+        Trade.Status.OPEN.value,
+        Trade.Status.CLOSED.value,
+    }:
+        return HttpResponse(status=409)
+    initial: dict[str, object] | None = None
+    if request.method == "GET" and trade.status == Trade.Status.CLOSED.value:
+        initial = {
+            "realized_pnl": trade.realized_pnl,
+            "actual_exit_price": trade.actual_exit_price,
+            "commission_total": trade.commission_total,
+            "funding_result": trade.funding_result,
+        }
+    form = CloseTradeForm(
+        request.POST if request.method == "POST" else None,
+        trade=trade,
+        initial=initial,
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            realized_pnl = cast(
+                Decimal,
+                form.cleaned_data["realized_pnl"],
+            )
+            actual_exit_price = cast(
+                Decimal | None,
+                form.cleaned_data["actual_exit_price"],
+            )
+            commission_total = cast(
+                Decimal | None,
+                form.cleaned_data["commission_total"],
+            )
+            funding_result = cast(
+                Decimal | None,
+                form.cleaned_data.get("funding_result"),
+            )
+            if trade.status == Trade.Status.OPEN.value:
+                _closed_trade = close_trade(
+                    trade,
+                    realized_pnl=realized_pnl,
+                    actual_exit_price=actual_exit_price,
+                    commission_total=commission_total,
+                    funding_result=funding_result,
+                )
+            else:
+                _corrected_trade = update_trade_result(
+                    trade,
+                    realized_pnl=realized_pnl,
+                    actual_exit_price=actual_exit_price,
+                    commission_total=commission_total,
+                    funding_result=funding_result,
+                )
+        except ValidationError as error:
+            _transition_error(request, error)
+        else:
+            if trade.status == Trade.Status.OPEN.value:
+                messages.success(request, _("Trade closed."))
+            else:
+                messages.success(request, _("Trade result updated."))
+            return redirect("trade_detail", trade_id=trade.id)
+    return render(
+        request,
+        "tradefog/journal/trade_close.html",
+        {
+            "trade": trade,
+            "form": form,
+            "correcting": trade.status == Trade.Status.CLOSED.value,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def trade_date_edit(request: HttpRequest, trade_id: int) -> HttpResponse:
+    """Correct an owned trade's analytical date at any lifecycle stage."""
+    trade = _owned_trade(request, trade_id)
+    form = TradeDateForm(
+        request.POST if request.method == "POST" else None,
+        instance=trade,
+    )
+    if request.method == "POST" and form.is_valid():
+        _dated_trade = cast(Trade, form.save())
+        messages.success(request, _("Trade date updated."))
+        return redirect("trade_detail", trade_id=trade.id)
+    return render(
+        request,
+        "tradefog/journal/trade_date_form.html",
+        {"trade": trade, "form": form},
+    )

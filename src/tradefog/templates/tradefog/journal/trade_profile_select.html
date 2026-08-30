@@ -1,0 +1,54 @@
+{% extends "tradefog/base.html" %}
+{% load i18n journal %}
+
+{% block title %}{% translate "Select profile" %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="page-pretitle">{% translate "New trade" %}</div>
+      <h1 class="page-title">{% translate "Select a trading profile" %}</h1>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% if profiles %}
+    <div class="row row-cards">
+      {% for profile in profiles %}
+        <div class="col-12 col-lg-6">
+          <a class="card card-link h-100" href="{% url 'trade_create' profile.id %}">
+            <div class="card-body">
+              <div class="d-flex align-items-start gap-3">
+                <span class="avatar bg-primary-lt">
+                  {% include "tradefog/components/icon.html" with name="notebook" class="" %}
+                </span>
+                <div class="flex-fill">
+                  <h2 class="card-title mb-1">{{ profile.name }}</h2>
+                  <div class="text-secondary">
+                    {{ profile.current_capital|compact_decimal }} {{ profile.capital_asset.symbol }}
+                    · {{ profile.risk_per_trade_percent|compact_decimal }}%
+                  </div>
+                </div>
+                {% include "tradefog/journal/partials/profile_status.html" %}
+              </div>
+            </div>
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <section class="empty empty-bordered">
+      <div class="empty-icon">
+        {% include "tradefog/components/icon.html" with name="notebook" class="" %}
+      </div>
+      <p class="empty-title">{% translate "No profile is ready for a trade" %}</p>
+      <p class="empty-subtitle text-secondary">
+        {% translate "Create an active profile and add at least one trading pair first." %}
+      </p>
+      <div class="empty-action">
+        <a class="btn btn-primary" href="{% url 'profile_create' %}">{% translate "Create profile" %}</a>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

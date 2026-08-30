@@ -5,10 +5,22 @@ from typing import final
 from django.contrib import admin
 
 from tradefog.journal.models import (
+    Asset,
     CapitalOperation,
-    ProfileInstrument,
+    ProfileTradingPair,
+    Trade,
     TradingProfile,
 )
+
+
+@admin.register(Asset)
+@final
+class AssetAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissingTypeArgument]
+    """Expose owner-scoped asset identities for administrative support."""
+
+    list_display = ("symbol", "name", "asset_class", "owner", "archived_at")
+    list_filter = ("asset_class", "archived_at")
+    search_fields = ("symbol", "name", "owner__username")
 
 
 @admin.register(TradingProfile)
@@ -20,10 +32,11 @@ class TradingProfileAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissingTyp
         "name",
         "owner",
         "provider",
-        "capital_currency",
+        "capital_asset",
+        "market_type",
         "status",
     )
-    list_filter = ("provider", "capital_currency", "status")
+    list_filter = ("provider", "market_type", "capital_asset", "status")
     search_fields = ("name", "owner__username")
 
 
@@ -42,21 +55,40 @@ class CapitalOperationAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissingT
     search_fields = ("profile__name", "profile__owner__username", "note")
 
 
-@admin.register(ProfileInstrument)
+@admin.register(ProfileTradingPair)
 @final
-class ProfileInstrumentAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissingTypeArgument]
-    """Expose profile instruments for administrative support."""
+class ProfileTradingPairAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissingTypeArgument]
+    """Expose profile trading pairs for administrative support."""
 
     list_display = (
         "symbol",
         "profile",
-        "market_type",
+        "asset",
         "archived_at",
     )
-    list_filter = ("market_type", "archived_at")
+    list_filter = ("profile__market_type", "archived_at")
     search_fields = (
-        "base_asset",
-        "display_name",
-        "profile__capital_currency",
+        "asset__symbol",
+        "profile__capital_asset__symbol",
         "profile__name",
+    )
+
+
+@admin.register(Trade)
+@final
+class TradeAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissingTypeArgument]
+    """Expose journal decisions and their lifecycle state for support."""
+
+    list_display = (
+        "trading_pair",
+        "profile",
+        "direction",
+        "status",
+        "trade_date",
+    )
+    list_filter = ("status", "direction", "profile__market_type")
+    search_fields = (
+        "trading_pair__asset__symbol",
+        "profile__name",
+        "profile__owner__username",
     )

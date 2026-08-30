@@ -1,12 +1,12 @@
-"""Core models for trading profiles, capital, and instruments."""
+"""Core models for assets, trading profiles, pairs, and trades."""
 
 # Django injects primary keys and reverse managers into model classes.
 # pyright: reportUninitializedInstanceVariable=false
 
 from __future__ import annotations
 
-from datetime import datetime
-from decimal import Decimal
+from datetime import date, datetime
+from decimal import Decimal, localcontext
 from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from django.conf import settings
@@ -18,6 +18,7 @@ from django.core.validators import (
 )
 from django.db import models
 from django.db.models import Sum
+from django.db.models.functions import Lower
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
@@ -34,11 +35,106 @@ ASSET_IDENTIFIER = RegexValidator(
     regex=r"^[A-Za-z0-9][A-Za-z0-9._-]*$",
     message=_("Use letters, numbers, dots, underscores, or hyphens."),
 )
-ACTIVE_MARKET_EXISTS = _("An active instrument already uses this market.")
-CAPITAL_CURRENCY_LOCKED = _(
-    "Capital currency is locked after the first instrument."
+ACTIVE_PAIR_EXISTS = _("An active trading pair already uses this asset.")
+CAPITAL_ASSET_LOCKED = _(
+    "Capital asset is locked after the first trading pair."
 )
+MARKET_TYPE_LOCKED = _("Market type is locked after the first trading pair.")
+ASSET_SYMBOL_LOCKED = _("Asset symbol is locked while the asset is in use.")
 PROVIDER_LOCKED = _("The execution provider cannot be changed.")
+INITIAL_CAPITAL_LOCKED = _(
+    "Initial capital is locked after the first submitted trade."
+)
+RISK_PERCENT_LOCKED = _(
+    "Risk per trade is locked after the first submitted trade."
+)
+
+
+class Asset(models.Model):
+    """A reusable owner-scoped asset identity."""
+
+    class AssetClass(models.TextChoices):
+        """Broad classifications used for presentation and future providers."""
+
+        CRYPTO = "CRYPTO", _("Cryptocurrency")
+        EQUITY = "EQUITY", _("Equity")
+        FIAT = "FIAT", _("Fiat currency")
+        OTHER = "OTHER", _("Other")
+
+    id: int
+    owner_id: int
+    capital_profiles: models.Manager[TradingProfile]
+    trading_pairs: models.Manager[ProfileTradingPair]
+
+    owner: models.ForeignKey[User, User] = models.ForeignKey(
+        cast(str, settings.AUTH_USER_MODEL),
+        on_delete=models.CASCADE,
+        related_name="assets",
+    )
+    symbol: models.CharField[str, str] = models.CharField(
+        _("Symbol"),
+        max_length=20,
+        validators=[ASSET_IDENTIFIER],
+        help_text=_("Canonical symbol used inside Tradefog, for example BTC."),
+    )
+    name: models.CharField[str, str] = models.CharField(
+        _("Name"), max_length=100, blank=True
+    )
+    asset_class: models.CharField[str, str] = models.CharField(
+        _("Asset class"),
+        max_length=20,
+        choices=AssetClass,
+        default=AssetClass.CRYPTO,
+    )
+    archived_at: models.DateTimeField[datetime | None, datetime | None] = (
+        models.DateTimeField(null=True, blank=True, editable=False)
+    )
+    created_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now_add=True)
+    )
+    updated_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now=True)
+    )
+
+    class Meta:
+        """Keep symbols unique and consistently ordered per owner."""
+
+        ordering: ClassVar[list[str]] = ["symbol", "id"]
+        constraints: ClassVar[list[models.BaseConstraint]] = [
+            models.UniqueConstraint(
+                Lower("symbol"),
+                models.F("owner"),
+                name="unique_owner_asset_symbol",
+            )
+        ]
+
+    @override
+    def __str__(self) -> str:
+        """Return the stable canonical symbol used in selectors."""
+        return self.symbol
+
+    @override
+    def clean(self) -> None:
+        """Normalize identity and prevent changing a referenced symbol."""
+        super().clean()
+        self.symbol = self.symbol.strip().upper()
+        self.name = self.name.strip()
+        if self._state.adding:
+            return
+        original_symbol = (
+            type(self).objects.filter(pk=self.id).values_list(
+                "symbol", flat=True
+            ).first()
+        )
+        if original_symbol == self.symbol:
+            return
+        if self.capital_profiles.exists() or self.trading_pairs.exists():
+            raise ValidationError({"symbol": ASSET_SYMBOL_LOCKED})
+
+    @property
+    def is_archived(self) -> bool:
+        """Return whether the asset is hidden from active selectors."""
+        return self.archived_at is not None
 
 
 class TradingProfile(models.Model):
@@ -57,9 +153,18 @@ class TradingProfile(models.Model):
         RISK_STOPPED = "RISK_STOPPED", _("Risk stopped")
         ARCHIVED = "ARCHIVED", _("Archived")
 
+    class MarketType(models.TextChoices):
+        """Markets whose execution rules are shared by this profile."""
+
+        SPOT = "SPOT", _("Spot")
+        LINEAR_PERPETUAL = "LINEAR_PERPETUAL", _("Linear perpetual")
+
     id: int
+    owner_id: int
+    capital_asset_id: int
     capital_operations: models.Manager[CapitalOperation]
-    instruments: models.Manager[ProfileInstrument]
+    trading_pairs: models.Manager[ProfileTradingPair]
+    trades: models.Manager[Trade]
 
     owner: models.ForeignKey[User, User] = models.ForeignKey(
         cast(str, settings.AUTH_USER_MODEL),
@@ -76,11 +181,22 @@ class TradingProfile(models.Model):
         default=Provider.MANUAL,
         editable=False,
     )
-    capital_currency: models.CharField[str, str] = models.CharField(
-        _("Capital currency"),
-        max_length=12,
-        validators=[ASSET_IDENTIFIER],
-        help_text=_("Currency used for capital, risk, and realized P&L."),
+    capital_asset: models.ForeignKey[Asset, Asset] = models.ForeignKey(
+        Asset,
+        on_delete=models.PROTECT,
+        related_name="capital_profiles",
+        verbose_name=_("Capital asset"),
+        help_text=_("Quote asset used for capital, risk, and realized P&L."),
+    )
+    market_type: models.CharField[str, str] = models.CharField(
+        _("Market type"),
+        max_length=24,
+        choices=MarketType,
+        default=MarketType.SPOT,
+        help_text=_(
+            "Spot supports LONG only; linear perpetual supports LONG and "
+            + "SHORT at 1x."
+        ),
     )
     initial_capital: models.DecimalField[Decimal, Decimal] = (
         models.DecimalField(
@@ -147,13 +263,24 @@ class TradingProfile(models.Model):
         """Normalize identifiers and enforce immutable profile context."""
         super().clean()
         self.name = self.name.strip()
-        self.capital_currency = self.capital_currency.strip().upper()
+        if getattr(self, "capital_asset_id", None) is None:
+            return
+        if self.capital_asset.owner_id != self.owner_id:
+            raise ValidationError(
+                {"capital_asset": _("Select an asset owned by this user.")}
+            )
         if self._state.adding:
             return
         original = (
             type(self)
             .objects.filter(pk=self.id)
-            .values("capital_currency", "provider")
+            .values(
+                "capital_asset_id",
+                "market_type",
+                "initial_capital",
+                "provider",
+                "risk_per_trade_percent",
+            )
             .first()
         )
         if original is None:
@@ -161,11 +288,23 @@ class TradingProfile(models.Model):
         if original["provider"] != self.provider:
             raise ValidationError({"provider": PROVIDER_LOCKED})
         if (
-            original["capital_currency"] != self.capital_currency
-            and self.instruments.exists()
+            original["capital_asset_id"] != self.capital_asset_id
+            and self.trading_pairs.exists()
         ):
+            raise ValidationError({"capital_asset": CAPITAL_ASSET_LOCKED})
+        if (
+            original["market_type"] != self.market_type
+            and self.trading_pairs.exists()
+        ):
+            raise ValidationError({"market_type": MARKET_TYPE_LOCKED})
+        submitted_trades = self.trades.exclude(status=Trade.Status.DRAFT.value)
+        if not submitted_trades.exists():
+            return
+        if original["initial_capital"] != self.initial_capital:
+            raise ValidationError({"initial_capital": INITIAL_CAPITAL_LOCKED})
+        if original["risk_per_trade_percent"] != self.risk_per_trade_percent:
             raise ValidationError(
-                {"capital_currency": CAPITAL_CURRENCY_LOCKED}
+                {"risk_per_trade_percent": RISK_PERCENT_LOCKED}
             )
 
     @property
@@ -190,13 +329,14 @@ class TradingProfile(models.Model):
 
     @property
     def realized_pnl_total(self) -> Decimal:
-        """Return realized trade P&L included in capital.
-
-        Trades are introduced in Stage 4. Keeping this boundary explicit makes
-        the capital formula ready for that source without coupling capital
-        operations to the future trade model.
-        """
-        return Decimal(0)
+        """Return aggregate realized P&L registered on closed trades."""
+        aggregate = cast(
+            dict[str, Decimal | None],
+            self.trades.filter(status=Trade.Status.CLOSED.value).aggregate(
+                total=Sum("realized_pnl")
+            ),
+        )
+        return aggregate["total"] or Decimal(0)
 
     @property
     def current_capital(self) -> Decimal:
@@ -219,12 +359,17 @@ class TradingProfile(models.Model):
 
     @property
     def reserved_risk(self) -> Decimal:
-        """Return risk reserved by pending and open trades.
-
-        Stage 4 adds trade reservations. Profiles expose the boundary now so
-        profile-state calculations do not need to change their public shape.
-        """
-        return Decimal(0)
+        """Return snapshotted risk reserved by pending and open trades."""
+        aggregate = cast(
+            dict[str, Decimal | None],
+            self.trades.filter(
+                status__in=(
+                    Trade.Status.PENDING_ENTRY.value,
+                    Trade.Status.OPEN.value,
+                )
+            ).aggregate(total=Sum("planned_risk_amount")),
+        )
+        return aggregate["total"] or Decimal(0)
 
     @property
     def worst_case_capital(self) -> Decimal:
@@ -318,40 +463,26 @@ class CapitalOperation(models.Model):
         return self.amount
 
 
-class ProfileInstrument(models.Model):
-    """A provider-specific instrument available to one profile."""
-
-    class MarketType(models.TextChoices):
-        """Instrument types supported by the initial journal."""
-
-        SPOT = "SPOT", _("Spot")
-        LINEAR = "LINEAR", _("Linear")
+class ProfileTradingPair(models.Model):
+    """An executable base/quote pair configured for one profile."""
 
     id: int
+    profile_id: int
+    asset_id: int
 
     profile: models.ForeignKey[TradingProfile, TradingProfile] = (
         models.ForeignKey(
             TradingProfile,
             on_delete=models.CASCADE,
-            related_name="instruments",
+            related_name="trading_pairs",
         )
     )
-    base_asset: models.CharField[str, str] = models.CharField(
-        _("Base asset"),
-        max_length=20,
-        validators=[ASSET_IDENTIFIER],
-        help_text=_("The traded asset; profile capital is the quote asset."),
-    )
-    display_name: models.CharField[str, str] = models.CharField(
-        _("Display name"),
-        max_length=100,
-        blank=True,
-    )
-    market_type: models.CharField[str, str] = models.CharField(
-        _("Market type"),
-        max_length=10,
-        choices=MarketType,
-        default=MarketType.SPOT,
+    asset: models.ForeignKey[Asset, Asset] = models.ForeignKey(
+        Asset,
+        on_delete=models.PROTECT,
+        related_name="trading_pairs",
+        verbose_name=_("Base asset"),
+        help_text=_("Asset traded against the profile capital asset."),
     )
     price_step: models.DecimalField[Decimal, Decimal] = models.DecimalField(
         _("Price step"),
@@ -401,13 +532,13 @@ class ProfileInstrument(models.Model):
     class Meta:
         """Keep active markets unique within each trading profile."""
 
-        ordering: ClassVar[list[str]] = ["base_asset", "market_type", "id"]
+        ordering: ClassVar[list[str]] = ["asset__symbol", "id"]
         constraints: ClassVar[list[models.BaseConstraint]] = [
             models.UniqueConstraint(
-                fields=["profile", "base_asset", "market_type"],
+                fields=["profile", "asset"],
                 condition=models.Q(archived_at__isnull=True),
-                name="unique_active_profile_instrument_market",
-                violation_error_message=ACTIVE_MARKET_EXISTS,
+                name="unique_active_profile_trading_pair",
+                violation_error_message=ACTIVE_PAIR_EXISTS,
             )
         ]
 
@@ -418,30 +549,340 @@ class ProfileInstrument(models.Model):
 
     @override
     def clean(self) -> None:
-        """Normalize the base asset and optional display name."""
+        """Keep both assets owner-scoped and distinct."""
         super().clean()
-        self.base_asset = self.base_asset.strip().upper()
-        self.display_name = self.display_name.strip()
-        if self.base_asset == self.profile.capital_currency:
+        if (
+            getattr(self, "asset_id", None) is None
+            or getattr(self, "profile_id", None) is None
+        ):
+            return
+        if self.asset.owner_id != self.profile.owner_id:
             raise ValidationError(
-                {
-                    "base_asset": _(
-                        "The traded asset must differ from the capital asset."
-                    )
-                }
+                {"asset": _("Select an asset owned by the profile owner.")}
+            )
+        if self.asset_id == self.profile.capital_asset_id:
+            raise ValidationError(
+                {"asset": _("Base and quote assets must differ.")}
             )
 
     @property
-    def quote_asset(self) -> str:
-        """Return the profile asset in which this market is settled."""
-        return self.profile.capital_currency
+    def base_symbol(self) -> str:
+        """Return the structured base side of the pair."""
+        return self.asset.symbol
+
+    @property
+    def quote_symbol(self) -> str:
+        """Return the structured quote and settlement side of the pair."""
+        return self.profile.capital_asset.symbol
 
     @property
     def symbol(self) -> str:
         """Return the canonical pair shown in the journal interface."""
-        return f"{self.base_asset}/{self.quote_asset}"
+        return f"{self.base_symbol}/{self.quote_symbol}"
 
     @property
     def is_archived(self) -> bool:
         """Return whether the instrument is hidden from active workflows."""
         return self.archived_at is not None
+
+
+class Trade(models.Model):
+    """One independent journal decision and its execution facts."""
+
+    class Status(models.TextChoices):
+        """Small lifecycle shared by manual and future provider workflows."""
+
+        DRAFT = "DRAFT", _("Draft")
+        PENDING_ENTRY = "PENDING_ENTRY", _("Pending entry")
+        OPEN = "OPEN", _("Open")
+        CLOSED = "CLOSED", _("Closed")
+        CANCELLED = "CANCELLED", _("Cancelled")
+
+    class Direction(models.TextChoices):
+        """Directions supported by ordinary spot and linear instruments."""
+
+        LONG = "LONG", "LONG"
+        SHORT = "SHORT", "SHORT"
+
+    id: int
+    profile_id: int
+    trading_pair_id: int
+
+    profile: models.ForeignKey[TradingProfile, TradingProfile] = (
+        models.ForeignKey(
+            TradingProfile,
+            on_delete=models.PROTECT,
+            related_name="trades",
+        )
+    )
+    trading_pair: models.ForeignKey[ProfileTradingPair, ProfileTradingPair] = (
+        models.ForeignKey(
+            ProfileTradingPair,
+            on_delete=models.PROTECT,
+            related_name="trades",
+        )
+    )
+    status: models.CharField[str, str] = models.CharField(
+        _("Status"),
+        max_length=20,
+        choices=Status,
+        default=Status.DRAFT,
+        editable=False,
+    )
+    direction: models.CharField[str, str] = models.CharField(
+        _("Direction"),
+        max_length=10,
+        choices=Direction,
+    )
+    trade_date: models.DateField[date, date] = models.DateField(
+        _("Trade date")
+    )
+    planned_entry: models.DecimalField[Decimal, Decimal] = models.DecimalField(
+        _("Planned entry"),
+        max_digits=24,
+        decimal_places=12,
+        validators=[POSITIVE_VALUE],
+    )
+    planned_stop: models.DecimalField[Decimal, Decimal] = models.DecimalField(
+        _("Planned stop"),
+        max_digits=24,
+        decimal_places=12,
+        validators=[POSITIVE_VALUE],
+    )
+    planned_take_profit: models.DecimalField[
+        Decimal | None, Decimal | None
+    ] = models.DecimalField(
+        _("Planned take profit"),
+        max_digits=24,
+        decimal_places=12,
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    planned_quantity: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("Planned quantity"),
+            max_digits=24,
+            decimal_places=12,
+            null=True,
+            blank=True,
+            editable=False,
+        )
+    )
+    planned_risk_percent: models.DecimalField[
+        Decimal | None, Decimal | None
+    ] = models.DecimalField(
+        _("Planned risk percent"),
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    planned_risk_amount: models.DecimalField[
+        Decimal | None, Decimal | None
+    ] = models.DecimalField(
+        _("Planned risk amount"),
+        max_digits=48,
+        decimal_places=24,
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    reward_multiple: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("Reward multiple"),
+            max_digits=6,
+            decimal_places=3,
+            null=True,
+            blank=True,
+            editable=False,
+        )
+    )
+    capital_snapshot: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("Capital snapshot"),
+            max_digits=24,
+            decimal_places=8,
+            null=True,
+            blank=True,
+            editable=False,
+        )
+    )
+    risk_base_snapshot: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("Risk base snapshot"),
+            max_digits=24,
+            decimal_places=8,
+            null=True,
+            blank=True,
+            editable=False,
+        )
+    )
+    risk_stop_snapshot: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("Risk stop snapshot"),
+            max_digits=24,
+            decimal_places=8,
+            null=True,
+            blank=True,
+            editable=False,
+        )
+    )
+    reserved_risk_snapshot: models.DecimalField[
+        Decimal | None, Decimal | None
+    ] = models.DecimalField(
+        _("Reserved risk snapshot"),
+        max_digits=48,
+        decimal_places=24,
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    risk_capacity_snapshot: models.DecimalField[
+        Decimal | None, Decimal | None
+    ] = models.DecimalField(
+        _("Risk capacity snapshot"),
+        max_digits=48,
+        decimal_places=24,
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    risk_limit_breached: models.BooleanField[bool, bool] = models.BooleanField(
+        _("Risk limit breached"),
+        default=False,
+        editable=False,
+    )
+    notional_limit_breached: models.BooleanField[bool, bool] = (
+        models.BooleanField(
+            _("Notional limit breached"),
+            default=False,
+            editable=False,
+        )
+    )
+    realized_pnl: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("Realized P&L"),
+            max_digits=24,
+            decimal_places=8,
+            null=True,
+            blank=True,
+        )
+    )
+    result_r: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("Result in R"),
+            max_digits=48,
+            decimal_places=24,
+            null=True,
+            blank=True,
+            editable=False,
+        )
+    )
+    actual_exit_price: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("Actual exit price"),
+            max_digits=24,
+            decimal_places=12,
+            null=True,
+            blank=True,
+            validators=[POSITIVE_VALUE],
+        )
+    )
+    commission_total: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("Commission"),
+            max_digits=24,
+            decimal_places=8,
+            null=True,
+            blank=True,
+            validators=[NON_NEGATIVE_VALUE],
+            help_text=_("Optional reference total already included in P&L."),
+        )
+    )
+    funding_result: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("Funding result"),
+            max_digits=24,
+            decimal_places=8,
+            null=True,
+            blank=True,
+            help_text=_(
+                "Optional signed funding already included in P&L: negative "
+                + "when paid and positive when received."
+            ),
+        )
+    )
+    created_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now_add=True)
+    )
+    updated_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now=True)
+    )
+    submitted_at: models.DateTimeField[datetime | None, datetime | None] = (
+        models.DateTimeField(null=True, blank=True, editable=False)
+    )
+    filled_at: models.DateTimeField[datetime | None, datetime | None] = (
+        models.DateTimeField(null=True, blank=True, editable=False)
+    )
+    closed_at: models.DateTimeField[datetime | None, datetime | None] = (
+        models.DateTimeField(null=True, blank=True, editable=False)
+    )
+    cancelled_at: models.DateTimeField[datetime | None, datetime | None] = (
+        models.DateTimeField(null=True, blank=True, editable=False)
+    )
+
+    class Meta:
+        """Order journal decisions by analytical date and creation order."""
+
+        ordering: ClassVar[list[str]] = ["-trade_date", "-created_at", "-id"]
+
+    @override
+    def __str__(self) -> str:
+        """Return the canonical instrument and analytical date."""
+        return f"{self.trading_pair.symbol} — {self.trade_date}"
+
+    def get_absolute_url(self) -> str:
+        """Return the localized workspace URL for this trade."""
+        return reverse("trade_detail", kwargs={"trade_id": self.id})
+
+    @override
+    def clean(self) -> None:
+        """Keep a trade inside one profile and supported market direction."""
+        super().clean()
+        trading_pair_id = getattr(self, "trading_pair_id", None)
+        profile_id = getattr(self, "profile_id", None)
+        if trading_pair_id is None or profile_id is None:
+            return
+        if self.trading_pair.profile_id != profile_id:
+            raise ValidationError(
+                {"trading_pair": _("Select a pair from this profile.")}
+            )
+        if (
+            self.profile.market_type == TradingProfile.MarketType.SPOT.value
+            and self.direction == self.Direction.SHORT.value
+        ):
+            raise ValidationError(
+                {"direction": _("Spot profiles support LONG only.")}
+            )
+
+    @property
+    def is_risk_reserved(self) -> bool:
+        """Return whether this trade currently consumes profile risk."""
+        return self.status in {
+            self.Status.PENDING_ENTRY.value,
+            self.Status.OPEN.value,
+        }
+
+    @property
+    def planned_profit_amount(self) -> Decimal | None:
+        """Return profit implied by the frozen executable risk and ratio."""
+        if (
+            self.planned_risk_amount is None
+            or self.reward_multiple is None
+        ):
+            return None
+        with localcontext() as context:
+            context.prec = 96
+            return self.planned_risk_amount * self.reward_multiple

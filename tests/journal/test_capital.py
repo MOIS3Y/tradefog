@@ -6,7 +6,7 @@ from django.test import Client
 from pytest import mark
 
 from tradefog.accounts.models import User
-from tradefog.journal.models import CapitalOperation, TradingProfile
+from tradefog.journal.models import Asset, CapitalOperation, TradingProfile
 from tradefog.journal.services import archive_profile, restore_profile
 
 DEFAULT_INITIAL_CAPITAL = Decimal(10000)
@@ -20,10 +20,14 @@ def create_profile(
     risk_stop_capital: Decimal = DEFAULT_RISK_STOP_CAPITAL,
 ) -> TradingProfile:
     """Create a manual profile with round risk values."""
+    capital_asset, _created = Asset.objects.get_or_create(
+        owner=owner,
+        symbol="USDT",
+    )
     return TradingProfile.objects.create(
         owner=owner,
         name="Primary",
-        capital_currency="USDT",
+        capital_asset=capital_asset,
         initial_capital=initial_capital,
         risk_per_trade_percent=Decimal(1),
         risk_stop_capital=risk_stop_capital,
@@ -95,7 +99,8 @@ def test_stop_can_protect_growth_above_initial_capital() -> None:
         f"/en/profiles/{profile.id}/edit/",
         {
             "name": profile.name,
-            "capital_currency": profile.capital_currency,
+            "capital_asset": str(profile.capital_asset_id),
+            "market_type": profile.market_type,
             "initial_capital": "10000",
             "risk_per_trade_percent": "1",
             "risk_stop_capital": "11000",

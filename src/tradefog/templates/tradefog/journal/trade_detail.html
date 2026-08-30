@@ -1,0 +1,254 @@
+{% extends "tradefog/base.html" %}
+{% load i18n journal %}
+
+{% block title %}{{ trade.trading_pair.symbol }} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            <a class="text-secondary" href="{% url 'trade_overview' %}">{% translate "Trades" %}</a>
+            · {{ trade.profile.name }}
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <h1 class="page-title">{{ trade.trading_pair.symbol }}</h1>
+            <span class="badge{% if trade.direction == 'LONG' %} bg-green-lt{% else %} bg-red-lt{% endif %}">
+              {{ trade.get_direction_display }}
+            </span>
+            {% include "tradefog/journal/partials/trade_status.html" %}
+          </div>
+          <div class="text-secondary mt-1">
+            {{ trade.trade_date|date:"DATE_FORMAT" }} · {{ trade.profile.get_market_type_display }}
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          {% if trade.status != "DRAFT" %}
+            <div class="btn-list">
+              {% if trade.status == "CLOSED" %}
+                <a class="btn" href="{% url 'trade_close' trade.id %}">{% translate "Correct result" %}</a>
+              {% endif %}
+              <a class="btn" href="{% url 'trade_date_edit' trade.id %}">
+                {% include "tradefog/components/icon.html" with name="calendar" class="icon-2" %}
+                {% translate "Correct date" %}
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% if trade.risk_limit_breached %}
+    <div class="alert alert-warning" role="alert">
+      <div class="d-flex">
+        <div>{% include "tradefog/components/icon.html" with name="alert-triangle" class="icon alert-icon" %}</div>
+        <div>
+          <h2 class="alert-title">{% translate "Recorded beyond the risk stop" %}</h2>
+          <div class="text-secondary">
+            {% translate "The order was recorded deliberately, and the breach remains part of its frozen risk context." %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if trade.notional_limit_breached %}
+    <div class="alert alert-warning" role="alert">
+      <div class="d-flex">
+        <div>{% include "tradefog/components/icon.html" with name="alert-triangle" class="icon alert-icon" %}</div>
+        <div>
+          <h2 class="alert-title">{% translate "Recorded beyond available capital" %}</h2>
+          <div class="text-secondary">{% translate "The position value exceeded current profile capital at 1x when the order was recorded." %}</div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if trade.status == "DRAFT" %}
+    <form id="trade-form" method="post" novalidate>
+      {% csrf_token %}
+      <div class="row row-cards">
+        <div class="col-12 col-xl-7">
+          <section class="card h-100" aria-labelledby="decision-title">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title" id="decision-title">{% translate "Trade decision" %}</h2>
+                <p class="card-subtitle">{% translate "Draft facts remain editable until the order is recorded." %}</p>
+              </div>
+            </div>
+            <div class="card-body">
+              {% include "tradefog/journal/partials/trade_draft_fields.html" %}
+            </div>
+            <div class="card-footer text-end">
+              <button class="btn" type="submit">{% translate "Save draft" %}</button>
+            </div>
+          </section>
+        </div>
+        <div class="col-12 col-xl-5">
+          <section class="card h-100" aria-labelledby="plan-title">
+            <div class="card-status-top bg-primary"></div>
+            <div class="card-header">
+              <div>
+                <h2 class="card-title" id="plan-title">{% translate "Position plan" %}</h2>
+                <p class="card-subtitle">{% translate "Fixed reward ratio 1:3" %}</p>
+              </div>
+            </div>
+            <div class="card-body" id="trade-plan" aria-live="polite">
+              {% include "tradefog/journal/partials/trade_plan.html" %}
+            </div>
+          </section>
+        </div>
+      </div>
+    </form>
+  {% else %}
+    <div class="row row-cards">
+      <div class="col-12 col-xl-8">
+        <section class="card h-100" aria-labelledby="frozen-plan-title">
+          <div class="card-status-top{% if trade.direction == 'LONG' %} bg-green{% else %} bg-red{% endif %}"></div>
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="frozen-plan-title">{% translate "Frozen position plan" %}</h2>
+              <p class="card-subtitle">{% translate "These values reproduce the decision recorded when the draft was submitted." %}</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="datagrid">
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Entry" %}</div>
+                <div class="datagrid-content fs-3 fw-semibold">{{ trade.planned_entry|compact_decimal }}</div>
+              </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Stop loss" %}</div>
+                <div class="datagrid-content fs-3 fw-semibold text-danger">{{ trade.planned_stop|compact_decimal }}</div>
+              </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Take profit" %}</div>
+                <div class="datagrid-content fs-3 fw-semibold text-success">{{ trade.planned_take_profit|compact_decimal }}</div>
+              </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Quantity" %}</div>
+                <div class="datagrid-content fs-3 fw-semibold">{{ trade.planned_quantity|compact_decimal }}</div>
+              </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Planned risk" %}</div>
+                <div class="datagrid-content">
+                  {{ trade.planned_risk_amount|compact_decimal }} {{ trade.profile.capital_asset.symbol }}
+                  · {{ trade.planned_risk_percent|compact_decimal }}%
+                </div>
+              </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Planned profit" %}</div>
+                <div class="datagrid-content text-success">
+                  {{ trade.planned_profit_amount|compact_decimal }} {{ trade.profile.capital_asset.symbol }}
+                </div>
+              </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Risk/reward" %}</div>
+                <div class="datagrid-content">1:{{ trade.reward_multiple|compact_decimal }}</div>
+              </div>
+              {% if trade.status == "CLOSED" %}
+                <div class="datagrid-item">
+                  <div class="datagrid-title">{% translate "Realized P&L" %}</div>
+                  <div class="datagrid-content{% if trade.realized_pnl < 0 %} text-danger{% elif trade.realized_pnl > 0 %} text-success{% endif %}">
+                    {{ trade.realized_pnl|compact_decimal }} {{ trade.profile.capital_asset.symbol }}
+                  </div>
+                </div>
+                <div class="datagrid-item">
+                  <div class="datagrid-title">{% translate "Result in R" %}</div>
+                  <div class="datagrid-content">{{ trade.result_r|rounded_decimal:2 }}R</div>
+                </div>
+                {% if trade.commission_total is not None %}
+                  <div class="datagrid-item">
+                    <div class="datagrid-title">{% translate "Commission" %}</div>
+                    <div class="datagrid-content">{{ trade.commission_total|compact_decimal }} {{ trade.profile.capital_asset.symbol }}</div>
+                  </div>
+                {% endif %}
+                {% if trade.funding_result is not None %}
+                  <div class="datagrid-item">
+                    <div class="datagrid-title">{% translate "Funding result" %}</div>
+                    <div class="datagrid-content">{{ trade.funding_result|compact_decimal }} {{ trade.profile.capital_asset.symbol }}</div>
+                  </div>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="col-12 col-xl-4">
+        <section class="card h-100" aria-labelledby="risk-context-title">
+          <div class="card-header">
+            <h2 class="card-title" id="risk-context-title">{% translate "Decision context" %}</h2>
+          </div>
+          <div class="card-body">
+            <div class="datagrid">
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Capital" %}</div>
+                <div class="datagrid-content">{{ trade.capital_snapshot|compact_decimal }} {{ trade.profile.capital_asset.symbol }}</div>
+              </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Risk base" %}</div>
+                <div class="datagrid-content">{{ trade.risk_base_snapshot|compact_decimal }} {{ trade.profile.capital_asset.symbol }}</div>
+              </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Already reserved" %}</div>
+                <div class="datagrid-content">{{ trade.reserved_risk_snapshot|compact_decimal }} {{ trade.profile.capital_asset.symbol }}</div>
+              </div>
+              <div class="datagrid-item">
+                <div class="datagrid-title">{% translate "Capacity after plan" %}</div>
+                <div class="datagrid-content{% if trade.risk_limit_breached %} text-danger{% endif %}">
+                  {{ trade.risk_capacity_snapshot|compact_decimal }} {{ trade.profile.capital_asset.symbol }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if trade.status != "CLOSED" and trade.status != "CANCELLED" %}
+    <section class="card mt-4" aria-labelledby="execution-title">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title" id="execution-title">{% translate "Manual execution" %}</h2>
+          <p class="card-subtitle">
+            {% if trade.status == "DRAFT" %}
+              {% translate "Record the order only after the plan matches the order placed outside Tradefog." %}
+            {% elif trade.status == "PENDING_ENTRY" %}
+              {% translate "The order is waiting for entry and currently reserves its planned risk." %}
+            {% else %}
+              {% translate "The position remains open until its complete net result is recorded." %}
+            {% endif %}
+          </p>
+        </div>
+      </div>
+      <div class="card-footer d-flex flex-wrap justify-content-end gap-2">
+        {% if trade.status == "DRAFT" %}
+          <form class="m-0" action="{% url 'trade_cancel' trade.id %}" method="post">
+            {% csrf_token %}
+            <button class="btn" type="submit">{% translate "Cancel draft" %}</button>
+          </form>
+          <form class="m-0" action="{% url 'trade_submit' trade.id %}" method="post">
+            {% csrf_token %}
+            <button class="btn btn-primary" type="submit">{% translate "Record pending order" %}</button>
+          </form>
+        {% elif trade.status == "PENDING_ENTRY" %}
+          <form class="m-0" action="{% url 'trade_cancel' trade.id %}" method="post">
+            {% csrf_token %}
+            <button class="btn" type="submit">{% translate "Cancel order" %}</button>
+          </form>
+          <form class="m-0" action="{% url 'trade_open' trade.id %}" method="post">
+            {% csrf_token %}
+            <button class="btn btn-primary" type="submit">{% translate "Mark position open" %}</button>
+          </form>
+        {% elif trade.status == "OPEN" %}
+          <a class="btn btn-primary" href="{% url 'trade_close' trade.id %}">{% translate "Close position" %}</a>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

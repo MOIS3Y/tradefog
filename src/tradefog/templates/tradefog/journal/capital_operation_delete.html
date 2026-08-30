@@ -14,7 +14,7 @@
           <h1 class="h2">{% translate "Delete capital operation?" %}</h1>
           <p class="text-secondary">
             {{ operation.get_operation_type_display }} ·
-            {{ operation.amount|compact_decimal }} {{ profile.capital_currency }}
+            {{ operation.amount|compact_decimal }} {{ profile.capital_asset.symbol }}
           </p>
           <p class="text-secondary">
             {% translate "Current capital and profile status will be recalculated." %}

@@ -1,0 +1,36 @@
+{% load i18n %}
+{% if form.non_field_errors %}
+  <div class="alert alert-danger" role="alert">
+    {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+  </div>
+{% endif %}
+<div class="row g-3">
+  <div class="col-12 col-md-5">
+    {% include "tradefog/components/form_field.html" with field=form.trade_date %}
+  </div>
+  <div class="col-12 col-md-7">
+    {% include "tradefog/components/form_field.html" with field=form.trading_pair %}
+  </div>
+  <div class="col-12">
+    <fieldset class="mb-3">
+      <legend class="form-label">{{ form.direction.label }}</legend>
+      <div class="btn-group w-100" role="group" aria-label="{{ form.direction.label }}">
+        {% for choice in form.direction %}
+          {{ choice.tag }}
+          <label class="btn{% if forloop.first %} btn-outline-success{% else %} btn-outline-danger{% endif %}" for="{{ choice.id_for_label }}">
+            {{ choice.choice_label }}
+          </label>
+        {% endfor %}
+      </div>
+      {% for error in form.direction.errors %}
+        <div class="invalid-feedback d-block">{{ error }}</div>
+      {% endfor %}
+    </fieldset>
+  </div>
+  <div class="col-12 col-md-6">
+    {% include "tradefog/components/unit_form_field.html" with field=form.planned_entry suffix=profile.capital_asset.symbol %}
+  </div>
+  <div class="col-12 col-md-6">
+    {% include "tradefog/components/unit_form_field.html" with field=form.planned_stop suffix=profile.capital_asset.symbol %}
+  </div>
+</div>

@@ -56,9 +56,12 @@
                 </div>
               </div>
               <div class="col-12 col-md-4">
-                {% include "tradefog/components/form_field.html" with field=form.capital_currency %}
+                {% include "tradefog/components/form_field.html" with field=form.capital_asset %}
               </div>
-              <div class="col-12 col-md-8">
+              <div class="col-12 col-md-4">
+                {% include "tradefog/components/form_field.html" with field=form.market_type %}
+              </div>
+              <div class="col-12 col-md-4">
                 {% include "tradefog/components/form_field.html" with field=form.initial_capital %}
               </div>
             </div>

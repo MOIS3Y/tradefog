@@ -39,7 +39,7 @@
               <div class="flex-fill min-w-0">
                 <h2 class="card-title mb-1">{{ profile.name }}</h2>
                 <div class="text-secondary">
-                  {{ profile.get_provider_display }} · {{ profile.capital_currency }}
+                  {{ profile.get_provider_display }} · {{ profile.get_market_type_display }} · {{ profile.capital_asset.symbol }}
                 </div>
                 <div class="text-secondary small mt-1">
                   {% blocktranslate with archived_at=profile.archived_at|date:"SHORT_DATE_FORMAT" %}Archived {{ archived_at }}{% endblocktranslate %}

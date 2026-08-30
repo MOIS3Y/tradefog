@@ -1,0 +1,81 @@
+{% extends "tradefog/base.html" %}
+{% load i18n journal %}
+
+{% block title %}{% translate "Trades" %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          <div class="page-pretitle">{% translate "Journal decisions" %}</div>
+          <h1 class="page-title">{% translate "Trades" %}</h1>
+        </div>
+        <div class="col-auto ms-auto">
+          <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate" href="{% url 'trade_profile_select' %}">
+            {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+            {% translate "New trade" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% if trades %}
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>{% translate "Trade" %}</th>
+              <th>{% translate "Profile" %}</th>
+              <th>{% translate "Date" %}</th>
+              <th>{% translate "Status" %}</th>
+              <th>{% translate "Result" %}</th>
+              <th class="w-1"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for trade in trades %}
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge{% if trade.direction == 'LONG' %} bg-green-lt{% else %} bg-red-lt{% endif %}">{{ trade.get_direction_display }}</span>
+                    <span class="fw-semibold">{{ trade.trading_pair.symbol }}</span>
+                    <span class="text-secondary small">{{ trade.profile.get_market_type_display }}</span>
+                  </div>
+                </td>
+                <td>{{ trade.profile.name }}</td>
+                <td class="text-secondary text-nowrap">{{ trade.trade_date|date:"SHORT_DATE_FORMAT" }}</td>
+                <td>{% include "tradefog/journal/partials/trade_status.html" %}</td>
+                <td class="text-nowrap">
+                  {% if trade.status == "CLOSED" %}
+                    <span class="{% if trade.result_r < 0 %}text-danger{% elif trade.result_r > 0 %}text-success{% endif %}">
+                      {{ trade.result_r|rounded_decimal:2 }}R
+                    </span>
+                  {% else %}—{% endif %}
+                </td>
+                <td>
+                  <a class="btn btn-icon" href="{{ trade.get_absolute_url }}" aria-label="{% translate 'Open trade' %}">
+                    {% include "tradefog/components/icon.html" with name="chevron-right" class="" %}
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <section class="empty empty-bordered">
+      <div class="empty-icon">{% include "tradefog/components/icon.html" with name="chart-candle" class="" %}</div>
+      <p class="empty-title">{% translate "No trades recorded" %}</p>
+      <p class="empty-subtitle text-secondary">{% translate "Create a draft when you are ready to document a trading decision." %}</p>
+      <div class="empty-action">
+        <a class="btn btn-primary" href="{% url 'trade_profile_select' %}">{% translate "New trade" %}</a>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

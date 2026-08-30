@@ -1,6 +1,6 @@
 """Shared formatting helpers for journal values."""
 
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 
 
 def compact_decimal(value: object) -> str:
@@ -10,3 +10,18 @@ def compact_decimal(value: object) -> str:
     if not isinstance(value, Decimal):
         return str(value)
     return format(value.normalize(), "f")
+
+
+def rounded_decimal(value: object, places: int = 2) -> str:
+    """Round a decimal for display without changing its stored precision."""
+    if value is None:
+        return ""
+    if not isinstance(value, Decimal):
+        return str(value)
+    if places < 0:
+        raise ValueError("Decimal places cannot be negative.")
+    quantum = Decimal(1).scaleb(-places)
+    with localcontext() as context:
+        context.prec = 96
+        rounded = value.quantize(quantum, rounding=ROUND_HALF_UP)
+    return compact_decimal(rounded)

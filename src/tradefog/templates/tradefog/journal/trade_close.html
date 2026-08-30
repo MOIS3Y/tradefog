@@ -1,0 +1,40 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+
+{% block title %}{% if correcting %}{% translate "Correct trade result" %}{% else %}{% translate "Close trade" %}{% endif %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="page-pretitle">{{ trade.profile.name }} · {{ trade.trading_pair.symbol }}</div>
+      <h1 class="page-title">{% if correcting %}{% translate "Correct trade result" %}{% else %}{% translate "Close position" %}{% endif %}</h1>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-7">
+      <form class="card" method="post" novalidate>
+        {% csrf_token %}
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">{% if correcting %}{% translate "Correct realized result" %}{% else %}{% translate "Final realized result" %}{% endif %}</h2>
+            <p class="card-subtitle">{% translate "Record one net value after the whole position is closed." %}</p>
+          </div>
+        </div>
+        <div class="card-body">
+          {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+          {% include "tradefog/components/form_field.html" with field=form.realized_pnl %}
+          {% include "tradefog/components/form_field.html" with field=form.actual_exit_price %}
+          {% include "tradefog/components/form_field.html" with field=form.commission_total %}
+          {% if form.funding_result %}{% include "tradefog/components/form_field.html" with field=form.funding_result %}{% endif %}
+        </div>
+        <div class="card-footer d-flex justify-content-end gap-2">
+          <a class="btn" href="{{ trade.get_absolute_url }}">{% translate "Cancel" %}</a>
+          <button class="btn btn-primary" type="submit">{% if correcting %}{% translate "Save result" %}{% else %}{% translate "Close trade" %}{% endif %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

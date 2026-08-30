@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 .venv/
+dist/
 
 # Testing
 .pytest_cache/

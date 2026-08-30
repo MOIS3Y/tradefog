@@ -1,0 +1,102 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Assets" %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          <div class="page-pretitle">{% translate "Journal configuration" %}</div>
+          <h1 class="page-title">{% translate "Assets" %}</h1>
+          <div class="text-secondary mt-1">
+            {% translate "Canonical asset identities reused by profiles and trading pairs." %}
+          </div>
+        </div>
+        <div class="col-auto ms-auto">
+          <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+             href="{% url 'asset_create' %}">
+            {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+            {% translate "Add asset" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="card">
+    {% if assets %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>{% translate "Symbol" %}</th>
+              <th>{% translate "Name" %}</th>
+              <th>{% translate "Asset class" %}</th>
+              <th class="w-1"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for asset in assets %}
+              <tr>
+                <td class="fw-semibold">{{ asset.symbol }}</td>
+                <td>{{ asset.name|default:"—" }}</td>
+                <td><span class="badge bg-azure-lt">{{ asset.get_asset_class_display }}</span></td>
+                <td>
+                  <div class="btn-list flex-nowrap">
+                    <a class="btn btn-icon" href="{% url 'asset_edit' asset.id %}"
+                       aria-label="{% translate 'Edit asset' %}">
+                      {% include "tradefog/components/icon.html" with name="pencil" class="icon-2" %}
+                    </a>
+                    <form class="m-0" action="{% url 'asset_archive' asset.id %}" method="post">
+                      {% csrf_token %}
+                      <button class="btn btn-icon" type="submit"
+                              aria-label="{% translate 'Archive asset' %}">
+                        {% include "tradefog/components/icon.html" with name="archive" class="icon-2" %}
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">
+        <p class="empty-title">{% translate "No assets yet" %}</p>
+        <p class="empty-subtitle text-secondary">
+          {% translate "Add the capital and traded assets before creating a profile." %}
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if archived_assets %}
+    <div class="card mt-4">
+      <div class="card-header">
+        <h2 class="card-title">{% translate "Archived assets" %}</h2>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for asset in archived_assets %}
+          <div class="list-group-item d-flex align-items-center">
+            <div class="flex-fill">
+              <span class="fw-semibold">{{ asset.symbol }}</span>
+              {% if asset.name %}<span class="text-secondary ms-2">{{ asset.name }}</span>{% endif %}
+            </div>
+            <form class="m-0" action="{% url 'asset_restore' asset.id %}" method="post">
+              {% csrf_token %}
+              <button class="btn" type="submit">
+                {% include "tradefog/components/icon.html" with name="restore" class="icon-2" %}
+                {% translate "Restore" %}
+              </button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

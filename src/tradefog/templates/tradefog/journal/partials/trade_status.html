@@ -1,0 +1,12 @@
+{% load i18n %}
+{% if trade.status == "DRAFT" %}
+  <span class="badge bg-secondary-lt">{% translate "Draft" %}</span>
+{% elif trade.status == "PENDING_ENTRY" %}
+  <span class="badge bg-azure-lt">{% translate "Pending entry" %}</span>
+{% elif trade.status == "OPEN" %}
+  <span class="badge bg-blue-lt">{% translate "Open" %}</span>
+{% elif trade.status == "CLOSED" %}
+  <span class="badge bg-green-lt">{% translate "Closed" %}</span>
+{% else %}
+  <span class="badge bg-secondary-lt">{% translate "Cancelled" %}</span>
+{% endif %}

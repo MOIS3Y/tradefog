@@ -147,13 +147,18 @@
     });
   }
 
+  /** Initialize every interactive control that depends on rendered markup. */
+  function initializeControls() {
+    initializeThemeToggle();
+  }
+
   if (document.readyState === "loading") {
     document.addEventListener(
       "DOMContentLoaded",
-      initializeThemeToggle,
+      initializeControls,
       { once: true },
     );
   } else {
-    initializeThemeToggle();
+    initializeControls();
   }
 })();

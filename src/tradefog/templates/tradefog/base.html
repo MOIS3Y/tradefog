@@ -156,13 +156,23 @@
                       <span class="nav-link-title">{% translate "Profiles" %}</span>
                     </a>
                   </li>
-                  <li class="nav-item">
-                    <span class="nav-link disabled" aria-disabled="true">
+                  <li class="nav-item{% if 'assets/' in request.resolver_match.route %} active{% endif %}">
+                    <a class="nav-link" href="{% url 'asset_overview' %}"
+                       {% if 'assets/' in request.resolver_match.route %}aria-current="page"{% endif %}>
+                      <span class="nav-link-icon d-md-none d-lg-inline-block">
+                        {% include "tradefog/components/icon.html" with name="notes" class="icon-1" %}
+                      </span>
+                      <span class="nav-link-title">{% translate "Assets" %}</span>
+                    </a>
+                  </li>
+                  <li class="nav-item{% if 'trades/' in request.resolver_match.route %} active{% endif %}">
+                    <a class="nav-link" href="{% url 'trade_overview' %}"
+                       {% if 'trades/' in request.resolver_match.route %}aria-current="page"{% endif %}>
                       <span class="nav-link-icon d-md-none d-lg-inline-block">
                         {% include "tradefog/components/icon.html" with name="chart-candle" class="icon-1" %}
                       </span>
                       <span class="nav-link-title">{% translate "Trades" %}</span>
-                    </span>
+                    </a>
                   </li>
                   <li class="nav-item">
                     <span class="nav-link disabled" aria-disabled="true">

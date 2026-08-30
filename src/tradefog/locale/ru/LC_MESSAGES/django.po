@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tradefog\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-29 07:45+0000\n"
+"POT-Creation-Date: 2026-08-29 16:01+0000\n"
 "PO-Revision-Date: 2026-08-26 00:00+0900\n"
 "Last-Translator: tradefog maintainers\n"
 "Language-Team: Russian\n"
@@ -10,326 +10,467 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
-"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: tests/test_localization.py:45 src/tradefog/config/localization.py:25
 msgid "English"
 msgstr "Английский"
 
-#: tests/test_localization.py:46 src/tradefog/config/localization.py:26
 msgid "Russian"
 msgstr "Русский"
 
-#: src/tradefog/journal/forms.py:75
-msgid "Capital currency is locked because instruments exist."
-msgstr "Валюта капитала заблокирована, поскольку в профиле есть инструменты."
+msgid "Entry must be positive."
+msgstr "Цена входа должна быть положительной."
 
-#: src/tradefog/journal/forms.py:104
+msgid "Stop must be positive."
+msgstr "Цена стопа должна быть положительной."
+
+msgid "The profile does not currently provide positive trade risk."
+msgstr "Сейчас профиль не предоставляет положительный риск на сделку."
+
+msgid "Entry must be aligned with the instrument price step."
+msgstr "Цена входа должна соответствовать шагу цены инструмента."
+
+msgid "Stop must be aligned with the instrument price step."
+msgstr "Цена стопа должна соответствовать шагу цены инструмента."
+
+msgid "A LONG stop must be below the entry price."
+msgstr "Стоп для LONG должен быть ниже цены входа."
+
+msgid "A SHORT stop must be above the entry price."
+msgstr "Стоп для SHORT должен быть выше цены входа."
+
+msgid "The calculated SHORT take profit must remain positive."
+msgstr "Рассчитанный тейк-профит для SHORT должен быть положительным."
+
+msgid "Select a trade direction."
+msgstr "Выберите направление сделки."
+
+msgid "Risk and stop distance produce a quantity below one step."
+msgstr "Риск и расстояние до стопа дают количество меньше одного шага."
+
+msgid "Calculated quantity is below the instrument minimum."
+msgstr "Рассчитанное количество меньше минимума для инструмента."
+
+msgid "Calculated order value is below the instrument minimum."
+msgstr "Рассчитанная стоимость ордера меньше минимума для инструмента."
+
+msgid "Capital asset is locked because trading pairs exist."
+msgstr "Актив капитала заблокирован, поскольку в профиле есть торговые пары."
+
+msgid "Market type is locked because trading pairs exist."
+msgstr "Тип рынка заблокирован, поскольку в профиле есть торговые пары."
+
+msgid "Initial capital is locked because a trade was submitted."
+msgstr "Начальный капитал зафиксирован, поскольку одна из сделок отправлена."
+
+msgid "Risk per trade is locked because a trade was submitted."
+msgstr "Риск на сделку зафиксирован, поскольку одна из сделок отправлена."
+
 msgid "Risk stop must be lower than current capital."
 msgstr "Порог остановки должен быть ниже текущего капитала."
 
-#: src/tradefog/journal/forms.py:128
 msgid "Deposit amount"
 msgstr "Сумма пополнения"
 
-#: src/tradefog/journal/forms.py:130
 msgid "Withdrawal amount"
 msgstr "Сумма вывода"
 
-#: src/tradefog/journal/forms.py:179
-msgid "Spot supports LONG; linear supports LONG and SHORT."
-msgstr "Спот поддерживает LONG, линейный рынок — LONG и SHORT."
-
-#: src/tradefog/journal/forms.py:182
 msgid "The smallest allowed change in the quoted price."
 msgstr "Минимально допустимое изменение цены инструмента."
 
-#: src/tradefog/journal/forms.py:185
 msgid "The smallest allowed change in the order quantity."
 msgstr "Минимально допустимое изменение количества в ордере."
 
-#: src/tradefog/journal/forms.py:188
 msgid "Leave empty when the market has no minimum quantity."
 msgstr "Оставьте пустым, если для рынка нет минимального объёма."
 
-#: src/tradefog/journal/models.py:35
+msgid "Trading pair"
+msgstr "Торговая пара"
+
+msgid "Realized P&L"
+msgstr "Реализованный P&L"
+
+msgid "Net result including fees, slippage, and manual exits."
+msgstr "Итоговый результат с учётом комиссий, проскальзывания и ручных выходов."
+
+msgid "Actual exit price"
+msgstr "Фактическая цена выхода"
+
+msgid "Optional reference price for the fully closed position."
+msgstr "Необязательная справочная цена полностью закрытой позиции."
+
+msgid "Commission"
+msgstr "Комиссия"
+
+msgid "Optional reference amount already included in net P&L."
+msgstr "Необязательная справочная сумма, уже включённая в чистый P&L."
+
+msgid "Funding result"
+msgstr "Результат фандинга"
+
+msgid "Optional signed amount already included in net P&L: negative when paid, positive when received."
+msgstr "Необязательная знаковая сумма, уже включённая в чистый P&L: отрицательная при оплате и положительная при получении."
+
 msgid "Use letters, numbers, dots, underscores, or hyphens."
 msgstr "Используйте буквы, цифры, точки, подчёркивания или дефисы."
 
-#: src/tradefog/journal/models.py:37
-msgid "An active instrument already uses this market."
-msgstr "Этот рынок уже используется активным инструментом."
+msgid "An active trading pair already uses this asset."
+msgstr "Этот актив уже используется активной торговой парой."
 
-#: src/tradefog/journal/models.py:39
-msgid "Capital currency is locked after the first instrument."
-msgstr "Валюта капитала блокируется после добавления первого инструмента."
+msgid "Capital asset is locked after the first trading pair."
+msgstr "Актив капитала блокируется после добавления первой торговой пары."
 
-#: src/tradefog/journal/models.py:41
+msgid "Market type is locked after the first trading pair."
+msgstr "Тип рынка блокируется после добавления первой торговой пары."
+
+msgid "Asset symbol is locked while the asset is in use."
+msgstr "Символ актива нельзя изменить, пока актив используется."
+
 msgid "The execution provider cannot be changed."
 msgstr "Способ исполнения нельзя изменить."
 
-#: src/tradefog/journal/models.py:50
-#: src/tradefog/templates/tradefog/journal/profile_form.html:50
-msgid "Manual"
-msgstr "Вручную"
+msgid "Initial capital is locked after the first submitted trade."
+msgstr "Начальный капитал фиксируется после первой отправленной сделки."
 
-#: src/tradefog/journal/models.py:55
-#: src/tradefog/templates/tradefog/journal/partials/profile_status.html:3
-msgid "Active"
-msgstr "Активен"
+msgid "Risk per trade is locked after the first submitted trade."
+msgstr "Риск на сделку фиксируется после первой отправленной сделки."
 
-#: src/tradefog/journal/models.py:56
-#: src/tradefog/templates/tradefog/journal/partials/profile_status.html:5
-msgid "At risk"
-msgstr "Риск повышен"
+msgid "Cryptocurrency"
+msgstr "Криптовалюта"
 
-#: src/tradefog/journal/models.py:57
-#: src/tradefog/templates/tradefog/journal/partials/profile_status.html:7
-msgid "Risk stopped"
-msgstr "Торговля остановлена"
+msgid "Equity"
+msgstr "Акция"
 
-#: src/tradefog/journal/models.py:58
-#: src/tradefog/templates/tradefog/journal/partials/profile_status.html:9
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:374
-msgid "Archived"
-msgstr "В архиве"
+msgid "Fiat currency"
+msgstr "Фиатная валюта"
 
-#: src/tradefog/journal/models.py:70
+msgid "Other"
+msgstr "Другое"
+
+msgid "Symbol"
+msgstr "Символ"
+
+msgid "Canonical symbol used inside Tradefog, for example BTC."
+msgstr "Канонический символ внутри Tradefog, например BTC."
+
 msgid "Name"
 msgstr "Название"
 
-#: src/tradefog/journal/models.py:73
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:125
-#: src/tradefog/templates/tradefog/journal/profile_form.html:47
-msgid "Execution provider"
-msgstr "Способ исполнения"
+msgid "Asset class"
+msgstr "Класс актива"
 
-#: src/tradefog/journal/models.py:80
-msgid "Capital currency"
-msgstr "Валюта капитала"
+msgid "Manual"
+msgstr "Вручную"
 
-#: src/tradefog/journal/models.py:83
-msgid "Currency used for capital, risk, and realized P&L."
-msgstr "Валюта для капитала, риска и реализованного P&L."
+msgid "Active"
+msgstr "Активен"
 
-#: src/tradefog/journal/models.py:87
-msgid "Initial trading capital"
-msgstr "Начальный торговый капитал"
+msgid "At risk"
+msgstr "Риск повышен"
 
-#: src/tradefog/journal/models.py:95
-msgid "Risk per trade, %"
-msgstr "Риск на сделку, %"
+msgid "Risk stopped"
+msgstr "Торговля остановлена"
 
-#: src/tradefog/journal/models.py:104
-msgid "Risk stop capital"
-msgstr "Порог остановки"
+msgid "Archived"
+msgstr "В архиве"
 
-#: src/tradefog/journal/models.py:109
-msgid "Trading should stop when current capital reaches this absolute amount."
-msgstr ""
-"Торговлю следует остановить, когда текущий капитал достигнет этой суммы."
-
-#: src/tradefog/journal/models.py:115
-msgid "Status"
-msgstr "Статус"
-
-#: src/tradefog/journal/models.py:262
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:229
-msgid "Deposit"
-msgstr "Пополнение"
-
-#: src/tradefog/journal/models.py:263
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:231
-msgid "Withdrawal"
-msgstr "Вывод"
-
-#: src/tradefog/journal/models.py:275
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:217
-msgid "Operation"
-msgstr "Операция"
-
-#: src/tradefog/journal/models.py:280
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:218
-msgid "Amount"
-msgstr "Сумма"
-
-#: src/tradefog/journal/models.py:286
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:219
-msgid "Note"
-msgstr "Примечание"
-
-#: src/tradefog/journal/models.py:327
 msgid "Spot"
 msgstr "Спот"
 
-#: src/tradefog/journal/models.py:328
-msgid "Linear"
-msgstr "Линейный"
+msgid "Linear perpetual"
+msgstr "Линейный бессрочный"
 
-#: src/tradefog/journal/models.py:340
-msgid "Base asset"
-msgstr "Базовый актив"
+msgid "Execution provider"
+msgstr "Способ исполнения"
 
-#: src/tradefog/journal/models.py:343
-msgid "The traded asset; profile capital is the quote asset."
-msgstr "Торгуемый актив; актив капитала профиля используется как котируемый."
+msgid "Capital asset"
+msgstr "Актив капитала"
 
-#: src/tradefog/journal/models.py:346
-msgid "Display name"
-msgstr "Отображаемое название"
+msgid "Quote asset used for capital, risk, and realized P&L."
+msgstr "Котируемый актив для капитала, риска и реализованного P&L."
 
-#: src/tradefog/journal/models.py:351
 msgid "Market type"
 msgstr "Тип рынка"
 
-#: src/tradefog/journal/models.py:357
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:292
+msgid "Spot supports LONG only; linear perpetual supports LONG and SHORT at 1x."
+msgstr "Спот поддерживает только LONG; линейный бессрочный рынок — LONG и SHORT при 1x."
+
+msgid "Initial trading capital"
+msgstr "Начальный торговый капитал"
+
+msgid "Risk per trade, %"
+msgstr "Риск на сделку, %"
+
+msgid "Risk stop capital"
+msgstr "Порог остановки"
+
+msgid "Trading should stop when current capital reaches this absolute amount."
+msgstr "Торговлю следует остановить, когда текущий капитал достигнет этой суммы."
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "Select an asset owned by this user."
+msgstr "Выберите актив этого пользователя."
+
+msgid "Deposit"
+msgstr "Пополнение"
+
+msgid "Withdrawal"
+msgstr "Вывод"
+
+msgid "Operation"
+msgstr "Операция"
+
+msgid "Amount"
+msgstr "Сумма"
+
+msgid "Note"
+msgstr "Примечание"
+
+msgid "Base asset"
+msgstr "Базовый актив"
+
+msgid "Asset traded against the profile capital asset."
+msgstr "Актив, торгуемый против актива капитала профиля."
+
 msgid "Price step"
 msgstr "Шаг цены"
 
-#: src/tradefog/journal/models.py:363
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:293
 msgid "Quantity step"
 msgstr "Шаг количества"
 
-#: src/tradefog/journal/models.py:370
 msgid "Minimum quantity"
 msgstr "Минимальное количество"
 
-#: src/tradefog/journal/models.py:380
 msgid "Minimum notional"
 msgstr "Минимальная сумма ордера"
 
-#: src/tradefog/journal/models.py:387
 msgid "Minimum order value in the profile capital currency."
 msgstr "Минимальная сумма ордера в валюте капитала профиля."
 
-#: src/tradefog/journal/models.py:429
-msgid "The traded asset must differ from the capital asset."
-msgstr "Торгуемый актив должен отличаться от актива капитала."
+msgid "Select an asset owned by the profile owner."
+msgstr "Выберите актив владельца профиля."
 
-#: src/tradefog/journal/services.py:17
+msgid "Base and quote assets must differ."
+msgstr "Базовый и котируемый активы должны различаться."
+
+msgid "Draft"
+msgstr "Черновик"
+
+msgid "Pending entry"
+msgstr "Ожидает входа"
+
+msgid "Open"
+msgstr "Открыта"
+
+msgid "Closed"
+msgstr "Закрыта"
+
+msgid "Cancelled"
+msgstr "Отменена"
+
+msgid "Direction"
+msgstr "Направление"
+
+msgid "Trade date"
+msgstr "Дата сделки"
+
+msgid "Planned entry"
+msgstr "Плановая цена входа"
+
+msgid "Planned stop"
+msgstr "Плановая цена стопа"
+
+msgid "Planned take profit"
+msgstr "Плановый тейк-профит"
+
+msgid "Planned quantity"
+msgstr "Плановое количество"
+
+msgid "Planned risk percent"
+msgstr "Плановый процент риска"
+
+msgid "Planned risk amount"
+msgstr "Плановая сумма риска"
+
+msgid "Reward multiple"
+msgstr "Множитель прибыли"
+
+msgid "Capital snapshot"
+msgstr "Снимок капитала"
+
+msgid "Risk base snapshot"
+msgstr "Снимок базы риска"
+
+msgid "Risk stop snapshot"
+msgstr "Снимок порога риска"
+
+msgid "Reserved risk snapshot"
+msgstr "Снимок зарезервированного риска"
+
+msgid "Risk capacity snapshot"
+msgstr "Снимок запаса риска"
+
+msgid "Risk limit breached"
+msgstr "Порог риска нарушен"
+
+msgid "Notional limit breached"
+msgstr "Лимит стоимости позиции нарушен"
+
+msgid "Result in R"
+msgstr "Результат в R"
+
+msgid "Optional reference total already included in P&L."
+msgstr "Необязательная справочная сумма, уже включённая в P&L."
+
+msgid "Optional signed funding already included in P&L: negative when paid and positive when received."
+msgstr "Необязательный знаковый фандинг, уже включённый в P&L: отрицательный при оплате и положительный при получении."
+
+msgid "Select a pair from this profile."
+msgstr "Выберите пару из этого профиля."
+
+msgid "Spot profiles support LONG only."
+msgstr "Спотовые профили поддерживают только LONG."
+
 msgid "The operation would make the profile capital negative."
 msgstr "После этой операции капитал профиля станет отрицательным."
 
-#: src/tradefog/journal/views.py:277
+msgid "This action is not available for the trade's current status."
+msgstr "Это действие недоступно для текущего статуса сделки."
+
+msgid "The trade has no valid risk snapshot."
+msgstr "У сделки нет корректного снимка риска."
+
+msgid "Asset created."
+msgstr "Актив создан."
+
+msgid "Asset updated."
+msgstr "Актив обновлён."
+
+msgid "Asset archived."
+msgstr "Актив перемещён в архив."
+
+msgid "Asset restored."
+msgstr "Актив восстановлен."
+
 msgid "Profile restored."
 msgstr "Профиль восстановлен."
 
-#: src/tradefog/journal/views.py:299
 msgid "Capital updated."
 msgstr "Капитал обновлён."
 
-#: src/tradefog/journal/views.py:354
 msgid "Capital operation updated."
 msgstr "Операция с капиталом обновлена."
 
-#: src/tradefog/journal/views.py:379
 msgid "Capital operation deleted."
 msgstr "Операция с капиталом удалена."
 
-#: src/tradefog/journal/views.py:477
-msgid "Instrument restored."
-msgstr "Инструмент восстановлен."
+msgid "Trading pair restored."
+msgstr "Торговая пара восстановлена."
 
-#: src/tradefog/journal/views.py:483
-msgid "Archive that instrument before restoring this one."
-msgstr "Архивируйте его перед восстановлением этого инструмента."
+msgid "Archive that pair before restoring this one."
+msgstr "Архивируйте эту пару перед восстановлением другой."
 
-#: src/tradefog/templates/registration/login.html:4
-#: src/tradefog/templates/registration/login.html:67
+msgid "Complete the position fields."
+msgstr "Заполните параметры позиции."
+
+msgid "Add an active trading pair first."
+msgstr "Сначала добавьте активную торговую пару."
+
+msgid "Draft saved."
+msgstr "Черновик сохранён."
+
+msgid "Order recorded with a risk-stop breach."
+msgstr "Ордер записан с нарушением порога риска."
+
+msgid "Order marked as pending entry."
+msgstr "Ордер отмечен как ожидающий входа."
+
+msgid "Position marked as open."
+msgstr "Позиция отмечена как открытая."
+
+msgid "Trade cancelled."
+msgstr "Сделка отменена."
+
+msgid "Trade closed."
+msgstr "Сделка закрыта."
+
+msgid "Trade result updated."
+msgstr "Результат сделки обновлён."
+
+msgid "Trade date updated."
+msgstr "Дата сделки обновлена."
+
 msgid "Sign in"
 msgstr "Войти"
 
-#: src/tradefog/templates/registration/login.html:12
 msgid "Welcome!"
 msgstr "Добро пожаловать!"
 
-#: src/tradefog/templates/registration/login.html:30
 msgid "Username"
 msgstr "Имя пользователя"
 
-#: src/tradefog/templates/registration/login.html:49
 msgid "Password"
 msgstr "Пароль"
 
-#: src/tradefog/templates/tradefog/base.html:31
 msgid "Toggle navigation"
 msgstr "Переключить навигацию"
 
-#: src/tradefog/templates/tradefog/base.html:50
 msgid "Application controls"
 msgstr "Элементы управления приложением"
 
-#: src/tradefog/templates/tradefog/base.html:56
 msgid "Language"
 msgstr "Язык"
 
-#: src/tradefog/templates/tradefog/base.html:81
-#: src/tradefog/templates/tradefog/base.html:87
 msgid "Theme: Auto"
 msgstr "Тема: автоматически"
 
-#: src/tradefog/templates/tradefog/base.html:82
 msgid "Theme: Dark"
 msgstr "Тема: тёмная"
 
-#: src/tradefog/templates/tradefog/base.html:83
 msgid "Theme: Light"
 msgstr "Тема: светлая"
 
-#: src/tradefog/templates/tradefog/base.html:97
 msgid "Open user menu"
 msgstr "Открыть меню пользователя"
 
-#: src/tradefog/templates/tradefog/base.html:117
 msgid "Settings"
 msgstr "Настройки"
 
-#: src/tradefog/templates/tradefog/base.html:124
 msgid "Log out"
 msgstr "Выйти"
 
-#: src/tradefog/templates/tradefog/base.html:140
 msgid "Primary navigation"
 msgstr "Основная навигация"
 
-#: src/tradefog/templates/tradefog/base.html:147
-#: src/tradefog/templates/tradefog/home.html:4
-#: src/tradefog/templates/tradefog/home.html:9
 msgid "Home"
 msgstr "Главная"
 
-#: src/tradefog/templates/tradefog/base.html:156
 msgid "Profiles"
 msgstr "Профили"
 
-#: src/tradefog/templates/tradefog/base.html:164
+msgid "Assets"
+msgstr "Активы"
+
 msgid "Trades"
 msgstr "Сделки"
 
-#: src/tradefog/templates/tradefog/base.html:172
 msgid "Analytics"
 msgstr "Аналитика"
 
-#: src/tradefog/templates/tradefog/base.html:194
 msgid "Close"
 msgstr "Закрыть"
 
-#: src/tradefog/templates/tradefog/journal/archive_confirm.html:4
 msgid "Confirm archive"
 msgstr "Подтверждение архивации"
 
-#: src/tradefog/templates/tradefog/journal/archive_confirm.html:16
 msgid "Archive this profile?"
 msgstr "Архивировать этот профиль?"
 
-#: src/tradefog/templates/tradefog/journal/archive_confirm.html:18
-msgid "Archive this instrument?"
-msgstr "Архивировать этот инструмент?"
+msgid "Archive this trading pair?"
+msgstr "Архивировать эту торговую пару?"
 
-#: src/tradefog/templates/tradefog/journal/archive_confirm.html:22
 #, python-format
 msgid ""
 "\n"
@@ -338,316 +479,469 @@ msgid ""
 "            "
 msgstr ""
 "\n"
-"              %(object_name)s будет исключён из активных разделов журнала. "
-"Существующая\n"
+"              %(object_name)s будет исключён из активных разделов журнала. Существующая\n"
 "              история не будет удалена.\n"
 "            "
 
-#: src/tradefog/templates/tradefog/journal/archive_confirm.html:30
-#: src/tradefog/templates/tradefog/journal/capital_operation_delete.html:25
-#: src/tradefog/templates/tradefog/journal/capital_operation_form.html:51
-#: src/tradefog/templates/tradefog/journal/instrument_form.html:73
-#: src/tradefog/templates/tradefog/journal/profile_form.html:99
 msgid "Cancel"
 msgstr "Отмена"
 
-#: src/tradefog/templates/tradefog/journal/archive_confirm.html:32
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:32
 msgid "Archive"
 msgstr "Архивировать"
 
-#: src/tradefog/templates/tradefog/journal/archived_profile_overview.html:4
-#: src/tradefog/templates/tradefog/journal/archived_profile_overview.html:16
 msgid "Archived profiles"
 msgstr "Архивные профили"
 
-#: src/tradefog/templates/tradefog/journal/archived_profile_overview.html:13
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:13
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:4
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:12
 msgid "Trading profiles"
 msgstr "Торговые профили"
 
-#: src/tradefog/templates/tradefog/journal/archived_profile_overview.html:21
 msgid "Back to active profiles"
 msgstr "Вернуться к активным профилям"
 
-#: src/tradefog/templates/tradefog/journal/archived_profile_overview.html:45
 #, python-format
 msgid "Archived %(archived_at)s"
 msgstr "В архиве с %(archived_at)s"
 
-#: src/tradefog/templates/tradefog/journal/archived_profile_overview.html:54
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:398
 msgid "Restore"
 msgstr "Восстановить"
 
-#: src/tradefog/templates/tradefog/journal/archived_profile_overview.html:67
 msgid "The archive is empty"
 msgstr "Архив пуст"
 
-#: src/tradefog/templates/tradefog/journal/archived_profile_overview.html:69
 msgid "Archived profiles will remain available here for restoration."
 msgstr "Архивные профили будут доступны здесь для восстановления."
 
-#: src/tradefog/templates/tradefog/journal/capital_operation_delete.html:4
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:252
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:253
+msgid "Edit asset"
+msgstr "Редактировать актив"
+
+msgid "Add asset"
+msgstr "Добавить актив"
+
+msgid "Asset identity"
+msgstr "Сведения об активе"
+
+msgid "Exchange-specific symbols remain the responsibility of future adapters."
+msgstr "Биржевые обозначения остаются ответственностью будущих адаптеров."
+
+msgid "Save changes"
+msgstr "Сохранить изменения"
+
+msgid "Journal configuration"
+msgstr "Настройка журнала"
+
+msgid "Canonical asset identities reused by profiles and trading pairs."
+msgstr "Канонические активы, используемые профилями и торговыми парами."
+
+msgid "Archive asset"
+msgstr "Архивировать актив"
+
+msgid "No assets yet"
+msgstr "Активов пока нет"
+
+msgid "Add the capital and traded assets before creating a profile."
+msgstr "Добавьте актив капитала и торгуемые активы перед созданием профиля."
+
+msgid "Archived assets"
+msgstr "Архивные активы"
+
 msgid "Delete capital operation"
 msgstr "Удалить операцию с капиталом"
 
-#: src/tradefog/templates/tradefog/journal/capital_operation_delete.html:14
 msgid "Delete capital operation?"
 msgstr "Удалить операцию с капиталом?"
 
-#: src/tradefog/templates/tradefog/journal/capital_operation_delete.html:20
 msgid "Current capital and profile status will be recalculated."
 msgstr "Текущий капитал и статус профиля будут пересчитаны."
 
-#: src/tradefog/templates/tradefog/journal/capital_operation_delete.html:28
-#: src/tradefog/templates/tradefog/journal/capital_operation_form.html:47
 msgid "Delete"
 msgstr "Удалить"
 
-#: src/tradefog/templates/tradefog/journal/capital_operation_form.html:4
-#: src/tradefog/templates/tradefog/journal/capital_operation_form.html:16
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:246
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:247
 msgid "Edit capital operation"
 msgstr "Редактировать операцию с капиталом"
 
-#: src/tradefog/templates/tradefog/journal/capital_operation_form.html:33
 #, python-format
 msgid "Recorded %(recorded)s"
 msgstr "Записано %(recorded)s"
 
-#: src/tradefog/templates/tradefog/journal/capital_operation_form.html:54
-#: src/tradefog/templates/tradefog/journal/instrument_form.html:76
-#: src/tradefog/templates/tradefog/journal/profile_form.html:102
-msgid "Save changes"
-msgstr "Сохранить изменения"
+msgid "Plan needs attention"
+msgstr "План требует внимания"
 
-#: src/tradefog/templates/tradefog/journal/instrument_form.html:5
-#: src/tradefog/templates/tradefog/journal/instrument_form.html:18
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:325
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:326
-msgid "Edit instrument"
-msgstr "Редактировать инструмент"
+msgid "Risk-stop warning"
+msgstr "Предупреждение о пороге риска"
 
-#: src/tradefog/templates/tradefog/journal/instrument_form.html:5
-#: src/tradefog/templates/tradefog/journal/instrument_form.html:18
-#: src/tradefog/templates/tradefog/journal/instrument_form.html:76
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:280
-msgid "Add instrument"
-msgstr "Добавить инструмент"
+msgid "This plan would take worst-case capital to or below the configured stop."
+msgstr "Этот план приведёт худший сценарий капитала к заданному порогу или ниже."
 
-#: src/tradefog/templates/tradefog/journal/instrument_form.html:40
-msgid "Profile instrument"
-msgstr "Инструмент профиля"
+msgid "Capital warning"
+msgstr "Предупреждение о капитале"
 
-#: src/tradefog/templates/tradefog/journal/instrument_form.html:42
-msgid "Precision and minimums are used to validate future position plans."
-msgstr "Точность и минимумы будут использоваться при проверке плана позиции."
+msgid "At 1x, this position value is greater than the profile's current capital. The manual journal still allows it to be recorded."
+msgstr "При 1x стоимость этой позиции превышает текущий капитал профиля. Ручной журнал всё равно позволяет её записать."
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:28
-#: src/tradefog/templates/tradefog/journal/profile_form.html:5
-#: src/tradefog/templates/tradefog/journal/profile_form.html:16
+msgid "Planned risk"
+msgstr "Плановый риск"
+
+msgid "Planned profit"
+msgstr "Плановый профит"
+
+msgid "Stop loss"
+msgstr "Стоп-лосс"
+
+msgid "Take profit"
+msgstr "Тейк-профит"
+
+msgid "Quantity"
+msgstr "Количество"
+
+msgid "Position value"
+msgstr "Стоимость позиции"
+
+msgid "Stop distance"
+msgstr "Расстояние до стопа"
+
+msgid "Capacity after plan"
+msgstr "Запас после сделки"
+
+#, python-format
+msgid "Quantity is rounded down from a target risk of %(target)s %(currency)s."
+msgstr "Количество округлено вниз от целевого риска %(target)s %(currency)s."
+
+msgid "Build the position plan"
+msgstr "Составьте план позиции"
+
+msgid "Select a trading pair and enter executable entry and stop prices."
+msgstr "Выберите торговую пару и укажите исполнимые цены входа и стопа."
+
 msgid "Edit profile"
 msgstr "Редактировать профиль"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:48
 msgid "Risk stop reached"
 msgstr "Достигнут порог остановки"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:50
-msgid ""
-"Current capital is at or below the explicit stop. Review the allocation "
-"before planning another trade."
-msgstr ""
-"Текущий капитал достиг порога остановки или опустился ниже. Проверьте "
-"распределение капитала перед планированием новой сделки."
+msgid "Current capital is at or below the explicit stop. Review the allocation before planning another trade."
+msgstr "Текущий капитал достиг порога остановки или опустился ниже. Проверьте распределение капитала перед планированием новой сделки."
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:62
 msgid "Open risk reaches the stop"
 msgstr "Открытый риск достигает порога"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:64
 msgid "Pending and open trades could move capital to the configured stop."
 msgstr "Ожидающие и открытые сделки могут привести капитал к заданному порогу."
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:75
 msgid "Capital and risk"
 msgstr "Капитал и риск"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:78
 msgid "Virtual allocation used for future position plans."
 msgstr "Виртуальный капитал для расчёта будущих сделок."
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:85
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:68
 msgid "Current capital"
 msgstr "Текущий капитал"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:91
 msgid "Initial capital"
 msgstr "Начальный капитал"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:97
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:81
 msgid "Risk stop"
 msgstr "Порог остановки"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:103
 msgid "Risk capacity"
 msgstr "Запас до порога"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:109
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:75
 msgid "Risk per trade"
 msgstr "Риск на сделку"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:115
 msgid "Next trade risk"
 msgstr "Риск следующей сделки"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:121
-#: src/tradefog/templates/tradefog/journal/profile_form.html:87
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:88
 msgid "Risk/reward"
 msgstr "Риск/прибыль"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:144
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:160
 msgid "Add capital"
 msgstr "Пополнить капитал"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:147
 msgid "Increase the allocation available to future trades."
 msgstr "Увеличить капитал, доступный для будущих сделок."
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:177
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:193
 msgid "Withdraw capital"
 msgstr "Вывести капитал"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:180
 msgid "Reduce the virtual allocation without changing trade results."
 msgstr "Уменьшить виртуальный капитал, не изменяя результаты торговли."
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:206
 msgid "Capital history"
 msgstr "История капитала"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:209
 msgid "Allocation changes are recorded when they are made in Tradefog."
 msgstr "Изменения капитала записываются в момент выполнения в Tradefog."
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:220
 msgid "Recorded"
 msgstr "Записано"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:270
-msgid "Profile instruments"
-msgstr "Инструменты профиля"
+msgid "Trading pairs"
+msgstr "Торговые пары"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:273
-msgid "Spot and linear markets sharing this profile allocation."
-msgstr "Спотовые и линейные рынки с общим капиталом профиля."
+msgid "Assets traded against this profile's capital asset."
+msgstr "Активы, торгуемые против актива капитала этого профиля."
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:290
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:372
-msgid "Instrument"
-msgstr "Инструмент"
+msgid "Add trading pair"
+msgstr "Добавить торговую пару"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:291
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:373
-msgid "Type"
-msgstr "Тип"
+msgid "Pair"
+msgstr "Пара"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:294
 msgid "Minimum order"
 msgstr "Минимальный ордер"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:331
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:332
-msgid "Archive instrument"
-msgstr "Архивировать инструмент"
+msgid "Edit trading pair"
+msgstr "Редактировать торговую пару"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:347
-msgid "No instruments configured"
-msgstr "Инструменты не настроены"
+msgid "Archive trading pair"
+msgstr "Архивировать торговую пару"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:349
+msgid "No trading pairs configured"
+msgstr "Торговые пары не настроены"
+
 msgid "Add the first market available to this profile."
 msgstr "Добавьте первый рынок, доступный этому профилю."
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:360
-msgid "Archived instruments"
-msgstr "Архивные инструменты"
+msgid "Archived trading pairs"
+msgstr "Архивные торговые пары"
 
-#: src/tradefog/templates/tradefog/journal/profile_detail.html:363
-msgid "Restore an instrument to use it in new trades."
-msgstr "Восстановите инструмент, чтобы использовать его в новых сделках."
+msgid "Restore a pair to use it in new trades."
+msgstr "Восстановите пару, чтобы использовать её в новых сделках."
 
-#: src/tradefog/templates/tradefog/journal/profile_form.html:5
-#: src/tradefog/templates/tradefog/journal/profile_form.html:16
-#: src/tradefog/templates/tradefog/journal/profile_form.html:102
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:28
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:117
 msgid "Create profile"
 msgstr "Создать профиль"
 
-#: src/tradefog/templates/tradefog/journal/profile_form.html:14
 msgid "Trading profile"
 msgstr "Торговый профиль"
 
-#: src/tradefog/templates/tradefog/journal/profile_form.html:37
 msgid "Profile identity"
 msgstr "Основные сведения"
 
-#: src/tradefog/templates/tradefog/journal/profile_form.html:51
 msgid "Bybit (coming later)"
 msgstr "Bybit (появится позже)"
 
-#: src/tradefog/templates/tradefog/journal/profile_form.html:54
 msgid "Exchange connections are added only with a working adapter."
 msgstr "Подключение к бирже появится только вместе с рабочим адаптером."
 
-#: src/tradefog/templates/tradefog/journal/profile_form.html:71
 msgid "Risk mandate"
 msgstr "Параметры риска"
 
-#: src/tradefog/templates/tradefog/journal/profile_form.html:73
 msgid "One explicit risk policy applies throughout this profile."
 msgstr "Для всего профиля действует одна явно заданная политика риска."
 
-#: src/tradefog/templates/tradefog/journal/profile_form.html:90
 msgid "Tradefog derives take profit from this fixed strategy rule."
-msgstr ""
-"Tradefog рассчитывает тейк-профит по этому неизменному правилу стратегии."
+msgstr "Tradefog рассчитывает тейк-профит по этому неизменному правилу стратегии."
 
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:11
 msgid "Profile overview"
 msgstr "Обзор профилей"
 
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:19
 msgctxt "noun"
 msgid "Archive"
 msgstr "Архив"
 
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:60
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:61
 msgid "Open profile"
 msgstr "Открыть профиль"
 
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:105
 msgid "No trading profiles yet"
 msgstr "Торговых профилей пока нет"
 
-#: src/tradefog/templates/tradefog/journal/profile_overview.html:108
-msgid ""
-"Create a profile to separate capital, instruments, and risk rules from the "
-"rest of your journal."
-msgstr ""
-"Создайте профиль, чтобы отделить его капитал, инструменты и правила риска от "
-"остального журнала."
+msgid "Create a profile to separate capital, market rules, and risk rules from the rest of your journal."
+msgstr "Создайте профиль, чтобы отделить его капитал, правила рынка и риска от остального журнала."
+
+msgid "Correct trade result"
+msgstr "Исправить результат сделки"
+
+msgid "Close trade"
+msgstr "Закрыть сделку"
+
+msgid "Close position"
+msgstr "Закрыть позицию"
+
+msgid "Correct realized result"
+msgstr "Исправить реализованный результат"
+
+msgid "Final realized result"
+msgstr "Итоговый реализованный результат"
+
+msgid "Record one net value after the whole position is closed."
+msgstr "Укажите одно итоговое значение после полного закрытия позиции."
+
+msgid "Save result"
+msgstr "Сохранить результат"
+
+msgid "Correct trade date"
+msgstr "Исправить дату сделки"
+
+msgid "This date controls analytics; execution timestamps do not change."
+msgstr "Эта дата используется в аналитике; время исполнения не изменится."
+
+msgid "Save date"
+msgstr "Сохранить дату"
+
+msgid "Correct result"
+msgstr "Исправить результат"
+
+msgid "Correct date"
+msgstr "Исправить дату"
+
+msgid "Recorded beyond the risk stop"
+msgstr "Записана за пределами порога риска"
+
+msgid "The order was recorded deliberately, and the breach remains part of its frozen risk context."
+msgstr "Ордер был записан осознанно, а нарушение сохранено в его зафиксированном контексте риска."
+
+msgid "Recorded beyond available capital"
+msgstr "Записана сверх доступного капитала"
+
+msgid "The position value exceeded current profile capital at 1x when the order was recorded."
+msgstr "При записи ордера стоимость позиции на 1x превышала текущий капитал профиля."
+
+msgid "Trade decision"
+msgstr "Торговое решение"
+
+msgid "Draft facts remain editable until the order is recorded."
+msgstr "Данные черновика можно менять до записи ордера."
+
+msgid "Save draft"
+msgstr "Сохранить черновик"
+
+msgid "Position plan"
+msgstr "План позиции"
+
+msgid "Fixed reward ratio 1:3"
+msgstr "Фиксированное соотношение риска и прибыли 1:3"
+
+msgid "Frozen position plan"
+msgstr "Зафиксированный план позиции"
+
+msgid "These values reproduce the decision recorded when the draft was submitted."
+msgstr "Эти значения воспроизводят решение на момент отправки черновика."
+
+msgid "Entry"
+msgstr "Вход"
+
+msgid "Decision context"
+msgstr "Контекст решения"
+
+msgid "Capital"
+msgstr "Капитал"
+
+msgid "Risk base"
+msgstr "База риска"
+
+msgid "Already reserved"
+msgstr "Уже зарезервировано"
+
+msgid "Manual execution"
+msgstr "Ручное исполнение"
+
+msgid "Record the order only after the plan matches the order placed outside Tradefog."
+msgstr "Записывайте ордер, когда план совпадает с ордером вне Tradefog."
+
+msgid "The order is waiting for entry and currently reserves its planned risk."
+msgstr "Ордер ожидает входа и резервирует запланированный риск."
+
+msgid "The position remains open until its complete net result is recorded."
+msgstr "Позиция остаётся открытой до записи её полного итогового результата."
+
+msgid "Cancel draft"
+msgstr "Отменить черновик"
+
+msgid "Record pending order"
+msgstr "Записать ожидающий ордер"
+
+msgid "Cancel order"
+msgstr "Отменить ордер"
+
+msgid "Mark position open"
+msgstr "Отметить позицию открытой"
+
+msgid "New trade"
+msgstr "Новая сделка"
+
+msgid "New trade draft"
+msgstr "Новый черновик сделки"
+
+msgid "The analytical date, market, direction, entry, and stop remain editable while this is a draft."
+msgstr "Дата анализа, рынок, направление, вход и стоп доступны для изменения, пока это черновик."
+
+msgid "Back"
+msgstr "Назад"
+
+msgid "Create draft"
+msgstr "Создать черновик"
+
+msgid "Journal decisions"
+msgstr "Решения журнала"
+
+msgid "Trade"
+msgstr "Сделка"
+
+msgid "Profile"
+msgstr "Профиль"
+
+msgid "Date"
+msgstr "Дата"
+
+msgid "Result"
+msgstr "Результат"
+
+msgid "Open trade"
+msgstr "Открыть сделку"
+
+msgid "No trades recorded"
+msgstr "Сделок пока нет"
+
+msgid "Create a draft when you are ready to document a trading decision."
+msgstr "Создайте черновик, когда будете готовы записать торговое решение."
+
+msgid "Select profile"
+msgstr "Выбрать профиль"
+
+msgid "Select a trading profile"
+msgstr "Выберите торговый профиль"
+
+msgid "No profile is ready for a trade"
+msgstr "Нет профиля, готового к сделке"
+
+msgid "Create an active profile and add at least one trading pair first."
+msgstr "Сначала создайте активный профиль и добавьте хотя бы одну торговую пару."
+
+msgid "Profile trading pair"
+msgstr "Торговая пара профиля"
+
+msgid "Precision and minimums belong to this profile and its execution venue."
+msgstr "Точность и минимумы относятся к этому профилю и месту исполнения."
+
+msgid "Market behavior is fixed by the profile."
+msgstr "Поведение рынка определяется профилем."
+
+#~ msgid "Instrument"
+#~ msgstr "Инструмент"
+
+#~ msgid "Linear"
+#~ msgstr "Линейный"
+
+#~ msgid "Display name"
+#~ msgstr "Отображаемое название"
+
+#~ msgid "The traded asset must differ from the capital asset."
+#~ msgstr "Торгуемый актив должен отличаться от актива капитала."
+
+#~ msgid "Archive this instrument?"
+#~ msgstr "Архивировать этот инструмент?"
+
+#~ msgid "Add instrument"
+#~ msgstr "Добавить инструмент"
+
+#~ msgid "Profile instrument"
+#~ msgstr "Инструмент профиля"
+
+#~ msgid "Profile instruments"
+#~ msgstr "Инструменты профиля"
+
+#~ msgid "Spot and linear markets sharing this profile allocation."
+#~ msgstr "Спотовые и линейные рынки с общим капиталом профиля."
+
+#~ msgid "Type"
+#~ msgstr "Тип"

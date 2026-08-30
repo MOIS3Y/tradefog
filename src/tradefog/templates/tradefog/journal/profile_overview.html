@@ -51,7 +51,7 @@
                     </a>
                   </h2>
                   <div class="d-flex align-items-center gap-2 text-secondary">
-                    <span>{{ profile.get_provider_display }} · {{ profile.capital_currency }}</span>
+                    <span>{{ profile.get_provider_display }} · {{ profile.get_market_type_display }} · {{ profile.capital_asset.symbol }}</span>
                     {% include "tradefog/journal/partials/profile_status.html" %}
                   </div>
                 </div>
@@ -68,7 +68,7 @@
                   <div class="datagrid-title">{% translate "Current capital" %}</div>
                   <div class="datagrid-content">
                     {{ profile.current_capital|compact_decimal }}
-                    {{ profile.capital_currency }}
+                    {{ profile.capital_asset.symbol }}
                   </div>
                 </div>
                 <div class="datagrid-item">
@@ -81,7 +81,7 @@
                   <div class="datagrid-title">{% translate "Risk stop" %}</div>
                   <div class="datagrid-content">
                     {{ profile.risk_stop_capital|compact_decimal }}
-                    {{ profile.capital_currency }}
+                    {{ profile.capital_asset.symbol }}
                   </div>
                 </div>
                 <div class="datagrid-item">
@@ -106,7 +106,7 @@
       </h2>
       <p class="empty-subtitle text-secondary">
         {% blocktranslate trimmed %}
-          Create a profile to separate capital, instruments, and risk
+          Create a profile to separate capital, market rules, and risk
           rules from the rest of your journal.
         {% endblocktranslate %}
       </p>
