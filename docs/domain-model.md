@@ -210,7 +210,7 @@ reproducible:
 - remaining risk capacity;
 - risk-limit breach state;
 - position-plan material values;
-- eventually, the relevant ATR context.
+- the relevant ATR context.
 
 Later capital operations, profile corrections, and other trades do not
 rewrite these snapshots.
@@ -312,11 +312,36 @@ direction and requires immutable historical strategy versions.
 
 Market observations are scoped to a profile trading pair because provider,
 market type, candles, and symbol rules vary. A dated closed daily candle stores
-at least high, low, close, source identity, and trading date.
+OHLC prices, source identity, source observation time, and trading date. Bybit
+daily candle dates identify UTC provider sessions. Each pair selects `MANUAL`
+or `BYBIT` market data independently of its execution provider; `MANUAL` is
+the default. Manual corrections take precedence over later provider refreshes.
 
 True Range and standard `ATR(14)` are deterministic calculations over closed
-daily candles. Current-session range remains separate. Market-data source and
-execution provider are independent concerns.
+daily candles. The initial ATR is the mean of the first 14 True Range values,
+which requires 15 closed candles, and later values use Wilder smoothing. For
+a trade date `D`, only candles before `D` contribute. Current-session range
+remains separate and may be compared with ATR and the advisory 75% reference.
+
+The draft workspace also compares the exact planned price movement from entry
+to take profit with the same reference:
+
+```text
+target_movement = abs(take_profit - entry)
+target_atr_percent = target_movement / ATR(14) * 100
+fits_reference = target_atr_percent <= 75
+```
+
+This comparison is advisory. It does not change the take profit, position
+size, risk, or lifecycle validity.
+
+The latest successful provider refresh, failure state, and still-forming
+session high and low are cached per pair. Provider failure preserves stored
+candles and marks their context stale. When a trade leaves `DRAFT`, available
+ATR value, contributing date, source composition, current-session range,
+observation time, and stale state are frozen with the other decision facts.
+Missing or stale market context remains advisory and does not block the
+manual trade lifecycle.
 
 ## Attachments
 

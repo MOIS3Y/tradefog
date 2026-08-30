@@ -1,0 +1,104 @@
+{% load i18n journal l10n %}
+<section class="card h-100" aria-labelledby="market-context-title">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title" id="market-context-title">{% translate "Daily range context" %}</h2>
+      <p class="card-subtitle">{% translate "ATR is volatility context, not a directional signal." %}</p>
+    </div>
+    {% if trading_pair %}
+      <div class="card-actions d-flex align-items-center gap-2">
+        <span class="badge bg-secondary-lt">
+          {% if trading_pair.market_data_provider == "BYBIT" %}Bybit{% else %}{% translate "Manual" %}{% endif %}
+        </span>
+        <a class="btn btn-sm"
+           href="{% url 'daily_candle_overview' trading_pair.profile_id trading_pair.id %}">
+          {% translate "Candles" %}
+        </a>
+        {% if trading_pair.market_data_provider == "BYBIT" %}
+          <button class="btn btn-sm"
+                  type="button"
+                  hx-post="{{ market_context_url }}"
+                  hx-target="#market-context"
+                  hx-swap="innerHTML"
+                  hx-include="#trade-form">
+            {% translate "Refresh" %}
+          </button>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    {% if not trading_pair %}
+      <div class="empty py-3">
+        <p class="empty-title">{% translate "Select a trading pair" %}</p>
+        <p class="empty-subtitle text-secondary">{% translate "Its stored daily candles will provide date-aware ATR context." %}</p>
+      </div>
+    {% elif market_context %}
+      {% if market_context.is_stale %}
+        <div class="alert alert-warning" role="alert">
+          <div class="fw-semibold">{% translate "Showing cached market data" %}</div>
+          <div class="text-secondary">{% translate "The latest provider refresh failed. The manual trade workflow remains available." %}</div>
+        </div>
+      {% endif %}
+
+      {% if market_context.atr_value is not None %}
+        <div class="text-secondary text-uppercase small fw-semibold">ATR(14)</div>
+        <div class="display-6 fw-semibold lh-1 mt-1">{{ market_context.atr_value|rounded_to_step:trading_pair.price_step }}</div>
+        <div class="text-secondary small mt-2">
+          {% blocktranslate with date=market_context.atr_as_of_date|date:"DATE_FORMAT" %}Closed candles through {{ date }}{% endblocktranslate %}
+          · {% if market_context.atr_source == "MIXED" %}{% translate "Mixed sources" %}{% elif market_context.atr_source == "BYBIT" %}Bybit{% else %}{% translate "Manual" %}{% endif %}
+        </div>
+
+        <div class="border-top mt-4 pt-4">
+          {% if market_context.session_range_percent is not None %}
+            <div class="d-flex justify-content-between gap-3 mb-2">
+              <div class="fw-semibold">{% translate "Observed session range" %}</div>
+              <div class="text-end">
+                <strong>{{ market_context.session_range_percent|rounded_decimal:1 }}%</strong>
+                <span class="text-secondary">{% translate "of ATR" %}</span>
+              </div>
+            </div>
+            <div class="tf-range-tape"
+                 style="--tf-range-percent: {{ market_context.range_tape_percent|unlocalize }}%;"
+                 role="img"
+                 aria-label="{% blocktranslate with percent=market_context.session_range_percent|rounded_decimal:1 %}Observed range is {{ percent }}% of ATR{% endblocktranslate %}">
+              <div class="tf-range-tape-fill"></div>
+              <div class="tf-range-tape-marker"><span>75%</span></div>
+            </div>
+            <div class="d-flex flex-wrap justify-content-between gap-2 text-secondary small mt-2">
+              <span>{% blocktranslate with value=market_context.session_range|compact_decimal %}Observed move: {{ value }}{% endblocktranslate %}</span>
+              <span>{% blocktranslate with value=market_context.seventy_five_percent_atr|rounded_to_step:trading_pair.price_step %}75% ATR reference: {{ value }}{% endblocktranslate %}</span>
+            </div>
+          {% elif market_context.session_range is not None %}
+            <div class="fw-semibold">
+              {% translate "Observed session range" %}:
+              {{ market_context.session_range|compact_decimal }}
+            </div>
+            <div class="text-secondary small mt-1">
+              {% translate "The range cannot be expressed as a percentage of zero ATR." %}
+            </div>
+          {% else %}
+            <div class="fw-semibold">{% translate "No live session range for this date" %}</div>
+            <div class="text-secondary small mt-1">
+              {% translate "Historical completed ranges are not presented as observations available at decision time." %}
+            </div>
+            <div class="text-secondary small mt-2">
+              {% blocktranslate with value=market_context.seventy_five_percent_atr|rounded_to_step:trading_pair.price_step %}75% ATR reference: {{ value }}{% endblocktranslate %}
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="empty py-3">
+          <p class="empty-title">{% translate "ATR is not available yet" %}</p>
+          <p class="empty-subtitle text-secondary">
+            {% translate "At least 15 closed daily candles before the trade date are required for ATR(14)." %}
+          </p>
+        </div>
+      {% endif %}
+
+      <div class="border-top mt-4 pt-4" id="atr-target-comparison">
+        {% include "tradefog/journal/partials/atr_target_comparison.html" %}
+      </div>
+    {% endif %}
+  </div>
+</section>

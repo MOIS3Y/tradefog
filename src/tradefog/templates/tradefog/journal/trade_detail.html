@@ -1,5 +1,5 @@
 {% extends "tradefog/base.html" %}
-{% load i18n journal %}
+{% load i18n journal static %}
 
 {% block title %}{{ trade.trading_pair.symbol }} · Tradefog{% endblock %}
 
@@ -39,6 +39,13 @@
       </div>
     </div>
   </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {% if trade.status == "DRAFT" %}
+    <script src="{% static 'tradefog/vendor/apexcharts/apexcharts.min.js' %}"></script>
+    <script src="{% static 'tradefog/js/market-context.js' %}"></script>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -101,6 +108,9 @@
               {% include "tradefog/journal/partials/trade_plan.html" %}
             </div>
           </section>
+        </div>
+        <div class="col-12" id="market-context" aria-live="polite">
+          {% include "tradefog/journal/partials/market_context.html" %}
         </div>
         {% include "tradefog/journal/partials/checklist_card.html" %}
       </div>
@@ -209,6 +219,8 @@
         </section>
       </div>
     </div>
+
+    {% include "tradefog/journal/partials/market_snapshot.html" %}
 
     <section class="card mt-4" aria-labelledby="recorded-checklist-title">
       <div class="card-header">

@@ -20,6 +20,7 @@ from django.db import models
 from django.db.models import Sum
 from django.db.models.functions import Lower
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from tradefog.journal.checklists import (
@@ -473,9 +474,17 @@ class CapitalOperation(models.Model):
 class ProfileTradingPair(models.Model):
     """An executable base/quote pair configured for one profile."""
 
+    class MarketDataProvider(models.TextChoices):
+        """Daily-candle sources available to one configured pair."""
+
+        MANUAL = "MANUAL", _("Manual")
+        BYBIT = "BYBIT", "Bybit"
+
     id: int
     profile_id: int
     asset_id: int
+    daily_candles: models.Manager[DailyCandle]
+    market_data_state: MarketDataState
 
     profile: models.ForeignKey[TradingProfile, TradingProfile] = (
         models.ForeignKey(
@@ -525,6 +534,15 @@ class ProfileTradingPair(models.Model):
                 "Minimum order value in the profile capital currency."
             ),
         )
+    )
+    market_data_provider: models.CharField[str, str] = models.CharField(
+        _("Market data source"),
+        max_length=10,
+        choices=MarketDataProvider,
+        default=MarketDataProvider.MANUAL,
+        help_text=_(
+            "Tradefog always calculates ATR from the stored daily candles."
+        ),
     )
     archived_at: models.DateTimeField[datetime | None, datetime | None] = (
         models.DateTimeField(null=True, blank=True, editable=False)
@@ -591,6 +609,179 @@ class ProfileTradingPair(models.Model):
     def is_archived(self) -> bool:
         """Return whether the instrument is hidden from active workflows."""
         return self.archived_at is not None
+
+
+class DailyCandle(models.Model):
+    """One closed provider-session daily candle for a profile pair."""
+
+    id: int
+    trading_pair_id: int
+
+    trading_pair: models.ForeignKey[ProfileTradingPair, ProfileTradingPair] = (
+        models.ForeignKey(
+            ProfileTradingPair,
+            on_delete=models.CASCADE,
+            related_name="daily_candles",
+        )
+    )
+    trading_date: models.DateField[date, date] = models.DateField(
+        _("Trading date"),
+        help_text=_("Bybit daily candles use UTC session dates."),
+    )
+    open_price: models.DecimalField[Decimal, Decimal] = models.DecimalField(
+        _("Open price"),
+        max_digits=24,
+        decimal_places=12,
+        validators=[POSITIVE_VALUE],
+    )
+    high_price: models.DecimalField[Decimal, Decimal] = models.DecimalField(
+        _("High price"),
+        max_digits=24,
+        decimal_places=12,
+        validators=[POSITIVE_VALUE],
+    )
+    low_price: models.DecimalField[Decimal, Decimal] = models.DecimalField(
+        _("Low price"),
+        max_digits=24,
+        decimal_places=12,
+        validators=[POSITIVE_VALUE],
+    )
+    close_price: models.DecimalField[Decimal, Decimal] = models.DecimalField(
+        _("Close price"),
+        max_digits=24,
+        decimal_places=12,
+        validators=[POSITIVE_VALUE],
+    )
+    source: models.CharField[str, str] = models.CharField(
+        _("Source"),
+        max_length=10,
+        choices=ProfileTradingPair.MarketDataProvider,
+        default=ProfileTradingPair.MarketDataProvider.MANUAL,
+        editable=False,
+    )
+    fetched_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(default=timezone.now, editable=False)
+    )
+    created_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now_add=True)
+    )
+    updated_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now=True)
+    )
+
+    class Meta:
+        """Keep one canonical closed candle per pair and session date."""
+
+        ordering: ClassVar[list[str]] = ["-trading_date", "-id"]
+        constraints: ClassVar[list[models.BaseConstraint]] = [
+            models.UniqueConstraint(
+                fields=["trading_pair", "trading_date"],
+                name="unique_pair_daily_candle",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(high_price__gte=models.F("low_price")),
+                name="daily_candle_high_gte_low",
+            ),
+        ]
+
+    @override
+    def __str__(self) -> str:
+        """Return the pair and provider-session date."""
+        return f"{self.trading_pair.symbol} — {self.trading_date}"
+
+    @override
+    def clean(self) -> None:
+        """Ensure open and close lie inside the recorded daily range."""
+        super().clean()
+        if self.low_price > self.high_price:
+            raise ValidationError(
+                {"high_price": _("High must not be below low.")}
+            )
+        if not self.low_price <= self.open_price <= self.high_price:
+            raise ValidationError(
+                {"open_price": _("Open must be inside the daily range.")}
+            )
+        if not self.low_price <= self.close_price <= self.high_price:
+            raise ValidationError(
+                {"close_price": _("Close must be inside the daily range.")}
+            )
+
+
+class MarketDataState(models.Model):
+    """Cached refresh state and the latest unclosed provider session."""
+
+    id: int
+    trading_pair_id: int
+
+    trading_pair: models.OneToOneField[
+        ProfileTradingPair, ProfileTradingPair
+    ] = models.OneToOneField(
+        ProfileTradingPair,
+        on_delete=models.CASCADE,
+        related_name="market_data_state",
+    )
+    current_session_date: models.DateField[date | None, date | None] = (
+        models.DateField(null=True, blank=True)
+    )
+    current_high: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            max_digits=24,
+            decimal_places=12,
+            null=True,
+            blank=True,
+        )
+    )
+    current_low: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            max_digits=24,
+            decimal_places=12,
+            null=True,
+            blank=True,
+        )
+    )
+    current_observed_at: models.DateTimeField[
+        datetime | None, datetime | None
+    ] = models.DateTimeField(null=True, blank=True)
+    last_attempt_at: models.DateTimeField[datetime | None, datetime | None] = (
+        models.DateTimeField(null=True, blank=True)
+    )
+    last_success_at: models.DateTimeField[datetime | None, datetime | None] = (
+        models.DateTimeField(null=True, blank=True)
+    )
+    last_error: models.CharField[str, str] = models.CharField(
+        max_length=300,
+        blank=True,
+    )
+
+    @property
+    def is_stale(self) -> bool:
+        """Return whether the most recent provider refresh failed."""
+        return bool(self.last_error)
+
+    @override
+    def clean(self) -> None:
+        """Keep the optional current-session observation coherent."""
+        super().clean()
+        values = (
+            self.current_session_date,
+            self.current_high,
+            self.current_low,
+            self.current_observed_at,
+        )
+        if any(value is not None for value in values) and any(
+            value is None for value in values
+        ):
+            raise ValidationError(
+                _("Current-session values must be recorded together.")
+            )
+        if (
+            self.current_high is not None
+            and self.current_low is not None
+            and self.current_high < self.current_low
+        ):
+            raise ValidationError(
+                {"current_high": _("High must not be below low.")}
+            )
 
 
 class Trade(models.Model):
@@ -769,6 +960,65 @@ class Trade(models.Model):
             editable=False,
         )
     )
+    atr_value_snapshot: models.DecimalField[Decimal | None, Decimal | None] = (
+        models.DecimalField(
+            _("ATR snapshot"),
+            max_digits=24,
+            decimal_places=12,
+            null=True,
+            blank=True,
+            editable=False,
+        )
+    )
+    atr_as_of_date_snapshot: models.DateField[date | None, date | None] = (
+        models.DateField(
+            _("ATR through date"),
+            null=True,
+            blank=True,
+            editable=False,
+        )
+    )
+    atr_source_snapshot: models.CharField[str, str] = models.CharField(
+        _("ATR source"),
+        max_length=20,
+        blank=True,
+        editable=False,
+    )
+    session_range_snapshot: models.DecimalField[
+        Decimal | None, Decimal | None
+    ] = models.DecimalField(
+        _("Observed session range"),
+        max_digits=24,
+        decimal_places=12,
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    session_range_percent_snapshot: models.DecimalField[
+        Decimal | None, Decimal | None
+    ] = models.DecimalField(
+        _("Observed range as ATR percent"),
+        max_digits=12,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    session_observed_at_snapshot: models.DateTimeField[
+        datetime | None, datetime | None
+    ] = models.DateTimeField(
+        _("Session observed at"),
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    market_data_stale_snapshot: models.BooleanField[bool, bool] = (
+        models.BooleanField(
+            _("Market data was stale"),
+            default=False,
+            editable=False,
+        )
+    )
     realized_pnl: models.DecimalField[Decimal | None, Decimal | None] = (
         models.DecimalField(
             _("Realized P&L"),
@@ -894,6 +1144,15 @@ class Trade(models.Model):
         with localcontext() as context:
             context.prec = 96
             return self.planned_risk_amount * self.reward_multiple
+
+    @property
+    def atr_seventy_five_percent_reference(self) -> Decimal | None:
+        """Return the fixed advisory range derived from frozen ATR."""
+        if self.atr_value_snapshot is None:
+            return None
+        with localcontext() as context:
+            context.prec = 96
+            return self.atr_value_snapshot * Decimal("0.75")
 
 
 class TradeChecklist(models.Model):

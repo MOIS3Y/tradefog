@@ -4,12 +4,13 @@
 # runtime classes cannot be parameterized.
 # pyright: reportAny=false, reportMissingTypeArgument=false, reportUnknownMemberType=false
 
-from datetime import timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from typing import ClassVar, cast, override
 
 from django import forms
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import QueryDict
 from django.utils import timezone
@@ -20,6 +21,7 @@ from tradefog.journal.models import (
     ACTIVE_PAIR_EXISTS,
     Asset,
     CapitalOperation,
+    DailyCandle,
     ProfileTradingPair,
     Trade,
     TradeChecklist,
@@ -74,6 +76,185 @@ class AnalyticsPairChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj: object) -> str:
         """Show only the pair because the profile is selected separately."""
         return cast(ProfileTradingPair, obj).symbol
+
+
+class TradingPairFilterForm(forms.Form):
+    """Validate owner-scoped filters for the central pair registry."""
+
+    search: forms.CharField = forms.CharField(
+        label=_("Search"),
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "type": "search",
+                "placeholder": _("Pair or profile"),
+            }
+        ),
+    )
+    profile: AnalyticsProfileChoiceField = AnalyticsProfileChoiceField(
+        label=_("Profile"),
+        required=False,
+        queryset=TradingProfile.objects.none(),
+        empty_label=_("All profiles"),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    market_type: forms.ChoiceField = forms.ChoiceField(
+        label=_("Market"),
+        required=False,
+        choices=(("", _("All markets")), *TradingProfile.MarketType.choices),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    market_data_provider: forms.ChoiceField = forms.ChoiceField(
+        label=_("Data source"),
+        required=False,
+        choices=(
+            ("", _("All sources")),
+            *ProfileTradingPair.MarketDataProvider.choices,
+        ),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
+    def __init__(self, owner: User, data: QueryDict | None = None) -> None:
+        """Limit selectable profiles to the authenticated owner."""
+        super().__init__(data=data)
+        profile_field = cast(
+            AnalyticsProfileChoiceField,
+            self.fields["profile"],
+        )
+        profile_field.queryset = TradingProfile.objects.filter(
+            owner=owner,
+        ).exclude(status=TradingProfile.Status.ARCHIVED.value)
+
+
+class DailyCandleFilterForm(forms.Form):
+    """Validate bounded date and source filters for candle history."""
+
+    date_from: forms.DateField = forms.DateField(
+        label=_("From"),
+        required=False,
+        widget=forms.DateInput(
+            attrs={"class": "form-control", "type": "date"}
+        ),
+    )
+    date_to: forms.DateField = forms.DateField(
+        label=_("To"),
+        required=False,
+        widget=forms.DateInput(
+            attrs={"class": "form-control", "type": "date"}
+        ),
+    )
+    source: forms.ChoiceField = forms.ChoiceField(
+        label=_("Source"),
+        required=False,
+        choices=(
+            ("", _("All sources")),
+            *ProfileTradingPair.MarketDataProvider.choices,
+        ),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
+    @override
+    def clean(self) -> dict[str, object] | None:
+        """Keep the optional date interval chronologically valid."""
+        cleaned_data = super().clean()
+        if cleaned_data is None:
+            return None
+        date_from = cleaned_data.get("date_from")
+        date_to = cleaned_data.get("date_to")
+        if (
+            isinstance(date_from, date)
+            and isinstance(date_to, date)
+            and date_from > date_to
+        ):
+            self.add_error(
+                "date_to",
+                _("The end date must not be earlier than the start date."),
+            )
+        return cleaned_data
+
+
+class TradeOverviewFilterForm(forms.Form):
+    """Validate owner-scoped filters for the operational trade journal."""
+
+    search: forms.CharField = forms.CharField(
+        label=_("Search"),
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "type": "search",
+                "placeholder": _("Pair or profile"),
+            }
+        ),
+    )
+    profile: AnalyticsProfileChoiceField = AnalyticsProfileChoiceField(
+        label=_("Profile"),
+        required=False,
+        queryset=TradingProfile.objects.none(),
+        empty_label=_("All profiles"),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    status: forms.ChoiceField = forms.ChoiceField(
+        label=_("Status"),
+        required=False,
+        choices=(("", _("All statuses")), *Trade.Status.choices),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    direction: forms.ChoiceField = forms.ChoiceField(
+        label=_("Direction"),
+        required=False,
+        choices=(("", _("All directions")), *Trade.Direction.choices),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    market_type: forms.ChoiceField = forms.ChoiceField(
+        label=_("Market"),
+        required=False,
+        choices=(("", _("All markets")), *TradingProfile.MarketType.choices),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    date_from: forms.DateField = forms.DateField(
+        label=_("From"),
+        required=False,
+        widget=forms.DateInput(
+            attrs={"class": "form-control", "type": "date"}
+        ),
+    )
+    date_to: forms.DateField = forms.DateField(
+        label=_("To"),
+        required=False,
+        widget=forms.DateInput(
+            attrs={"class": "form-control", "type": "date"}
+        ),
+    )
+
+    def __init__(self, owner: User, data: QueryDict | None = None) -> None:
+        """Limit the profile dimension to the authenticated owner."""
+        super().__init__(data=data)
+        profile_field = cast(
+            AnalyticsProfileChoiceField,
+            self.fields["profile"],
+        )
+        profile_field.queryset = TradingProfile.objects.filter(owner=owner)
+
+    @override
+    def clean(self) -> dict[str, object] | None:
+        """Keep the optional analytical date interval valid."""
+        cleaned_data = super().clean()
+        if cleaned_data is None:
+            return None
+        date_from = cleaned_data.get("date_from")
+        date_to = cleaned_data.get("date_to")
+        if (
+            isinstance(date_from, date)
+            and isinstance(date_to, date)
+            and date_from > date_to
+        ):
+            self.add_error(
+                "date_to",
+                _("The end date must not be earlier than the start date."),
+            )
+        return cleaned_data
 
 
 class AnalyticsFilterForm(forms.Form):
@@ -438,6 +619,7 @@ class ProfileTradingPairForm(forms.ModelForm):
         model: ClassVar[type[ProfileTradingPair]] = ProfileTradingPair
         fields: ClassVar[list[str]] = [
             "asset",
+            "market_data_provider",
             "price_step",
             "quantity_step",
             "minimum_quantity",
@@ -456,6 +638,9 @@ class ProfileTradingPairForm(forms.ModelForm):
         }
         widgets: ClassVar[dict[str, forms.Widget]] = {
             "asset": forms.Select(attrs={"class": "form-select"}),
+            "market_data_provider": forms.Select(
+                attrs={"class": "form-select"}
+            ),
             "price_step": CompactDecimalInput(
                 attrs={"class": "form-control", "min": "0", "step": "any"}
             ),
@@ -490,6 +675,49 @@ class ProfileTradingPairForm(forms.ModelForm):
         return cleaned_data
 
 
+class DailyCandleForm(forms.ModelForm):
+    """Maintain one manually sourced closed daily candle."""
+
+    class Meta:
+        """Expose exact provider-session OHLC facts."""
+
+        model: ClassVar[type[DailyCandle]] = DailyCandle
+        fields: ClassVar[list[str]] = [
+            "trading_date",
+            "open_price",
+            "high_price",
+            "low_price",
+            "close_price",
+        ]
+        widgets: ClassVar[dict[str, forms.Widget]] = {
+            "trading_date": forms.DateInput(
+                format="%Y-%m-%d",
+                attrs={"class": "form-control", "type": "date"},
+            ),
+            "open_price": CompactDecimalInput(
+                attrs={"class": "form-control", "min": "0", "step": "any"}
+            ),
+            "high_price": CompactDecimalInput(
+                attrs={"class": "form-control", "min": "0", "step": "any"}
+            ),
+            "low_price": CompactDecimalInput(
+                attrs={"class": "form-control", "min": "0", "step": "any"}
+            ),
+            "close_price": CompactDecimalInput(
+                attrs={"class": "form-control", "min": "0", "step": "any"}
+            ),
+        }
+
+    def clean_trading_date(self) -> date:
+        """Accept only sessions that have fully closed in Bybit UTC time."""
+        trading_date = self.cleaned_data["trading_date"]
+        if trading_date >= datetime.now(UTC).date():
+            raise ValidationError(
+                _("Enter a UTC daily session that has already closed.")
+            )
+        return trading_date
+
+
 class TradeDraftForm(forms.ModelForm):
     """Collect editable facts for one profile-owned trade draft."""
 
@@ -508,6 +736,7 @@ class TradeDraftForm(forms.ModelForm):
         *,
         instance: Trade | None = None,
         plan_url: str | None = None,
+        market_context_url: str | None = None,
     ) -> None:
         """Bind instrument choices and optional reactive plan updates."""
         bound_instance = instance or Trade(
@@ -540,7 +769,6 @@ class TradeDraftForm(forms.ModelForm):
                 "hx-include": "#trade-form",
             }
             for field_name in (
-                "trading_pair",
                 "direction",
                 "planned_entry",
                 "planned_stop",
@@ -548,6 +776,16 @@ class TradeDraftForm(forms.ModelForm):
                 self.fields[field_name].widget.attrs.update(
                     reactive_attributes
                 )
+        if market_context_url is not None:
+            market_attributes = {
+                "hx-post": market_context_url,
+                "hx-trigger": "change",
+                "hx-target": "#market-context",
+                "hx-swap": "innerHTML",
+                "hx-include": "#trade-form",
+            }
+            for field_name in ("trade_date", "trading_pair"):
+                self.fields[field_name].widget.attrs.update(market_attributes)
 
     class Meta:
         """Expose only draft facts that the owner may edit."""

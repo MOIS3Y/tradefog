@@ -1,0 +1,12 @@
+{% if trading_pair and market_context %}
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      {% include "tradefog/journal/partials/market_chart_card.html" %}
+    </div>
+    <div class="col-12 col-lg-5">
+      {% include "tradefog/journal/partials/market_range_card.html" %}
+    </div>
+  </div>
+{% else %}
+  {% include "tradefog/journal/partials/market_range_card.html" %}
+{% endif %}

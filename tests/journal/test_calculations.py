@@ -24,6 +24,7 @@ def test_long_plan_rounds_quantity_down_without_exceeding_risk() -> None:
     assert plan.distance == Decimal(5)
     assert plan.stop_loss == Decimal(95)
     assert plan.take_profit == Decimal(115)
+    assert plan.take_profit_distance == Decimal(15)
     assert plan.quantity == Decimal("19.8")
     assert plan.planned_risk_amount == Decimal(99)
     assert plan.planned_profit_amount == Decimal(297)

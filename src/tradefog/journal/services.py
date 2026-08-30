@@ -13,6 +13,7 @@ from tradefog.journal.calculations import (
     PositionPlan,
     calculate_position_plan,
 )
+from tradefog.journal.market_data.services import get_market_context
 from tradefog.journal.models import (
     Asset,
     CapitalOperation,
@@ -25,6 +26,7 @@ from tradefog.journal.models import (
 INSUFFICIENT_CAPITAL = _(
     "The operation would make the profile capital negative."
 )
+ATR_SNAPSHOT_QUANTUM = Decimal("0.000000000001")
 ZERO = Decimal(0)
 RESULT_R_QUANTUM = Decimal("0.000000000000000000000001")
 INVALID_TRADE_TRANSITION = _(
@@ -284,6 +286,25 @@ def _snapshot_trade_plan(
     trade.risk_capacity_snapshot = post_trade_capacity
     trade.risk_limit_breached = post_trade_capacity <= 0
     trade.notional_limit_breached = plan.notional > current_capital
+    market_context = get_market_context(
+        trade.trading_pair,
+        trade.trade_date,
+    )
+    if market_context.atr_value is None:
+        trade.atr_value_snapshot = None
+    else:
+        with localcontext() as context:
+            context.prec = 96
+            trade.atr_value_snapshot = market_context.atr_value.quantize(
+                ATR_SNAPSHOT_QUANTUM,
+                rounding=ROUND_HALF_EVEN,
+            )
+    trade.atr_as_of_date_snapshot = market_context.atr_as_of_date
+    trade.atr_source_snapshot = market_context.atr_source
+    trade.session_range_snapshot = market_context.session_range
+    trade.session_range_percent_snapshot = market_context.session_range_percent
+    trade.session_observed_at_snapshot = market_context.session_observed_at
+    trade.market_data_stale_snapshot = market_context.is_stale
 
 
 @transaction.atomic

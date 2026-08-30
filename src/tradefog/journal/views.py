@@ -8,9 +8,12 @@ from typing import cast
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.paginator import Page, Paginator
+from django.db.models import Case, Count, DecimalField, F, Max, Min, Q, When
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods, require_POST
 
@@ -34,16 +37,32 @@ from tradefog.journal.forms import (
     AssetForm,
     CapitalOperationForm,
     CloseTradeForm,
+    DailyCandleFilterForm,
+    DailyCandleForm,
     ProfileTradingPairForm,
     TradeChecklistForm,
     TradeDateForm,
     TradeDraftForm,
+    TradeOverviewFilterForm,
+    TradingPairFilterForm,
     TradingProfileForm,
+)
+from tradefog.journal.market_data.calculations import (
+    compare_target_move_with_atr,
+)
+from tradefog.journal.market_data.services import (
+    get_market_context,
+    refresh_market_context,
+)
+from tradefog.journal.market_data.types import (
+    AtrTargetComparison,
+    MarketContext,
 )
 from tradefog.journal.models import (
     ACTIVE_PAIR_EXISTS,
     Asset,
     CapitalOperation,
+    DailyCandle,
     ProfileTradingPair,
     Trade,
     TradeChecklist,
@@ -98,6 +117,13 @@ class AssetOverviewRow:
         return ", ".join(
             profile.name for profile in self.remaining_profiles
         )
+
+
+PAIR_PAGE_SIZE = 25
+CANDLE_PAGE_SIZE = 50
+TRADE_PAGE_SIZE = 50
+ASSET_PAGE_SIZE = 50
+PROFILE_TABLE_PAGE_SIZE = 25
 
 
 def _request_owner(request: HttpRequest) -> User:
@@ -166,6 +192,18 @@ def _owned_trading_pair(
         id=pair_id,
         profile=profile,
         archived_at__isnull=True,
+    )
+
+
+def _owned_daily_candle(
+    trading_pair: ProfileTradingPair,
+    candle_id: int,
+) -> DailyCandle:
+    """Resolve one candle through its owner-scoped profile pair."""
+    return get_object_or_404(
+        DailyCandle,
+        id=candle_id,
+        trading_pair=trading_pair,
     )
 
 
@@ -306,6 +344,7 @@ def analytics_overview(request: HttpRequest) -> HttpResponse:
 
 
 def _profile_detail_context(
+    request: HttpRequest,
     profile: TradingProfile,
     *,
     deposit_form: CapitalOperationForm | None = None,
@@ -316,6 +355,91 @@ def _profile_detail_context(
     risk_base = max(profile.initial_capital, current_capital)
     reserved_risk = profile.reserved_risk
     worst_case_capital = current_capital - reserved_risk
+    capital_sort_fields = {
+        "operation": ("operation_type", "-created_at", "-id"),
+        "-operation": ("-operation_type", "-created_at", "-id"),
+        "amount": ("signed_amount_sort", "-created_at", "-id"),
+        "-amount": ("-signed_amount_sort", "-created_at", "-id"),
+        "note": ("note", "-created_at", "-id"),
+        "-note": ("-note", "-created_at", "-id"),
+        "recorded": ("created_at", "id"),
+        "-recorded": ("-created_at", "-id"),
+    }
+    requested_capital_sort = request.GET.get(
+        "capital_sort",
+        "-recorded",
+    )
+    capital_sort = (
+        requested_capital_sort
+        if requested_capital_sort in capital_sort_fields
+        else "-recorded"
+    )
+    capital_operations = profile.capital_operations.annotate(
+        signed_amount_sort=Case(
+            When(
+                operation_type=CapitalOperation.Type.WITHDRAWAL.value,
+                then=-F("amount"),
+            ),
+            default=F("amount"),
+            output_field=DecimalField(max_digits=24, decimal_places=8),
+        )
+    ).order_by(*capital_sort_fields[capital_sort])
+    capital_page = Paginator(
+        capital_operations,
+        PROFILE_TABLE_PAGE_SIZE,
+    ).get_page(request.GET.get("capital_page"))
+
+    pair_sort_fields = {
+        "pair": ("asset__symbol", "id"),
+        "-pair": ("-asset__symbol", "-id"),
+        "price": ("price_step", "asset__symbol", "id"),
+        "-price": ("-price_step", "-asset__symbol", "-id"),
+        "quantity": ("quantity_step", "asset__symbol", "id"),
+        "-quantity": ("-quantity_step", "-asset__symbol", "-id"),
+        "minimum": ("minimum_quantity", "asset__symbol", "id"),
+        "-minimum": ("-minimum_quantity", "-asset__symbol", "-id"),
+    }
+    requested_pair_sort = request.GET.get("pair_sort", "pair")
+    pair_sort = (
+        requested_pair_sort
+        if requested_pair_sort in pair_sort_fields
+        else "pair"
+    )
+    trading_pairs = (
+        profile.trading_pairs.filter(archived_at__isnull=True)
+        .select_related("asset", "profile__capital_asset")
+        .order_by(*pair_sort_fields[pair_sort])
+    )
+    pair_page = Paginator(
+        trading_pairs,
+        PROFILE_TABLE_PAGE_SIZE,
+    ).get_page(request.GET.get("pair_page"))
+
+    archived_sort_fields = {
+        "pair": ("asset__symbol", "id"),
+        "-pair": ("-asset__symbol", "-id"),
+        "archived": ("archived_at", "asset__symbol", "id"),
+        "-archived": ("-archived_at", "-asset__symbol", "-id"),
+    }
+    requested_archived_sort = request.GET.get(
+        "archived_sort",
+        "-archived",
+    )
+    archived_sort = (
+        requested_archived_sort
+        if requested_archived_sort in archived_sort_fields
+        else "-archived"
+    )
+    archived_pairs = (
+        profile.trading_pairs.filter(archived_at__isnull=False)
+        .select_related("asset", "profile__capital_asset")
+        .order_by(*archived_sort_fields[archived_sort])
+    )
+    archived_pair_page = Paginator(
+        archived_pairs,
+        PROFILE_TABLE_PAGE_SIZE,
+    ).get_page(request.GET.get("archived_page"))
+
     return {
         "profile": profile,
         "current_capital": current_capital,
@@ -326,13 +450,58 @@ def _profile_detail_context(
         "reserved_risk": reserved_risk,
         "worst_case_capital": worst_case_capital,
         "risk_capacity": worst_case_capital - profile.risk_stop_capital,
-        "trading_pairs": profile.trading_pairs.filter(
-            archived_at__isnull=True
-        ).select_related("asset", "profile__capital_asset"),
-        "archived_trading_pairs": profile.trading_pairs.filter(
-            archived_at__isnull=False
-        ).select_related("asset", "profile__capital_asset"),
-        "capital_operations": profile.capital_operations.all(),
+        "capital_page": capital_page,
+        "capital_pagination": _pagination_urls(
+            request,
+            capital_page,
+            "capital_page",
+        ),
+        "capital_sort_headers": _sort_headers(
+            request,
+            capital_sort,
+            (
+                ("operation", _("Operation")),
+                ("amount", _("Amount")),
+                ("note", _("Note")),
+                ("recorded", _("Recorded")),
+            ),
+            sort_parameter="capital_sort",
+            page_parameter="capital_page",
+        ),
+        "pair_page": pair_page,
+        "pair_pagination": _pagination_urls(
+            request,
+            pair_page,
+            "pair_page",
+        ),
+        "pair_sort_headers": _sort_headers(
+            request,
+            pair_sort,
+            (
+                ("pair", _("Pair")),
+                ("price", _("Price step")),
+                ("quantity", _("Quantity step")),
+                ("minimum", _("Minimum order")),
+            ),
+            sort_parameter="pair_sort",
+            page_parameter="pair_page",
+        ),
+        "archived_pair_page": archived_pair_page,
+        "archived_pair_pagination": _pagination_urls(
+            request,
+            archived_pair_page,
+            "archived_page",
+        ),
+        "archived_pair_sort_headers": _sort_headers(
+            request,
+            archived_sort,
+            (
+                ("pair", _("Pair")),
+                ("archived", _("Archived")),
+            ),
+            sort_parameter="archived_sort",
+            page_parameter="archived_page",
+        ),
         "deposit_form": deposit_form
         or CapitalOperationForm(CapitalOperation.Type.DEPOSIT.value),
         "withdrawal_form": withdrawal_form
@@ -348,14 +517,16 @@ def _render_profile_detail(
     withdrawal_form: CapitalOperationForm | None = None,
 ) -> HttpResponse:
     """Render one profile with optional bound capital forms."""
+    context = _profile_detail_context(
+        request,
+        profile,
+        deposit_form=deposit_form,
+        withdrawal_form=withdrawal_form,
+    )
     return render(
         request,
         "tradefog/journal/profile_detail.html",
-        _profile_detail_context(
-            profile,
-            deposit_form=deposit_form,
-            withdrawal_form=withdrawal_form,
-        ),
+        context,
     )
 
 
@@ -425,15 +596,206 @@ def asset_overview(request: HttpRequest) -> HttpResponse:
     """List reusable asset identities owned by the authenticated user."""
     owner = _request_owner(request)
     assets = Asset.objects.filter(owner=owner)
-    active_assets = list(assets.filter(archived_at__isnull=True))
+    active_assets = assets.filter(archived_at__isnull=True).annotate(
+        capital_profile_sort=Min("capital_profiles__name"),
+        pair_profile_sort=Min("trading_pairs__profile__name"),
+    )
+    requested_sort = request.GET.get("sort", "symbol")
+    sort_fields = {
+        "symbol": ("symbol", "id"),
+        "-symbol": ("-symbol", "-id"),
+        "name": ("name", "symbol", "id"),
+        "-name": ("-name", "-symbol", "-id"),
+        "class": ("asset_class", "symbol", "id"),
+        "-class": ("-asset_class", "-symbol", "-id"),
+        "profiles": (
+            "capital_profile_sort",
+            "pair_profile_sort",
+            "symbol",
+            "id",
+        ),
+        "-profiles": (
+            "-capital_profile_sort",
+            "-pair_profile_sort",
+            "-symbol",
+            "-id",
+        ),
+    }
+    current_sort = (
+        requested_sort if requested_sort in sort_fields else "symbol"
+    )
+    page_obj = Paginator(
+        active_assets.order_by(*sort_fields[current_sort]),
+        ASSET_PAGE_SIZE,
+    ).get_page(request.GET.get("page"))
+    asset_rows = _asset_overview_rows(
+        owner,
+        list(page_obj.object_list),
+    )
+    context = {
+        "page_obj": page_obj,
+        "asset_rows": asset_rows,
+        "pagination": _pagination_urls(request, page_obj),
+        "current_sort": current_sort,
+        "sort_headers": _sort_headers(
+            request,
+            current_sort,
+            (
+                ("symbol", _("Symbol")),
+                ("name", _("Name")),
+                ("class", _("Asset class")),
+                ("profiles", _("Profiles")),
+            ),
+        ),
+        "archived_assets": assets.filter(archived_at__isnull=False),
+    }
+    template = "tradefog/journal/asset_overview.html"
+    if request.headers.get("HX-Request") == "true":
+        template = "tradefog/journal/partials/asset_results.html"
     return render(
         request,
-        "tradefog/journal/asset_overview.html",
-        {
-            "assets": _asset_overview_rows(owner, active_assets),
-            "archived_assets": assets.filter(archived_at__isnull=False),
-        },
+        template,
+        context,
     )
+
+
+def _sort_headers(
+    request: HttpRequest,
+    current_sort: str,
+    columns: tuple[tuple[str, str], ...],
+    *,
+    sort_parameter: str = "sort",
+    page_parameter: str = "page",
+) -> tuple[dict[str, str | bool], ...]:
+    """Build safe sort links while preserving the active filter query."""
+    headers: list[dict[str, str | bool]] = []
+    for key, label in columns:
+        active = current_sort.lstrip("-") == key
+        descending = current_sort == f"-{key}"
+        next_sort = key if descending or not active else f"-{key}"
+        query = request.GET.copy()
+        query[sort_parameter] = next_sort
+        _removed_page = query.pop(page_parameter, None)
+        headers.append(
+            {
+                "key": key,
+                "label": label,
+                "url": f"?{query.urlencode()}",
+                "active": active,
+                "descending": descending,
+            }
+        )
+    return tuple(headers)
+
+
+def _pagination_urls[PageItem](
+    request: HttpRequest,
+    page_obj: Page[PageItem],
+    page_parameter: str = "page",
+) -> dict[str, str | None]:
+    """Preserve all list state while changing one page parameter."""
+    previous_url = None
+    next_url = None
+    if page_obj.has_previous():
+        previous_query = request.GET.copy()
+        previous_query[page_parameter] = str(
+            page_obj.previous_page_number()
+        )
+        previous_url = f"?{previous_query.urlencode()}"
+    if page_obj.has_next():
+        next_query = request.GET.copy()
+        next_query[page_parameter] = str(page_obj.next_page_number())
+        next_url = f"?{next_query.urlencode()}"
+    return {"previous_url": previous_url, "next_url": next_url}
+
+
+@login_required
+def trading_pair_overview(request: HttpRequest) -> HttpResponse:
+    """List active owner-scoped pairs with market-data shortcuts."""
+    owner = _request_owner(request)
+    filter_form = TradingPairFilterForm(owner, request.GET or None)
+    pairs = (
+        ProfileTradingPair.objects.filter(
+            profile__owner=owner,
+            archived_at__isnull=True,
+        )
+        .exclude(profile__status=TradingProfile.Status.ARCHIVED.value)
+        .select_related("profile__capital_asset", "asset")
+        .annotate(
+            candle_count=Count("daily_candles"),
+            latest_candle_date=Max("daily_candles__trading_date"),
+        )
+    )
+    if filter_form.is_valid():
+        search = filter_form.cleaned_data.get("search")
+        profile = filter_form.cleaned_data.get("profile")
+        market_type = filter_form.cleaned_data.get("market_type")
+        market_data_provider = filter_form.cleaned_data.get(
+            "market_data_provider"
+        )
+        if search:
+            pairs = pairs.filter(
+                Q(asset__symbol__icontains=search)
+                | Q(profile__capital_asset__symbol__icontains=search)
+                | Q(profile__name__icontains=search)
+            )
+        if isinstance(profile, TradingProfile):
+            pairs = pairs.filter(profile=profile)
+        if market_type:
+            pairs = pairs.filter(profile__market_type=market_type)
+        if market_data_provider:
+            pairs = pairs.filter(
+                market_data_provider=market_data_provider
+            )
+
+    requested_sort = request.GET.get("sort", "pair")
+    sort_fields = {
+        "pair": ("asset__symbol", "profile__capital_asset__symbol", "id"),
+        "-pair": (
+            "-asset__symbol",
+            "-profile__capital_asset__symbol",
+            "-id",
+        ),
+        "profile": ("profile__name", "asset__symbol", "id"),
+        "-profile": ("-profile__name", "-asset__symbol", "-id"),
+        "market": ("profile__market_type", "asset__symbol", "id"),
+        "-market": ("-profile__market_type", "-asset__symbol", "-id"),
+        "source": ("market_data_provider", "asset__symbol", "id"),
+        "-source": ("-market_data_provider", "-asset__symbol", "-id"),
+        "candles": ("candle_count", "asset__symbol", "id"),
+        "-candles": ("-candle_count", "-asset__symbol", "-id"),
+        "latest": ("latest_candle_date", "asset__symbol", "id"),
+        "-latest": ("-latest_candle_date", "-asset__symbol", "-id"),
+    }
+    current_sort = (
+        requested_sort if requested_sort in sort_fields else "pair"
+    )
+    page_obj = Paginator(
+        pairs.order_by(*sort_fields[current_sort]),
+        PAIR_PAGE_SIZE,
+    ).get_page(request.GET.get("page"))
+    context = {
+        "filter_form": filter_form,
+        "page_obj": page_obj,
+        "pagination": _pagination_urls(request, page_obj),
+        "current_sort": current_sort,
+        "sort_headers": _sort_headers(
+            request,
+            current_sort,
+            (
+                ("pair", _("Pair")),
+                ("profile", _("Profile")),
+                ("market", _("Market")),
+                ("source", _("Data source")),
+                ("candles", _("Candles")),
+                ("latest", _("Latest candle")),
+            ),
+        ),
+    }
+    template = "tradefog/journal/trading_pair_overview.html"
+    if request.headers.get("HX-Request") == "true":
+        template = "tradefog/journal/partials/trading_pair_results.html"
+    return render(request, template, context)
 
 
 @login_required
@@ -812,6 +1174,210 @@ def trading_pair_restore(
     return redirect("profile_detail", profile_id=profile.id)
 
 
+@login_required
+def daily_candle_overview(
+    request: HttpRequest,
+    profile_id: int,
+    pair_id: int,
+) -> HttpResponse:
+    """List a filtered page of candles for one owned profile pair."""
+    profile = _owned_profile(request, profile_id)
+    trading_pair = _owned_trading_pair(profile, pair_id)
+    filter_form = DailyCandleFilterForm(request.GET or None)
+    candles = trading_pair.daily_candles.all()
+    if filter_form.is_valid():
+        date_from = filter_form.cleaned_data.get("date_from")
+        date_to = filter_form.cleaned_data.get("date_to")
+        source = filter_form.cleaned_data.get("source")
+        if date_from:
+            candles = candles.filter(trading_date__gte=date_from)
+        if date_to:
+            candles = candles.filter(trading_date__lte=date_to)
+        if source:
+            candles = candles.filter(source=source)
+
+    requested_sort = request.GET.get("sort", "-date")
+    sort_fields = {
+        "date": ("trading_date", "id"),
+        "-date": ("-trading_date", "-id"),
+        "open": ("open_price", "trading_date", "id"),
+        "-open": ("-open_price", "-trading_date", "-id"),
+        "high": ("high_price", "trading_date", "id"),
+        "-high": ("-high_price", "-trading_date", "-id"),
+        "low": ("low_price", "trading_date", "id"),
+        "-low": ("-low_price", "-trading_date", "-id"),
+        "close": ("close_price", "trading_date", "id"),
+        "-close": ("-close_price", "-trading_date", "-id"),
+        "source": ("source", "-trading_date", "-id"),
+        "-source": ("-source", "-trading_date", "-id"),
+    }
+    current_sort = (
+        requested_sort if requested_sort in sort_fields else "-date"
+    )
+    page_obj = Paginator(
+        candles.order_by(*sort_fields[current_sort]),
+        CANDLE_PAGE_SIZE,
+    ).get_page(request.GET.get("page"))
+    context = {
+        "profile": profile,
+        "trading_pair": trading_pair,
+        "filter_form": filter_form,
+        "page_obj": page_obj,
+        "pagination": _pagination_urls(request, page_obj),
+        "current_sort": current_sort,
+        "sort_headers": _sort_headers(
+            request,
+            current_sort,
+            (
+                ("date", _("Date")),
+                ("open", _("Open price")),
+                ("high", _("High price")),
+                ("low", _("Low price")),
+                ("close", _("Close price")),
+                ("source", _("Source")),
+            ),
+        ),
+    }
+    template = "tradefog/journal/daily_candle_overview.html"
+    if request.headers.get("HX-Request") == "true":
+        template = "tradefog/journal/partials/daily_candle_results.html"
+    return render(
+        request,
+        template,
+        context,
+    )
+
+
+def _save_manual_candle(
+    request: HttpRequest,
+    profile: TradingProfile,
+    trading_pair: ProfileTradingPair,
+    candle: DailyCandle,
+    *,
+    editing: bool,
+) -> HttpResponse:
+    """Validate and save one canonical manually maintained candle."""
+    form = DailyCandleForm(request.POST, instance=candle)
+    if form.is_valid():
+        saved_candle = cast(DailyCandle, form.save(commit=False))
+        saved_candle.trading_pair = trading_pair
+        saved_candle.source = (
+            ProfileTradingPair.MarketDataProvider.MANUAL.value
+        )
+        saved_candle.fetched_at = timezone.now()
+        saved_candle.save()
+        messages.success(request, _("Daily candle saved."))
+        return redirect(
+            "daily_candle_overview",
+            profile_id=profile.id,
+            pair_id=trading_pair.id,
+        )
+    return render(
+        request,
+        "tradefog/journal/daily_candle_form.html",
+        {
+            "form": form,
+            "profile": profile,
+            "trading_pair": trading_pair,
+            "candle": candle if editing else None,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def daily_candle_create(
+    request: HttpRequest,
+    profile_id: int,
+    pair_id: int,
+) -> HttpResponse:
+    """Add one manually sourced closed candle to an owned pair."""
+    profile = _owned_profile(request, profile_id)
+    trading_pair = _owned_trading_pair(profile, pair_id)
+    candle = DailyCandle(trading_pair=trading_pair)
+    if request.method == "POST":
+        return _save_manual_candle(
+            request,
+            profile,
+            trading_pair,
+            candle,
+            editing=False,
+        )
+    return render(
+        request,
+        "tradefog/journal/daily_candle_form.html",
+        {
+            "form": DailyCandleForm(instance=candle),
+            "profile": profile,
+            "trading_pair": trading_pair,
+            "candle": None,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def daily_candle_edit(
+    request: HttpRequest,
+    profile_id: int,
+    pair_id: int,
+    candle_id: int,
+) -> HttpResponse:
+    """Correct a stored candle and mark its provenance as manual."""
+    profile = _owned_profile(request, profile_id)
+    trading_pair = _owned_trading_pair(profile, pair_id)
+    candle = _owned_daily_candle(trading_pair, candle_id)
+    if request.method == "POST":
+        return _save_manual_candle(
+            request,
+            profile,
+            trading_pair,
+            candle,
+            editing=True,
+        )
+    return render(
+        request,
+        "tradefog/journal/daily_candle_form.html",
+        {
+            "form": DailyCandleForm(instance=candle),
+            "profile": profile,
+            "trading_pair": trading_pair,
+            "candle": candle,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def daily_candle_delete(
+    request: HttpRequest,
+    profile_id: int,
+    pair_id: int,
+    candle_id: int,
+) -> HttpResponse:
+    """Confirm removal of one erroneous owned candle."""
+    profile = _owned_profile(request, profile_id)
+    trading_pair = _owned_trading_pair(profile, pair_id)
+    candle = _owned_daily_candle(trading_pair, candle_id)
+    if request.method == "POST":
+        _deleted = candle.delete()
+        messages.success(request, _("Daily candle deleted."))
+        return redirect(
+            "daily_candle_overview",
+            profile_id=profile.id,
+            pair_id=trading_pair.id,
+        )
+    return render(
+        request,
+        "tradefog/journal/daily_candle_delete.html",
+        {
+            "profile": profile,
+            "trading_pair": trading_pair,
+            "candle": candle,
+        },
+    )
+
+
 def _draft_plan(
     form: TradeDraftForm,
 ) -> tuple[PositionPlan | None, str | None]:
@@ -832,12 +1398,28 @@ def _draft_plan(
 
 def _draft_trading_pair(form: TradeDraftForm) -> ProfileTradingPair | None:
     """Return the validated trading pair selected in a draft form."""
+    if not form.is_bound:
+        trade = cast(Trade, form.instance)
+        if getattr(trade, "trading_pair_id", None) is not None:
+            return trade.trading_pair
+        return None
     if not hasattr(form, "cleaned_data"):
         return None
     trading_pair = form.cleaned_data.get("trading_pair")
     if isinstance(trading_pair, ProfileTradingPair):
         return trading_pair
     return None
+
+
+def _draft_context_date(form: TradeDraftForm) -> date | None:
+    """Return the validated provider-session date from a draft form."""
+    if not form.is_bound:
+        trade = cast(Trade, form.instance)
+        return trade.trade_date
+    if not hasattr(form, "cleaned_data"):
+        return None
+    context_date = form.cleaned_data.get("trade_date")
+    return context_date if isinstance(context_date, date) else None
 
 
 def _trade_checklist(trade: Trade) -> TradeChecklist | None:
@@ -894,6 +1476,19 @@ def _plan_context(
     }
 
 
+def _atr_target_comparison(
+    plan: PositionPlan | None,
+    market_context: MarketContext | None,
+) -> AtrTargetComparison | None:
+    """Combine an exact position plan with cached date-aware ATR."""
+    if plan is None or market_context is None:
+        return None
+    return compare_target_move_with_atr(
+        plan.take_profit_distance,
+        market_context.atr_value,
+    )
+
+
 def _trade_workspace_context(
     trade: Trade,
     *,
@@ -920,10 +1515,14 @@ def _trade_workspace_context(
         )
         return context
     if form is None:
+        market_context_url = reverse(
+            "trade_market_context", kwargs={"trade_id": trade.id}
+        )
         draft_form = TradeDraftForm(
             trade.profile,
             instance=trade,
             plan_url=reverse("trade_plan", kwargs={"trade_id": trade.id}),
+            market_context_url=market_context_url,
         )
         try:
             plan, plan_error = calculate_trade_plan(trade), None
@@ -952,11 +1551,26 @@ def _trade_workspace_context(
             "plan_error": plan_error,
             "checklist_form": draft_checklist_form,
             "checklist_assessment": assessment,
+            "market_context_url": reverse(
+                "trade_market_context", kwargs={"trade_id": trade.id}
+            ),
         }
     )
     selected_pair = _draft_trading_pair(draft_form)
+    context_date = _draft_context_date(draft_form)
+    market_context = None
     if plan is not None and selected_pair is not None:
         context["trading_pair"] = selected_pair
+    if selected_pair is not None and context_date is not None:
+        market_context = get_market_context(
+            selected_pair,
+            context_date,
+        )
+        context["market_context"] = market_context
+    context["atr_target_comparison"] = _atr_target_comparison(
+        plan,
+        market_context,
+    )
     context.update(_plan_context(trade.profile, plan))
     return context
 
@@ -964,16 +1578,101 @@ def _trade_workspace_context(
 @login_required
 def trade_overview(request: HttpRequest) -> HttpResponse:
     """List journal decisions across every profile owned by the user."""
+    owner = _request_owner(request)
+    filter_form = TradeOverviewFilterForm(owner, request.GET or None)
     trades = Trade.objects.filter(
-        profile__owner=_request_owner(request)
+        profile__owner=owner
     ).select_related(
         "profile__capital_asset",
         "trading_pair__asset",
     )
+    if filter_form.is_valid():
+        search = filter_form.cleaned_data.get("search")
+        profile = filter_form.cleaned_data.get("profile")
+        status = filter_form.cleaned_data.get("status")
+        direction = filter_form.cleaned_data.get("direction")
+        market_type = filter_form.cleaned_data.get("market_type")
+        date_from = filter_form.cleaned_data.get("date_from")
+        date_to = filter_form.cleaned_data.get("date_to")
+        if search:
+            trades = trades.filter(
+                Q(trading_pair__asset__symbol__icontains=search)
+                | Q(profile__capital_asset__symbol__icontains=search)
+                | Q(profile__name__icontains=search)
+            )
+        if isinstance(profile, TradingProfile):
+            trades = trades.filter(profile=profile)
+        if status:
+            trades = trades.filter(status=status)
+        if direction:
+            trades = trades.filter(direction=direction)
+        if market_type:
+            trades = trades.filter(profile__market_type=market_type)
+        if date_from:
+            trades = trades.filter(trade_date__gte=date_from)
+        if date_to:
+            trades = trades.filter(trade_date__lte=date_to)
+
+    requested_sort = request.GET.get("sort", "-date")
+    sort_fields = {
+        "direction": ("direction", "-trade_date", "-id"),
+        "-direction": ("-direction", "-trade_date", "-id"),
+        "pair": (
+            "trading_pair__asset__symbol",
+            "profile__capital_asset__symbol",
+            "-trade_date",
+            "-id",
+        ),
+        "-pair": (
+            "-trading_pair__asset__symbol",
+            "-profile__capital_asset__symbol",
+            "-trade_date",
+            "-id",
+        ),
+        "market": ("profile__market_type", "-trade_date", "-id"),
+        "-market": ("-profile__market_type", "-trade_date", "-id"),
+        "profile": ("profile__name", "-trade_date", "-id"),
+        "-profile": ("-profile__name", "-trade_date", "-id"),
+        "date": ("trade_date", "created_at", "id"),
+        "-date": ("-trade_date", "-created_at", "-id"),
+        "status": ("status", "-trade_date", "-id"),
+        "-status": ("-status", "-trade_date", "-id"),
+        "result": ("result_r", "-trade_date", "-id"),
+        "-result": ("-result_r", "-trade_date", "-id"),
+    }
+    current_sort = (
+        requested_sort if requested_sort in sort_fields else "-date"
+    )
+    page_obj = Paginator(
+        trades.order_by(*sort_fields[current_sort]),
+        TRADE_PAGE_SIZE,
+    ).get_page(request.GET.get("page"))
+    context = {
+        "filter_form": filter_form,
+        "page_obj": page_obj,
+        "pagination": _pagination_urls(request, page_obj),
+        "current_sort": current_sort,
+        "sort_headers": _sort_headers(
+            request,
+            current_sort,
+            (
+                ("direction", _("Direction")),
+                ("pair", _("Pair")),
+                ("market", _("Market type")),
+                ("profile", _("Profile")),
+                ("date", _("Date")),
+                ("status", _("Status")),
+                ("result", _("Result")),
+            ),
+        ),
+    }
+    template = "tradefog/journal/trade_overview.html"
+    if request.headers.get("HX-Request") == "true":
+        template = "tradefog/journal/partials/trade_results.html"
     return render(
         request,
-        "tradefog/journal/trade_overview.html",
-        {"trades": trades},
+        template,
+        context,
     )
 
 
@@ -1005,10 +1704,14 @@ def trade_create(request: HttpRequest, profile_id: int) -> HttpResponse:
     checklist_url = reverse(
         "new_trade_checklist", kwargs={"profile_id": profile.id}
     )
+    market_context_url = reverse(
+        "new_trade_market_context", kwargs={"profile_id": profile.id}
+    )
     form = TradeDraftForm(
         profile,
         request.POST if request.method == "POST" else None,
         plan_url=plan_url,
+        market_context_url=market_context_url,
     )
     checklist_form = TradeChecklistForm(
         request.POST if request.method == "POST" else None,
@@ -1027,6 +1730,11 @@ def trade_create(request: HttpRequest, profile_id: int) -> HttpResponse:
     plan, plan_error = (
         _draft_plan(form) if request.method == "POST" else (None, None)
     )
+    selected_pair = _draft_trading_pair(form)
+    context_date = _draft_context_date(form)
+    market_context = None
+    if selected_pair is not None and context_date is not None:
+        market_context = get_market_context(selected_pair, context_date)
     return render(
         request,
         "tradefog/journal/trade_form.html",
@@ -1037,6 +1745,12 @@ def trade_create(request: HttpRequest, profile_id: int) -> HttpResponse:
             "plan": plan,
             "plan_error": plan_error,
             "trading_pair": _draft_trading_pair(form),
+            "market_context": market_context,
+            "atr_target_comparison": _atr_target_comparison(
+                plan,
+                market_context,
+            ),
+            "market_context_url": market_context_url,
             "checklist_form": checklist_form,
             "checklist_assessment": _checklist_assessment(
                 checklist_form,
@@ -1058,6 +1772,9 @@ def trade_detail(request: HttpRequest, trade_id: int) -> HttpResponse:
             request.POST,
             instance=trade,
             plan_url=reverse("trade_plan", kwargs={"trade_id": trade.id}),
+            market_context_url=reverse(
+                "trade_market_context", kwargs={"trade_id": trade.id}
+            ),
         )
         checklist_form = TradeChecklistForm(
             request.POST,
@@ -1086,12 +1803,80 @@ def trade_detail(request: HttpRequest, trade_id: int) -> HttpResponse:
     return render(request, "tradefog/journal/trade_detail.html", context)
 
 
+def _render_market_context_response(
+    request: HttpRequest,
+    form: TradeDraftForm,
+) -> HttpResponse:
+    """Refresh one selected pair and update ATR plus plan fragments."""
+    plan, plan_error = _draft_plan(form)
+    trading_pair = _draft_trading_pair(form)
+    context_date = _draft_context_date(form)
+    market_context = None
+    if trading_pair is not None and context_date is not None:
+        market_context = refresh_market_context(
+            trading_pair,
+            context_date,
+        )
+    return render(
+        request,
+        "tradefog/journal/partials/market_context_response.html",
+        {
+            "market_context": market_context,
+            "market_context_url": request.path,
+            "profile": form.profile,
+            "trading_pair": trading_pair,
+            "plan": plan,
+            "plan_error": plan_error,
+            "atr_target_comparison": _atr_target_comparison(
+                plan,
+                market_context,
+            ),
+            **_plan_context(form.profile, plan),
+        },
+    )
+
+
+@login_required
+@require_POST
+def new_trade_market_context(
+    request: HttpRequest,
+    profile_id: int,
+) -> HttpResponse:
+    """Refresh market context for a selected unsaved owned draft pair."""
+    profile = _owned_profile(request, profile_id)
+    return _render_market_context_response(
+        request,
+        TradeDraftForm(profile, request.POST),
+    )
+
+
+@login_required
+@require_POST
+def trade_market_context(
+    request: HttpRequest,
+    trade_id: int,
+) -> HttpResponse:
+    """Refresh market context while an owned trade remains a draft."""
+    trade = _owned_trade(request, trade_id)
+    if trade.status != Trade.Status.DRAFT.value:
+        return HttpResponse(status=409)
+    return _render_market_context_response(
+        request,
+        TradeDraftForm(trade.profile, request.POST, instance=trade),
+    )
+
+
 def _render_plan_preview(
     request: HttpRequest,
     form: TradeDraftForm,
 ) -> HttpResponse:
     """Render the independently replaceable position-plan preview."""
     plan, plan_error = _draft_plan(form)
+    trading_pair = _draft_trading_pair(form)
+    context_date = _draft_context_date(form)
+    market_context = None
+    if trading_pair is not None and context_date is not None:
+        market_context = get_market_context(trading_pair, context_date)
     return render(
         request,
         "tradefog/journal/partials/trade_plan_response.html",
@@ -1099,7 +1884,12 @@ def _render_plan_preview(
             "plan": plan,
             "plan_error": plan_error,
             "profile": form.profile,
-            "trading_pair": _draft_trading_pair(form),
+            "trading_pair": trading_pair,
+            "market_context": market_context,
+            "atr_target_comparison": _atr_target_comparison(
+                plan,
+                market_context,
+            ),
             "checklist_assessment": _checklist_assessment(
                 TradeChecklistForm(request.POST),
                 selected_direction=request.POST.get("direction", ""),

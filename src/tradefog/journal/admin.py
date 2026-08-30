@@ -7,6 +7,8 @@ from django.contrib import admin
 from tradefog.journal.models import (
     Asset,
     CapitalOperation,
+    DailyCandle,
+    MarketDataState,
     ProfileTradingPair,
     Trade,
     TradeChecklist,
@@ -65,13 +67,53 @@ class ProfileTradingPairAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissin
         "symbol",
         "profile",
         "asset",
+        "market_data_provider",
         "archived_at",
     )
-    list_filter = ("profile__market_type", "archived_at")
+    list_filter = (
+        "profile__market_type",
+        "market_data_provider",
+        "archived_at",
+    )
     search_fields = (
         "asset__symbol",
         "profile__capital_asset__symbol",
         "profile__name",
+    )
+
+
+@admin.register(DailyCandle)
+@final
+class DailyCandleAdmin(
+    admin.ModelAdmin  # pyright: ignore[reportMissingTypeArgument]
+):
+    """Expose canonical closed candles for administrative diagnostics."""
+
+    list_display = ("trading_pair", "trading_date", "source", "fetched_at")
+    list_filter = ("source", "trading_date")
+    search_fields = (
+        "trading_pair__asset__symbol",
+        "trading_pair__profile__name",
+        "trading_pair__profile__owner__username",
+    )
+
+
+@admin.register(MarketDataState)
+@final
+class MarketDataStateAdmin(
+    admin.ModelAdmin  # pyright: ignore[reportMissingTypeArgument]
+):
+    """Expose provider freshness without editable secret configuration."""
+
+    list_display = (
+        "trading_pair",
+        "last_success_at",
+        "last_attempt_at",
+        "current_session_date",
+    )
+    search_fields = (
+        "trading_pair__asset__symbol",
+        "trading_pair__profile__name",
     )
 
 

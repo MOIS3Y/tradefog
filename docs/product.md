@@ -141,10 +141,24 @@ workspace. A refresh action supports long-lived drafts. This design avoids a
 scheduler or background daemon. Cached data remains usable when an external
 source is temporarily unavailable and is visibly marked stale.
 
-The first maintainable source is manual daily candle data. A public Bybit
-Spot/Linear candle source is planned behind the same market-data boundary.
-The ATR context used for a submitted trade is snapshotted so later candle
-corrections do not rewrite the original decision context.
+Each profile trading pair selects its daily-candle source independently and
+defaults to manual maintenance. The public Bybit source supports Spot and
+Linear pairs without coupling market data to the profile's execution
+provider. Tradefog calculates ATR locally regardless of candle source.
+
+For a trade date `D`, ATR uses only candles dated before `D`. A still-forming
+Bybit candle dated `D` supplies the separate observed-session range. A
+completed historical range is not presented as if it had been observable at
+decision time. The workspace also plots the last 14 closed candles before
+`D` as a compact candlestick chart; it never includes `D` or later candles.
+Calculated ATR values are displayed at the pair's configured price-step
+precision without reducing calculation precision. Exact candle values remain
+available in the chart without thousands grouping or display rounding. The
+workspace separately shows whether the planned entry-to-take-profit price
+movement fits within 75% of ATR. This comparison is advisory and reacts to
+draft plan edits. The ATR context used for a submitted trade is snapshotted so
+later candle corrections or trade-date corrections do not rewrite the
+original decision context.
 
 ## Analytics
 
@@ -181,15 +195,20 @@ stable trading edge.
 The main navigation is:
 
 ```text
-Home | Profiles | Assets | Trades | Analytics
+Home | Profiles | Assets | Pairs | Trades | Analytics
 ```
 
 - Home is the future cross-profile summary with useful widgets.
 - Profiles contains profile parameters, capital operations, status, and
   profile-specific trading pairs.
-- Assets contains the owner's reusable catalog of base and capital assets.
-- Trades contains the cross-profile journal, filters, trade creation, and the
-  trade workspace.
+- Assets contains the owner's reusable catalog of base and capital assets,
+  ordered and paginated across the complete catalog.
+- Pairs is the cross-profile market registry with direct access to pair
+  settings and stored daily candles. Its filters and server-side pagination
+  keep long market histories manageable.
+- Trades contains the cross-profile journal, owner-scoped market and lifecycle
+  filters, server-ordered paginated results, trade creation, and the trade
+  workspace.
 - Analytics contains lifetime and filtered quality trajectories and
   comparisons.
 
@@ -204,6 +223,7 @@ are:
 /en/
 /en/profiles/
 /en/profiles/<id>/
+/en/pairs/
 /en/assets/
 /en/trades/
 /en/trades/new/

@@ -1,0 +1,46 @@
+{% load i18n journal %}
+
+<div id="trade-results">
+  {% if filter_form.errors %}
+    <div class="alert alert-danger" role="alert">
+      {% for field in filter_form %}{% for error in field.errors %}{{ error }}{% endfor %}{% endfor %}
+    </div>
+  {% endif %}
+  <div class="text-secondary mb-2">
+    {% blocktranslate count count=page_obj.paginator.count %}{{ count }} trade{% plural %}{{ count }} trades{% endblocktranslate %}
+  </div>
+  <div class="card">
+    {% if page_obj.object_list %}
+      <div class="table-responsive"><table class="table table-vcenter card-table">
+        <thead><tr>
+          {% for header in sort_headers %}<th{% if header.active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+            <a class="tf-sort-link{% if header.active %} active{% endif %}" href="{{ header.url }}"
+               hx-get="{{ header.url }}" hx-target="#trade-results" hx-swap="outerHTML" hx-push-url="true">
+              {{ header.label }}{% if header.active %} <span aria-hidden="true">{% if header.descending %}↓{% else %}↑{% endif %}</span>{% endif %}
+            </a>
+          </th>{% endfor %}
+          <th class="w-1"></th>
+        </tr></thead>
+        <tbody>{% for trade in page_obj %}<tr>
+          <td><span class="badge{% if trade.direction == 'LONG' %} bg-green-lt{% else %} bg-red-lt{% endif %}">{{ trade.get_direction_display }}</span></td>
+          <td class="fw-semibold">{{ trade.trading_pair.symbol }}</td>
+          <td class="text-secondary">{{ trade.profile.get_market_type_display }}</td>
+          <td>{{ trade.profile.name }}</td>
+          <td class="text-secondary text-nowrap">{{ trade.trade_date|date:"SHORT_DATE_FORMAT" }}</td>
+          <td>{% include "tradefog/journal/partials/trade_status.html" %}</td>
+          <td class="text-nowrap">{% if trade.status == "CLOSED" %}
+            <span class="{% if trade.result_r < 0 %}text-danger{% elif trade.result_r > 0 %}text-success{% endif %}">{{ trade.result_r|rounded_decimal:2 }}R</span>
+          {% else %}—{% endif %}</td>
+          <td><a class="btn btn-icon" href="{{ trade.get_absolute_url }}" aria-label="{% translate 'Open trade' %}">
+            {% include "tradefog/components/icon.html" with name="chevron-right" class="icon" %}
+          </a></td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+      {% include "tradefog/journal/partials/pagination.html" with pagination_target="#trade-results" %}
+    {% else %}
+      <section class="empty py-5"><p class="empty-title">{% translate "No trades match these filters" %}</p>
+        <p class="empty-subtitle text-secondary">{% translate "Change the filters or create a new trade draft." %}</p>
+      </section>
+    {% endif %}
+  </div>
+</div>

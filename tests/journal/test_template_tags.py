@@ -5,6 +5,7 @@ from decimal import Decimal
 from tradefog.journal.templatetags.journal import (
     compact_decimal,
     rounded_decimal,
+    rounded_to_step,
 )
 
 
@@ -24,3 +25,14 @@ def test_rounded_decimal_limits_display_precision_and_removes_padding() -> (
     assert rounded_decimal(value, 2) == "2.91"
     assert rounded_decimal(Decimal("3.000000"), 2) == "3"
     assert value == Decimal("2.9126213592233")
+
+
+def test_rounded_to_step_uses_configured_price_precision() -> None:
+    """Calculated context should not expose recurring Decimal tails."""
+    value = Decimal("2345.904211951572445321637591")
+
+    assert rounded_to_step(value, Decimal("0.01")) == "2345.9"
+    assert rounded_to_step(value * Decimal("0.75"), Decimal("0.01")) == (
+        "1759.43"
+    )
+    assert value == Decimal("2345.904211951572445321637591")

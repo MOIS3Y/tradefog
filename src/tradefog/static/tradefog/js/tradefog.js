@@ -152,9 +152,41 @@
     });
   }
 
+  /** Reveal a global shortcut after the document has been scrolled. */
+  function initializeScrollTop() {
+    const button = document.querySelector("[data-scroll-top]");
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    let updatePending = false;
+    const updateVisibility = () => {
+      button.classList.toggle("is-visible", window.scrollY > 640);
+      updatePending = false;
+    };
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (!updatePending) {
+          updatePending = true;
+          window.requestAnimationFrame(updateVisibility);
+        }
+      },
+      { passive: true },
+    );
+    button.addEventListener("click", () => {
+      const reducedMotion = matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+    });
+    updateVisibility();
+  }
+
   /** Initialize every interactive control that depends on rendered markup. */
   function initializeControls() {
     initializeThemeToggle();
+    initializeScrollTop();
   }
 
   if (document.readyState === "loading") {

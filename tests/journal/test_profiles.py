@@ -1,16 +1,19 @@
 """Tests for asset, profile, and trading-pair workflows."""
 
 from decimal import Decimal
+from typing import cast
 
 from django.core.exceptions import ValidationError
+from django.core.paginator import Page
 from django.db import IntegrityError
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import override
-from pytest import mark, raises
+from pytest import MonkeyPatch, mark, raises
 
 from tradefog.accounts.models import User
+from tradefog.journal import views
 from tradefog.journal.models import (
     Asset,
     CapitalOperation,
@@ -62,6 +65,7 @@ def pair_data(asset: Asset) -> dict[str, str]:
     """Return valid precision data for one profile trading pair."""
     return {
         "asset": str(asset.id),
+        "market_data_provider": "MANUAL",
         "price_step": "0.01",
         "quantity_step": "0.00001",
         "minimum_quantity": "0.0001",
@@ -134,15 +138,17 @@ def test_asset_overview_shows_unique_owner_scoped_linked_profiles() -> None:
     response = client.get("/en/assets/")
 
     assert response.status_code == 200
-    assert b'data-sort-value="Alpha | Beta | Capital BTC"' in response.content
+    assert b"data-sortable-table" not in response.content
+    assert b"sort=-symbol" in response.content
+    assert b'hx-target="#asset-results"' in response.content
     assert b'data-bs-title="Beta, Capital BTC"' in response.content
     assert b"+2" in response.content
     assert b"Hidden" not in response.content
 
 
 @mark.django_db
-def test_profile_tables_expose_canonical_sort_values() -> None:
-    """Formatted financial tables should retain machine-sortable values."""
+def test_profile_tables_use_server_sort_links() -> None:
+    """Profile tables should expose independent server-side ordering."""
     user = User.objects.create_user(username="trader")
     profile = create_profile(user)
     bitcoin = create_asset(user, "BTC")
@@ -163,9 +169,53 @@ def test_profile_tables_expose_canonical_sort_values() -> None:
     response = client.get(f"/en/profiles/{profile.id}/")
 
     assert response.status_code == 200
-    assert response.content.count(b"data-sortable-table") == 2
-    assert b'data-sort-value="-25.50000000"' in response.content
-    assert b'data-sort-value="0.010000000000"' in response.content
+    assert b"data-sortable-table" not in response.content
+    assert b"capital_sort=operation" in response.content
+    assert b"pair_sort=-pair" in response.content
+    assert b'hx-target="#capital-history-results"' in response.content
+    assert b'hx-target="#profile-pair-results"' in response.content
+
+
+@mark.django_db
+def test_profile_tables_paginate_independently(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Each profile table should preserve the other tables' page state."""
+    user = User.objects.create_user(username="profile-pages")
+    profile = create_profile(user)
+    for symbol in ("BTC", "ETH"):
+        _ = ProfileTradingPair.objects.create(
+            profile=profile,
+            asset=create_asset(user, symbol),
+            price_step=Decimal("0.01"),
+            quantity_step=Decimal("0.001"),
+        )
+    for amount in (Decimal(10), Decimal(20)):
+        _ = CapitalOperation.objects.create(
+            profile=profile,
+            operation_type=CapitalOperation.Type.DEPOSIT.value,
+            amount=amount,
+        )
+    monkeypatch.setattr(views, "PROFILE_TABLE_PAGE_SIZE", 1)
+    client = Client()
+    client.force_login(user)
+
+    response = client.get(
+        f"/en/profiles/{profile.id}/?capital_page=2&pair_page=1"
+    )
+    capital_page = cast(
+        Page[CapitalOperation],
+        response.context["capital_page"],
+    )
+    pair_page = cast(
+        Page[ProfileTradingPair],
+        response.context["pair_page"],
+    )
+
+    assert capital_page.number == 2
+    assert pair_page.number == 1
+    assert b"capital_page=2" in response.content
+    assert b'hx-select="#capital-history-results"' in response.content
 
 
 @mark.django_db

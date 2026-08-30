@@ -15,19 +15,25 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     template_dirs = settings.templates.django_templates()[0]["DIRS"]
     with override("en"):
         rendered_template = get_template("tradefog/base.html").render()
+        analytics_template = get_template(
+            "tradefog/journal/analytics_overview.html"
+        ).render()
 
     assert '<html lang="en">' in rendered_template
     assert "tradefog/vendor/htmx/htmx.min.js" in rendered_template
     assert "tradefog/vendor/tabler/tabler.min.css" in rendered_template
     assert "tradefog/vendor/tabler/tabler.min.js" in rendered_template
-    assert "tradefog/vendor/list.js/list.min.js" in rendered_template
-    assert "tradefog/js/sortable-tables.js" in rendered_template
+    assert "tradefog/vendor/list.js/list.min.js" not in rendered_template
+    assert "tradefog/js/sortable-tables.js" not in rendered_template
+    assert "tradefog/vendor/list.js/list.min.js" in analytics_template
+    assert "tradefog/js/sortable-tables.js" in analytics_template
     assert "tradefog/js/tradefog.js" in rendered_template
     assert "tradefog/vendor/pico" not in rendered_template
     assert "cdn.jsdelivr.net" not in rendered_template
     assert "function selectTheme" not in rendered_template
     assert "tradefog/images/favicon.svg" in rendered_template
     assert "data-theme-toggle" in rendered_template
+    assert "data-scroll-top" in rendered_template
     assert "navbar-brand-autodark" in rendered_template
     assert "btn-animate-icon" not in rendered_template
     assert "btn-animate-icon-move-start" not in rendered_template

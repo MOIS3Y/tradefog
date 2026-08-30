@@ -1,0 +1,66 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Pairs" %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          <div class="page-pretitle">{% translate "Journal configuration" %}</div>
+          <h1 class="page-title">{% translate "Pairs" %}</h1>
+          <div class="text-secondary mt-1">
+            {% translate "Profile markets and their daily-candle history in one workspace." %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <form class="card card-sm tf-filter-bar mb-3"
+        method="get"
+        action="{% url 'trading_pair_overview' %}"
+        hx-get="{% url 'trading_pair_overview' %}"
+        hx-target="#pair-results"
+        hx-swap="outerHTML"
+        hx-push-url="true">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-lg-4">
+          <label class="form-label" for="{{ filter_form.search.id_for_label }}">{{ filter_form.search.label }}</label>
+          {{ filter_form.search }}
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label" for="{{ filter_form.profile.id_for_label }}">{{ filter_form.profile.label }}</label>
+          {{ filter_form.profile }}
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label" for="{{ filter_form.market_type.id_for_label }}">{{ filter_form.market_type.label }}</label>
+          {{ filter_form.market_type }}
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label" for="{{ filter_form.market_data_provider.id_for_label }}">{{ filter_form.market_data_provider.label }}</label>
+          {{ filter_form.market_data_provider }}
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <div class="btn-list flex-nowrap">
+            <button class="btn btn-primary flex-fill" type="submit">
+              {% include "tradefog/components/icon.html" with name="filter" class="icon" %}
+              {% translate "Apply" %}
+            </button>
+            <a class="btn btn-icon"
+               href="{% url 'trading_pair_overview' %}"
+               aria-label="{% translate 'Reset filters' %}">
+              {% include "tradefog/components/icon.html" with name="x" class="icon" %}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  {% include "tradefog/journal/partials/trading_pair_results.html" %}
+{% endblock %}

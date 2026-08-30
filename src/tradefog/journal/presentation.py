@@ -25,3 +25,17 @@ def rounded_decimal(value: object, places: int = 2) -> str:
         context.prec = 96
         rounded = value.quantize(quantum, rounding=ROUND_HALF_UP)
     return compact_decimal(rounded)
+
+
+def rounded_to_step(value: object, step: object) -> str:
+    """Round a calculated price to the configured price-step precision."""
+    if value is None:
+        return ""
+    if not isinstance(value, Decimal) or not isinstance(step, Decimal):
+        return str(value)
+    normalized_step = step.normalize()
+    exponent = normalized_step.as_tuple().exponent
+    if not isinstance(exponent, int):
+        return compact_decimal(value)
+    places = max(0, -exponent)
+    return rounded_decimal(value, places)

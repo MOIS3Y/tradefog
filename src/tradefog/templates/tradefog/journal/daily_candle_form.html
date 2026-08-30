@@ -1,0 +1,54 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+
+{% block title %}{% if candle %}{% translate "Edit daily candle" %}{% else %}{% translate "Add daily candle" %}{% endif %} · Tradefog{% endblock %}
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="page-pretitle">
+        <a class="text-secondary"
+           href="{% url 'daily_candle_overview' profile.id trading_pair.id %}">{{ trading_pair.symbol }}</a>
+        · UTC
+      </div>
+      <h1 class="page-title">
+        {% if candle %}{% translate "Edit daily candle" %}{% else %}{% translate "Add daily candle" %}{% endif %}
+      </h1>
+    </div>
+  </div>
+{% endblock %}
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-9">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">{% translate "Closed daily OHLC" %}</h2>
+              <p class="card-subtitle">
+                {% translate "Saving a provider candle manually marks it as a manual correction." %}
+              </p>
+            </div>
+          </div>
+          <div class="card-body">
+            {% for error in form.non_field_errors %}
+              <div class="alert alert-danger">{{ error }}</div>
+            {% endfor %}
+            <div class="row">
+              <div class="col-12 col-md-4">{% include "tradefog/components/form_field.html" with field=form.trading_date %}</div>
+              <div class="col-12 col-md-4">{% include "tradefog/components/form_field.html" with field=form.open_price %}</div>
+              <div class="col-12 col-md-4">{% include "tradefog/components/form_field.html" with field=form.close_price %}</div>
+              <div class="col-12 col-md-6">{% include "tradefog/components/form_field.html" with field=form.high_price %}</div>
+              <div class="col-12 col-md-6">{% include "tradefog/components/form_field.html" with field=form.low_price %}</div>
+            </div>
+          </div>
+          <div class="card-footer d-flex justify-content-end gap-2">
+            <a class="btn"
+               href="{% url 'daily_candle_overview' profile.id trading_pair.id %}">{% translate "Cancel" %}</a>
+            <button class="btn btn-primary" type="submit">{% translate "Save candle" %}</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

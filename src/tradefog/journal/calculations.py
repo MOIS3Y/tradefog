@@ -39,6 +39,11 @@ class PositionPlan:
             context.prec = 96
             return self.planned_risk_amount * REWARD_MULTIPLE
 
+    @property
+    def take_profit_distance(self) -> Decimal:
+        """Return the exact planned price move from entry to take profit."""
+        return self.distance * REWARD_MULTIPLE
+
 
 def _is_step_aligned(value: Decimal, step: Decimal) -> bool:
     """Return whether an exact financial value is a multiple of its step."""

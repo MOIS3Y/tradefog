@@ -1,0 +1,44 @@
+{% load i18n %}
+
+<div id="asset-results">
+  <div class="text-secondary mb-2">
+    {% blocktranslate count count=page_obj.paginator.count %}{{ count }} active asset{% plural %}{{ count }} active assets{% endblocktranslate %}
+  </div>
+  <div class="card">
+    {% if asset_rows %}
+      <div class="table-responsive"><table class="table table-vcenter card-table">
+        <thead><tr>
+          {% for header in sort_headers %}<th{% if header.active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+            <a class="tf-sort-link{% if header.active %} active{% endif %}" href="{{ header.url }}"
+               hx-get="{{ header.url }}" hx-target="#asset-results" hx-swap="outerHTML" hx-push-url="true">
+              {{ header.label }}{% if header.active %} <span aria-hidden="true">{% if header.descending %}↓{% else %}↑{% endif %}</span>{% endif %}
+            </a>
+          </th>{% endfor %}<th class="w-1"></th>
+        </tr></thead>
+        <tbody>{% for row in asset_rows %}<tr>
+          <td class="fw-semibold">{{ row.asset.symbol }}</td>
+          <td>{{ row.asset.name|default:"—" }}</td>
+          <td><span class="badge bg-azure-lt">{{ row.asset.get_asset_class_display }}</span></td>
+          <td>{% if row.profiles %}<span class="badge bg-secondary-lt">{{ row.profiles.0.name }}</span>
+            {% if row.remaining_profiles %}<button class="badge bg-secondary-lt border-0" type="button" data-bs-toggle="tooltip"
+              data-bs-placement="top" data-bs-title="{{ row.remaining_profile_names }}"
+              aria-label="{% translate 'More linked profiles' %}: {{ row.remaining_profile_names }}">+{{ row.remaining_profiles|length }}</button>{% endif %}
+          {% else %}—{% endif %}</td>
+          <td><div class="btn-list flex-nowrap">
+            <a class="btn btn-icon" href="{% url 'asset_edit' row.asset.id %}" aria-label="{% translate 'Edit asset' %}">
+              {% include "tradefog/components/icon.html" with name="pencil" class="icon" %}</a>
+            <form class="m-0" action="{% url 'asset_archive' row.asset.id %}" method="post">{% csrf_token %}
+              <button class="btn btn-icon" type="submit" aria-label="{% translate 'Archive asset' %}">
+                {% include "tradefog/components/icon.html" with name="archive" class="icon" %}</button>
+            </form>
+          </div></td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+      {% include "tradefog/journal/partials/pagination.html" with pagination_target="#asset-results" %}
+    {% else %}
+      <div class="empty"><p class="empty-title">{% translate "No assets yet" %}</p>
+        <p class="empty-subtitle text-secondary">{% translate "Add the capital and traded assets before creating a profile." %}</p>
+      </div>
+    {% endif %}
+  </div>
+</div>

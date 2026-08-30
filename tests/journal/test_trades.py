@@ -2,16 +2,19 @@
 
 from datetime import date
 from decimal import Decimal
+from typing import cast
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
+from django.core.paginator import Page
 from django.http import QueryDict
 from django.test import Client
 from django.urls import reverse
 from django.utils.translation import override
-from pytest import mark, raises
+from pytest import MonkeyPatch, mark, raises
 
 from tradefog.accounts.models import User
+from tradefog.journal import views
 from tradefog.journal.forms import TradeDraftForm
 from tradefog.journal.models import (
     Asset,
@@ -100,6 +103,42 @@ def create_trade(
         planned_entry=Decimal(100),
         planned_stop=Decimal(95) if direction == "LONG" else Decimal(105),
     )
+
+
+@mark.django_db
+def test_trade_overview_filters_sorts_and_paginates_with_htmx(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """The operational journal should query its complete filtered set."""
+    owner = User.objects.create_user(username="trader-filters")
+    profile = create_profile(owner)
+    pair = create_trading_pair(profile)
+    long_trade = create_trade(profile, pair)
+    short_trade = create_trade(
+        profile,
+        pair,
+        direction=Trade.Direction.SHORT.value,
+    )
+    short_trade.trade_date = date(2026, 8, 30)
+    short_trade.save(update_fields=["trade_date"])
+    monkeypatch.setattr(views, "TRADE_PAGE_SIZE", 1)
+    client = Client()
+    client.force_login(owner)
+
+    filtered = client.get(
+        "/en/trades/?direction=SHORT&date_from=2026-08-30&sort=date"
+    )
+    fragment = client.get(
+        "/en/trades/?sort=date&page=2",
+        headers={"HX-Request": "true"},
+    )
+    filtered_page = cast(Page[Trade], filtered.context["page_obj"])
+
+    assert filtered_page.paginator.count == 1
+    assert list(filtered_page.object_list) == [short_trade]
+    assert long_trade.id != short_trade.id
+    assert b'id="trade-results"' in fragment.content
+    assert b"<html" not in fragment.content
 
 
 @mark.django_db
@@ -702,9 +741,9 @@ def test_trade_pages_render_through_complete_manual_lifecycle() -> None:
 
     overview_response = client.get("/en/trades/")
     assert overview_response.status_code == 200
-    assert b'data-sort="sort-direction"' in overview_response.content
-    assert b'data-sort="sort-pair"' in overview_response.content
-    assert b'data-sort="sort-market"' in overview_response.content
+    assert b"sort=direction" in overview_response.content
+    assert b'hx-target="#trade-results"' in overview_response.content
+    assert b'id="id_status"' in overview_response.content
     assert client.get("/en/trades/new/").status_code == 200
 
     draft_response = client.get(f"/en/trades/{trade.id}/")

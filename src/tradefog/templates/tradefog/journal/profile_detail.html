@@ -1,5 +1,5 @@
 {% extends "tradefog/base.html" %}
-{% load i18n journal l10n %}
+{% load i18n journal %}
 
 {% block title %}{{ profile.name }} · Tradefog{% endblock %}
 
@@ -198,7 +198,8 @@
     </div>
   </div>
 
-  {% if capital_operations %}
+  <div id="capital-history-results">
+  {% if capital_page.object_list %}
     <section class="card mb-4" aria-labelledby="capital-history-title">
       <div class="card-header">
         <div>
@@ -210,33 +211,38 @@
           </p>
         </div>
       </div>
-      <div class="table-responsive" data-sortable-table>
+      <div class="table-responsive">
         <table class="table table-vcenter card-table">
           <thead>
             <tr>
-              <th><button class="table-sort" data-sort="sort-operation" type="button">{% translate "Operation" %}</button></th>
-              <th><button class="table-sort" data-sort="sort-amount" type="button">{% translate "Amount" %}</button></th>
-              <th><button class="table-sort" data-sort="sort-note" type="button">{% translate "Note" %}</button></th>
-              <th><button class="table-sort" data-sort="sort-recorded" type="button">{% translate "Recorded" %}</button></th>
+              {% for header in capital_sort_headers %}
+                <th{% if header.active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+                  <a class="tf-sort-link{% if header.active %} active{% endif %}"
+                     href="{{ header.url }}" hx-get="{{ header.url }}"
+                     hx-target="#capital-history-results" hx-select="#capital-history-results" hx-swap="outerHTML" hx-push-url="true">
+                    {{ header.label }}{% if header.active %} <span aria-hidden="true">{% if header.descending %}↓{% else %}↑{% endif %}</span>{% endif %}
+                  </a>
+                </th>
+              {% endfor %}
               <th class="w-1"></th>
             </tr>
           </thead>
-          <tbody class="table-tbody">
-            {% for operation in capital_operations %}
+          <tbody>
+            {% for operation in capital_page %}
               <tr>
-                <td class="sort-operation" data-sort-value="{{ operation.get_operation_type_display }}">
+                <td>
                   {% if operation.operation_type == "DEPOSIT" %}
                     <span class="badge bg-green-lt">{% translate "Deposit" %}</span>
                   {% else %}
                     <span class="badge bg-orange-lt">{% translate "Withdrawal" %}</span>
                   {% endif %}
                 </td>
-                <td class="text-nowrap fw-semibold sort-amount" data-sort-value="{% if operation.operation_type == 'DEPOSIT' %}{{ operation.amount|unlocalize }}{% else %}-{{ operation.amount|unlocalize }}{% endif %}">
+                <td class="text-nowrap fw-semibold">
                   {% if operation.operation_type == "DEPOSIT" %}+{% else %}−{% endif %}{{ operation.amount|compact_decimal }}
                   {{ profile.capital_asset.symbol }}
                 </td>
-                <td class="text-secondary sort-note" data-sort-value="{{ operation.note }}">{{ operation.note|default:"—" }}</td>
-                <td class="text-secondary text-nowrap sort-recorded" data-sort-value="{{ operation.created_at|date:'c' }}">
+                <td class="text-secondary">{{ operation.note|default:"—" }}</td>
+                <td class="text-secondary text-nowrap">
                   {{ operation.created_at|date:"SHORT_DATETIME_FORMAT" }}
                 </td>
                 <td>
@@ -260,8 +266,10 @@
           </tbody>
         </table>
       </div>
+      {% include "tradefog/journal/partials/pagination.html" with page_obj=capital_page pagination=capital_pagination pagination_target="#capital-history-results" pagination_select="#capital-history-results" %}
     </section>
   {% endif %}
+  </div>
 
   <section class="card" aria-labelledby="trading-pairs-title">
     <div class="card-header">
@@ -282,30 +290,44 @@
       </div>
     </div>
 
-    {% if trading_pairs %}
-      <div class="table-responsive" data-sortable-table>
+    <div id="profile-pair-results">
+    {% if pair_page.object_list %}
+      <div class="table-responsive">
         <table class="table table-vcenter card-table">
           <thead>
             <tr>
-              <th><button class="table-sort" data-sort="sort-pair" type="button">{% translate "Pair" %}</button></th>
-              <th><button class="table-sort" data-sort="sort-price-step" type="button">{% translate "Price step" %}</button></th>
-              <th><button class="table-sort" data-sort="sort-quantity-step" type="button">{% translate "Quantity step" %}</button></th>
-              <th><button class="table-sort" data-sort="sort-minimum" type="button">{% translate "Minimum order" %}</button></th>
+              <th{% if pair_sort_headers.0.active %} aria-sort="{% if pair_sort_headers.0.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+                <a class="tf-sort-link{% if pair_sort_headers.0.active %} active{% endif %}" href="{{ pair_sort_headers.0.url }}"
+                   hx-get="{{ pair_sort_headers.0.url }}" hx-target="#profile-pair-results" hx-select="#profile-pair-results" hx-swap="outerHTML" hx-push-url="true">
+                  {{ pair_sort_headers.0.label }}{% if pair_sort_headers.0.active %} <span aria-hidden="true">{% if pair_sort_headers.0.descending %}↓{% else %}↑{% endif %}</span>{% endif %}</a>
+              </th>
+              <th>{% translate "Market data" %}</th>
+              {% for header in pair_sort_headers|slice:"1:" %}
+                <th{% if header.active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+                  <a class="tf-sort-link{% if header.active %} active{% endif %}" href="{{ header.url }}"
+                     hx-get="{{ header.url }}" hx-target="#profile-pair-results" hx-select="#profile-pair-results" hx-swap="outerHTML" hx-push-url="true">
+                    {{ header.label }}{% if header.active %} <span aria-hidden="true">{% if header.descending %}↓{% else %}↑{% endif %}</span>{% endif %}</a>
+                </th>
+              {% endfor %}
               <th class="w-1"></th>
             </tr>
           </thead>
-          <tbody class="table-tbody">
-            {% for trading_pair in trading_pairs %}
+          <tbody>
+            {% for trading_pair in pair_page %}
               <tr>
-                <td class="sort-pair" data-sort-value="{{ trading_pair.symbol }}">
+                <td>
                   <div class="fw-semibold">{{ trading_pair.symbol }}</div>
                   {% if trading_pair.asset.name %}
                     <div class="text-secondary small">{{ trading_pair.asset.name }}</div>
                   {% endif %}
                 </td>
-                <td class="text-nowrap sort-price-step" data-sort-value="{{ trading_pair.price_step|unlocalize }}">{{ trading_pair.price_step|compact_decimal }}</td>
-                <td class="text-nowrap sort-quantity-step" data-sort-value="{{ trading_pair.quantity_step|unlocalize }}">{{ trading_pair.quantity_step|compact_decimal }}</td>
-                <td class="text-nowrap sort-minimum" data-sort-value="{% if trading_pair.minimum_quantity %}{{ trading_pair.minimum_quantity|unlocalize }}{% else %}-1{% endif %}">
+                <td>
+                  <div>{{ trading_pair.get_market_data_provider_display }}</div>
+                  <a class="small" href="{% url 'daily_candle_overview' profile.id trading_pair.id %}">{% translate "Manage candles" %}</a>
+                </td>
+                <td class="text-nowrap">{{ trading_pair.price_step|compact_decimal }}</td>
+                <td class="text-nowrap">{{ trading_pair.quantity_step|compact_decimal }}</td>
+                <td class="text-nowrap">
                   {% if trading_pair.minimum_quantity %}
                     {{ trading_pair.minimum_quantity|compact_decimal }}
                   {% else %}—{% endif %}
@@ -337,6 +359,7 @@
           </tbody>
         </table>
       </div>
+      {% include "tradefog/journal/partials/pagination.html" with page_obj=pair_page pagination=pair_pagination pagination_target="#profile-pair-results" pagination_select="#profile-pair-results" %}
     {% else %}
       <div class="empty py-5">
         <div class="empty-icon">
@@ -348,9 +371,11 @@
         </p>
       </div>
     {% endif %}
+    </div>
   </section>
 
-  {% if archived_trading_pairs %}
+  <div id="archived-pair-results">
+  {% if archived_pair_page.object_list %}
     <section class="card mt-4" aria-labelledby="archived-pairs-title">
       <div class="card-header">
         <div>
@@ -361,27 +386,32 @@
             {% translate "Restore a pair to use it in new trades." %}
           </p>
         </div>
-        <span class="badge bg-secondary-lt">{{ archived_trading_pairs|length }}</span>
+        <span class="badge bg-secondary-lt">{{ archived_pair_page.paginator.count }}</span>
       </div>
-      <div class="table-responsive" data-sortable-table>
+      <div class="table-responsive">
         <table class="table table-vcenter card-table">
           <thead>
             <tr>
-              <th><button class="table-sort" data-sort="sort-pair" type="button">{% translate "Pair" %}</button></th>
-              <th><button class="table-sort" data-sort="sort-archived" type="button">{% translate "Archived" %}</button></th>
+              {% for header in archived_pair_sort_headers %}
+                <th{% if header.active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+                  <a class="tf-sort-link{% if header.active %} active{% endif %}" href="{{ header.url }}"
+                     hx-get="{{ header.url }}" hx-target="#archived-pair-results" hx-select="#archived-pair-results" hx-swap="outerHTML" hx-push-url="true">
+                    {{ header.label }}{% if header.active %} <span aria-hidden="true">{% if header.descending %}↓{% else %}↑{% endif %}</span>{% endif %}</a>
+                </th>
+              {% endfor %}
               <th class="w-1"></th>
             </tr>
           </thead>
-          <tbody class="table-tbody">
-            {% for trading_pair in archived_trading_pairs %}
+          <tbody>
+            {% for trading_pair in archived_pair_page %}
               <tr>
-                <td class="sort-pair" data-sort-value="{{ trading_pair.symbol }}">
+                <td>
                   <div class="fw-semibold">{{ trading_pair.symbol }}</div>
                   {% if trading_pair.asset.name %}
                     <div class="text-secondary small">{{ trading_pair.asset.name }}</div>
                   {% endif %}
                 </td>
-                <td class="text-secondary text-nowrap sort-archived" data-sort-value="{{ trading_pair.archived_at|date:'c' }}">
+                <td class="text-secondary text-nowrap">
                   {{ trading_pair.archived_at|date:"SHORT_DATE_FORMAT" }}
                 </td>
                 <td>
@@ -400,6 +430,8 @@
           </tbody>
         </table>
       </div>
+      {% include "tradefog/journal/partials/pagination.html" with page_obj=archived_pair_page pagination=archived_pair_pagination pagination_target="#archived-pair-results" pagination_select="#archived-pair-results" %}
     </section>
   {% endif %}
+  </div>
 {% endblock %}

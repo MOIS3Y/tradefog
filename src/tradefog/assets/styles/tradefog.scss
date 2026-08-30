@@ -179,6 +179,104 @@
   transform: translate(-50%, -50%);
 }
 
+.tf-range-tape {
+  position: relative;
+  height: 0.75rem;
+  overflow: visible;
+  background: var(--tblr-bg-surface-secondary);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: var(--tblr-border-radius-pill);
+}
+
+.tf-range-tape-fill {
+  width: var(--tf-range-percent);
+  height: 100%;
+  background: var(--tblr-primary);
+  border-radius: inherit;
+  transition: width 180ms ease-out;
+}
+
+.tf-range-tape-fill-success {
+  background: var(--tblr-success);
+}
+
+.tf-range-tape-fill-warning {
+  background: var(--tblr-warning);
+}
+
+.tf-range-tape-marker {
+  position: absolute;
+  top: -0.3rem;
+  bottom: -0.3rem;
+  left: 75%;
+  width: 2px;
+  background: var(--tblr-warning);
+}
+
+.tf-range-tape-marker span {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  color: var(--tblr-secondary-color);
+  font-size: 0.625rem;
+  font-weight: 600;
+  transform: translateX(50%);
+}
+
+.tf-market-candle-chart {
+  width: 100%;
+  overflow: hidden;
+}
+
+.tf-filter-bar {
+  border-color: color-mix(
+    in srgb,
+    var(--tblr-primary) 18%,
+    var(--tblr-border-color)
+  );
+}
+
+.tf-sort-link {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  color: var(--tblr-secondary-color);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tf-sort-link:hover,
+.tf-sort-link.active {
+  color: var(--tblr-body-color);
+}
+
+.tf-scroll-top {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 1030;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(0.75rem);
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out,
+    visibility 160ms;
+}
+
+.tf-scroll-top.is-visible {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-range-tape-fill,
+  .tf-scroll-top {
+    transition: none;
+  }
+}
+
 @media (max-width: 575.98px) {
   .tf-checklist-options .btn {
     font-size: 0.75rem;

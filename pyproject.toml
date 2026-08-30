@@ -7,6 +7,7 @@ dependencies = [
     "django>=5.2,<5.3",
     "django-htmx>=1.29,<2",
     "django-typer>=3.8,<4",
+    "httpx>=0.28,<1",
     "platformdirs>=4,<5",
     "psycopg[binary]>=3,<4",
     "pydantic-settings>=2,<3",

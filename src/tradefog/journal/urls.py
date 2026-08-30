@@ -7,6 +7,7 @@ from tradefog.journal import views
 urlpatterns = [
     path("analytics/", views.analytics_overview, name="analytics_overview"),
     path("assets/", views.asset_overview, name="asset_overview"),
+    path("pairs/", views.trading_pair_overview, name="trading_pair_overview"),
     path("assets/new/", views.asset_create, name="asset_create"),
     path(
         "assets/<int:asset_id>/edit/",
@@ -146,5 +147,37 @@ urlpatterns = [
         "profiles/<int:profile_id>/pairs/<int:pair_id>/restore/",
         views.trading_pair_restore,
         name="trading_pair_restore",
+    ),
+    path(
+        "profiles/<int:profile_id>/pairs/<int:pair_id>/candles/",
+        views.daily_candle_overview,
+        name="daily_candle_overview",
+    ),
+    path(
+        "profiles/<int:profile_id>/pairs/<int:pair_id>/candles/new/",
+        views.daily_candle_create,
+        name="daily_candle_create",
+    ),
+    path(
+        "profiles/<int:profile_id>/pairs/<int:pair_id>/candles/"
+        + "<int:candle_id>/edit/",
+        views.daily_candle_edit,
+        name="daily_candle_edit",
+    ),
+    path(
+        "profiles/<int:profile_id>/pairs/<int:pair_id>/candles/"
+        + "<int:candle_id>/delete/",
+        views.daily_candle_delete,
+        name="daily_candle_delete",
+    ),
+    path(
+        "trades/new/<int:profile_id>/market-context/",
+        views.new_trade_market_context,
+        name="new_trade_market_context",
+    ),
+    path(
+        "trades/<int:trade_id>/market-context/",
+        views.trade_market_context,
+        name="trade_market_context",
     ),
 ]

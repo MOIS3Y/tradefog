@@ -1,0 +1,28 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Delete daily candle" %} · Tradefog{% endblock %}
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+      <div class="card">
+        <div class="card-body text-center py-5">
+          <h1 class="card-title mb-3">{% translate "Delete daily candle?" %}</h1>
+          <p class="text-secondary">
+            {{ trading_pair.symbol }} · {{ candle.trading_date|date:"DATE_FORMAT" }}
+          </p>
+          <p class="text-secondary">
+            {% translate "ATR will be recalculated from the remaining closed candles." %}
+          </p>
+        </div>
+        <div class="card-footer d-flex justify-content-center gap-2">
+          <a class="btn"
+             href="{% url 'daily_candle_overview' profile.id trading_pair.id %}">{% translate "Cancel" %}</a>
+          <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-danger" type="submit">{% translate "Delete candle" %}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

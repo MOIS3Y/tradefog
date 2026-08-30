@@ -147,9 +147,9 @@
                       <span class="nav-link-title">{% translate "Home" %}</span>
                     </a>
                   </li>
-                  <li class="nav-item{% if 'profiles/' in request.resolver_match.route %} active{% endif %}">
+                  <li class="nav-item{% if 'profiles/' in request.resolver_match.route and 'trading_pair' not in request.resolver_match.url_name and 'daily_candle' not in request.resolver_match.url_name %} active{% endif %}">
                     <a class="nav-link" href="{% url 'profile_overview' %}"
-                       {% if 'profiles/' in request.resolver_match.route %}aria-current="page"{% endif %}>
+                       {% if 'profiles/' in request.resolver_match.route and 'trading_pair' not in request.resolver_match.url_name and 'daily_candle' not in request.resolver_match.url_name %}aria-current="page"{% endif %}>
                       <span class="nav-link-icon d-md-none d-lg-inline-block">
                         {% include "tradefog/components/icon.html" with name="notebook" class="icon-1" %}
                       </span>
@@ -163,6 +163,15 @@
                         {% include "tradefog/components/icon.html" with name="notes" class="icon-1" %}
                       </span>
                       <span class="nav-link-title">{% translate "Assets" %}</span>
+                    </a>
+                  </li>
+                  <li class="nav-item{% if request.resolver_match.url_name == 'trading_pair_overview' or 'trading_pair' in request.resolver_match.url_name or 'daily_candle' in request.resolver_match.url_name %} active{% endif %}">
+                    <a class="nav-link" href="{% url 'trading_pair_overview' %}"
+                       {% if request.resolver_match.url_name == 'trading_pair_overview' or 'trading_pair' in request.resolver_match.url_name or 'daily_candle' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+                      <span class="nav-link-icon d-md-none d-lg-inline-block">
+                        {% include "tradefog/components/icon.html" with name="arrows-exchange" class="icon-1" %}
+                      </span>
+                      <span class="nav-link-title">{% translate "Pairs" %}</span>
                     </a>
                   </li>
                   <li class="nav-item{% if 'trades/' in request.resolver_match.route %} active{% endif %}">
@@ -212,10 +221,17 @@
       </main>
     </div>
 
+    <button class="btn btn-primary btn-icon tf-scroll-top"
+            type="button"
+            data-scroll-top
+            aria-label="{% translate 'Back to top' %}"
+            title="{% translate 'Back to top' %}">
+      {% include "tradefog/components/icon.html" with name="arrow-up" class="icon" %}
+    </button>
+
     <script src="{% static 'tradefog/vendor/tabler/tabler.min.js' %}"></script>
     <script src="{% static 'tradefog/vendor/htmx/htmx.min.js' %}" defer></script>
-    <script src="{% static 'tradefog/vendor/list.js/list.min.js' %}"></script>
-    <script src="{% static 'tradefog/js/sortable-tables.js' %}"></script>
+    {% block table_sorting_scripts %}{% endblock %}
     {% block extra_scripts %}{% endblock %}
   </body>
 </html>

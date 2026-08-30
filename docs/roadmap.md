@@ -79,22 +79,31 @@ Capital operations and capital size remain outside these quality metrics.
 User-defined strategy checklists remain a separate future capability because
 they measure setup strength and require immutable strategy versions.
 
-## Planned stages
-
 ### Stage 7: on-demand market data and ATR
 
-- dated closed daily candles scoped to each profile trading pair;
-- deterministic True Range and standard `ATR(14)` calculations;
-- separate current-session range context;
-- manual candle maintenance;
-- the first public Bybit Spot/Linear candle source behind a focused boundary;
-- reactive loading when a pair is selected and explicit refresh for old
-  drafts;
-- cached fallback and visible stale state after provider failure;
-- an ATR decision snapshot when a trade leaves draft;
-- advisory presentation of the observed 75% daily range.
+- profile-pair candle sources defaulting to manual maintenance;
+- owner-scoped closed daily OHLC maintenance and provenance;
+- deterministic True Range and Wilder `ATR(14)` calculations before the
+  selected trade date;
+- a separate cached current-session range and advisory 75% ATR reference;
+- a public Bybit Spot/Linear daily-candle client using HTTPX;
+- reactive pair/date loading and explicit draft refresh;
+- a date-safe two-week candlestick chart using the vendored ApexCharts;
+- a cross-profile pair registry with direct pair and candle-management
+  actions;
+- consistent pair and candle filters with server-side sorting and paginated
+  HTMX results;
+- consistent server-side sorting and pagination for assets, trades, profile
+  pairs, archived pairs, and capital history, plus operational trade filters;
+- a global progressively revealed back-to-top control for long histories;
+- cached fallback with visible stale state after provider failure;
+- immutable ATR decision snapshots when trades leave draft;
+- English and Russian server-rendered presentation and focused coverage.
 
-This stage does not add a scheduler, daemon, task queue, Redis, or Celery.
+Market data remains independent of execution providers, and unavailable ATR
+does not block the manual journal workflow.
+
+## Planned stages
 
 ### Stage 8: post-trade review and private attachments
 

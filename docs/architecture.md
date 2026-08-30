@@ -77,6 +77,7 @@ large conditional state machine. Typical routes include:
 /trades/<id>/cancel/
 /trades/<id>/close/
 /analytics/
+/pairs/
 ```
 
 HTMX responses are translated HTML fragments. Independently updated regions
@@ -98,11 +99,13 @@ Templates use semantic HTML, accessible controls, and reusable partials where
 they represent genuinely repeated interface structure. Custom styling and
 JavaScript stay small and feature-driven.
 
-List.js progressively enhances fully rendered journal tables with client-side
-sorting. Sortable cells expose canonical values separately from localized
-presentation, and HTMX replacements reinitialize the affected table. Lists
-that later require server-side pagination also move their ordering to Django
-query parameters instead of sorting only one rendered page.
+Operational journal lists use Django query parameters for sorting,
+filtering, and pagination. HTMX replaces only the affected result region,
+while the same URL remains directly navigable and refreshable. Tables sharing
+a profile page use independent parameter names so capital history, active
+pairs, and archived pairs do not reset one another. List.js remains limited
+to the current analytics table until that interface is revisited with its
+full filtering context.
 
 Material interface work follows the project's restrained, risk-discipline
 visual direction. New decoration is tied to useful information rather than a
@@ -184,7 +187,11 @@ analytics, or core models.
 
 Market-data retrieval has a separate focused boundary. It can use public
 provider data without requiring the execution adapter or account credentials.
-On-demand requests use timeouts and cached fallback data.
+On-demand requests use the synchronous HTTPX client with explicit timeouts and
+cached fallback data. The public Bybit client only converts provider responses
+into typed candle values. Persistence and fallback behavior remain in the
+market-data service, while True Range and ATR are pure calculations. A future
+authenticated Bybit execution adapter remains a separate boundary.
 
 ## Persistence
 

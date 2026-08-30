@@ -1,0 +1,35 @@
+{% load i18n journal %}
+<section class="card h-100" aria-labelledby="market-chart-title">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title" id="market-chart-title">{% translate "Price action before the decision" %}</h2>
+      <p class="card-subtitle">
+        {% translate "Last 14 closed daily candles; the selected trade date is excluded." %}
+      </p>
+    </div>
+    <div class="card-actions text-secondary small">{{ trading_pair.symbol }}</div>
+  </div>
+  <div class="card-body">
+    {% if market_context.chart_candles %}
+      <div class="tf-market-candle-chart"
+           data-market-candle-chart
+           data-config-id="market-candle-chart-data"
+           data-price-step="{{ trading_pair.price_step|compact_decimal }}"
+           data-price-label="{% translate 'Price' %}"
+           data-open-label="{% translate 'Open price' %}"
+           data-high-label="{% translate 'High price' %}"
+           data-low-label="{% translate 'Low price' %}"
+           data-close-label="{% translate 'Close price' %}"
+           role="img"
+           aria-label="{% translate 'Two-week candlestick chart' %}"></div>
+      {{ market_context.candle_chart_data|json_script:"market-candle-chart-data" }}
+    {% else %}
+      <div class="empty py-3">
+        <p class="empty-title">{% translate "No closed candles yet" %}</p>
+        <p class="empty-subtitle text-secondary">
+          {% translate "Add closed daily candles to see price action before the decision." %}
+        </p>
+      </div>
+    {% endif %}
+  </div>
+</section>

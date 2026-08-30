@@ -1,0 +1,80 @@
+{% load i18n %}
+
+<div id="pair-results">
+  {% if filter_form.errors %}
+    <div class="alert alert-danger" role="alert">
+      {% translate "Check the selected filters." %}
+    </div>
+  {% endif %}
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div class="text-secondary">
+      {% blocktranslate count count=page_obj.paginator.count %}{{ count }} pair{% plural %}{{ count }} pairs{% endblocktranslate %}
+    </div>
+  </div>
+  <div class="card">
+    {% if page_obj.object_list %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              {% for header in sort_headers %}
+                <th{% if header.active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+                  <a class="tf-sort-link{% if header.active %} active{% endif %}"
+                     href="{{ header.url }}"
+                     hx-get="{{ header.url }}"
+                     hx-target="#pair-results"
+                     hx-swap="outerHTML"
+                     hx-push-url="true">
+                    {{ header.label }}
+                    {% if header.active %}<span aria-hidden="true">{% if header.descending %}↓{% else %}↑{% endif %}</span>{% endif %}
+                  </a>
+                </th>
+              {% endfor %}
+              <th class="w-1"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pair in page_obj %}
+              <tr>
+                <td class="fw-medium text-nowrap">
+                  <a href="{% url 'daily_candle_overview' pair.profile_id pair.id %}">{{ pair.symbol }}</a>
+                </td>
+                <td>
+                  <a class="text-reset" href="{{ pair.profile.get_absolute_url }}">{{ pair.profile.name }}</a>
+                </td>
+                <td>{{ pair.profile.get_market_type_display }}</td>
+                <td>{{ pair.get_market_data_provider_display }}</td>
+                <td>{{ pair.candle_count }}</td>
+                <td class="text-nowrap">
+                  {% if pair.latest_candle_date %}{{ pair.latest_candle_date|date:"DATE_FORMAT" }}{% else %}<span class="text-secondary">—</span>{% endif %}
+                </td>
+                <td>
+                  <div class="btn-list flex-nowrap">
+                    <a class="btn btn-icon"
+                       href="{% url 'daily_candle_overview' pair.profile_id pair.id %}"
+                       aria-label="{% translate 'Manage candles' %}">
+                      {% include "tradefog/components/icon.html" with name="chart-candle" class="icon" %}
+                    </a>
+                    <a class="btn btn-icon"
+                       href="{% url 'trading_pair_edit' pair.profile_id pair.id %}"
+                       aria-label="{% translate 'Edit trading pair' %}">
+                      {% include "tradefog/components/icon.html" with name="pencil" class="icon" %}
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% include "tradefog/journal/partials/pagination.html" with pagination_target="#pair-results" %}
+    {% else %}
+      <div class="empty py-5">
+        <p class="empty-title">{% translate "No pairs match these filters" %}</p>
+        <p class="empty-subtitle text-secondary">
+          {% translate "Change the filters or add a pair inside a trading profile." %}
+        </p>
+      </div>
+    {% endif %}
+  </div>
+</div>

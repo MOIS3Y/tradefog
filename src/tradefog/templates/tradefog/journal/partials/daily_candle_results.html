@@ -1,0 +1,79 @@
+{% load i18n journal %}
+
+<div id="candle-results">
+  {% if filter_form.errors %}
+    <div class="alert alert-danger" role="alert">
+      {% for field in filter_form %}{% for error in field.errors %}{{ error }}{% endfor %}{% endfor %}
+    </div>
+  {% endif %}
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div class="text-secondary">
+      {% blocktranslate count count=page_obj.paginator.count %}{{ count }} candle{% plural %}{{ count }} candles{% endblocktranslate %}
+    </div>
+    <div class="text-secondary small">
+      {% blocktranslate with source=trading_pair.get_market_data_provider_display %}Refresh source: {{ source }}{% endblocktranslate %}
+    </div>
+  </div>
+  <div class="card">
+    {% if page_obj.object_list %}
+      <div class="table-responsive"><table class="table table-vcenter card-table">
+        <thead><tr>
+          <th class="w-1 text-center"><span class="visually-hidden">{% translate "Direction" %}</span></th>
+          {% for header in sort_headers %}
+            <th{% if header.active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+              <a class="tf-sort-link{% if header.active %} active{% endif %}" href="{{ header.url }}"
+                 hx-get="{{ header.url }}" hx-target="#candle-results" hx-swap="outerHTML" hx-push-url="true">
+                {{ header.label }}{% if header.active %} <span aria-hidden="true">{% if header.descending %}↓{% else %}↑{% endif %}</span>{% endif %}
+              </a>
+            </th>
+          {% endfor %}
+          <th class="w-1"></th>
+        </tr></thead>
+        <tbody>
+          {% for candle in page_obj %}<tr>
+            <td class="text-center">
+              {% if candle.close_price > candle.open_price %}
+                <span class="text-green" title="{% translate 'Bullish candle' %}">
+                  {% include "tradefog/components/icon.html" with name="trending-up" class="icon" %}
+                  <span class="visually-hidden">{% translate "Bullish candle" %}</span>
+                </span>
+              {% elif candle.close_price < candle.open_price %}
+                <span class="text-red" title="{% translate 'Bearish candle' %}">
+                  {% include "tradefog/components/icon.html" with name="trending-down" class="icon" %}
+                  <span class="visually-hidden">{% translate "Bearish candle" %}</span>
+                </span>
+              {% else %}
+                <span class="text-secondary" title="{% translate 'Neutral candle' %}">
+                  {% include "tradefog/components/icon.html" with name="minus" class="icon" %}
+                  <span class="visually-hidden">{% translate "Neutral candle" %}</span>
+                </span>
+              {% endif %}
+            </td>
+            <td class="text-nowrap">{{ candle.trading_date|date:"DATE_FORMAT" }}</td>
+            <td>{{ candle.open_price|compact_decimal }}</td>
+            <td>{{ candle.high_price|compact_decimal }}</td>
+            <td>{{ candle.low_price|compact_decimal }}</td>
+            <td>{{ candle.close_price|compact_decimal }}</td>
+            <td>{{ candle.get_source_display }}</td>
+            <td><div class="btn-list flex-nowrap">
+              <a class="btn btn-icon" href="{% url 'daily_candle_edit' profile.id trading_pair.id candle.id %}"
+                 aria-label="{% translate 'Edit candle' %}">
+                {% include "tradefog/components/icon.html" with name="pencil" class="icon" %}
+              </a>
+              <a class="btn btn-icon btn-outline-danger" href="{% url 'daily_candle_delete' profile.id trading_pair.id candle.id %}"
+                 aria-label="{% translate 'Delete candle' %}">
+                {% include "tradefog/components/icon.html" with name="trash" class="icon" %}
+              </a>
+            </div></td>
+          </tr>{% endfor %}
+        </tbody>
+      </table></div>
+      {% include "tradefog/journal/partials/pagination.html" with pagination_target="#candle-results" %}
+    {% else %}
+      <div class="empty py-5">
+        <p class="empty-title">{% translate "No candles match these filters" %}</p>
+        <p class="empty-subtitle text-secondary">{% translate "Change the filters or add a closed daily candle." %}</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
