@@ -11,7 +11,12 @@ from django.utils.translation import override
 from pytest import mark, raises
 
 from tradefog.accounts.models import User
-from tradefog.journal.models import Asset, ProfileTradingPair, TradingProfile
+from tradefog.journal.models import (
+    Asset,
+    CapitalOperation,
+    ProfileTradingPair,
+    TradingProfile,
+)
 
 
 def create_asset(owner: User, symbol: str) -> Asset:
@@ -84,6 +89,83 @@ def test_assets_are_normalized_and_owner_scoped() -> None:
     assert asset.name == "Bitcoin"
     assert b"BTC" in overview.content
     assert b"PRIVATE" not in overview.content
+
+
+@mark.django_db
+def test_asset_overview_shows_unique_owner_scoped_linked_profiles() -> None:
+    """Asset links should combine capital and pair roles without duplicates."""
+    owner = User.objects.create_user(username="owner")
+    stranger = User.objects.create_user(username="stranger")
+    bitcoin = create_asset(owner, "BTC")
+    alpha = create_profile(owner, "Alpha")
+    beta = create_profile(owner, "Beta")
+    for profile in (alpha, beta):
+        _ = ProfileTradingPair.objects.create(
+            profile=profile,
+            asset=bitcoin,
+            price_step=Decimal("0.01"),
+            quantity_step=Decimal("0.001"),
+        )
+    _ = ProfileTradingPair.objects.create(
+        profile=alpha,
+        asset=bitcoin,
+        price_step=Decimal("0.1"),
+        quantity_step=Decimal("0.01"),
+        archived_at=timezone.now(),
+    )
+    _ = TradingProfile.objects.create(
+        owner=owner,
+        name="Capital BTC",
+        capital_asset=bitcoin,
+        initial_capital=Decimal(1),
+        risk_stop_capital=Decimal("0.5"),
+    )
+    hidden_bitcoin = create_asset(stranger, "BTC")
+    _ = TradingProfile.objects.create(
+        owner=stranger,
+        name="Hidden",
+        capital_asset=hidden_bitcoin,
+        initial_capital=Decimal(1),
+        risk_stop_capital=Decimal("0.5"),
+    )
+    client = Client()
+    client.force_login(owner)
+
+    response = client.get("/en/assets/")
+
+    assert response.status_code == 200
+    assert b'data-sort-value="Alpha | Beta | Capital BTC"' in response.content
+    assert b'data-bs-title="Beta, Capital BTC"' in response.content
+    assert b"+2" in response.content
+    assert b"Hidden" not in response.content
+
+
+@mark.django_db
+def test_profile_tables_expose_canonical_sort_values() -> None:
+    """Formatted financial tables should retain machine-sortable values."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    bitcoin = create_asset(user, "BTC")
+    _ = ProfileTradingPair.objects.create(
+        profile=profile,
+        asset=bitcoin,
+        price_step=Decimal("0.01"),
+        quantity_step=Decimal("0.001"),
+    )
+    _ = CapitalOperation.objects.create(
+        profile=profile,
+        operation_type=CapitalOperation.Type.WITHDRAWAL.value,
+        amount=Decimal("25.5"),
+    )
+    client = Client()
+    client.force_login(user)
+
+    response = client.get(f"/en/profiles/{profile.id}/")
+
+    assert response.status_code == 200
+    assert response.content.count(b"data-sortable-table") == 2
+    assert b'data-sort-value="-25.50000000"' in response.content
+    assert b'data-sort-value="0.010000000000"' in response.content
 
 
 @mark.django_db

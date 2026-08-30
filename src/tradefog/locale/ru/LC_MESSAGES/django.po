@@ -640,6 +640,9 @@ msgstr "Настройка журнала"
 msgid "Canonical asset identities reused by profiles and trading pairs."
 msgstr "Канонические активы, используемые профилями и торговыми парами."
 
+msgid "More linked profiles"
+msgstr "Другие связанные профили"
+
 msgid "Archive asset"
 msgstr "Архивировать актив"
 

@@ -1,5 +1,6 @@
 """Owner-scoped HTTP views for journal workflows and analytics."""
 
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import cast
@@ -67,6 +68,36 @@ from tradefog.journal.services import (
     update_capital_operation,
     update_trade_result,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class AssetOverviewRow:
+    """Present one asset with its unique linked trading profiles."""
+
+    asset: Asset
+    profiles: tuple[TradingProfile, ...]
+
+    @property
+    def remaining_profiles(self) -> tuple[TradingProfile, ...]:
+        """Return profiles hidden behind the compact overflow badge."""
+        return self.profiles[1:]
+
+    @property
+    def profile_sort_value(self) -> str:
+        """Return one deterministic key for optional profile sorting."""
+        return " | ".join(profile.name for profile in self.profiles)
+
+    @property
+    def profile_names(self) -> str:
+        """Return the complete readable profile list for the tooltip."""
+        return ", ".join(profile.name for profile in self.profiles)
+
+    @property
+    def remaining_profile_names(self) -> str:
+        """Return names disclosed by the compact overflow badge."""
+        return ", ".join(
+            profile.name for profile in self.remaining_profiles
+        )
 
 
 def _request_owner(request: HttpRequest) -> User:
@@ -343,15 +374,63 @@ def _add_validation_errors(
         form.add_error(None, field_error)
 
 
+def _asset_overview_rows(
+    owner: User,
+    assets: list[Asset],
+) -> list[AssetOverviewRow]:
+    """Join assets to unique capital and trading-pair profiles efficiently."""
+    if not assets:
+        return []
+
+    asset_ids = [asset.id for asset in assets]
+    profiles_by_asset: dict[int, dict[int, TradingProfile]] = {
+        asset_id: {} for asset_id in asset_ids
+    }
+    capital_profiles = TradingProfile.objects.filter(
+        owner=owner,
+        capital_asset_id__in=asset_ids,
+    ).only("id", "name", "capital_asset_id")
+    for profile in capital_profiles:
+        profiles_by_asset[profile.capital_asset_id][profile.id] = profile
+
+    trading_pairs = (
+        ProfileTradingPair.objects.filter(
+            profile__owner=owner,
+            asset_id__in=asset_ids,
+        )
+        .select_related("profile")
+        .only("asset_id", "profile__id", "profile__name")
+    )
+    for trading_pair in trading_pairs:
+        profiles_by_asset[trading_pair.asset_id][trading_pair.profile_id] = (
+            trading_pair.profile
+        )
+
+    return [
+        AssetOverviewRow(
+            asset=asset,
+            profiles=tuple(
+                sorted(
+                    profiles_by_asset[asset.id].values(),
+                    key=lambda profile: (profile.name.casefold(), profile.id),
+                )
+            ),
+        )
+        for asset in assets
+    ]
+
+
 @login_required
 def asset_overview(request: HttpRequest) -> HttpResponse:
     """List reusable asset identities owned by the authenticated user."""
-    assets = Asset.objects.filter(owner=_request_owner(request))
+    owner = _request_owner(request)
+    assets = Asset.objects.filter(owner=owner)
+    active_assets = list(assets.filter(archived_at__isnull=True))
     return render(
         request,
         "tradefog/journal/asset_overview.html",
         {
-            "assets": assets.filter(archived_at__isnull=True),
+            "assets": _asset_overview_rows(owner, active_assets),
             "archived_assets": assets.filter(archived_at__isnull=False),
         },
     )

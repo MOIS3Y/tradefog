@@ -29,29 +29,45 @@
 {% block content %}
   <div class="card">
     {% if assets %}
-      <div class="table-responsive">
+      <div class="table-responsive" data-sortable-table>
         <table class="table table-vcenter card-table">
           <thead>
             <tr>
-              <th>{% translate "Symbol" %}</th>
-              <th>{% translate "Name" %}</th>
-              <th>{% translate "Asset class" %}</th>
+              <th><button class="table-sort" data-sort="sort-symbol" type="button">{% translate "Symbol" %}</button></th>
+              <th><button class="table-sort" data-sort="sort-name" type="button">{% translate "Name" %}</button></th>
+              <th><button class="table-sort" data-sort="sort-class" type="button">{% translate "Asset class" %}</button></th>
+              <th><button class="table-sort" data-sort="sort-profiles" type="button">{% translate "Profiles" %}</button></th>
               <th class="w-1"></th>
             </tr>
           </thead>
-          <tbody>
-            {% for asset in assets %}
+          <tbody class="table-tbody">
+            {% for row in assets %}
               <tr>
-                <td class="fw-semibold">{{ asset.symbol }}</td>
-                <td>{{ asset.name|default:"—" }}</td>
-                <td><span class="badge bg-azure-lt">{{ asset.get_asset_class_display }}</span></td>
+                <td class="fw-semibold sort-symbol" data-sort-value="{{ row.asset.symbol }}">{{ row.asset.symbol }}</td>
+                <td class="sort-name" data-sort-value="{{ row.asset.name }}">{{ row.asset.name|default:"—" }}</td>
+                <td class="sort-class" data-sort-value="{{ row.asset.get_asset_class_display }}"><span class="badge bg-azure-lt">{{ row.asset.get_asset_class_display }}</span></td>
+                <td class="sort-profiles" data-sort-value="{{ row.profile_sort_value }}">
+                  {% if row.profiles %}
+                    <span class="badge bg-secondary-lt">{{ row.profiles.0.name }}</span>
+                    {% if row.remaining_profiles %}
+                      <button class="badge bg-secondary-lt border-0"
+                              type="button"
+                              data-bs-toggle="tooltip"
+                              data-bs-placement="top"
+                              data-bs-title="{{ row.remaining_profile_names }}"
+                              aria-label="{% translate 'More linked profiles' %}: {{ row.remaining_profile_names }}">
+                        +{{ row.remaining_profiles|length }}
+                      </button>
+                    {% endif %}
+                  {% else %}—{% endif %}
+                </td>
                 <td>
                   <div class="btn-list flex-nowrap">
-                    <a class="btn btn-icon" href="{% url 'asset_edit' asset.id %}"
+                    <a class="btn btn-icon" href="{% url 'asset_edit' row.asset.id %}"
                        aria-label="{% translate 'Edit asset' %}">
                       {% include "tradefog/components/icon.html" with name="pencil" class="icon-2" %}
                     </a>
-                    <form class="m-0" action="{% url 'asset_archive' asset.id %}" method="post">
+                    <form class="m-0" action="{% url 'asset_archive' row.asset.id %}" method="post">
                       {% csrf_token %}
                       <button class="btn btn-icon" type="submit"
                               aria-label="{% translate 'Archive asset' %}">

@@ -226,6 +226,8 @@ def test_analytics_page_is_owner_scoped_and_renders_apex_chart() -> None:
     assert analytics.net_result_r == Decimal(3)
     assert b"apexcharts/apexcharts.min.js" in response.content
     assert b'data-analytics-chart="xy-trajectory"' in response.content
+    assert b'data-sort="sort-direction"' in response.content
+    assert b'data-sort="sort-pair"' in response.content
     assert b"Hidden" not in response.content
 
 

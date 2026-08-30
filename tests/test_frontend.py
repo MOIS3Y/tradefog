@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from django.template.loader import get_template
+from django.utils.translation import override
 
 from tradefog.assets.build import ASSET_ROOT, build_icon_sprite
 from tradefog.config import Settings
@@ -12,12 +13,15 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     settings = Settings()
 
     template_dirs = settings.templates.django_templates()[0]["DIRS"]
-    rendered_template = get_template("tradefog/base.html").render()
+    with override("en"):
+        rendered_template = get_template("tradefog/base.html").render()
 
     assert '<html lang="en">' in rendered_template
     assert "tradefog/vendor/htmx/htmx.min.js" in rendered_template
     assert "tradefog/vendor/tabler/tabler.min.css" in rendered_template
     assert "tradefog/vendor/tabler/tabler.min.js" in rendered_template
+    assert "tradefog/vendor/list.js/list.min.js" in rendered_template
+    assert "tradefog/js/sortable-tables.js" in rendered_template
     assert "tradefog/js/tradefog.js" in rendered_template
     assert "tradefog/vendor/pico" not in rendered_template
     assert "cdn.jsdelivr.net" not in rendered_template

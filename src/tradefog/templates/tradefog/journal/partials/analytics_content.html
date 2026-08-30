@@ -1,4 +1,4 @@
-{% load i18n journal %}
+{% load i18n journal l10n %}
 
 <div id="analytics-content">
   <form class="card card-sm mb-3 tf-analytics-filter{% if filter_form.trading_pair.field.disabled %} tf-has-disabled-pair{% endif %}"
@@ -153,35 +153,36 @@
           <div class="card-header">
             <h2 class="card-title">{% translate "Trajectory decisions" %}</h2>
           </div>
-          <div class="table-responsive">
+          <div class="table-responsive" data-sortable-table>
             <table class="table table-vcenter card-table">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>{% translate "Trade" %}</th>
-                  <th>{% translate "Profile" %}</th>
-                  <th>{% translate "Date" %}</th>
-                  <th>{% translate "Result" %}</th>
-                  <th>X</th>
-                  <th>Y</th>
+                  <th><button class="table-sort" data-sort="sort-sequence" type="button">#</button></th>
+                  <th><button class="table-sort" data-sort="sort-direction" type="button">{% translate "Direction" %}</button></th>
+                  <th><button class="table-sort" data-sort="sort-pair" type="button">{% translate "Pair" %}</button></th>
+                  <th><button class="table-sort" data-sort="sort-profile" type="button">{% translate "Profile" %}</button></th>
+                  <th><button class="table-sort" data-sort="sort-date" type="button">{% translate "Date" %}</button></th>
+                  <th><button class="table-sort" data-sort="sort-result" type="button">{% translate "Result" %}</button></th>
+                  <th><button class="table-sort" data-sort="sort-x" type="button">X</button></th>
+                  <th><button class="table-sort" data-sort="sort-y" type="button">Y</button></th>
                   <th class="w-1"></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody class="table-tbody">
                 {% for point in analytics.points %}
                   <tr>
-                    <td class="text-secondary">{{ point.sequence }}</td>
-                    <td>
+                    <td class="text-secondary sort-sequence" data-sort-value="{{ point.sequence }}">{{ point.sequence }}</td>
+                    <td class="sort-direction" data-sort-value="{{ point.trade.direction }}">
                       <span class="badge{% if point.trade.direction == 'LONG' %} bg-green-lt{% else %} bg-red-lt{% endif %}">{{ point.trade.direction }}</span>
-                      <span class="fw-semibold ms-1">{{ point.trade.pair_symbol }}</span>
                     </td>
-                    <td>{{ point.trade.profile_name }}</td>
-                    <td class="text-secondary text-nowrap">{{ point.trade.trade_date|date:"SHORT_DATE_FORMAT" }}</td>
-                    <td class="{% if point.trade.result_r > 0 %}text-success{% elif point.trade.result_r < 0 %}text-danger{% endif %}">
+                    <td class="fw-semibold sort-pair" data-sort-value="{{ point.trade.pair_symbol }}">{{ point.trade.pair_symbol }}</td>
+                    <td class="sort-profile" data-sort-value="{{ point.trade.profile_name }}">{{ point.trade.profile_name }}</td>
+                    <td class="text-secondary text-nowrap sort-date" data-sort-value="{{ point.trade.trade_date|date:'Y-m-d' }}">{{ point.trade.trade_date|date:"SHORT_DATE_FORMAT" }}</td>
+                    <td class="sort-result {% if point.trade.result_r > 0 %}text-success{% elif point.trade.result_r < 0 %}text-danger{% endif %}" data-sort-value="{{ point.trade.result_r|unlocalize }}">
                       {{ point.trade.result_r|rounded_decimal:2 }}R
                     </td>
-                    <td>{{ point.x|rounded_decimal:2 }}</td>
-                    <td>{{ point.y|rounded_decimal:2 }}</td>
+                    <td class="sort-x" data-sort-value="{{ point.x|unlocalize }}">{{ point.x|rounded_decimal:2 }}</td>
+                    <td class="sort-y" data-sort-value="{{ point.y|unlocalize }}">{{ point.y|rounded_decimal:2 }}</td>
                     <td>
                       <a class="btn btn-icon" href="{% url 'trade_detail' point.trade.trade_id %}" aria-label="{% translate 'Open trade' %}">
                         {% include "tradefog/components/icon.html" with name="chevron-right" class="" %}

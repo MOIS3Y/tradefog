@@ -98,6 +98,12 @@ Templates use semantic HTML, accessible controls, and reusable partials where
 they represent genuinely repeated interface structure. Custom styling and
 JavaScript stay small and feature-driven.
 
+List.js progressively enhances fully rendered journal tables with client-side
+sorting. Sortable cells expose canonical values separately from localized
+presentation, and HTMX replacements reinitialize the affected table. Lists
+that later require server-side pagination also move their ordering to Django
+query parameters instead of sorting only one rendered page.
+
 Material interface work follows the project's restrained, risk-discipline
 visual direction. New decoration is tied to useful information rather than a
 generic dashboard aesthetic.

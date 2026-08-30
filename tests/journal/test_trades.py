@@ -700,7 +700,11 @@ def test_trade_pages_render_through_complete_manual_lifecycle() -> None:
     client = Client()
     client.force_login(user)
 
-    assert client.get("/en/trades/").status_code == 200
+    overview_response = client.get("/en/trades/")
+    assert overview_response.status_code == 200
+    assert b'data-sort="sort-direction"' in overview_response.content
+    assert b'data-sort="sort-pair"' in overview_response.content
+    assert b'data-sort="sort-market"' in overview_response.content
     assert client.get("/en/trades/new/").status_code == 200
 
     draft_response = client.get(f"/en/trades/{trade.id}/")
