@@ -7,6 +7,7 @@ CDN or a JavaScript package manager.
 | --- | --- | --- | --- |
 | Tabler UI | 1.4.0 | MIT | https://github.com/tabler/tabler |
 | htmx | 2.0.9 | 0BSD | https://github.com/bigskysoftware/htmx |
+| ApexCharts | 7.0.0 | Community | https://github.com/apexcharts/apexcharts.js |
 | Tabler Icons | 3.46.0 | MIT | https://github.com/tabler/tabler-icons |
 
 Only the selected Tabler SVG sources are stored in the package. The frontend

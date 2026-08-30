@@ -17,3 +17,63 @@
   min-height: calc(100vh - 10rem);
   align-items: center;
 }
+
+.tf-analytics-filter .form-select:disabled {
+  border-color: var(--tblr-border-color);
+  border-style: dashed;
+  background-color: color-mix(
+    in srgb,
+    var(--tblr-bg-surface-secondary) 72%,
+    transparent
+  );
+  color: var(--tblr-secondary);
+  cursor: not-allowed;
+  opacity: 0.78;
+}
+
+.tf-filter-disabled-hint {
+  max-width: 100%;
+  color: var(--tblr-secondary);
+}
+
+@media (min-width: 1200px) {
+  .tf-has-disabled-pair .card-body {
+    padding-bottom: 2.25rem;
+  }
+
+  .tf-pair-filter {
+    position: relative;
+  }
+
+  .tf-pair-filter .tf-filter-disabled-hint {
+    position: absolute;
+    top: 100%;
+    right: calc(var(--tblr-gutter-x) * 0.5);
+    left: calc(var(--tblr-gutter-x) * 0.5);
+    margin-top: 0.25rem;
+  }
+}
+
+.tf-trajectory-card {
+  overflow: hidden;
+}
+
+.tf-coordinate-readout {
+  font-variant-numeric: tabular-nums;
+}
+
+.tf-trajectory-chart {
+  min-height: 400px;
+}
+
+.tf-chart-tooltip {
+  min-width: 11rem;
+  padding: 0.625rem 0.75rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 575.98px) {
+  .tf-trajectory-chart {
+    min-height: 320px;
+  }
+}

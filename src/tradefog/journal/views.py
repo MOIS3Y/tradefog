@@ -1,5 +1,6 @@
-"""Owner-scoped HTTP views for assets, profiles, pairs, and trades."""
+"""Owner-scoped HTTP views for journal workflows and analytics."""
 
+from datetime import date
 from decimal import Decimal
 from typing import cast
 
@@ -13,8 +14,17 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods, require_POST
 
 from tradefog.accounts.models import User
+from tradefog.journal.analytics import (
+    TradeAnalytics,
+    calculate_trade_analytics,
+)
+from tradefog.journal.analytics_queries import (
+    AnalyticsFilters,
+    select_closed_trade_results,
+)
 from tradefog.journal.calculations import PositionPlan, PositionPlanError
 from tradefog.journal.forms import (
+    AnalyticsFilterForm,
     AssetForm,
     CapitalOperationForm,
     CloseTradeForm,
@@ -142,6 +152,116 @@ def _owned_archived_trading_pair(
         id=pair_id,
         profile=profile,
         archived_at__isnull=False,
+    )
+
+
+def _analytics_chart_data(analytics: TradeAnalytics) -> dict[str, object]:
+    """Serialize exact analytics into ApexCharts presentation data."""
+    trajectory: list[dict[str, object]] = [
+        {
+            "x": 0.0,
+            "y": 0.0,
+            "sequence": 0,
+            "trade": None,
+        }
+    ]
+    for point in analytics.points:
+        trajectory.append(
+            {
+                "x": float(point.x),
+                "y": float(point.y),
+                "sequence": point.sequence,
+                "trade": {
+                    "date": point.trade.trade_date.isoformat(),
+                    "profile": point.trade.profile_name,
+                    "pair": point.trade.pair_symbol,
+                    "direction": point.trade.direction,
+                    "resultR": float(point.trade.result_r),
+                },
+            }
+        )
+
+    break_even_end = max(
+        analytics.final_x,
+        analytics.final_y * Decimal(3),
+        Decimal(1),
+    )
+    return {
+        "trajectory": trajectory,
+        "breakEven": [
+            {"x": 0.0, "y": 0.0},
+            {
+                "x": float(break_even_end),
+                "y": float(break_even_end / Decimal(3)),
+            },
+        ],
+        "labels": {
+            "trajectory": _("Trading trajectory"),
+            "breakEven": _("Break-even line"),
+            "start": _("Start"),
+            "trade": _("Trade"),
+            "profile": _("Profile"),
+            "result": _("Result"),
+        },
+    }
+
+
+def _analytics_context(request: HttpRequest) -> dict[str, object]:
+    """Build filtered, owner-scoped analytics for a full or HTMX response."""
+    query_data = request.GET.copy()
+    if "period" not in query_data:
+        query_data["period"] = "ALL"
+    form = AnalyticsFilterForm(_request_owner(request), query_data)
+    if not form.is_valid():
+        analytics = calculate_trade_analytics(())
+        return {
+            "filter_form": form,
+            "analytics": analytics,
+            "chart_data": None,
+        }
+
+    profile = cast(TradingProfile | None, form.cleaned_data["profile"])
+    trading_pair = cast(
+        ProfileTradingPair | None,
+        form.cleaned_data["trading_pair"],
+    )
+    filters = AnalyticsFilters(
+        date_from=cast(date | None, form.cleaned_data["date_from"]),
+        date_to=cast(date | None, form.cleaned_data["date_to"]),
+        profile_id=profile.id if profile is not None else None,
+        market_type=cast(str, form.cleaned_data["market_type"]) or None,
+        trading_pair_id=(
+            trading_pair.id if trading_pair is not None else None
+        ),
+    )
+    analytics = calculate_trade_analytics(
+        select_closed_trade_results(_request_owner(request), filters)
+    )
+    return {
+        "filter_form": form,
+        "analytics": analytics,
+        "chart_data": (
+            _analytics_chart_data(analytics)
+            if analytics.closed_trade_count
+            else None
+        ),
+    }
+
+
+@login_required
+def analytics_overview(request: HttpRequest) -> HttpResponse:
+    """Show the central filtered trading-quality view."""
+    context = _analytics_context(request)
+    if bool(getattr(request, "htmx", False)):
+        return render(
+            request,
+            "tradefog/journal/partials/analytics_content.html",
+            context,
+        )
+    return render(
+        request,
+        "tradefog/journal/analytics_overview.html",
+        context,
     )
 
 

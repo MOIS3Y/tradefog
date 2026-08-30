@@ -4,7 +4,9 @@
 # runtime classes cannot be parameterized.
 # pyright: reportAny=false, reportMissingTypeArgument=false, reportUnknownMemberType=false
 
+from datetime import timedelta
 from decimal import Decimal
+from enum import StrEnum
 from typing import ClassVar, cast, override
 
 from django import forms
@@ -42,6 +44,197 @@ class ProfileTradingPairChoiceField(forms.ModelChoiceField):
         """Show the canonical pair without exchange-specific formatting."""
         trading_pair = cast(ProfileTradingPair, obj)
         return trading_pair.symbol
+
+
+class AnalyticsPeriod(StrEnum):
+    """Supported rolling and explicit analytics date ranges."""
+
+    ALL = "ALL"
+    DAYS_30 = "30D"
+    DAYS_90 = "90D"
+    YEAR_TO_DATE = "YTD"
+    YEAR_1 = "1Y"
+    CUSTOM = "CUSTOM"
+
+
+class AnalyticsProfileChoiceField(forms.ModelChoiceField):
+    """Present profiles consistently in the analytics filter."""
+
+    @override
+    def label_from_instance(self, obj: object) -> str:
+        """Show the user-defined profile name."""
+        return cast(TradingProfile, obj).name
+
+
+class AnalyticsPairChoiceField(forms.ModelChoiceField):
+    """Present a canonical pair inside an explicit profile filter."""
+
+    @override
+    def label_from_instance(self, obj: object) -> str:
+        """Show only the pair because the profile is selected separately."""
+        return cast(ProfileTradingPair, obj).symbol
+
+
+class AnalyticsFilterForm(forms.Form):
+    """Validate owner-scoped dimensions and analytics date ranges."""
+
+    period: forms.ChoiceField = forms.ChoiceField(
+        label=_("Period"),
+        required=False,
+        initial=AnalyticsPeriod.ALL.value,
+        choices=(
+            (AnalyticsPeriod.ALL.value, _("All time")),
+            (AnalyticsPeriod.DAYS_30.value, _("Last 30 days")),
+            (AnalyticsPeriod.DAYS_90.value, _("Last 90 days")),
+            (AnalyticsPeriod.YEAR_TO_DATE.value, _("Year to date")),
+            (AnalyticsPeriod.YEAR_1.value, _("Last year")),
+            (AnalyticsPeriod.CUSTOM.value, _("Custom range")),
+        ),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    date_from: forms.DateField = forms.DateField(
+        label=_("From"),
+        required=False,
+        widget=forms.DateInput(
+            attrs={"class": "form-control", "type": "date"}
+        ),
+    )
+    date_to: forms.DateField = forms.DateField(
+        label=_("To"),
+        required=False,
+        widget=forms.DateInput(
+            attrs={"class": "form-control", "type": "date"}
+        ),
+    )
+    profile: AnalyticsProfileChoiceField = AnalyticsProfileChoiceField(
+        label=_("Profile"),
+        required=False,
+        queryset=TradingProfile.objects.none(),
+        empty_label=_("All profiles"),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    market_type: forms.ChoiceField = forms.ChoiceField(
+        label=_("Market"),
+        required=False,
+        choices=(("", _("All markets")), *TradingProfile.MarketType.choices),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    trading_pair: AnalyticsPairChoiceField = AnalyticsPairChoiceField(
+        label=_("Trading pair"),
+        required=False,
+        queryset=ProfileTradingPair.objects.none(),
+        empty_label=_("All pairs"),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
+    def __init__(
+        self,
+        owner: User,
+        data: QueryDict | None = None,
+    ) -> None:
+        """Enable pairs only within one selected owner-scoped profile."""
+        normalized_data = data.copy() if data is not None else None
+        selected_profile_id: int | None = None
+        if normalized_data is not None:
+            raw_profile_id = normalized_data.get("profile")
+            try:
+                requested_profile_id = int(raw_profile_id or "")
+            except ValueError:
+                requested_profile_id = None
+            if (
+                requested_profile_id is not None
+                and TradingProfile.objects.filter(
+                    id=requested_profile_id,
+                    owner=owner,
+                ).exists()
+            ):
+                selected_profile_id = requested_profile_id
+
+            raw_pair_id = normalized_data.get("trading_pair")
+            pair_matches_profile = (
+                selected_profile_id is not None
+                and raw_pair_id
+                and ProfileTradingPair.objects.filter(
+                    id=raw_pair_id,
+                    profile_id=selected_profile_id,
+                ).exists()
+            )
+            if not pair_matches_profile:
+                _removed_pair_values = normalized_data.pop(
+                    "trading_pair",
+                    None,
+                )
+
+        super().__init__(data=normalized_data)
+        profile_field = cast(
+            AnalyticsProfileChoiceField,
+            self.fields["profile"],
+        )
+        profile_field.queryset = TradingProfile.objects.filter(owner=owner)
+        pair_field = cast(
+            AnalyticsPairChoiceField,
+            self.fields["trading_pair"],
+        )
+        pair_field.queryset = ProfileTradingPair.objects.filter(
+            profile_id=selected_profile_id,
+            profile__owner=owner,
+        ).select_related("asset", "profile__capital_asset")
+        pair_field.disabled = selected_profile_id is None
+        if pair_field.disabled:
+            pair_field.empty_label = _("Unavailable")
+            pair_field.widget.attrs["title"] = _(
+                "Choose a profile to enable this filter."
+            )
+
+    @override
+    def clean(self) -> dict[str, object] | None:
+        """Resolve rolling periods and keep pair/profile filters coherent."""
+        cleaned_data = super().clean()
+        if cleaned_data is None:
+            return None
+
+        period = cleaned_data.get("period") or AnalyticsPeriod.ALL.value
+        today = timezone.localdate()
+        if period == AnalyticsPeriod.DAYS_30.value:
+            cleaned_data["date_from"] = today - timedelta(days=29)
+            cleaned_data["date_to"] = today
+        elif period == AnalyticsPeriod.DAYS_90.value:
+            cleaned_data["date_from"] = today - timedelta(days=89)
+            cleaned_data["date_to"] = today
+        elif period == AnalyticsPeriod.YEAR_TO_DATE.value:
+            cleaned_data["date_from"] = today.replace(month=1, day=1)
+            cleaned_data["date_to"] = today
+        elif period == AnalyticsPeriod.YEAR_1.value:
+            cleaned_data["date_from"] = today - timedelta(days=364)
+            cleaned_data["date_to"] = today
+        elif period == AnalyticsPeriod.ALL.value:
+            cleaned_data["date_from"] = None
+            cleaned_data["date_to"] = None
+
+        date_from = cleaned_data.get("date_from")
+        date_to = cleaned_data.get("date_to")
+        if (
+            date_from is not None
+            and date_to is not None
+            and date_from > date_to
+        ):
+            self.add_error(
+                "date_to",
+                _("The end date must not be earlier than the start date."),
+            )
+
+        profile = cleaned_data.get("profile")
+        trading_pair = cleaned_data.get("trading_pair")
+        if (
+            isinstance(profile, TradingProfile)
+            and isinstance(trading_pair, ProfileTradingPair)
+            and trading_pair.profile_id != profile.id
+        ):
+            self.add_error(
+                "trading_pair",
+                _("Select a trading pair from the chosen profile."),
+            )
+        return cleaned_data
 
 
 class AssetForm(forms.ModelForm):

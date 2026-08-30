@@ -50,11 +50,7 @@ by Stage 4 while pre-release compatibility was inexpensive.
 - net realized P&L, optional commission, and signed funding context;
 - focused ownership, validation, lifecycle, calculation, and UI tests.
 
-## Planned stages
-
 ### Stage 5: core X/Y analytics
-
-Stage 5 introduces the central trading-quality view:
 
 - pure lifetime and date-filtered trajectory calculations;
 - all-time, common rolling-range, and arbitrary date filters;
@@ -62,10 +58,14 @@ Stage 5 introduces the central trading-quality view:
 - the `Y = X / 3` break-even line without an artificial target line;
 - net and average R, outcome counts, win rate, and streaks;
 - profile, pair, market-type, and date filtering where useful;
-- an Analytics navigation item once the page is functional;
+- a locally vendored ApexCharts visualization styled with Tabler UI;
+- HTMX filtering with stable query-string URLs;
+- a functional Analytics navigation item;
 - coverage for partial outcomes, ordering, filters, and corrections.
 
 Capital operations and capital size remain outside these quality metrics.
+
+## Planned stages
 
 ### Stage 6: checklist and directional assessment
 

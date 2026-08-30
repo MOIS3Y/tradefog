@@ -1,0 +1,210 @@
+{% load i18n journal %}
+
+<div id="analytics-content">
+  <form class="card card-sm mb-3 tf-analytics-filter{% if filter_form.trading_pair.field.disabled %} tf-has-disabled-pair{% endif %}"
+        data-analytics-filters
+        method="get"
+        action="{% url 'analytics_overview' %}"
+        hx-get="{% url 'analytics_overview' %}"
+        hx-target="#analytics-content"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-trigger="change delay:200ms, submit">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-6 col-xl">
+          <label class="form-label" for="{{ filter_form.period.id_for_label }}">{{ filter_form.period.label }}</label>
+          {{ filter_form.period }}
+        </div>
+        <div class="col-6 col-md-3 col-xl" data-custom-date-field>
+          <label class="form-label" for="{{ filter_form.date_from.id_for_label }}">{{ filter_form.date_from.label }}</label>
+          {{ filter_form.date_from }}
+        </div>
+        <div class="col-6 col-md-3 col-xl" data-custom-date-field>
+          <label class="form-label" for="{{ filter_form.date_to.id_for_label }}">{{ filter_form.date_to.label }}</label>
+          {{ filter_form.date_to }}
+        </div>
+        <div class="col-12 col-md-6 col-xl">
+          <label class="form-label" for="{{ filter_form.profile.id_for_label }}">{{ filter_form.profile.label }}</label>
+          {{ filter_form.profile }}
+        </div>
+        <div class="col-12 col-md-4 col-xl">
+          <label class="form-label" for="{{ filter_form.market_type.id_for_label }}">{{ filter_form.market_type.label }}</label>
+          {{ filter_form.market_type }}
+        </div>
+        <div class="col-12 col-md-8 col-xl-3 tf-pair-filter">
+          <label class="form-label" for="{{ filter_form.trading_pair.id_for_label }}">{{ filter_form.trading_pair.label }}</label>
+          {{ filter_form.trading_pair }}
+          {% if filter_form.trading_pair.field.disabled %}
+            <div class="form-hint tf-filter-disabled-hint">
+              {% translate "Choose a profile first." %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      {% if filter_form.errors %}
+        <div class="alert alert-danger mt-3 mb-0" role="alert">
+          {% for field in filter_form %}
+            {% for error in field.errors %}<div>{{ error }}</div>{% endfor %}
+          {% endfor %}
+          {% for error in filter_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+        </div>
+      {% endif %}
+      <noscript>
+        <button class="btn btn-primary mt-3" type="submit">{% translate "Apply filters" %}</button>
+      </noscript>
+    </div>
+  </form>
+
+  {% if analytics.closed_trade_count %}
+    <div class="row row-cards">
+      <div class="col-12">
+        <section class="card tf-trajectory-card">
+          <div class="card-header border-0 pb-0">
+            <div>
+              <h2 class="card-title">{% translate "X/Y trading trajectory" %}</h2>
+              <div class="text-secondary small">
+                {% translate "Each point is one closed trade in analytical order." %}
+              </div>
+            </div>
+            <div class="ms-auto d-flex gap-4 tf-coordinate-readout" aria-label="{% translate 'Current coordinate' %}">
+              <div>
+                <span class="subheader">X</span>
+                <span class="h2 mb-0">{{ analytics.final_x|rounded_decimal:2 }}</span>
+              </div>
+              <div>
+                <span class="subheader">Y</span>
+                <span class="h2 mb-0">{{ analytics.final_y|rounded_decimal:2 }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-body pt-2">
+            <div class="tf-trajectory-chart"
+                 data-analytics-chart="xy-trajectory"
+                 data-config-id="analytics-xy-data"
+                 role="img"
+                 aria-label="{% translate 'X/Y trajectory with the break-even line' %}"></div>
+            {{ chart_data|json_script:"analytics-xy-data" }}
+            <div class="d-flex flex-wrap justify-content-between gap-2 small text-secondary mt-2">
+              <span>{% translate "X — cumulative full-stop equivalents" %}</span>
+              <span>{% translate "Y — cumulative full-target equivalents" %}</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-6 col-lg-3">
+        <section class="card h-100">
+          <div class="card-body">
+            <div class="subheader">{% translate "Closed trades" %}</div>
+            <div class="h1 mb-1">{{ analytics.closed_trade_count }}</div>
+            <div class="text-secondary small">
+              <span class="text-success">{{ analytics.win_count }} {% translate "wins" %}</span>
+              · <span class="text-danger">{{ analytics.loss_count }} {% translate "losses" %}</span>
+              · {{ analytics.break_even_count }} {% translate "break-even" %}
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="col-6 col-lg-3">
+        <section class="card h-100">
+          <div class="card-body">
+            <div class="subheader">{% translate "Net result" %}</div>
+            <div class="h1 mb-1{% if analytics.net_result_r > 0 %} text-success{% elif analytics.net_result_r < 0 %} text-danger{% endif %}">
+              {{ analytics.net_result_r|rounded_decimal:2 }}R
+            </div>
+            <div class="text-secondary small">
+              {% translate "Average" %}: {{ analytics.average_result_r|rounded_decimal:2 }}R
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="col-6 col-lg-3">
+        <section class="card h-100">
+          <div class="card-body">
+            <div class="subheader">{% translate "Win rate" %}</div>
+            <div class="h1 mb-1">{{ analytics.win_rate|rounded_decimal:1 }}%</div>
+            <div class="text-secondary small">
+              +{{ analytics.gross_profit_r|rounded_decimal:2 }}R / −{{ analytics.gross_loss_r|rounded_decimal:2 }}R
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="col-6 col-lg-3">
+        <section class="card h-100">
+          <div class="card-body">
+            <div class="subheader">{% translate "Current streak" %}</div>
+            <div class="h1 mb-1">
+              {% if analytics.current_streak.outcome == "WIN" %}
+                {{ analytics.current_streak.count }}W
+              {% elif analytics.current_streak.outcome == "LOSS" %}
+                {{ analytics.current_streak.count }}L
+              {% else %}—{% endif %}
+            </div>
+            <div class="text-secondary small">
+              {% translate "Maximum" %}: {{ analytics.maximum_winning_streak }}W / {{ analytics.maximum_losing_streak }}L
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-12">
+        <section class="card">
+          <div class="card-header">
+            <h2 class="card-title">{% translate "Trajectory decisions" %}</h2>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{% translate "Trade" %}</th>
+                  <th>{% translate "Profile" %}</th>
+                  <th>{% translate "Date" %}</th>
+                  <th>{% translate "Result" %}</th>
+                  <th>X</th>
+                  <th>Y</th>
+                  <th class="w-1"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for point in analytics.points %}
+                  <tr>
+                    <td class="text-secondary">{{ point.sequence }}</td>
+                    <td>
+                      <span class="badge{% if point.trade.direction == 'LONG' %} bg-green-lt{% else %} bg-red-lt{% endif %}">{{ point.trade.direction }}</span>
+                      <span class="fw-semibold ms-1">{{ point.trade.pair_symbol }}</span>
+                    </td>
+                    <td>{{ point.trade.profile_name }}</td>
+                    <td class="text-secondary text-nowrap">{{ point.trade.trade_date|date:"SHORT_DATE_FORMAT" }}</td>
+                    <td class="{% if point.trade.result_r > 0 %}text-success{% elif point.trade.result_r < 0 %}text-danger{% endif %}">
+                      {{ point.trade.result_r|rounded_decimal:2 }}R
+                    </td>
+                    <td>{{ point.x|rounded_decimal:2 }}</td>
+                    <td>{{ point.y|rounded_decimal:2 }}</td>
+                    <td>
+                      <a class="btn btn-icon" href="{% url 'trade_detail' point.trade.trade_id %}" aria-label="{% translate 'Open trade' %}">
+                        {% include "tradefog/components/icon.html" with name="chevron-right" class="" %}
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  {% elif not filter_form.errors %}
+    <section class="empty empty-bordered">
+      <div class="empty-icon">{% include "tradefog/components/icon.html" with name="chart-line" class="" %}</div>
+      <p class="empty-title">{% translate "No closed trades in this selection" %}</p>
+      <p class="empty-subtitle text-secondary">
+        {% translate "Close a trade or change the filters to build the quality trajectory." %}
+      </p>
+      <div class="empty-action">
+        <a class="btn btn-primary" href="{% url 'trade_overview' %}">{% translate "Open trades" %}</a>
+      </div>
+    </section>
+  {% endif %}
+</div>

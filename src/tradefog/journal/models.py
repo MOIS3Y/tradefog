@@ -545,7 +545,7 @@ class ProfileTradingPair(models.Model):
     @override
     def __str__(self) -> str:
         """Return the canonical market pair and its owning profile."""
-        return f"{self.symbol} — {self.profile.name}"
+        return f"{self.symbol} | {self.profile.name}"
 
     @override
     def clean(self) -> None:

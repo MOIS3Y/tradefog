@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tradefog\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-29 16:01+0000\n"
+"POT-Creation-Date: 2026-08-30 04:00+0000\n"
 "PO-Revision-Date: 2026-08-26 00:00+0900\n"
 "Last-Translator: tradefog maintainers\n"
 "Language-Team: Russian\n"
@@ -54,6 +54,63 @@ msgstr "Рассчитанное количество меньше миниму�
 msgid "Calculated order value is below the instrument minimum."
 msgstr "Рассчитанная стоимость ордера меньше минимума для инструмента."
 
+msgid "Period"
+msgstr "Период"
+
+msgid "All time"
+msgstr "Всё время"
+
+msgid "Last 30 days"
+msgstr "Последние 30 дней"
+
+msgid "Last 90 days"
+msgstr "Последние 90 дней"
+
+msgid "Year to date"
+msgstr "С начала года"
+
+msgid "Last year"
+msgstr "Последний год"
+
+msgid "Custom range"
+msgstr "Произвольный период"
+
+msgid "From"
+msgstr "С"
+
+msgid "To"
+msgstr "По"
+
+msgid "Profile"
+msgstr "Профиль"
+
+msgid "All profiles"
+msgstr "Все профили"
+
+msgid "Market"
+msgstr "Рынок"
+
+msgid "All markets"
+msgstr "Все рынки"
+
+msgid "Trading pair"
+msgstr "Торговая пара"
+
+msgid "All pairs"
+msgstr "Все пары"
+
+msgid "Unavailable"
+msgstr "Недоступно"
+
+msgid "Choose a profile to enable this filter."
+msgstr "Выберите профиль, чтобы включить этот фильтр."
+
+msgid "The end date must not be earlier than the start date."
+msgstr "Конечная дата не может быть раньше начальной."
+
+msgid "Select a trading pair from the chosen profile."
+msgstr "Выберите торговую пару из выбранного профиля."
+
 msgid "Capital asset is locked because trading pairs exist."
 msgstr "Актив капитала заблокирован, поскольку в профиле есть торговые пары."
 
@@ -83,9 +140,6 @@ msgstr "Минимально допустимое изменение колич�
 
 msgid "Leave empty when the market has no minimum quantity."
 msgstr "Оставьте пустым, если для рынка нет минимального объёма."
-
-msgid "Trading pair"
-msgstr "Торговая пара"
 
 msgid "Realized P&L"
 msgstr "Реализованный P&L"
@@ -342,6 +396,21 @@ msgstr "Это действие недоступно для текущего с�
 msgid "The trade has no valid risk snapshot."
 msgstr "У сделки нет корректного снимка риска."
 
+msgid "Trading trajectory"
+msgstr "Торговая траектория"
+
+msgid "Break-even line"
+msgstr "Линия безубыточности"
+
+msgid "Start"
+msgstr "Начало"
+
+msgid "Trade"
+msgstr "Сделка"
+
+msgid "Result"
+msgstr "Результат"
+
 msgid "Asset created."
 msgstr "Актив создан."
 
@@ -462,6 +531,9 @@ msgstr "Аналитика"
 msgid "Close"
 msgstr "Закрыть"
 
+msgid "Trading quality"
+msgstr "Качество торговли"
+
 msgid "Confirm archive"
 msgstr "Подтверждение архивации"
 
@@ -562,6 +634,75 @@ msgstr "Редактировать операцию с капиталом"
 #, python-format
 msgid "Recorded %(recorded)s"
 msgstr "Записано %(recorded)s"
+
+msgid "Choose a profile first."
+msgstr "Сначала выберите профиль."
+
+msgid "Apply filters"
+msgstr "Применить фильтры"
+
+msgid "X/Y trading trajectory"
+msgstr "Торговая траектория X/Y"
+
+msgid "Each point is one closed trade in analytical order."
+msgstr "Каждая точка — одна закрытая сделка в аналитическом порядке."
+
+msgid "Current coordinate"
+msgstr "Текущая координата"
+
+msgid "X/Y trajectory with the break-even line"
+msgstr "Траектория X/Y с линией безубыточности"
+
+msgid "X — cumulative full-stop equivalents"
+msgstr "X — накопленные эквиваленты полного стопа"
+
+msgid "Y — cumulative full-target equivalents"
+msgstr "Y — накопленные эквиваленты полной цели"
+
+msgid "Closed trades"
+msgstr "Закрытые сделки"
+
+msgid "wins"
+msgstr "побед"
+
+msgid "losses"
+msgstr "поражений"
+
+msgid "break-even"
+msgstr "безубыточных"
+
+msgid "Net result"
+msgstr "Чистый результат"
+
+msgid "Average"
+msgstr "Средний"
+
+msgid "Win rate"
+msgstr "Доля побед"
+
+msgid "Current streak"
+msgstr "Текущая серия"
+
+msgid "Maximum"
+msgstr "Максимум"
+
+msgid "Trajectory decisions"
+msgstr "Сделки траектории"
+
+msgid "Date"
+msgstr "Дата"
+
+msgid "Open trade"
+msgstr "Открыть сделку"
+
+msgid "No closed trades in this selection"
+msgstr "В выбранном диапазоне нет закрытых сделок"
+
+msgid "Close a trade or change the filters to build the quality trajectory."
+msgstr "Закройте сделку или измените фильтры, чтобы построить траекторию качества."
+
+msgid "Open trades"
+msgstr "Перейти к сделкам"
 
 msgid "Plan needs attention"
 msgstr "План требует внимания"
@@ -873,21 +1014,6 @@ msgstr "Создать черновик"
 
 msgid "Journal decisions"
 msgstr "Решения журнала"
-
-msgid "Trade"
-msgstr "Сделка"
-
-msgid "Profile"
-msgstr "Профиль"
-
-msgid "Date"
-msgstr "Дата"
-
-msgid "Result"
-msgstr "Результат"
-
-msgid "Open trade"
-msgstr "Открыть сделку"
 
 msgid "No trades recorded"
 msgstr "Сделок пока нет"

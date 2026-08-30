@@ -61,6 +61,11 @@
   function applyTheme(choice) {
     document.documentElement.dataset.bsTheme = resolvedTheme(choice);
     document.documentElement.dataset.themeChoice = choice;
+    document.dispatchEvent(
+      new CustomEvent("tradefog:theme-changed", {
+        detail: { theme: document.documentElement.dataset.bsTheme },
+      }),
+    );
   }
 
   const initialTheme = storedTheme();

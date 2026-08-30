@@ -5,6 +5,7 @@ from django.urls import path
 from tradefog.journal import views
 
 urlpatterns = [
+    path("analytics/", views.analytics_overview, name="analytics_overview"),
     path("assets/", views.asset_overview, name="asset_overview"),
     path("assets/new/", views.asset_create, name="asset_create"),
     path(
