@@ -65,16 +65,21 @@ by Stage 4 while pre-release compatibility was inexpensive.
 
 Capital operations and capital size remain outside these quality metrics.
 
-## Planned stages
-
 ### Stage 6: checklist and directional assessment
 
-- finalize the fixed checklist questions and weights;
-- add the typed checklist model and form;
-- implement pure signed directional scoring and completeness;
-- integrate an advisory gauge into the HTMX trade workspace;
-- preserve disagreement between selected direction and checklist assessment
-  without blocking the trade.
+- a fixed cross-market checklist with explicit `1/1/3/2` weights;
+- typed, versioned answers attached one-to-one to each saved trade;
+- pure signed scoring, completeness, and derived D1 relationships;
+- atomic draft and checklist persistence with read-only submitted context;
+- an advisory `SHORT`-to-`LONG` gauge in the HTMX trade workspace;
+- preserved disagreement between selected direction and checklist assessment;
+- English and Russian segmented controls and read-only presentation;
+- focused calculation, lifecycle, ownership, HTMX, and UI coverage.
+
+User-defined strategy checklists remain a separate future capability because
+they measure setup strength and require immutable strategy versions.
+
+## Planned stages
 
 ### Stage 7: on-demand market data and ATR
 

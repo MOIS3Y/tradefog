@@ -1,0 +1,33 @@
+{% load i18n %}
+
+{% if checklist_form.non_field_errors %}
+  <div class="alert alert-danger" role="alert">
+    {% for error in checklist_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+  </div>
+{% endif %}
+
+<div class="tf-checklist-grid">
+  <fieldset>
+    <legend class="form-label mb-1">{{ checklist_form.market_sentiment.label }}</legend>
+    <p class="form-hint mb-2">{% translate "Behavior of the relevant broad market, sector, or related assets." %}</p>
+    {% include "tradefog/journal/partials/checklist_segmented_field.html" with field=checklist_form.market_sentiment %}
+  </fieldset>
+
+  <fieldset>
+    <legend class="form-label mb-1">{{ checklist_form.information_background.label }}</legend>
+    <p class="form-hint mb-2">{% translate "Relevant news, media, regulatory, and legal context." %}</p>
+    {% include "tradefog/journal/partials/checklist_segmented_field.html" with field=checklist_form.information_background %}
+  </fieldset>
+
+  <fieldset>
+    <legend class="form-label mb-1">{{ checklist_form.global_daily_direction.label }}</legend>
+    <p class="form-hint mb-2">{% translate "The visible structure over approximately 20–30 daily candles." %}</p>
+    {% include "tradefog/journal/partials/checklist_segmented_field.html" with field=checklist_form.global_daily_direction %}
+  </fieldset>
+
+  <fieldset>
+    <legend class="form-label mb-1">{{ checklist_form.local_daily_movement.label }}</legend>
+    <p class="form-hint mb-2">{% translate "The more recent movement over approximately 5–7 daily candles." %}</p>
+    {% include "tradefog/journal/partials/checklist_segmented_field.html" with field=checklist_form.local_daily_movement %}
+  </fieldset>
+</div>

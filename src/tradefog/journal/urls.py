@@ -39,11 +39,21 @@ urlpatterns = [
         views.new_trade_plan,
         name="new_trade_plan",
     ),
+    path(
+        "trades/new/<int:profile_id>/checklist/",
+        views.new_trade_checklist,
+        name="new_trade_checklist",
+    ),
     path("trades/<int:trade_id>/", views.trade_detail, name="trade_detail"),
     path(
         "trades/<int:trade_id>/plan/",
         views.trade_plan,
         name="trade_plan",
+    ),
+    path(
+        "trades/<int:trade_id>/checklist/",
+        views.trade_checklist,
+        name="trade_checklist",
     ),
     path(
         "trades/<int:trade_id>/submit/",

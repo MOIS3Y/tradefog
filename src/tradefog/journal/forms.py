@@ -22,6 +22,7 @@ from tradefog.journal.models import (
     CapitalOperation,
     ProfileTradingPair,
     Trade,
+    TradeChecklist,
     TradingProfile,
 )
 from tradefog.journal.presentation import compact_decimal
@@ -575,6 +576,81 @@ class TradeDraftForm(forms.ModelForm):
             ),
             "planned_stop": CompactDecimalInput(
                 attrs={"class": "form-control", "min": "0", "step": "any"}
+            ),
+        }
+
+
+class TradeChecklistForm(forms.ModelForm):
+    """Collect the fixed advisory observations for a trade draft."""
+
+    FIELD_CHOICES: ClassVar[dict[str, tuple[tuple[str, object], ...]]] = {
+        "market_sentiment": (
+            ("NEGATIVE", _("Bearish")),
+            ("NEUTRAL", _("Neutral")),
+            ("POSITIVE", _("Bullish")),
+        ),
+        "information_background": (
+            ("NEGATIVE", _("Negative")),
+            ("NEUTRAL", _("Neutral")),
+            ("POSITIVE", _("Positive")),
+        ),
+        "global_daily_direction": (
+            ("NEGATIVE", _("Down")),
+            ("NEUTRAL", _("Sideways")),
+            ("POSITIVE", _("Up")),
+        ),
+        "local_daily_movement": (
+            ("NEGATIVE", _("Down")),
+            ("NEUTRAL", _("Sideways")),
+            ("POSITIVE", _("Up")),
+        ),
+    }
+
+    def __init__(
+        self,
+        data: QueryDict | None = None,
+        *,
+        instance: TradeChecklist | None = None,
+        assessment_url: str | None = None,
+    ) -> None:
+        """Configure contextual labels and optional reactive assessment."""
+        super().__init__(data=data, instance=instance, prefix="checklist")
+        for field_name, choices in self.FIELD_CHOICES.items():
+            field = cast(forms.ChoiceField, self.fields[field_name])
+            field.choices = choices
+            if assessment_url is not None:
+                field.widget.attrs.update(
+                    {
+                        "hx-post": assessment_url,
+                        "hx-trigger": "change",
+                        "hx-target": "#checklist-assessment",
+                        "hx-swap": "innerHTML",
+                        "hx-include": "#trade-form",
+                    }
+                )
+
+    class Meta:
+        """Expose only the fixed version-one directional observations."""
+
+        model: ClassVar[type[TradeChecklist]] = TradeChecklist
+        fields: ClassVar[list[str]] = [
+            "market_sentiment",
+            "information_background",
+            "global_daily_direction",
+            "local_daily_movement",
+        ]
+        widgets: ClassVar[dict[str, forms.Widget]] = {
+            "market_sentiment": forms.RadioSelect(
+                attrs={"class": "btn-check"}
+            ),
+            "information_background": forms.RadioSelect(
+                attrs={"class": "btn-check"}
+            ),
+            "global_daily_direction": forms.RadioSelect(
+                attrs={"class": "btn-check"}
+            ),
+            "local_daily_movement": forms.RadioSelect(
+                attrs={"class": "btn-check"}
             ),
         }
 

@@ -17,12 +17,14 @@ from tradefog.journal.models import (
     Asset,
     ProfileTradingPair,
     Trade,
+    TradeChecklist,
     TradingProfile,
 )
 from tradefog.journal.services import (
     cancel_trade,
     close_trade,
     open_trade,
+    save_trade_draft,
     submit_trade,
     update_trade_result,
 )
@@ -36,7 +38,13 @@ def test_trade_urls_follow_active_language_prefix() -> None:
         assert reverse("trade_overview") == "/ru/trades/"
         assert reverse("trade_profile_select") == "/ru/trades/new/"
         assert reverse("trade_create", args=[7]) == "/ru/trades/new/7/"
+        assert reverse("new_trade_checklist", args=[7]) == (
+            "/ru/trades/new/7/checklist/"
+        )
         assert reverse("trade_detail", args=[9]) == "/ru/trades/9/"
+        assert reverse("trade_checklist", args=[9]) == (
+            "/ru/trades/9/checklist/"
+        )
 
 
 def create_profile(
@@ -351,6 +359,35 @@ def test_trade_form_identifies_market_and_renders_direction_toggle() -> None:
     assert "BTC/USDT — Primary" not in content
     assert "Spot" in content
     assert content.count('name="direction"') == 1
+    assert ">SHORT</button>" in content
+    assert 'data-bs-toggle="tooltip"' in content
+    assert "SHORT is unavailable for Spot markets." in content
+
+
+@mark.django_db
+def test_trade_workspace_renders_localized_segmented_checklist() -> None:
+    """The fixed checklist should remain legible in the Russian workspace."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    _ = create_trading_pair(profile)
+    client = Client()
+    client.force_login(user)
+
+    response = client.get(f"/ru/trades/new/{profile.id}/")
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert "Чек-лист рынка" in content
+    assert "Информационный фон" in content
+    assert "Глобальное направление D1" in content
+    assert (
+        "Взвешенный контекст от SHORT через нейтральную зону к LONG."
+        in content
+    )
+    assert "Не оценено" not in content
+    assert content.count('name="checklist-market_sentiment"') == 3
+    assert content.count('name="checklist-global_daily_direction"') == 3
+    assert 'id="checklist-assessment"' in content
 
 
 @mark.django_db
@@ -435,6 +472,85 @@ def test_user_creates_retrospective_draft_and_corrects_its_date() -> None:
 
 
 @mark.django_db
+def test_trade_creation_persists_typed_checklist_answers() -> None:
+    """An explicit draft save should create its checklist atomically."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    instrument = create_trading_pair(profile)
+    client = Client()
+    client.force_login(user)
+
+    response = client.post(
+        f"/en/trades/new/{profile.id}/",
+        {
+            "trade_date": "2026-08-29",
+            "trading_pair": str(instrument.id),
+            "direction": "LONG",
+            "planned_entry": "100",
+            "planned_stop": "95",
+            "checklist-market_sentiment": "NEGATIVE",
+            "checklist-information_background": "NEUTRAL",
+            "checklist-global_daily_direction": "NEGATIVE",
+            "checklist-local_daily_movement": "POSITIVE",
+        },
+    )
+
+    checklist = TradeChecklist.objects.select_related("trade").get()
+    assert response.status_code == 302
+    assert checklist.schema_version == 1
+    assert checklist.market_sentiment == "NEGATIVE"
+    assert checklist.information_background == "NEUTRAL"
+    assert checklist.global_daily_direction == "NEGATIVE"
+    assert checklist.local_daily_movement == "POSITIVE"
+    assert checklist.assessment.direction.value == "SHORT"
+    assert checklist.assessment.agrees_with_trade is False
+
+
+@mark.django_db
+def test_saved_checklist_cannot_be_changed_after_submission() -> None:
+    """The application boundary should freeze answers outside draft."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    trade = create_trade(profile, create_trading_pair(profile))
+    checklist = TradeChecklist(
+        trade=trade,
+        global_daily_direction="POSITIVE",
+    )
+    _ = save_trade_draft(trade, checklist)
+    submitted = submit_trade(trade)
+    checklist.global_daily_direction = "NEGATIVE"
+
+    with raises(ValidationError):
+        _ = save_trade_draft(submitted, checklist)
+
+    checklist.refresh_from_db()
+    assert checklist.global_daily_direction == "POSITIVE"
+
+
+@mark.django_db
+def test_saved_draft_renders_its_current_checklist_assessment() -> None:
+    """An unbound edit form should assess answers loaded from persistence."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    trade = create_trade(profile, create_trading_pair(profile))
+    checklist = TradeChecklist(
+        trade=trade,
+        global_daily_direction="POSITIVE",
+        local_daily_movement="POSITIVE",
+    )
+    _ = save_trade_draft(trade, checklist)
+    client = Client()
+    client.force_login(user)
+
+    response = client.get(f"/en/trades/{trade.id}/")
+
+    assert response.status_code == 200
+    assert b"--tf-gauge-position: 86%" in response.content
+    assert b"2 of 4 assessed" in response.content
+    assert b"Global and local D1 observations are aligned" in response.content
+
+
+@mark.django_db
 def test_htmx_plan_preview_does_not_persist_trade() -> None:
     """Reactive plan calculation should remain a read-only preview."""
     user = User.objects.create_user(username="trader")
@@ -463,6 +579,91 @@ def test_htmx_plan_preview_does_not_persist_trade() -> None:
     assert b"Planned profit" in response.content
     assert b"300 USDT" in response.content
     assert not Trade.objects.exists()
+
+
+@mark.django_db
+def test_htmx_checklist_preview_is_advisory_and_does_not_persist() -> None:
+    """Reactive assessment should preserve disagreement without saving."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    client = Client()
+    client.force_login(user)
+
+    response = client.post(
+        f"/en/trades/new/{profile.id}/checklist/",
+        {
+            "direction": "LONG",
+            "checklist-market_sentiment": "NEGATIVE",
+            "checklist-information_background": "NEGATIVE",
+            "checklist-global_daily_direction": "NEGATIVE",
+            "checklist-local_daily_movement": "POSITIVE",
+        },
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert response.status_code == 200
+    assert b"--tf-gauge-position: 29%" in response.content
+    assert b"Direction differs from the checklist" in response.content
+    assert b"Global and local D1 observations diverge" in response.content
+    assert not Trade.objects.exists()
+    assert not TradeChecklist.objects.exists()
+
+
+@mark.django_db
+def test_checklist_preview_enforces_ownership_and_draft_status() -> None:
+    """Only the owner may preview edits to an editable checklist."""
+    owner = User.objects.create_user(username="owner")
+    stranger = User.objects.create_user(username="stranger")
+    profile = create_profile(owner)
+    trade = create_trade(profile, create_trading_pair(profile))
+    stranger_client = Client()
+    stranger_client.force_login(stranger)
+
+    assert (
+        stranger_client.post(f"/en/trades/{trade.id}/checklist/").status_code
+        == 404
+    )
+
+    submitted = submit_trade(trade)
+    owner_client = Client()
+    owner_client.force_login(owner)
+    assert (
+        owner_client.post(
+            f"/en/trades/{submitted.id}/checklist/"
+        ).status_code
+        == 409
+    )
+
+
+@mark.django_db
+def test_direction_plan_preview_updates_checklist_out_of_band() -> None:
+    """Changing trade direction should also refresh disagreement state."""
+    user = User.objects.create_user(username="trader")
+    profile = create_profile(user)
+    instrument = create_trading_pair(profile)
+    client = Client()
+    client.force_login(user)
+
+    response = client.post(
+        f"/en/trades/new/{profile.id}/plan/",
+        {
+            "trade_date": "2026-08-29",
+            "trading_pair": str(instrument.id),
+            "direction": "SHORT",
+            "planned_entry": "100",
+            "planned_stop": "105",
+            "checklist-market_sentiment": "POSITIVE",
+            "checklist-information_background": "POSITIVE",
+            "checklist-global_daily_direction": "POSITIVE",
+            "checklist-local_daily_movement": "POSITIVE",
+        },
+        HTTP_HX_REQUEST="true",
+    )
+
+    assert response.status_code == 200
+    assert b'hx-swap-oob="innerHTML"' in response.content
+    assert b"--tf-gauge-position: 100%" in response.content
+    assert b"Direction differs from the checklist" in response.content
 
 
 @mark.django_db

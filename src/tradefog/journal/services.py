@@ -1,6 +1,7 @@
 """Focused state changes for assets, profiles, capital, pairs, and trades."""
 
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
+from typing import cast
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -17,6 +18,7 @@ from tradefog.journal.models import (
     CapitalOperation,
     ProfileTradingPair,
     Trade,
+    TradeChecklist,
     TradingProfile,
 )
 
@@ -214,6 +216,30 @@ def calculate_trade_plan(trade: Trade) -> PositionPlan:
         minimum_quantity=trade.trading_pair.minimum_quantity,
         minimum_notional=trade.trading_pair.minimum_notional,
     )
+
+
+@transaction.atomic
+def save_trade_draft(
+    trade: Trade,
+    checklist: TradeChecklist,
+) -> Trade:
+    """Persist editable trade facts and checklist answers atomically."""
+    if trade.id:
+        stored_status = cast(
+            str,
+            Trade.objects.select_for_update()
+            .filter(id=trade.id)
+            .values_list("status", flat=True)
+            .get(),
+        )
+        if stored_status != Trade.Status.DRAFT.value:
+            raise ValidationError(INVALID_TRADE_TRANSITION)
+    trade.full_clean()
+    trade.save()
+    checklist.trade = trade
+    checklist.full_clean()
+    checklist.save()
+    return trade
 
 
 def _locked_trade(trade: Trade) -> tuple[TradingProfile, Trade]:

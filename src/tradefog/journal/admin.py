@@ -9,6 +9,7 @@ from tradefog.journal.models import (
     CapitalOperation,
     ProfileTradingPair,
     Trade,
+    TradeChecklist,
     TradingProfile,
 )
 
@@ -91,4 +92,19 @@ class TradeAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissingTypeArgument
         "trading_pair__asset__symbol",
         "profile__name",
         "profile__owner__username",
+    )
+
+
+@admin.register(TradeChecklist)
+@final
+class TradeChecklistAdmin(
+    admin.ModelAdmin  # pyright: ignore[reportMissingTypeArgument]
+):
+    """Expose immutable historical checklist answers for support."""
+
+    list_display = ("trade", "schema_version", "updated_at")
+    search_fields = (
+        "trade__trading_pair__asset__symbol",
+        "trade__profile__name",
+        "trade__profile__owner__username",
     )

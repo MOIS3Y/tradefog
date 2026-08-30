@@ -1,0 +1,28 @@
+{% load i18n %}
+
+<div class="col-12 col-xl-7">
+  <section class="card h-100" aria-labelledby="checklist-title">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title" id="checklist-title">{% translate "Market checklist" %}</h2>
+        <p class="card-subtitle">{% translate "Record observable context. The assessment is guidance, not a prediction." %}</p>
+      </div>
+    </div>
+    <div class="card-body">
+      {% include "tradefog/journal/partials/checklist_fields.html" %}
+    </div>
+  </section>
+</div>
+<div class="col-12 col-xl-5">
+  <section class="card h-100 tf-checklist-assessment-card" aria-labelledby="checklist-assessment-title">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title" id="checklist-assessment-title">{% translate "Directional assessment" %}</h2>
+        <p class="card-subtitle">{% translate "Weighted context from SHORT through neutral to LONG." %}</p>
+      </div>
+    </div>
+    <div class="card-body" id="checklist-assessment" aria-live="polite">
+      {% include "tradefog/journal/partials/checklist_assessment.html" %}
+    </div>
+  </section>
+</div>

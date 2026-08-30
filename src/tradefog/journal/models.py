@@ -22,6 +22,13 @@ from django.db.models.functions import Lower
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
+from tradefog.journal.checklists import (
+    ChecklistAnswers,
+    ChecklistAssessment,
+    DirectionalValue,
+    calculate_checklist_assessment,
+)
+
 if TYPE_CHECKING:
     from tradefog.accounts.models import User
 
@@ -607,6 +614,7 @@ class Trade(models.Model):
     id: int
     profile_id: int
     trading_pair_id: int
+    checklist: TradeChecklist
 
     profile: models.ForeignKey[TradingProfile, TradingProfile] = (
         models.ForeignKey(
@@ -886,3 +894,85 @@ class Trade(models.Model):
         with localcontext() as context:
             context.prec = 96
             return self.planned_risk_amount * self.reward_multiple
+
+
+class TradeChecklist(models.Model):
+    """Fixed directional observations recorded for one trade decision."""
+
+    ANSWER_CHOICES: ClassVar[tuple[tuple[str, object], ...]] = (
+        (DirectionalValue.NEGATIVE.value, _("Negative")),
+        (DirectionalValue.NEUTRAL.value, _("Neutral")),
+        (DirectionalValue.POSITIVE.value, _("Positive")),
+    )
+
+    id: int
+    trade_id: int
+
+    trade: models.OneToOneField[Trade, Trade] = models.OneToOneField(
+        Trade,
+        on_delete=models.CASCADE,
+        related_name="checklist",
+    )
+    schema_version: models.PositiveSmallIntegerField[int, int] = (
+        models.PositiveSmallIntegerField(default=1, editable=False)
+    )
+    market_sentiment: models.CharField[str | None, str | None] = (
+        models.CharField(
+            _("Broad market sentiment"),
+            max_length=10,
+            choices=ANSWER_CHOICES,
+            null=True,
+            blank=True,
+        )
+    )
+    information_background: models.CharField[str | None, str | None] = (
+        models.CharField(
+            _("Information background"),
+            max_length=10,
+            choices=ANSWER_CHOICES,
+            null=True,
+            blank=True,
+        )
+    )
+    global_daily_direction: models.CharField[str | None, str | None] = (
+        models.CharField(
+            _("Global D1 direction"),
+            max_length=10,
+            choices=ANSWER_CHOICES,
+            null=True,
+            blank=True,
+        )
+    )
+    local_daily_movement: models.CharField[str | None, str | None] = (
+        models.CharField(
+            _("Local D1 movement"),
+            max_length=10,
+            choices=ANSWER_CHOICES,
+            null=True,
+            blank=True,
+        )
+    )
+    created_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now_add=True)
+    )
+    updated_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now=True)
+    )
+
+    @property
+    def answers(self) -> ChecklistAnswers:
+        """Return the persistence-independent checklist input."""
+        return ChecklistAnswers(
+            market_sentiment=self.market_sentiment,
+            information_background=self.information_background,
+            global_daily_direction=self.global_daily_direction,
+            local_daily_movement=self.local_daily_movement,
+        )
+
+    @property
+    def assessment(self) -> ChecklistAssessment:
+        """Calculate the current advisory result for this trade."""
+        return calculate_checklist_assessment(
+            self.answers,
+            selected_direction=self.trade.direction,
+        )

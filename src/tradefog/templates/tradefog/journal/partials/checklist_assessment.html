@@ -1,0 +1,39 @@
+{% load i18n %}
+
+<div class="d-flex justify-content-end mb-4">
+  <span class="badge bg-secondary-lt">
+    {% blocktranslate with answered=checklist_assessment.answered_count total=checklist_assessment.total_count %}{{ answered }} of {{ total }} assessed{% endblocktranslate %}
+  </span>
+</div>
+
+<div class="tf-direction-gauge" role="img" aria-label="{% translate 'Weighted checklist position from SHORT through neutral to LONG' %}">
+  <div class="tf-direction-gauge-track">
+    <span class="tf-direction-gauge-midpoint" aria-hidden="true"></span>
+    <span class="tf-direction-gauge-marker" style="--tf-gauge-position: {{ checklist_assessment.gauge_position }}%;" aria-hidden="true"></span>
+  </div>
+  <div class="d-flex justify-content-between mt-2 small fw-semibold" aria-hidden="true">
+    <span class="text-danger">SHORT</span>
+    <span class="text-secondary">{% translate "Neutral" %}</span>
+    <span class="text-success">LONG</span>
+  </div>
+</div>
+
+{% if checklist_assessment.trend_relationship == "ALIGNED" %}
+  <div class="text-secondary mt-3">{% translate "Global and local D1 observations are aligned." %}</div>
+{% elif checklist_assessment.trend_relationship == "DIVERGENT" %}
+  <div class="text-secondary mt-3">{% translate "Global and local D1 observations diverge." %}</div>
+{% elif checklist_assessment.trend_relationship == "MIXED" %}
+  <div class="text-secondary mt-3">{% translate "One of the D1 observations is sideways." %}</div>
+{% endif %}
+
+{% if checklist_assessment.agrees_with_trade is False %}
+  <div class="alert alert-warning mt-3 mb-0" role="status">
+    <div class="d-flex">
+      <div>{% include "tradefog/components/icon.html" with name="alert-triangle" class="icon alert-icon" %}</div>
+      <div>
+        <div class="fw-semibold">{% translate "Direction differs from the checklist" %}</div>
+        <div class="text-secondary">{% translate "This is advisory and does not block the trade." %}</div>
+      </div>
+    </div>
+  </div>
+{% endif %}

@@ -14,13 +14,26 @@
   <div class="col-12">
     <fieldset class="mb-3">
       <legend class="form-label">{{ form.direction.label }}</legend>
-      <div class="btn-group w-100" role="group" aria-label="{{ form.direction.label }}">
+      <div class="btn-group w-100 tf-direction-options" role="group" aria-label="{{ form.direction.label }}">
         {% for choice in form.direction %}
           {{ choice.tag }}
           <label class="btn{% if forloop.first %} btn-outline-success{% else %} btn-outline-danger{% endif %}" for="{{ choice.id_for_label }}">
             {{ choice.choice_label }}
           </label>
         {% endfor %}
+        {% if profile.market_type == "SPOT" %}
+          <span class="tf-disabled-direction"
+                tabindex="0"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                title="{% translate 'SHORT is unavailable for Spot markets.' %}">
+            <button class="btn btn-outline-danger w-100"
+                    type="button"
+                    tabindex="-1"
+                    disabled
+                    aria-disabled="true">SHORT</button>
+          </span>
+        {% endif %}
       </div>
       {% for error in form.direction.errors %}
         <div class="invalid-feedback d-block">{{ error }}</div>

@@ -99,22 +99,21 @@ group, or trade batch abstraction.
 
 ## Checklist and setup assessment
 
-All profiles and markets use one application-defined checklist. Its fields
-and weights are not user-configurable in the initial product. The exact field
-set is intentionally scheduled for a focused implementation stage.
+All profiles and markets use one application-defined directional checklist.
+Its fields and weights are not user-configurable in the initial product. It
+records four observations that remain meaningful across market types:
 
-The current checklist concept covers:
+| Observation | Interpretation | Weight |
+| --- | --- | ---: |
+| Broad market sentiment | Bearish, neutral, or bullish behavior in the relevant market or sector | 1 |
+| Information background | Negative, neutral, or positive news, media, regulatory, and legal context | 1 |
+| Global D1 direction | Down, sideways, or up over approximately 20–30 daily candles | 3 |
+| Local D1 movement | Down, sideways, or up over approximately 5–7 daily candles | 2 |
 
-- premarket and broad market context;
-- global and local trend;
-- agreement between timeframes;
-- structural boundaries and important levels;
-- ATR and remaining daily movement;
-- momentum and price action;
-- order-book or market-trade observations;
-- planned entry and exit points;
-- position management;
-- post-trade description and review.
+The global and local D1 relationship is derived from their answers rather
+than entered or weighted separately. ATR is separate non-directional context.
+Entry patterns, levels, volume, order-book observations, and post-trade review
+are not part of this universal directional assessment.
 
 Weighted answers produce one signed directional assessment from `SHORT`
 through neutral to `LONG`. Unanswered questions contribute zero while their
@@ -124,6 +123,11 @@ near neutral. Completeness is shown separately.
 The user-facing gauge emphasizes marker position, color, and directional text
 instead of presenting a misleading percentage. ATR is shown separately
 because volatility is not direction.
+
+A future owner-defined strategy checklist may assess how strongly a setup
+matches a particular trading method. That assessment is distinct from market
+direction, requires versioned criteria, and is not part of the fixed initial
+checklist.
 
 ## ATR context
 

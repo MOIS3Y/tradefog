@@ -23,12 +23,18 @@ from tradefog.journal.analytics_queries import (
     select_closed_trade_results,
 )
 from tradefog.journal.calculations import PositionPlan, PositionPlanError
+from tradefog.journal.checklists import (
+    ChecklistAnswers,
+    ChecklistAssessment,
+    calculate_checklist_assessment,
+)
 from tradefog.journal.forms import (
     AnalyticsFilterForm,
     AssetForm,
     CapitalOperationForm,
     CloseTradeForm,
     ProfileTradingPairForm,
+    TradeChecklistForm,
     TradeDateForm,
     TradeDraftForm,
     TradingProfileForm,
@@ -39,6 +45,7 @@ from tradefog.journal.models import (
     CapitalOperation,
     ProfileTradingPair,
     Trade,
+    TradeChecklist,
     TradingProfile,
 )
 from tradefog.journal.services import (
@@ -54,6 +61,7 @@ from tradefog.journal.services import (
     restore_asset,
     restore_profile,
     restore_trading_pair,
+    save_trade_draft,
     submit_trade,
     sync_profile_status,
     update_capital_operation,
@@ -136,6 +144,7 @@ def _owned_trade(request: HttpRequest, trade_id: int) -> Trade:
         Trade.objects.select_related(
             "profile__capital_asset",
             "trading_pair__asset",
+            "checklist",
         ),
         id=trade_id,
         profile__owner=_request_owner(request),
@@ -752,6 +761,45 @@ def _draft_trading_pair(form: TradeDraftForm) -> ProfileTradingPair | None:
     return None
 
 
+def _trade_checklist(trade: Trade) -> TradeChecklist | None:
+    """Return an existing one-to-one checklist without requiring one."""
+    try:
+        return trade.checklist
+    except TradeChecklist.DoesNotExist:
+        return None
+
+
+def _checklist_answers(form: TradeChecklistForm) -> ChecklistAnswers:
+    """Return validated preview answers or a safe empty assessment."""
+    if not form.is_bound:
+        checklist = cast(TradeChecklist, form.instance)
+        return checklist.answers
+    if form.is_valid():
+        checklist = cast(TradeChecklist, form.save(commit=False))
+        return checklist.answers
+    return ChecklistAnswers()
+
+
+def _selected_direction(form: TradeDraftForm, fallback: str) -> str:
+    """Return a validated edited direction when it is available."""
+    if not hasattr(form, "cleaned_data"):
+        return fallback
+    direction = form.cleaned_data.get("direction")
+    return direction if isinstance(direction, str) else fallback
+
+
+def _checklist_assessment(
+    form: TradeChecklistForm,
+    *,
+    selected_direction: str,
+) -> ChecklistAssessment:
+    """Calculate a reactive assessment from one bound or initial form."""
+    return calculate_checklist_assessment(
+        _checklist_answers(form),
+        selected_direction=selected_direction,
+    )
+
+
 def _plan_context(
     profile: TradingProfile,
     plan: PositionPlan | None,
@@ -771,6 +819,7 @@ def _trade_workspace_context(
     trade: Trade,
     *,
     form: TradeDraftForm | None = None,
+    checklist_form: TradeChecklistForm | None = None,
 ) -> dict[str, object]:
     """Build the trade workspace context for draft and frozen plans."""
     context: dict[str, object] = {
@@ -778,7 +827,18 @@ def _trade_workspace_context(
         "profile": trade.profile,
         "trading_pair": trade.trading_pair,
     }
+    checklist = _trade_checklist(trade)
     if trade.status != Trade.Status.DRAFT.value:
+        answers = checklist.answers if checklist else ChecklistAnswers()
+        context.update(
+            {
+                "checklist": checklist,
+                "checklist_assessment": calculate_checklist_assessment(
+                    answers,
+                    selected_direction=trade.direction,
+                ),
+            }
+        )
         return context
     if form is None:
         draft_form = TradeDraftForm(
@@ -793,8 +853,27 @@ def _trade_workspace_context(
     else:
         draft_form = form
         plan, plan_error = _draft_plan(draft_form)
+    if checklist_form is None:
+        draft_checklist_form = TradeChecklistForm(
+            instance=checklist,
+            assessment_url=reverse(
+                "trade_checklist", kwargs={"trade_id": trade.id}
+            ),
+        )
+    else:
+        draft_checklist_form = checklist_form
+    assessment = _checklist_assessment(
+        draft_checklist_form,
+        selected_direction=_selected_direction(draft_form, trade.direction),
+    )
     context.update(
-        {"form": draft_form, "plan": plan, "plan_error": plan_error}
+        {
+            "form": draft_form,
+            "plan": plan,
+            "plan_error": plan_error,
+            "checklist_form": draft_checklist_form,
+            "checklist_assessment": assessment,
+        }
     )
     selected_pair = _draft_trading_pair(draft_form)
     if plan is not None and selected_pair is not None:
@@ -844,15 +923,27 @@ def trade_create(request: HttpRequest, profile_id: int) -> HttpResponse:
         messages.error(request, _("Add an active trading pair first."))
         return redirect("profile_detail", profile_id=profile.id)
     plan_url = reverse("new_trade_plan", kwargs={"profile_id": profile.id})
+    checklist_url = reverse(
+        "new_trade_checklist", kwargs={"profile_id": profile.id}
+    )
     form = TradeDraftForm(
         profile,
         request.POST if request.method == "POST" else None,
         plan_url=plan_url,
     )
-    if request.method == "POST" and form.is_valid():
+    checklist_form = TradeChecklistForm(
+        request.POST if request.method == "POST" else None,
+        assessment_url=checklist_url,
+    )
+    trade_form_valid = form.is_valid() if request.method == "POST" else False
+    checklist_form_valid = (
+        checklist_form.is_valid() if request.method == "POST" else False
+    )
+    if trade_form_valid and checklist_form_valid:
         trade = cast(Trade, form.save(commit=False))
         trade.profile = profile
-        trade.save()
+        checklist = cast(TradeChecklist, checklist_form.save(commit=False))
+        _saved_trade = save_trade_draft(trade, checklist)
         return redirect("trade_detail", trade_id=trade.id)
     plan, plan_error = (
         _draft_plan(form) if request.method == "POST" else (None, None)
@@ -867,6 +958,11 @@ def trade_create(request: HttpRequest, profile_id: int) -> HttpResponse:
             "plan": plan,
             "plan_error": plan_error,
             "trading_pair": _draft_trading_pair(form),
+            "checklist_form": checklist_form,
+            "checklist_assessment": _checklist_assessment(
+                checklist_form,
+                selected_direction=_selected_direction(form, ""),
+            ),
             **_plan_context(profile, plan),
         },
     )
@@ -884,11 +980,28 @@ def trade_detail(request: HttpRequest, trade_id: int) -> HttpResponse:
             instance=trade,
             plan_url=reverse("trade_plan", kwargs={"trade_id": trade.id}),
         )
-        if form.is_valid():
-            _saved_trade = cast(Trade, form.save())
+        checklist_form = TradeChecklistForm(
+            request.POST,
+            instance=_trade_checklist(trade),
+            assessment_url=reverse(
+                "trade_checklist", kwargs={"trade_id": trade.id}
+            ),
+        )
+        form_valid = form.is_valid()
+        checklist_valid = checklist_form.is_valid()
+        if form_valid and checklist_valid:
+            edited_trade = cast(Trade, form.save(commit=False))
+            checklist = cast(
+                TradeChecklist, checklist_form.save(commit=False)
+            )
+            _saved_trade = save_trade_draft(edited_trade, checklist)
             messages.success(request, _("Draft saved."))
             return redirect("trade_detail", trade_id=trade.id)
-        context = _trade_workspace_context(trade, form=form)
+        context = _trade_workspace_context(
+            trade,
+            form=form,
+            checklist_form=checklist_form,
+        )
     else:
         context = _trade_workspace_context(trade)
     return render(request, "tradefog/journal/trade_detail.html", context)
@@ -902,12 +1015,16 @@ def _render_plan_preview(
     plan, plan_error = _draft_plan(form)
     return render(
         request,
-        "tradefog/journal/partials/trade_plan.html",
+        "tradefog/journal/partials/trade_plan_response.html",
         {
             "plan": plan,
             "plan_error": plan_error,
             "profile": form.profile,
             "trading_pair": _draft_trading_pair(form),
+            "checklist_assessment": _checklist_assessment(
+                TradeChecklistForm(request.POST),
+                selected_direction=request.POST.get("direction", ""),
+            ),
             **_plan_context(form.profile, plan),
         },
     )
@@ -924,6 +1041,40 @@ def new_trade_plan(request: HttpRequest, profile_id: int) -> HttpResponse:
     )
 
 
+def _render_checklist_assessment(
+    request: HttpRequest,
+    form: TradeChecklistForm,
+    *,
+    selected_direction: str,
+) -> HttpResponse:
+    """Render the independently replaceable directional assessment."""
+    return render(
+        request,
+        "tradefog/journal/partials/checklist_assessment.html",
+        {
+            "checklist_assessment": _checklist_assessment(
+                form,
+                selected_direction=selected_direction,
+            )
+        },
+    )
+
+
+@login_required
+@require_POST
+def new_trade_checklist(
+    request: HttpRequest,
+    profile_id: int,
+) -> HttpResponse:
+    """Preview unsaved checklist answers for one owned profile."""
+    _profile = _owned_profile(request, profile_id)
+    return _render_checklist_assessment(
+        request,
+        TradeChecklistForm(request.POST),
+        selected_direction=request.POST.get("direction", ""),
+    )
+
+
 @login_required
 @require_POST
 def trade_plan(request: HttpRequest, trade_id: int) -> HttpResponse:
@@ -934,6 +1085,23 @@ def trade_plan(request: HttpRequest, trade_id: int) -> HttpResponse:
     return _render_plan_preview(
         request,
         TradeDraftForm(trade.profile, request.POST, instance=trade),
+    )
+
+
+@login_required
+@require_POST
+def trade_checklist(request: HttpRequest, trade_id: int) -> HttpResponse:
+    """Preview checklist edits for an existing owned draft."""
+    trade = _owned_trade(request, trade_id)
+    if trade.status != Trade.Status.DRAFT.value:
+        return HttpResponse(status=409)
+    return _render_checklist_assessment(
+        request,
+        TradeChecklistForm(
+            request.POST,
+            instance=_trade_checklist(trade),
+        ),
+        selected_direction=request.POST.get("direction", trade.direction),
     )
 
 

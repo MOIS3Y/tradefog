@@ -277,10 +277,36 @@ logic is a focused domain calculation rather than template or HTTP-view code.
 Schema and scoring changes use deliberate migrations so historical answers
 are not silently discarded.
 
-One internal signed score ranges from `SHORT` through neutral to `LONG`.
-Unanswered weighted values add zero to the numerator while retaining their
-possible weight in the denominator. Text, prices, and raw ATR do not
-contribute to the directional score.
+The four nullable directional answers and their weights are:
+
+```text
+broad market sentiment = 1
+information background = 1
+global D1 direction = 3
+local D1 movement = 2
+```
+
+Each answered value is negative, neutral, or positive and therefore maps to
+`-1`, `0`, or `1`. The internal signed score is:
+
+```text
+score = sum(answer_value * weight) / 7
+```
+
+Unanswered values add zero to the numerator while retaining their possible
+weight in the denominator. Completeness is the answered question count over
+the four fixed questions and is shown separately. The relationship between
+global and local D1 observations is derived without another weighted answer.
+
+One score ranges from `SHORT` through neutral to `LONG`. It is advisory,
+remains independent of the selected trade direction, and does not block a
+trade when the two disagree. Draft answers become read-only when the trade
+leaves `DRAFT`. Text, prices, and raw ATR do not contribute to the directional
+score.
+
+An owner-defined strategy checklist is a separate future concept. It measures
+setup strength relative to a selected strategy rather than predicting market
+direction and requires immutable historical strategy versions.
 
 ## Market snapshots and ATR
 

@@ -102,6 +102,7 @@
             </div>
           </section>
         </div>
+        {% include "tradefog/journal/partials/checklist_card.html" %}
       </div>
     </form>
   {% else %}
@@ -208,6 +209,18 @@
         </section>
       </div>
     </div>
+
+    <section class="card mt-4" aria-labelledby="recorded-checklist-title">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title" id="recorded-checklist-title">{% translate "Recorded market checklist" %}</h2>
+          <p class="card-subtitle">{% translate "These observations preserve the context recorded with the trade decision." %}</p>
+        </div>
+      </div>
+      <div class="card-body">
+        {% include "tradefog/journal/partials/checklist_readonly.html" %}
+      </div>
+    </section>
   {% endif %}
 
   {% if trade.status != "CLOSED" and trade.status != "CANCELLED" %}

@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tradefog\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-30 04:00+0000\n"
+"POT-Creation-Date: 2026-08-30 06:32+0000\n"
 "PO-Revision-Date: 2026-08-26 00:00+0900\n"
 "Last-Translator: tradefog maintainers\n"
 "Language-Team: Russian\n"
@@ -140,6 +140,30 @@ msgstr "Минимально допустимое изменение колич�
 
 msgid "Leave empty when the market has no minimum quantity."
 msgstr "Оставьте пустым, если для рынка нет минимального объёма."
+
+msgid "Bearish"
+msgstr "Медвежий"
+
+msgid "Neutral"
+msgstr "Нейтрально"
+
+msgid "Bullish"
+msgstr "Бычий"
+
+msgid "Negative"
+msgstr "Негативный"
+
+msgid "Positive"
+msgstr "Позитивный"
+
+msgid "Down"
+msgstr "Снижается"
+
+msgid "Sideways"
+msgstr "Боковик"
+
+msgid "Up"
+msgstr "Растёт"
 
 msgid "Realized P&L"
 msgstr "Реализованный P&L"
@@ -386,6 +410,18 @@ msgstr "Выберите пару из этого профиля."
 
 msgid "Spot profiles support LONG only."
 msgstr "Спотовые профили поддерживают только LONG."
+
+msgid "Broad market sentiment"
+msgstr "Настроение широкого рынка"
+
+msgid "Information background"
+msgstr "Информационный фон"
+
+msgid "Global D1 direction"
+msgstr "Глобальное направление D1"
+
+msgid "Local D1 movement"
+msgstr "Локальное движение D1"
 
 msgid "The operation would make the profile capital negative."
 msgstr "После этой операции капитал профиля станет отрицательным."
@@ -704,6 +740,58 @@ msgstr "Закройте сделку или измените фильтры, ч
 msgid "Open trades"
 msgstr "Перейти к сделкам"
 
+#, python-format
+msgid "%(answered)s of %(total)s assessed"
+msgstr "Оценено: %(answered)s из %(total)s"
+
+msgid "Weighted checklist position from SHORT through neutral to LONG"
+msgstr "Взвешенная позиция чек-листа от SHORT через нейтральную зону к LONG"
+
+msgid "Global and local D1 observations are aligned."
+msgstr "Глобальное и локальное наблюдения D1 совпадают."
+
+msgid "Global and local D1 observations diverge."
+msgstr "Глобальное и локальное наблюдения D1 расходятся."
+
+msgid "One of the D1 observations is sideways."
+msgstr "Одно из наблюдений D1 указывает на боковик."
+
+msgid "Direction differs from the checklist"
+msgstr "Направление расходится с чек-листом"
+
+msgid "This is advisory and does not block the trade."
+msgstr "Это рекомендация, которая не блокирует сделку."
+
+msgid "Market checklist"
+msgstr "Чек-лист рынка"
+
+msgid "Record observable context. The assessment is guidance, not a prediction."
+msgstr "Зафиксируйте наблюдаемый контекст. Оценка служит ориентиром, а не прогнозом."
+
+msgid "Directional assessment"
+msgstr "Оценка направления"
+
+msgid "Weighted context from SHORT through neutral to LONG."
+msgstr "Взвешенный контекст от SHORT через нейтральную зону к LONG."
+
+msgid "Behavior of the relevant broad market, sector, or related assets."
+msgstr "Поведение связанного широкого рынка, сектора или связанных активов."
+
+msgid "Relevant news, media, regulatory, and legal context."
+msgstr "Значимый новостной, медийный, регуляторный и правовой контекст."
+
+msgid "The visible structure over approximately 20–30 daily candles."
+msgstr "Видимая структура примерно за 20–30 дневных свечей."
+
+msgid "The more recent movement over approximately 5–7 daily candles."
+msgstr "Недавнее движение примерно за 5–7 дневных свечей."
+
+msgid "No checklist assessment was recorded for this trade."
+msgstr "Для этой сделки оценка по чек-листу не зафиксирована."
+
+msgid "SHORT is unavailable for Spot markets."
+msgstr "SHORT недоступен для спотовых рынков."
+
 msgid "Plan needs attention"
 msgstr "План требует внимания"
 
@@ -973,6 +1061,12 @@ msgstr "База риска"
 msgid "Already reserved"
 msgstr "Уже зарезервировано"
 
+msgid "Recorded market checklist"
+msgstr "Зафиксированный чек-лист рынка"
+
+msgid "These observations preserve the context recorded with the trade decision."
+msgstr "Эти наблюдения сохраняют контекст, зафиксированный вместе с торговым решением."
+
 msgid "Manual execution"
 msgstr "Ручное исполнение"
 
@@ -1041,33 +1135,3 @@ msgstr "Точность и минимумы относятся к этому п
 
 msgid "Market behavior is fixed by the profile."
 msgstr "Поведение рынка определяется профилем."
-
-#~ msgid "Instrument"
-#~ msgstr "Инструмент"
-
-#~ msgid "Linear"
-#~ msgstr "Линейный"
-
-#~ msgid "Display name"
-#~ msgstr "Отображаемое название"
-
-#~ msgid "The traded asset must differ from the capital asset."
-#~ msgstr "Торгуемый актив должен отличаться от актива капитала."
-
-#~ msgid "Archive this instrument?"
-#~ msgstr "Архивировать этот инструмент?"
-
-#~ msgid "Add instrument"
-#~ msgstr "Добавить инструмент"
-
-#~ msgid "Profile instrument"
-#~ msgstr "Инструмент профиля"
-
-#~ msgid "Profile instruments"
-#~ msgstr "Инструменты профиля"
-
-#~ msgid "Spot and linear markets sharing this profile allocation."
-#~ msgstr "Спотовые и линейные рынки с общим капиталом профиля."
-
-#~ msgid "Type"
-#~ msgstr "Тип"
