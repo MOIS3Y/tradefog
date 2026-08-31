@@ -147,6 +147,8 @@ def test_model_defaults_are_used_without_config_file(
     assert config.logging.level == "INFO"
     assert config.database.active == "sqlite"
     assert config.media.url == "/media/"
+    assert config.media.max_attachment_size_mib == 10
+    assert config.media.max_attachment_size_bytes() == 10 * 1024 * 1024
     assert config.authentication.user_model() == "accounts.User"
     assert config.authentication.login_url() == "login"
     assert config.authentication.login_redirect_url() == "home"
@@ -215,6 +217,23 @@ root = "../../data/tradefog/media"
     )
     assert config.static.root == tmp_path / "cache/tradefog/static"
     assert config.media.root == tmp_path / "data/tradefog/media"
+
+
+def test_media_attachment_limit_can_be_disabled(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A self-hosted deployment may rely on an external upload limit."""
+    config_path = tmp_path / "settings.toml"
+    _ = config_path.write_text(
+        """[media]
+max_attachment_size_mib = 0
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(CONFIG_PATH_ENV, str(config_path))
+
+    assert Settings().media.max_attachment_size_bytes() is None
 
 
 def test_uvicorn_rejects_unknown_options(

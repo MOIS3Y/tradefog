@@ -46,6 +46,14 @@
     <script src="{% static 'tradefog/vendor/apexcharts/apexcharts.min.js' %}"></script>
     <script src="{% static 'tradefog/js/market-context.js' %}"></script>
   {% endif %}
+  <script src="{% static 'tradefog/vendor/dompurify/purify.min.js' %}"></script>
+  <script src="{% static 'tradefog/vendor/easymde/easymde.min.js' %}"></script>
+  <script src="{% static 'tradefog/vendor/fslightbox/fslightbox.js' %}"></script>
+  <script src="{% static 'tradefog/js/trade-description.js' %}"></script>
+{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'tradefog/vendor/easymde/easymde.min.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -234,6 +242,8 @@
       </div>
     </section>
   {% endif %}
+
+  {% include "tradefog/journal/partials/trade_description.html" %}
 
   {% if trade.status != "CLOSED" and trade.status != "CANCELLED" %}
     <section class="card mt-4" aria-labelledby="execution-title">

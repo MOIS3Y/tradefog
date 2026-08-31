@@ -345,6 +345,15 @@ manual trade lifecycle.
 
 ## Attachments
 
-Screenshots and other trade attachments are private journal data. They are
-associated with an owned trade and served only after an authenticated
-ownership check. Public sharing is not part of the initial model.
+Each trade may have one optional description containing Markdown. The
+description is editable in every lifecycle state so premarket observations,
+execution notes, errors, and conclusions can accumulate in one document. A
+review-completion timestamp may be set only after the trade is closed. It is
+a user-controlled review fact, not another trade lifecycle state.
+
+Screenshots and other trade attachments are private journal data associated
+directly with an owned trade. Uploads are allowed in every lifecycle state.
+They are served only after an authenticated ownership check; public sharing
+and public media URLs are not part of the initial model. The configured
+per-file size limit may be disabled by a self-hosted deployment, while the
+application retains a fixed safe allowlist for inline image and PDF content.

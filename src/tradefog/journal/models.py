@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal, localcontext
+from pathlib import PurePath
 from typing import TYPE_CHECKING, ClassVar, cast, override
+from uuid import uuid4
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -18,6 +20,7 @@ from django.core.validators import (
 )
 from django.db import models
 from django.db.models import Sum
+from django.db.models.fields.files import FieldFile
 from django.db.models.functions import Lower
 from django.urls import reverse
 from django.utils import timezone
@@ -56,6 +59,15 @@ INITIAL_CAPITAL_LOCKED = _(
 RISK_PERCENT_LOCKED = _(
     "Risk per trade is locked after the first submitted trade."
 )
+
+
+def trade_attachment_path(
+    attachment: TradeAttachment,
+    filename: str,
+) -> str:
+    """Return an opaque private-media path retaining a safe suffix."""
+    suffix = PurePath(filename).suffix.lower()
+    return f"trade-attachments/{attachment.trade_id}/{uuid4().hex}{suffix}"
 
 
 class Asset(models.Model):
@@ -806,6 +818,8 @@ class Trade(models.Model):
     profile_id: int
     trading_pair_id: int
     checklist: TradeChecklist
+    description: TradeDescription
+    attachments: models.Manager[TradeAttachment]
 
     profile: models.ForeignKey[TradingProfile, TradingProfile] = (
         models.ForeignKey(
@@ -1153,6 +1167,116 @@ class Trade(models.Model):
         with localcontext() as context:
             context.prec = 96
             return self.atr_value_snapshot * Decimal("0.75")
+
+
+class TradeDescription(models.Model):
+    """One evolving Markdown description and final review fact."""
+
+    id: int
+    trade_id: int
+
+    trade: models.OneToOneField[Trade, Trade] = models.OneToOneField(
+        Trade,
+        on_delete=models.CASCADE,
+        related_name="description",
+    )
+    content_markdown: models.TextField[str, str] = models.TextField(
+        _("Trade description"),
+        blank=True,
+    )
+    review_completed_at: models.DateTimeField[
+        datetime | None, datetime | None
+    ] = models.DateTimeField(
+        _("Review completed at"),
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    created_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now_add=True)
+    )
+    updated_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now=True)
+    )
+
+    @override
+    def __str__(self) -> str:
+        """Return the description's owned trade identity."""
+        return str(self.trade)
+
+    @override
+    def clean(self) -> None:
+        """Allow explicit completion only after the trade is closed."""
+        super().clean()
+        if (
+            self.review_completed_at is not None
+            and self.trade.status != Trade.Status.CLOSED.value
+        ):
+            raise ValidationError(
+                {
+                    "review_completed_at": _(
+                        "Only a closed trade can have a completed review."
+                    )
+                }
+            )
+
+    @property
+    def is_review_complete(self) -> bool:
+        """Return whether the owner explicitly completed the review."""
+        return self.review_completed_at is not None
+
+
+class TradeAttachment(models.Model):
+    """One private file attached to an owned trade."""
+
+    id: int
+    trade_id: int
+
+    trade: models.ForeignKey[Trade, Trade] = models.ForeignKey(
+        Trade,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+    file: FieldFile = cast(
+        FieldFile,
+        cast(
+            object,
+            models.FileField(
+                _("File"),
+                upload_to=trade_attachment_path,
+                max_length=500,
+            ),
+        ),
+    )
+    original_name: models.CharField[str, str] = models.CharField(
+        _("Original filename"),
+        max_length=255,
+    )
+    content_type: models.CharField[str, str] = models.CharField(
+        _("Content type"),
+        max_length=100,
+    )
+    size: models.PositiveBigIntegerField[int, int] = (
+        models.PositiveBigIntegerField(_("Size"))
+    )
+    created_at: models.DateTimeField[datetime, datetime] = (
+        models.DateTimeField(auto_now_add=True)
+    )
+
+    class Meta:
+        """Keep attachments in stable upload order."""
+
+        ordering: ClassVar[list[str]] = ["created_at", "id"]
+
+    @override
+    def __str__(self) -> str:
+        """Return the original owner-visible filename."""
+        return self.original_name
+
+    @property
+    def is_image(self) -> bool:
+        """Return whether this attachment is safe for inline display."""
+        return self.content_type.startswith("image/")
 
 
 class TradeChecklist(models.Model):

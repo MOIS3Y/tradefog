@@ -52,6 +52,8 @@ def test_russian_catalog_translates_application_strings() -> None:
         assert gettext("Daily range context") == "Контекст дневного диапазона"
         assert gettext("Pairs") == "Пары"
         assert gettext("Back to top") == "Наверх"
+        assert gettext("Trade description") == "Описание сделки"
+        assert gettext("Complete review") == "Завершить разбор"
         assert gettext("Price action before the decision") == (
             "Движение цены перед решением"
         )

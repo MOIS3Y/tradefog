@@ -29,14 +29,6 @@ application = Starlette(
             ),
             name="static",
         ),
-        Mount(
-            _config.media.mount_path(),
-            app=StaticFiles(
-                directory=_config.media.root,
-                check_dir=False,
-            ),
-            name="media",
-        ),
         Mount("/", app=cast(ASGIApp, _django_application)),
     ],
 )

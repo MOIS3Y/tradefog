@@ -27,6 +27,7 @@ class MediaSettings(ConfigSection):
 
     url: str = "/media/"
     root: Path = Field(default_factory=default_media_root)
+    max_attachment_size_mib: int = Field(default=10, ge=0)
 
     @field_validator("root")
     @classmethod
@@ -38,3 +39,9 @@ class MediaSettings(ConfigSection):
     def mount_path(self) -> str:
         """Return the URL path expected by Starlette's media mount."""
         return f"/{self.url.strip('/')}"
+
+    def max_attachment_size_bytes(self) -> int | None:
+        """Return the attachment limit in bytes, or no limit for zero."""
+        if self.max_attachment_size_mib == 0:
+            return None
+        return self.max_attachment_size_mib * 1024 * 1024

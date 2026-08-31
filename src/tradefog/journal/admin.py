@@ -11,7 +11,9 @@ from tradefog.journal.models import (
     MarketDataState,
     ProfileTradingPair,
     Trade,
+    TradeAttachment,
     TradeChecklist,
+    TradeDescription,
     TradingProfile,
 )
 
@@ -134,6 +136,37 @@ class TradeAdmin(admin.ModelAdmin):  # pyright: ignore[reportMissingTypeArgument
         "trading_pair__asset__symbol",
         "profile__name",
         "profile__owner__username",
+    )
+
+
+@admin.register(TradeDescription)
+@final
+class TradeDescriptionAdmin(
+    admin.ModelAdmin  # pyright: ignore[reportMissingTypeArgument]
+):
+    """Expose trade descriptions for administrative support."""
+
+    list_display = ("trade", "review_completed_at", "updated_at")
+    search_fields = (
+        "trade__trading_pair__asset__symbol",
+        "trade__profile__name",
+        "trade__profile__owner__username",
+    )
+
+
+@admin.register(TradeAttachment)
+@final
+class TradeAttachmentAdmin(
+    admin.ModelAdmin  # pyright: ignore[reportMissingTypeArgument]
+):
+    """Expose private attachment metadata without public file links."""
+
+    list_display = ("original_name", "trade", "content_type", "size")
+    list_filter = ("content_type",)
+    search_fields = (
+        "original_name",
+        "trade__trading_pair__asset__symbol",
+        "trade__profile__owner__username",
     )
 
 

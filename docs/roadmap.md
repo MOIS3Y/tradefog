@@ -103,14 +103,16 @@ they measure setup strength and require immutable strategy versions.
 Market data remains independent of execution providers, and unavailable ATR
 does not block the manual journal workflow.
 
-## Planned stages
-
 ### Stage 8: post-trade review and private attachments
 
-- post-trade notes, errors, and conclusions;
+- an evolving Markdown trade description for observations, errors, and
+  conclusions in every lifecycle state;
 - private screenshots and other trade attachments;
+- asynchronous per-file uploads with visible progress and an image lightbox;
 - owner-checked authenticated attachment delivery;
 - visible incomplete review without another complex lifecycle state.
+
+## Planned stages
 
 ### Stage 9: manual-journal hardening and release
 

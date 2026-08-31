@@ -57,3 +57,4 @@ STATICFILES_DIRS = _config.static.source_dirs()
 
 MEDIA_URL = _config.media.url
 MEDIA_ROOT = _config.media.root
+TRADEFOG_MAX_ATTACHMENT_SIZE = _config.media.max_attachment_size_bytes()

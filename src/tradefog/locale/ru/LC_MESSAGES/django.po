@@ -2194,3 +2194,181 @@ msgstr "Поведение рынка определяется профилем.
 #: src/tradefog/templates/tradefog/journal/trading_pair_overview.html:14
 msgid "Profile markets and their daily-candle history in one workspace."
 msgstr "Рынки профилей и история дневных свечей в одном разделе."
+
+msgid "Upload a PNG, JPEG, WebP, or PDF file."
+msgstr "Загрузите файл PNG, JPEG, WebP или PDF."
+
+msgid "The file exceeds the configured attachment size limit."
+msgstr "Файл превышает заданный предел размера вложения."
+
+msgid "The file content does not match its extension."
+msgstr "Содержимое файла не соответствует его расширению."
+
+msgid "Review"
+msgstr "Разбор"
+
+msgid "All reviews"
+msgstr "Все разборы"
+
+msgid "Incomplete"
+msgstr "Не завершён"
+
+msgid "Complete"
+msgstr "Завершён"
+
+msgid "Trade description"
+msgstr "Описание сделки"
+
+msgid "Review completed at"
+msgstr "Разбор завершён"
+
+msgid "Only a closed trade can have a completed review."
+msgstr "Завершить разбор можно только для закрытой сделки."
+
+msgid "File"
+msgstr "Файл"
+
+msgid "Original filename"
+msgstr "Исходное имя файла"
+
+msgid "Content type"
+msgstr "Тип содержимого"
+
+msgid "Size"
+msgstr "Размер"
+
+msgid "Trade description saved."
+msgstr "Описание сделки сохранено."
+
+msgid "Select a valid review action."
+msgstr "Выберите допустимое действие с разбором."
+
+msgid "Review completed."
+msgstr "Разбор завершён."
+
+msgid "Review reopened."
+msgstr "Разбор снова открыт."
+
+msgid "Attachment deleted."
+msgstr "Вложение удалено."
+
+#, python-format
+msgid "Open %(name)s"
+msgstr "Открыть %(name)s"
+
+#, python-format
+msgid "Download %(name)s"
+msgstr "Скачать %(name)s"
+
+#, python-format
+msgid "Delete %(name)s"
+msgstr "Удалить %(name)s"
+
+msgid "Upload failed. Try again."
+msgstr "Не удалось загрузить файл. Повторите попытку."
+
+msgid "Review complete"
+msgstr "Разбор завершён"
+
+msgid "Review incomplete"
+msgstr "Разбор не завершён"
+
+msgid ""
+"Keep observations, execution notes, errors, and conclusions with the trade."
+msgstr ""
+"Сохраняйте вместе со сделкой наблюдения, заметки об исполнении, ошибки и "
+"выводы."
+
+msgid "Edit description"
+msgstr "Редактировать описание"
+
+msgid "Reopen review"
+msgstr "Возобновить разбор"
+
+msgid "Complete review"
+msgstr "Завершить разбор"
+
+msgid "Record context before, during, or after the trade."
+msgstr "Фиксируйте контекст до, во время или после сделки."
+
+msgid "Save description"
+msgstr "Сохранить описание"
+
+msgid "Attachments"
+msgstr "Вложения"
+
+msgid "PNG, JPEG, WebP, or PDF."
+msgstr "PNG, JPEG, WebP или PDF."
+
+#, python-format
+msgid "Up to %(size)s per file."
+msgstr "До %(size)s на файл."
+
+msgid "Upload failed. Check the connection and try again."
+msgstr "Не удалось загрузить файл. Проверьте соединение и повторите попытку."
+
+msgid "Retry upload"
+msgstr "Повторить загрузку"
+
+msgid "Add files"
+msgstr "Добавить файлы"
+
+msgid "No attachments yet."
+msgstr "Вложений пока нет."
+
+msgid "The attachment could not be deleted. Try again."
+msgstr "Не удалось удалить вложение. Повторите попытку."
+
+msgid "Delete attachment?"
+msgstr "Удалить вложение?"
+
+msgid "will be permanently removed from this trade."
+msgstr "будет безвозвратно удалён из этой сделки."
+
+msgid "Delete attachment"
+msgstr "Удалить вложение"
+
+msgid "Bold"
+msgstr "Полужирный"
+
+msgid "Italic"
+msgstr "Курсив"
+
+msgid "Heading"
+msgstr "Заголовок"
+
+msgid "Quote"
+msgstr "Цитата"
+
+msgid "Bulleted list"
+msgstr "Маркированный список"
+
+msgid "Numbered list"
+msgstr "Нумерованный список"
+
+msgid "Link"
+msgstr "Ссылка"
+
+msgid "Horizontal rule"
+msgstr "Горизонтальная линия"
+
+msgid "Preview"
+msgstr "Предпросмотр"
+
+msgid "Undo"
+msgstr "Отменить"
+
+msgid "Redo"
+msgstr "Повторить"
+
+msgid "Saving…"
+msgstr "Сохранение…"
+
+msgid "Saved"
+msgstr "Сохранено"
+
+msgid "The description could not be saved. Try again."
+msgstr "Не удалось сохранить описание. Повторите попытку."
+
+msgid "Remove from list"
+msgstr "Убрать из списка"

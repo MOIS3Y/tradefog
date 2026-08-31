@@ -24,7 +24,9 @@ from tradefog.journal.models import (
     DailyCandle,
     ProfileTradingPair,
     Trade,
+    TradeAttachment,
     TradeChecklist,
+    TradeDescription,
     TradingProfile,
 )
 from tradefog.journal.presentation import compact_decimal
@@ -199,6 +201,16 @@ class TradeOverviewFilterForm(forms.Form):
         label=_("Status"),
         required=False,
         choices=(("", _("All statuses")), *Trade.Status.choices),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    review: forms.ChoiceField = forms.ChoiceField(
+        label=_("Review"),
+        required=False,
+        choices=(
+            ("", _("All reviews")),
+            ("INCOMPLETE", _("Incomplete")),
+            ("COMPLETE", _("Complete")),
+        ),
         widget=forms.Select(attrs={"class": "form-select"}),
     )
     direction: forms.ChoiceField = forms.ChoiceField(
@@ -816,6 +828,34 @@ class TradeDraftForm(forms.ModelForm):
                 attrs={"class": "form-control", "min": "0", "step": "any"}
             ),
         }
+
+
+class TradeDescriptionForm(forms.ModelForm):
+    """Edit the evolving Markdown description independently of lifecycle."""
+
+    class Meta:
+        """Expose only owner-authored Markdown content."""
+
+        model: ClassVar[type[TradeDescription]] = TradeDescription
+        fields: ClassVar[list[str]] = ["content_markdown"]
+        widgets: ClassVar[dict[str, forms.Widget]] = {
+            "content_markdown": forms.Textarea(
+                attrs={
+                    "class": "form-control tf-description-source",
+                    "rows": 12,
+                }
+            )
+        }
+
+
+class TradeAttachmentUploadForm(forms.ModelForm):
+    """Collect one independently uploaded private attachment."""
+
+    class Meta:
+        """The server derives all attachment metadata."""
+
+        model: ClassVar[type[TradeAttachment]] = TradeAttachment
+        fields: ClassVar[list[str]] = ["file"]
 
 
 class TradeChecklistForm(forms.ModelForm):

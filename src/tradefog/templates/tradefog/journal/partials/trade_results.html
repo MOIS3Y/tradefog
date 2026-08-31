@@ -27,7 +27,18 @@
           <td class="text-secondary">{{ trade.profile.get_market_type_display }}</td>
           <td>{{ trade.profile.name }}</td>
           <td class="text-secondary text-nowrap">{{ trade.trade_date|date:"SHORT_DATE_FORMAT" }}</td>
-          <td>{% include "tradefog/journal/partials/trade_status.html" %}</td>
+          <td>
+            {% include "tradefog/journal/partials/trade_status.html" %}
+            {% if trade.status == "CLOSED" %}
+              <div class="mt-1">
+                {% if trade.description.is_review_complete %}
+                  <span class="badge bg-green-lt">{% translate "Review complete" %}</span>
+                {% else %}
+                  <span class="badge bg-yellow-lt">{% translate "Review incomplete" %}</span>
+                {% endif %}
+              </div>
+            {% endif %}
+          </td>
           <td class="text-nowrap">{% if trade.status == "CLOSED" %}
             <span class="{% if trade.result_r < 0 %}text-danger{% elif trade.result_r > 0 %}text-success{% endif %}">{{ trade.result_r|rounded_decimal:2 }}R</span>
           {% else %}—{% endif %}</td>

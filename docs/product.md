@@ -54,8 +54,10 @@ The complete discretionary-trade workflow is:
 8. Tradefog calculates take profit, position quantity, and monetary risk.
 9. The trade is saved as a draft or moved to a pending or open state.
 10. An opened trade remains active until the entire position is closed.
-11. The user records one final net realized P&L value.
-12. The user adds post-trade notes, screenshots, errors, and conclusions.
+11. Throughout the trade, the user maintains a Markdown description and
+    private screenshots or supporting files in the same workspace.
+12. The user records one final net realized P&L value and explicitly marks
+    the review complete after adding any final errors and conclusions.
 13. Profile statistics and the quality trajectory include the closed trade.
 
 Manual tracking is a first-class workflow. It supports exchanges without an
@@ -86,7 +88,7 @@ It combines:
 - ATR context;
 - planned entry, stop, take profit, and position size;
 - lifecycle actions;
-- post-trade review.
+- an evolving trade description, private attachments, and final review.
 
 Creating a trade has only two conceptual steps: selecting a profile and using
 the workspace. Pair selection belongs to the position section rather than a
@@ -96,6 +98,13 @@ selected; an explicit save or lifecycle action creates it.
 Several separately recorded entries for the same pair and direction are
 separate journal decisions. The first version has no position group, setup
 group, or trade batch abstraction.
+
+The trade description is available in every lifecycle state and remains in
+the trade workspace after the checklist. It stores Markdown edited through an
+inline toolbar-enhanced textarea. Images and other files are separate private
+attachments rather than embedded remote resources in the Markdown document.
+Only a closed trade can be explicitly marked as reviewed. Review completion
+is independent of the trade lifecycle and remains an editable journal fact.
 
 ## Checklist and setup assessment
 

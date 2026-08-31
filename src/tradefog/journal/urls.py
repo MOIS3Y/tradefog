@@ -81,6 +81,36 @@ urlpatterns = [
         views.trade_date_edit,
         name="trade_date_edit",
     ),
+    path(
+        "trades/<int:trade_id>/description/",
+        views.trade_description_save,
+        name="trade_description_save",
+    ),
+    path(
+        "trades/<int:trade_id>/review/",
+        views.trade_review_completion,
+        name="trade_review_completion",
+    ),
+    path(
+        "trades/<int:trade_id>/attachments/",
+        views.trade_attachment_upload,
+        name="trade_attachment_upload",
+    ),
+    path(
+        "trades/<int:trade_id>/attachments/<int:attachment_id>/",
+        views.trade_attachment_view,
+        name="trade_attachment_view",
+    ),
+    path(
+        "trades/<int:trade_id>/attachments/<int:attachment_id>/download/",
+        views.trade_attachment_download,
+        name="trade_attachment_download",
+    ),
+    path(
+        "trades/<int:trade_id>/attachments/<int:attachment_id>/delete/",
+        views.trade_attachment_delete,
+        name="trade_attachment_delete",
+    ),
     path("profiles/", views.profile_overview, name="profile_overview"),
     path(
         "profiles/archived/",

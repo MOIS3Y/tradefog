@@ -1,0 +1,46 @@
+{% load i18n %}
+
+<article class="tf-attachment-item{% if attachment.is_image %} tf-attachment-image{% else %} tf-attachment-file{% endif %}"
+         id="trade-attachment-{{ attachment.id }}"
+         data-attachment-item>
+  {% if attachment.is_image %}
+    <a class="tf-attachment-preview"
+       data-fslightbox="trade-images"
+       href="{% url 'trade_attachment_view' trade.id attachment.id %}"
+       aria-label="{% blocktranslate with name=attachment.original_name %}Open {{ name }}{% endblocktranslate %}">
+      <img src="{% url 'trade_attachment_view' trade.id attachment.id %}"
+           alt="{{ attachment.original_name }}"
+           loading="lazy">
+    </a>
+  {% else %}
+    <a class="tf-attachment-preview tf-attachment-document"
+       href="{% url 'trade_attachment_view' trade.id attachment.id %}"
+       target="_blank"
+       rel="noopener">
+      {% include "tradefog/components/icon.html" with name="notes" class="icon" %}
+      <span>PDF</span>
+    </a>
+  {% endif %}
+  <div class="tf-attachment-meta">
+    <span class="text-truncate tf-attachment-name"
+          title="{{ attachment.original_name }}">{{ attachment.original_name }}</span>
+    <div class="tf-attachment-actions">
+      <a class="btn btn-sm btn-icon"
+         href="{% url 'trade_attachment_download' trade.id attachment.id %}"
+         aria-label="{% blocktranslate with name=attachment.original_name %}Download {{ name }}{% endblocktranslate %}">
+        ↓
+      </a>
+      <button class="btn btn-sm btn-icon text-danger"
+              type="button"
+              data-bs-toggle="modal"
+              data-bs-target="#attachment-delete-modal"
+              data-attachment-delete
+              data-delete-url="{% url 'trade_attachment_delete' trade.id attachment.id %}"
+              data-attachment-name="{{ attachment.original_name }}"
+              data-attachment-target="#trade-attachment-{{ attachment.id }}"
+              aria-label="{% blocktranslate with name=attachment.original_name %}Delete {{ name }}{% endblocktranslate %}">
+        {% include "tradefog/components/icon.html" with name="trash" class="icon" %}
+      </button>
+    </div>
+  </div>
+</article>

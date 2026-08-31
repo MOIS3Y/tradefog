@@ -1,7 +1,9 @@
 """Presentation filters for exact journal values."""
 
 from django import template
+from django.utils.safestring import SafeString, mark_safe
 
+from tradefog.journal.markdown import render_markdown as format_markdown
 from tradefog.journal.presentation import compact_decimal as format_decimal
 from tradefog.journal.presentation import rounded_decimal as format_rounded
 from tradefog.journal.presentation import rounded_to_step as format_to_step
@@ -25,3 +27,10 @@ def rounded_decimal(value: object, places: int = 2) -> str:
 def rounded_to_step(value: object, step: object) -> str:
     """Round a calculated price to an instrument's display precision."""
     return format_to_step(value, step)
+
+
+@register.filter
+def render_markdown(value: object) -> SafeString:
+    """Render stored Markdown with raw HTML disabled."""
+    source = value if isinstance(value, str) else ""
+    return mark_safe(format_markdown(source))

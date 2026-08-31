@@ -35,6 +35,8 @@ url = "/static/"
 
 [media]
 url = "/media/"
+# Maximum size of one trade attachment in MiB. Set to 0 for no app limit.
+max_attachment_size_mib = 10
 # Default: <XDG_DATA_HOME>/tradefog/media
 # Relative paths are resolved from the directory containing this file.
 # root = "/path/to/media"

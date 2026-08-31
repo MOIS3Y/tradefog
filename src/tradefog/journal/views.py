@@ -5,12 +5,19 @@ from datetime import date
 from decimal import Decimal
 from typing import cast
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
 from django.core.paginator import Page, Paginator
 from django.db.models import Case, Count, DecimalField, F, Max, Min, Q, When
-from django.http import HttpRequest, HttpResponse
+from django.http import (
+    FileResponse,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseBadRequest,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -26,6 +33,10 @@ from tradefog.journal.analytics_queries import (
     AnalyticsFilters,
     select_closed_trade_results,
 )
+from tradefog.journal.attachments import (
+    create_trade_attachment,
+    delete_trade_attachment,
+)
 from tradefog.journal.calculations import PositionPlan, PositionPlanError
 from tradefog.journal.checklists import (
     ChecklistAnswers,
@@ -40,8 +51,10 @@ from tradefog.journal.forms import (
     DailyCandleFilterForm,
     DailyCandleForm,
     ProfileTradingPairForm,
+    TradeAttachmentUploadForm,
     TradeChecklistForm,
     TradeDateForm,
+    TradeDescriptionForm,
     TradeDraftForm,
     TradeOverviewFilterForm,
     TradingPairFilterForm,
@@ -65,7 +78,9 @@ from tradefog.journal.models import (
     DailyCandle,
     ProfileTradingPair,
     Trade,
+    TradeAttachment,
     TradeChecklist,
+    TradeDescription,
     TradingProfile,
 )
 from tradefog.journal.services import (
@@ -81,7 +96,9 @@ from tradefog.journal.services import (
     restore_asset,
     restore_profile,
     restore_trading_pair,
+    save_trade_description,
     save_trade_draft,
+    set_trade_review_completion,
     submit_trade,
     sync_profile_status,
     update_capital_operation,
@@ -214,9 +231,24 @@ def _owned_trade(request: HttpRequest, trade_id: int) -> Trade:
             "profile__capital_asset",
             "trading_pair__asset",
             "checklist",
+            "description",
         ),
         id=trade_id,
         profile__owner=_request_owner(request),
+    )
+
+
+def _owned_trade_attachment(
+    request: HttpRequest,
+    trade: Trade,
+    attachment_id: int,
+) -> TradeAttachment:
+    """Resolve one attachment through its owner-scoped trade."""
+    return get_object_or_404(
+        TradeAttachment,
+        id=attachment_id,
+        trade=trade,
+        trade__profile__owner=_request_owner(request),
     )
 
 
@@ -1501,6 +1533,22 @@ def _trade_workspace_context(
         "profile": trade.profile,
         "trading_pair": trade.trading_pair,
     }
+    description = getattr(trade, "description", None)
+    if not isinstance(description, TradeDescription):
+        description = None
+    context.update(
+        {
+            "description": description,
+            "description_form": TradeDescriptionForm(
+                instance=description or TradeDescription(trade=trade),
+            ),
+            "attachments": list(trade.attachments.all()),
+            "attachment_max_size": cast(
+                int | None,
+                settings.TRADEFOG_MAX_ATTACHMENT_SIZE,
+            ),
+        }
+    )
     checklist = _trade_checklist(trade)
     if trade.status != Trade.Status.DRAFT.value:
         answers = checklist.answers if checklist else ChecklistAnswers()
@@ -1585,11 +1633,13 @@ def trade_overview(request: HttpRequest) -> HttpResponse:
     ).select_related(
         "profile__capital_asset",
         "trading_pair__asset",
+        "description",
     )
     if filter_form.is_valid():
         search = filter_form.cleaned_data.get("search")
         profile = filter_form.cleaned_data.get("profile")
         status = filter_form.cleaned_data.get("status")
+        review = filter_form.cleaned_data.get("review")
         direction = filter_form.cleaned_data.get("direction")
         market_type = filter_form.cleaned_data.get("market_type")
         date_from = filter_form.cleaned_data.get("date_from")
@@ -1604,6 +1654,16 @@ def trade_overview(request: HttpRequest) -> HttpResponse:
             trades = trades.filter(profile=profile)
         if status:
             trades = trades.filter(status=status)
+        if review == "COMPLETE":
+            trades = trades.filter(
+                status=Trade.Status.CLOSED.value,
+                description__review_completed_at__isnull=False,
+            )
+        elif review == "INCOMPLETE":
+            trades = trades.filter(
+                status=Trade.Status.CLOSED.value,
+                description__review_completed_at__isnull=True,
+            )
         if direction:
             trades = trades.filter(direction=direction)
         if market_type:
@@ -2124,3 +2184,164 @@ def trade_date_edit(request: HttpRequest, trade_id: int) -> HttpResponse:
         "tradefog/journal/trade_date_form.html",
         {"trade": trade, "form": form},
     )
+
+
+@login_required
+@require_POST
+def trade_description_save(
+    request: HttpRequest,
+    trade_id: int,
+) -> HttpResponse:
+    """Save an evolving Markdown description without lifecycle changes."""
+    trade = _owned_trade(request, trade_id)
+    is_reactive = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    )
+    current = getattr(trade, "description", None)
+    form = TradeDescriptionForm(
+        request.POST,
+        instance=current or TradeDescription(trade=trade),
+    )
+    if form.is_valid():
+        description = save_trade_description(
+            trade,
+            content_markdown=cast(
+                str,
+                form.cleaned_data["content_markdown"],
+            ),
+        )
+        if is_reactive:
+            response = render(
+                request,
+                "tradefog/journal/partials/trade_description_rendered.html",
+                {"description": description},
+            )
+            response["X-Tradefog-Description"] = "rendered"
+            response["X-Tradefog-Description-Empty"] = (
+                "true" if not description.content_markdown.strip() else "false"
+            )
+            return response
+        messages.success(request, _("Trade description saved."))
+    else:
+        if is_reactive:
+            return HttpResponseBadRequest(form.errors.as_text())
+        for errors in form.errors.values():
+            for error in errors:
+                messages.error(request, str(error))
+    return redirect("trade_detail", trade_id=trade.id)
+
+
+@login_required
+@require_POST
+def trade_review_completion(
+    request: HttpRequest,
+    trade_id: int,
+) -> HttpResponse:
+    """Set or reopen the explicit final review for a closed trade."""
+    trade = _owned_trade(request, trade_id)
+    action = request.POST.get("action")
+    if action not in {"complete", "reopen"}:
+        return HttpResponseBadRequest(_("Select a valid review action."))
+    completed = action == "complete"
+    try:
+        _description = set_trade_review_completion(
+            trade,
+            completed=completed,
+        )
+    except ValidationError as error:
+        _transition_error(request, error)
+    else:
+        message = (
+            _("Review completed.") if completed else _("Review reopened.")
+        )
+        messages.success(request, message)
+    return redirect("trade_detail", trade_id=trade.id)
+
+
+@login_required
+@require_POST
+def trade_attachment_upload(
+    request: HttpRequest,
+    trade_id: int,
+) -> HttpResponse:
+    """Accept one asynchronous private attachment upload."""
+    trade = _owned_trade(request, trade_id)
+    form = TradeAttachmentUploadForm(request.POST, request.FILES)
+    if form.is_valid():
+        upload = cast(UploadedFile, form.cleaned_data["file"])
+        try:
+            attachment = create_trade_attachment(trade, upload)
+        except ValidationError as error:
+            form.add_error("file", error)
+        else:
+            return render(
+                request,
+                "tradefog/journal/partials/trade_attachment.html",
+                {"trade": trade, "attachment": attachment},
+                status=201,
+            )
+    return render(
+        request,
+        "tradefog/journal/partials/trade_attachment_error.html",
+        {"form": form},
+        status=422,
+    )
+
+
+def _attachment_response(
+    attachment: TradeAttachment,
+    *,
+    as_attachment: bool,
+) -> FileResponse:
+    """Open one validated private file with conservative response headers."""
+    opened_file = attachment.file.open("rb")
+    response = FileResponse(
+        opened_file,
+        as_attachment=as_attachment,
+        filename=attachment.original_name,
+        content_type=attachment.content_type,
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Content-Security-Policy"] = "sandbox"
+    return response
+
+
+@login_required
+def trade_attachment_view(
+    request: HttpRequest,
+    trade_id: int,
+    attachment_id: int,
+) -> FileResponse:
+    """Serve private attachment content after an ownership check."""
+    trade = _owned_trade(request, trade_id)
+    attachment = _owned_trade_attachment(request, trade, attachment_id)
+    return _attachment_response(attachment, as_attachment=False)
+
+
+@login_required
+def trade_attachment_download(
+    request: HttpRequest,
+    trade_id: int,
+    attachment_id: int,
+) -> FileResponse:
+    """Download a private attachment after an ownership check."""
+    trade = _owned_trade(request, trade_id)
+    attachment = _owned_trade_attachment(request, trade, attachment_id)
+    return _attachment_response(attachment, as_attachment=True)
+
+
+@login_required
+@require_POST
+def trade_attachment_delete(
+    request: HttpRequest,
+    trade_id: int,
+    attachment_id: int,
+) -> HttpResponse:
+    """Delete one owner-scoped private attachment."""
+    trade = _owned_trade(request, trade_id)
+    attachment = _owned_trade_attachment(request, trade, attachment_id)
+    delete_trade_attachment(attachment)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return HttpResponse(status=204)
+    messages.success(request, _("Attachment deleted."))
+    return redirect("trade_detail", trade_id=trade.id)

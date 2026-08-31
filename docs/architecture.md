@@ -152,6 +152,20 @@ be served by the standalone application. Uploaded screenshots live under the
 configured media location but are not mounted publicly; authenticated Django
 views enforce trade ownership before serving them.
 
+Trade descriptions persist Markdown as their source representation. A
+locally vendored EasyMDE editor enhances the ordinary Django textarea in
+place and follows the active Tabler light or dark theme. DOMPurify sanitizes
+the optional client-side preview; persisted Markdown is rendered on the
+server without raw HTML or embedded images. Attachment uploads use purposeful
+JavaScript for per-file progress and replace local previews with
+server-rendered fragments. Description saves replace the editor with the same
+safe server-rendered Markdown without reloading the trade; ordinary form POST
+remains the no-JavaScript fallback.
+
+The media configuration includes a default per-attachment size limit in MiB.
+Zero disables this application-level limit for deployments that choose to
+rely on their reverse proxy or storage constraints.
+
 ## Logging
 
 The standard Python `logging` API and Django `LOGGING` configuration own all

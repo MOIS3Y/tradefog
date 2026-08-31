@@ -20,6 +20,7 @@ from tradefog.journal.models import (
     ProfileTradingPair,
     Trade,
     TradeChecklist,
+    TradeDescription,
     TradingProfile,
 )
 
@@ -32,6 +33,46 @@ RESULT_R_QUANTUM = Decimal("0.000000000000000000000001")
 INVALID_TRADE_TRANSITION = _(
     "This action is not available for the trade's current status."
 )
+
+
+@transaction.atomic
+def save_trade_description(
+    trade: Trade,
+    *,
+    content_markdown: str,
+) -> TradeDescription:
+    """Persist the description without changing the trade lifecycle."""
+    locked_trade = Trade.objects.select_for_update().get(id=trade.id)
+    description, _created = TradeDescription.objects.get_or_create(
+        trade=locked_trade
+    )
+    description.content_markdown = content_markdown.replace(
+        "\r\n", "\n"
+    ).replace("\r", "\n")
+    description.full_clean()
+    description.save()
+    return description
+
+
+@transaction.atomic
+def set_trade_review_completion(
+    trade: Trade,
+    *,
+    completed: bool,
+) -> TradeDescription:
+    """Set or clear the explicit review fact on a closed trade."""
+    locked_trade = Trade.objects.select_for_update().get(id=trade.id)
+    if locked_trade.status != Trade.Status.CLOSED.value:
+        raise ValidationError(
+            _("Only a closed trade can have a completed review.")
+        )
+    description, _created = TradeDescription.objects.get_or_create(
+        trade=locked_trade
+    )
+    description.review_completed_at = timezone.now() if completed else None
+    description.full_clean()
+    description.save()
+    return description
 
 
 def sync_profile_status(profile: TradingProfile) -> str:
