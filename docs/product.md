@@ -44,33 +44,29 @@ history.
 
 The complete discretionary-trade workflow is:
 
-1. The user creates a venue and configures its Spot, Linear Perpetual, or Cash
-   Equity catalog manually or through a public instrument adapter.
-2. The user creates a trading profile by choosing that venue and Crypto or
-   Equity market class.
-3. Inside the profile, the user enables compatible venue products and selects
-   a working subset of venue instruments.
-4. Every profile instrument selection defaults to a manual market-data feed;
-   an automatic feed requires deliberate setup.
-5. The user adds eligible assets exposed by selected instruments to the
-   profile wallet and records virtual funds.
-6. The user creates a trading strategy with one compatible wallet settlement
+1. A staff member maintains the shared reference catalog: assets, trading
+   pairs, venues, and venue instruments, plus which assets settle a wallet on
+   each venue. Regular users never create or edit catalog records; they ask a
+   staff member when they need a new market.
+2. The user creates a trading profile.
+3. The user creates a trading strategy with one compatible wallet settlement
    asset and fixed risk parameters.
-7. The user opens Trades and selects a profile and strategy.
-8. The workspace filters products and instruments by exact strategy settlement;
-   product determines the available `LONG` and `SHORT` directions.
-9. The user completes the trade-specific checklist.
-10. The directional assessment reacts to checklist changes.
-11. The workspace presents the current ATR context for the instrument.
-12. The user enters the planned entry and stop prices.
-13. Tradefog calculates take profit, position quantity, and monetary risk.
-14. The trade is saved as a draft or moved to a pending or open state.
-15. An opened trade remains active until the entire position is closed.
-16. Throughout the trade, the user maintains a Markdown description and
+4. The user opens Trades and selects a profile and strategy.
+5. The workspace filters instruments by exact strategy settlement; product
+   determines the available `LONG` and `SHORT` directions.
+6. The user completes the trade-specific checklist.
+7. The directional assessment reacts to checklist changes.
+8. The workspace presents the current ATR context for the instrument; the user
+   picks a data source and refreshes it on demand.
+9. The user enters the planned entry and stop prices.
+10. Tradefog calculates take profit, position quantity, and monetary risk.
+11. The trade is saved as a draft or moved to a pending or open state.
+12. An opened trade remains active until the entire position is closed.
+13. Throughout the trade, the user maintains a Markdown description and
     private screenshots or supporting files in the same workspace.
-17. The user records one final net realized P&L value and explicitly marks
+14. The user records one final net realized P&L value and explicitly marks
     the review complete after adding any final errors and conclusions.
-18. Strategy statistics and the quality trajectory include the closed trade.
+15. Strategy statistics and the quality trajectory include the closed trade.
 
 Manual tracking is the only execution workflow. The user places and manages
 orders outside Tradefog, then records their state and final result in the
@@ -78,19 +74,14 @@ journal. This supports every venue, including ones with no public API.
 
 ## First-use setup
 
-First use is resumable rather than a disposable modal wizard. With no venue,
-the empty home page directs the user to create one. A venue catalog is a
-reusable prerequisite; after it exists, profile setup highlights the next
-incomplete requirement:
+First use is resumable rather than a disposable modal wizard. For a regular
+user the journal has no venue or instrument creation; the shared catalog
+already exists and is maintained by staff. If the catalog is empty, the empty
+home page directs the user to contact a staff member. Profile setup highlights
+the next incomplete requirement:
 
 ```text
-Create venue
-    ↓
-Add or synchronize venue products and instruments
-    ↓
 Create profile
-    ↓
-Select products and instruments
     ↓
 Configure wallet
     ↓
@@ -99,32 +90,24 @@ Create strategy
 Create first trade
 ```
 
-The profile form asks only for name, venue, and market class. Crypto then
-offers the venue's Spot and Linear catalogs; Equity offers its Cash Equity
-catalog. Profiles select instruments but never recreate their assets, symbols,
-precision, or order rules.
+The profile form asks only for a name. It does not ask for a venue or market
+class; the market family is derived from the product of the instrument the
+user eventually trades. Users never recreate assets, symbols, precision, or
+order rules — those live once in the shared catalog.
 
-A new venue defaults to manual instrument maintenance. Manual entry asks for
-base, quote, and explicit settlement metadata and creates or reuses internal
-venue assets automatically; there is no separate asset CRUD. Public
-instrument adapters synchronize complete product catalogs when available.
-Future authenticated execution connections are configured for a specific
-profile product rather than as global user or venue credentials.
+A regular user can read and use any shared instrument but cannot create or
+edit catalog records. A user who needs a new asset, pair, venue, or venue
+instrument asks a staff member to add it. Staff members manage the catalog
+under Settings rather than inline during profile creation.
 
-Venues are managed under Settings rather than inline during profile creation.
-If no active venue exists, the profile form disables its venue selector and
-save action and links to Settings → Venues.
+After the profile exists, the wallet screen presents the shared assets as
+choices. The strategy form then offers only the intersection of wallet assets
+and instrument settlements. Therefore a USD strategy cannot be created
+without an active USD-settled instrument.
 
-After profile instruments are selected, the wallet screen presents their
-unique eligible base, quote, and settlement assets as choices. The strategy
-form then offers only the intersection of wallet assets and active instrument
-settlements. Therefore a USD strategy cannot be created without an active
-USD-settled profile instrument.
-
-A profile is ready for drafts when it has an active instrument selection, a
-compatible wallet asset, and a strategy. Positive available wallet funds are
-required only for a transition to pending or open. Candle history and
-automatic market data are optional advisory context and never block manual
+A profile is ready for drafts when it has a wallet asset and a strategy.
+Positive available wallet funds are required only for a transition to pending
+or open. Market data is optional advisory context and never blocks manual
 journaling.
 
 ## Trade date
@@ -211,14 +194,16 @@ not a reversal probability or a hard rule.
 
 Market data is loaded on demand when a pair is selected in the trade
 workspace. A refresh action supports long-lived drafts. This design avoids a
-scheduler or background daemon. Cached data remains usable when an external
-source is temporarily unavailable and is visibly marked stale.
+scheduler or background daemon. Candles are never stored in the database;
+they are a transient request result, so there is no stale cache or history to
+clean up. Only the resulting ATR decision snapshot is saved on a submitted
+trade.
 
-Each profile instrument selection has one active daily-candle feed and
-defaults to manual maintenance. Automatic Bybit or Twelve Data feeds are
-enabled explicitly and remain independent from venue catalog synchronization
-and execution. Manual candles are editable; automatic candles are read-only
-provider cache. Tradefog calculates ATR locally regardless of candle source.
+When the instrument has a provider source, the user selects Bybit or Twelve
+Data and refreshes it in the workspace. When it has no provider source, the
+user may enter the ATR value manually as the `MANUAL` source. An instrument
+with no source and no entered value reports ATR as `N/A`. Tradefog calculates
+ATR locally for `AUTO` sources regardless of provider.
 
 For a trade date `D`, ATR uses only candles dated before `D`. A still-forming
 Bybit candle dated `D` supplies the separate observed-session range. A
@@ -231,8 +216,8 @@ available in the chart without thousands grouping or display rounding. The
 workspace separately shows whether the planned entry-to-take-profit price
 movement fits within 75% of ATR. This comparison is advisory and reacts to
 draft plan edits. The ATR context used for a submitted trade is snapshotted so
-later candle corrections or trade-date corrections do not rewrite the
-original decision context.
+later refreshes or trade-date corrections do not rewrite the original decision
+context.
 
 ## Analytics
 
@@ -283,15 +268,13 @@ User menu
 
 - Home shows the first-use action or a restrained cross-profile overview with
   drafts and positions that need attention.
-- Profiles is the configuration root. Each profile contains Overview,
-  Instruments, Wallet, Strategies, Trades, and Settings.
+- Profiles is the configuration root. Each profile contains Overview, Wallet,
+  Strategies, Trades, and Settings.
 - A profile wallet contains balances, manual deposits and withdrawals,
   reservations, available funds, and activity.
-- Settings → Venues owns reusable Spot, Linear, and Cash Equity instrument
-  catalogs. Manual venues allow instrument maintenance there; adapter-backed
-  venues synchronize their public catalogs there.
-- A profile's Instruments page selects and archives its working subset from
-  the chosen venue catalog. There is no standalone asset screen.
+- Settings → Catalog (staff only) owns the shared assets, trading pairs,
+  venues, and venue instruments. Regular users read this catalog but cannot
+  create or edit it; they ask a staff member for new markets.
 - Trades contains the cross-profile journal, owner-scoped profile, strategy,
   product, pair, and lifecycle filters, server-ordered paginated results,
   trade creation, and the trade workspace.
@@ -309,11 +292,10 @@ are:
 /en/
 /en/profiles/
 /en/profiles/<id>/
-/en/profiles/<id>/instruments/
 /en/profiles/<id>/wallet/
 /en/profiles/<id>/strategies/
-/en/settings/venues/
-/en/settings/venues/<id>/instruments/
+/en/settings/catalog/
+/en/settings/catalog/venues/<id>/instruments/
 /en/trades/
 /en/trades/new/
 /en/trades/<id>/

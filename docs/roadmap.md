@@ -135,39 +135,44 @@ does not block the manual journal workflow.
 
 ## Planned stages
 
-### Stage 10: venue catalog and profile financial hierarchy
+### Stage 10: shared reference catalog and direct instrument reference
 
-- replace market activations, trading accounts, global owner assets, global
-  pairs, `ProfileAsset`, and profile-owned pair duplication with the accepted
-  venue catalog and profile-selection hierarchy;
-- make each owner-scoped `Venue` own reusable `VenueProduct`, internal
-  `VenueAsset`, and `VenueInstrument` records grouped as Spot, Linear
-  Perpetual, or Cash Equity;
-- keep assets out of standalone user-facing CRUD; manual instrument entry and
-  adapters create or reuse normalized venue assets;
-- make `TradingProfile` select compatible venue products and a deliberate
-  working subset through `ProfileProduct` and `ProfileInstrument` while owning
-  its independent wallet, strategies, and trades;
-- make profile wallet assets reference eligible venue assets exposed by active
-  profile instruments, while strategy choices remain settlement-only;
-- introduce `TradingStrategy` as the fixed-capital and fixed-risk cohort with
-  one exact settlement wallet asset;
-- enforce owner, venue, product, profile-selection, and exact-settlement
-  compatibility in selectors, draft persistence, and every pending or open
-  transition;
-- support manual venue catalogs and full adapter-backed catalog synchronization
-  without deleting referenced or delisted instruments;
-- separate manual, Bybit, and Twelve Data feeds attached to profile instrument
-  selections from venue catalog and future execution adapters;
-- reshape Settings → Venues for catalog management and the profile Instruments
-  page for selection rather than pair creation;
-- update first-use setup, trade flow, analytics terminology, owner scoping,
+Replace the market activations, trading accounts, global owner assets, global
+pairs, `ProfileAsset`, and profile-owned pair duplication with a shared,
+staff-managed reference catalog that regular users read but do not edit:
+
+- introduce a shared `Asset` with a globally reusable symbol and an
+  unambiguous Crypto, Equity, or Fiat type, and a reusable `TradingPair` as
+  the logical `BASE/QUOTE` market;
+- introduce shared `Venue`, `VenueInstrument`, and `VenueWalletAsset`
+  records, with product kind Spot, Linear Perpetual, or Cash Equity placed on
+  the instrument so the market class is derived and a venue can host several
+  products without duplication;
+- make only staff members create or edit catalog records; regular users read
+  and reuse them and request new markets from staff;
+- drop the `ProfileProduct`/`ProfileInstrument` working-subset selection
+  layer and the venue-scoped `VenueAsset`; trades reference a shared
+  `VenueInstrument` directly;
+- keep `TradingProfile` as the owner-scoped journal context that owns its
+  independent wallet, strategies, and trades;
+- keep `TradingStrategy` as the fixed-capital and fixed-risk cohort with one
+  exact settlement wallet asset, with wallet top-up preserving constant
+  monetary R when a trade needs more than the strategy balance;
+- enforce shared-catalog, product, and exact-settlement compatibility in
+  selectors, draft persistence, and every pending or open transition;
+- stop persisting market data: remove candle tables and feeds, fetch the last
+  closed daily candles on demand in the trade workspace, and store only an
+  ATR decision snapshot (`AUTO` or `MANUAL` source) on submitted trades;
+- reshape Settings → Catalog for staff management and the trade workspace for
+  direct instrument selection and on-demand data refresh;
+- update first-use setup, trade flow, analytics terminology, ownership zones,
   English and Russian UI, and focused regression coverage;
 - replace obsolete pre-release migrations and local development or test
   databases rather than migrate their data.
 
-Stage 9 remains implementation history. The revised Stage 10 supersedes both
-its account/catalog model and the interim profile-owned asset and pair model.
+Stage 9 remains implementation history. The revised Stage 10 supersedes its
+account/catalog model, the interim profile-owned asset and pair model, and the
+venue-scoped `VenueAsset`/selection-layer model.
 
 ### Stage 11: manual-journal hardening and release
 

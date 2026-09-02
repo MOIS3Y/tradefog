@@ -2,92 +2,96 @@
 
 ## Ownership
 
-All journal data belongs to one authenticated user. Public registration is not
-part of the initial product; administrators create accounts. Every venue,
-catalog product, asset, instrument, profile selection, strategy, trade,
-snapshot, and attachment query is scoped by owner, either directly or through
-its owned parent.
+The domain has two ownership zones:
 
-The custom user model derives from Django's `AbstractUser` so it can evolve
-without a disruptive user-model migration later.
+- **User journal**: profiles, wallet assets and operations, strategies,
+  trades, checklist answers, snapshots, and attachments belong to one
+  authenticated user and are queried owner-scoped through the user or an
+  owned parent.
+- **Shared reference catalog**: assets, trading pairs, venues, venue
+  instruments, and venue wallet assets form a common directory for the whole
+  installation. Only staff members may create or edit catalog records; all
+  authenticated users may read and reuse them.
 
-## Venue catalog and profile hierarchy
+Public registration is not part of the initial product; administrators create
+accounts. The custom user model derives from Django's `AbstractUser` so it can
+evolve without a disruptive user-model migration later.
 
-The domain separates reusable venue facts from profile-specific financial and
-journal state:
+## Reference catalog and user journal
+
+The domain separates a shared, staff-managed reference catalog from each
+user's journal:
 
 ```text
-User
+Reference catalog (staff-managed, shared)
+├── Asset                          # global identity and unambiguous type
+├── TradingPair                    # reusable BASE/QUOTE relationship
 ├── Venue
-│   ├── VenueProduct
-│   │   └── VenueInstrument
-│   └── VenueAsset
-└── TradingProfile
-    ├── Venue and market class
-    ├── ProfileProduct → VenueProduct
-    │   └── ProfileInstrument → VenueInstrument
-    │       └── MarketDataFeed
-    │           └── DailyCandle
-    ├── WalletAsset → VenueAsset
-    │   └── WalletOperation
-    ├── TradingStrategy
-    └── Trade → ProfileInstrument
+│   ├── VenueInstrument            # executable market on one venue
+│   └── VenueWalletAsset           # settlement-capable assets on a venue
+
+User journal (owner-scoped)
+├── TradingProfile
+├── WalletAsset / WalletOperation
+├── TradingStrategy
+└── Trade → VenueInstrument
 ```
 
-There is no cross-venue asset or instrument catalog, explicit market
-activation, or separate trading-account layer. `Venue` is the reusable public
-instrument boundary. `TradingProfile` is the independent financial and
-journal boundary and never duplicates the venue catalog.
+There is no per-user or per-venue asset or pair duplication. The shared
+catalog is the single source of executable instrument facts. Market data is
+not persisted; candles are fetched on demand in the trade workspace and only
+an ATR decision snapshot is stored on a submitted trade.
 
-## Venues and trading profiles
+## Venues and the shared catalog
 
-`Venue` is an owner-scoped exchange, broker, or other execution destination.
-It has a name, an optional website URL, and an instrument adapter kind that
-defaults to `MANUAL`. A venue may support more than one market family, so
-Crypto or Equity does not belong to the venue itself.
+`Venue` is a shared, staff-managed exchange, broker, or other execution
+destination. It has a name, an optional website URL, and an optional default
+market-data provider used for on-demand ATR fetches. A venue carries no market
+class itself; its supported markets are derived from the products of its
+instruments. A venue may therefore host Crypto and Equity instruments together
+without duplication.
 
-Venues and their instrument catalogs are managed independently from profiles.
-An active venue can be reused by several profiles and cannot be archived while
-an active profile references it. Archived venues remain attached to historical
-profiles but are unavailable for new profile selection.
+The catalog is deliberately curated rather than bulk-imported: users add only
+the instruments they actually trade. A user who needs a new asset, pair,
+venue, or venue instrument asks a staff member to create it. Regular users
+read and reuse the shared catalog but cannot create or edit its records.
 
 `TradingProfile` is the user's top-level trading context, such as "Bybit Main"
-or "IBKR Equities". It belongs to one venue and fixes one market class:
-Crypto or Equity. Market class directly determines which products can be
-configured; the user does not separately activate market families.
-
-A profile selects products and instruments from its venue and owns its virtual
-wallet, strategies, and trades. Multiple profiles at the same venue share
+or "Equities". It owns the user's virtual wallet, strategies, and trades and
+reuses shared venue instruments without copying catalog facts. Profiles share
 catalog identity while retaining independent balances, risk, configuration,
-and journal history. Archiving a profile removes the financial context from
-normal new activity without changing venue catalog facts or historical trades.
+and journal history.
 
-## Venue products, assets, and instruments
+## Assets, trading pairs, and venue instruments
 
-`VenueProduct` is a catalog section under one venue. Its kind is Spot, Linear
-Perpetual, or Cash Equity and is unique within that venue. It owns instrument
-catalog and adapter synchronization state. Manual venues expose the same
-sections but their instruments are maintained by the user.
+`Asset` is a shared, globally reusable identity with a normalized symbol, a
+display name, and an unambiguous asset type: Crypto, Equity, or Fiat. A symbol
+identifies one asset installation-wide, so the BTC used on one venue is the
+same `Asset` as on another. There is no standalone asset-management screen and
+assets are maintained only by staff; manual instrument entry reuses existing
+assets.
 
-`VenueAsset` is an internal venue-scoped identity with a normalized symbol,
-asset class, and optional descriptive metadata. Symbols are unique within one
-venue without regard to letter case. There is no standalone asset-management
-screen. Manual instrument entry creates or reuses its base, quote, and
-settlement venue assets; adapters normalize provider metadata into the same
-records.
+`TradingPair` is the shared, reusable logical market that combines one base
+and one quote `Asset`. The canonical display is `BASE/QUOTE`. It carries no
+execution parameters and is entered once for the whole installation.
 
-`VenueInstrument` belongs to one venue product and uses venue assets for its
-base, quote, and settlement sides. It stores the venue execution symbol, price
-and quantity steps, minimum order rules, availability, import provenance, and
-archive or delisting state. The canonical display is `BASE/QUOTE`. A catalog
-sync never deletes an instrument referenced by a profile or trade. Product,
-base, quote, settlement, and execution identity are not mutated in place after
-use; an identity change creates a replacement instrument.
+`VenueInstrument` is the executable market on one venue for one product. It
+links a `TradingPair` to a `Venue` and stores the venue execution symbol,
+price and quantity steps, minimum order rules, availability, and archive or
+delisting state. Because execution parameters differ per venue and product,
+`VenueInstrument` is the only record that holds the per-market symbols and
+steps; the underlying asset and pair remain shared and are never duplicated.
+Product kind is Spot, Linear Perpetual, or Cash Equity and implies the market
+class: Spot and Linear Perpetual are Crypto, Cash Equity is Equity.
 
-Venue product kind is unique per venue, venue asset symbol is unique per venue
-without regard to case, and an active base, quote, and settlement combination
-is unique per venue product. A non-empty execution symbol is also unique within
-its venue product.
+`VenueWalletAsset` links a venue to the shared assets that are
+settlement-capable on that venue. It is a deliberate subset rather than a
+derivation: not every available asset can settle a wallet there.
+
+Asset symbol is unique installation-wide without regard to letter case. A base
+and quote combination is unique per `TradingPair`, and an active base, quote,
+and product combination is unique per venue. A non-empty execution symbol is
+unique within its venue.
 
 The initial compatibility matrix is:
 
@@ -98,46 +102,27 @@ The initial compatibility matrix is:
 | Equity | Cash | Equity | Fiat | Quote | LONG |
 
 Base and quote must differ. Spot and Cash Equity derive settlement from the
-quote asset. A Linear adapter supplies settlement when it can; otherwise the
-user must select it explicitly. An imported pair with unresolved settlement
-cannot become active or be used by a trade. Symbols are never parsed to guess
+quote asset. A Linear venue instrument supplies settlement when it can;
+otherwise the user must select it explicitly. An instrument with unresolved
+settlement cannot be used by a trade. Symbols are never parsed to guess
 settlement, and USD, USDT, and USDC are distinct without an explicit future
 conversion policy.
 
-Venue instrument adapters synchronize this reusable catalog for every
-supported product, including the full public Spot or Linear list when the
-adapter provides it. Missing provider instruments become unavailable or
-delisted rather than being deleted. Import never selects instruments for a
-profile and never makes an automatic market-data or execution choice.
+## Direct instrument reference
 
-## Profile product and instrument selection
-
-`ProfileProduct` links a profile to a compatible `VenueProduct`. A Crypto
-profile may select Spot and Linear Perpetual from its venue; an Equity profile
-may select Cash Equity. Future authenticated execution configuration belongs
-to this profile product, not to the venue catalog.
-
-`ProfileInstrument` links a profile product to one instrument from the same
-venue product. It represents the deliberately enabled working subset of the
-venue catalog, so an imported venue with thousands of instruments does not
-flood trade selectors. The selection can be archived without changing the
-shared venue instrument. Trades reference this profile selection rather than
-referencing the venue catalog directly.
-
-A profile product must reference a venue product owned by the profile's venue.
-A profile instrument must reference an instrument from that exact venue
-product. Each product kind and each active instrument selection are unique
-within one profile.
+Trades reference a shared `VenueInstrument` directly. Because the catalog is
+curated rather than bulk-imported, there is no separate "working subset"
+selection layer; the catalog already contains only instruments the user
+trades. A trade therefore points straight at the venue instrument it concerns.
 
 ## Virtual wallet
 
-`WalletAsset` belongs to a profile and references one `VenueAsset` from the
-profile's venue. The same venue USDT identity can back independent wallet
-balances and reservations in several profiles. Wallet choices are the unique
-base, quote, and settlement assets exposed by the profile's active instrument
-selections, restricted to asset classes eligible for wallet accounting. Only
-wallet assets also used as settlement by an active profile instrument can be
-selected by a strategy.
+`WalletAsset` belongs to a profile and references one shared `Asset`. The same
+USDT identity can back independent wallet balances and reservations in several
+profiles. Wallet choices are the unique base, quote, and settlement assets
+exposed by the instruments the profile trades, restricted to asset classes
+eligible for wallet accounting. Only wallet assets also used as settlement by a
+traded instrument can be selected by a strategy.
 
 Wallet funds are introduced and removed only through explicit `DEPOSIT` and
 `WITHDRAWAL` operations on a selected wallet asset. An operation stores its
@@ -163,8 +148,8 @@ risk percent, absolute risk stop, and operational status. Several strategies
 may share the same profile wallet.
 
 The selectable settlement assets for a strategy are the intersection of the
-profile wallet and settlement assets of active profile instrument selections.
-A strategy can use several products and instruments, but every selected
+profile wallet and the settlement assets of the instruments the strategy
+trades. A strategy can use several products and instruments, but every
 instrument must have exactly the same settlement asset. Unlike currencies are
 never treated as equivalent.
 
@@ -231,25 +216,20 @@ the required `1x` notional.
 
 ## Strategy and instrument compatibility
 
-A trade belongs to one strategy and one profile instrument selection. Both
-must belong to the same profile. The underlying venue instrument must belong
-to that profile's venue and its settlement asset must exactly match the
-strategy settlement wallet asset. Product is derived from the instrument
-selection rather than duplicated on the trade.
+A trade belongs to one strategy. The instrument's settlement asset must
+exactly match the strategy settlement wallet asset. Product is derived from
+the instrument rather than duplicated on the trade.
 
 ```text
-profile_instrument.profile = strategy.profile
-profile_instrument.venue_instrument.venue_product.venue =
-    strategy.profile.venue
-profile_instrument.venue_instrument.settlement_asset =
-    strategy.settlement_wallet_asset.venue_asset
+trade.venue_instrument.settlement_asset =
+    strategy.settlement_wallet_asset.asset
 ```
 
-Compatible querysets hide invalid instrument selections in the interface.
-Draft persistence and every transition to `PENDING_ENTRY` or `OPEN` repeat
-the invariant in a domain service so stale forms, crafted requests, and
-future execution adapters cannot bypass it. For example, a USD strategy
-cannot use BTC/USDT even when its profile wallet also contains USDT.
+Compatible querysets hide invalid instrument choices in the interface. Draft
+persistence and every transition to `PENDING_ENTRY` or `OPEN` repeat the
+invariant in a domain service so stale forms, crafted requests, and future
+execution adapters cannot bypass it. For example, a USD strategy cannot use
+BTC/USDT even when its profile wallet also contains USDT.
 
 ## Position plan
 
@@ -407,32 +387,28 @@ An owner-defined strategy checklist is a separate future concept. It measures
 setup strength relative to a selected strategy rather than predicting market
 direction and requires immutable historical strategy versions.
 
-## Market-data feeds, snapshots, and ATR
+## Market data, snapshots, and ATR
 
-Market observations belong to one profile instrument selection. A selection
-has one active `MarketDataFeed`; previous feeds may remain inactive so candles
-from different providers are never mixed. A feed stores its provider,
-external symbol, provider-specific category, refresh state, and dated closed
-daily candles. The supported sources are `MANUAL`, `BYBIT`, and
-`TWELVE_DATA`, with `MANUAL` as the default.
+Market data is not persisted in the database. When the user opens or refreshes
+a trade in the workspace, the journal fetches the last closed daily candles
+on demand from the selected provider and computes `ATR(14)` in the moment.
+The supported providers are `BYBIT` and `TWELVE_DATA`; manual candle
+maintenance does not exist. Fetched candles are a transient request result and
+are never written back to the catalog.
 
-Automatic data is never enabled merely because an instrument was imported
-into a venue catalog. The user must explicitly select and configure an
-automatic source for the profile instrument.
-Manual feed candles can be added, corrected, and removed by the user.
-Automatic feed candles are read-only journal cache and change only through
-their provider adapter. Market-data symbols and reported quote currencies do
-not determine the execution pair's settlement asset.
-
-A dated closed daily candle stores OHLC prices, source observation time, and
-provider trading date. Provider session semantics remain attached to the
-feed; for example, Bybit daily candle dates identify UTC sessions.
+When an instrument has no available provider source, the user may enter the
+ATR value directly. The snapshot therefore records an ATR source of `AUTO`
+(computed from live provider candles) or `MANUAL` (a user-entered value). An
+instrument with no source and no entered value reports ATR as `N/A`. Market
+data never determines the execution pair's settlement asset.
 
 True Range and standard `ATR(14)` are deterministic calculations over closed
 daily candles. The initial ATR is the mean of the first 14 True Range values,
 which requires 15 closed candles, and later values use Wilder smoothing. For
-a trade date `D`, only candles before `D` contribute. Current-session range
-remains separate and may be compared with ATR and the advisory 75% reference.
+a trade date `D`, only candles before `D` contribute; if the provider cannot
+return history before `D`, the context is stale or unavailable. Current-session
+range remains separate and may be compared with ATR and the advisory 75%
+reference.
 
 The draft workspace also compares the exact planned price movement from entry
 to take profit with the same reference:
@@ -446,13 +422,11 @@ fits_reference = target_atr_percent <= 75
 This comparison is advisory. It does not change the take profit, position
 size, risk, or lifecycle validity.
 
-The latest successful provider refresh, failure state, and still-forming
-session high and low are cached per feed. Provider failure preserves stored
-candles and marks their context stale. When a trade leaves `DRAFT`, available
-ATR value, contributing date, feed identity, current-session range,
-observation time, and stale state are frozen with the other decision facts.
-Missing or stale market context remains advisory and does not block the
-manual trade lifecycle.
+Provider failure preserves no stored candles and simply marks the context
+stale. When a trade leaves `DRAFT`, the available ATR value, contributing
+date, ATR source and provider, current-session range, observation time, and
+stale state are frozen with the other decision facts. Missing or stale market
+context remains advisory and does not block the manual trade lifecycle.
 
 ## Attachments
 

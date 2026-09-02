@@ -175,9 +175,9 @@ sentence. Use `section.empty.empty-bordered` with:
 ```text
 ┌─ empty bordered area ────────────────────────────────────────────────┐
 │                              [icon]                                  │
-│                         No venues yet                                │
-│          Add the destination used by your trading profiles.         │
-│                          [+ Add venue]                               │
+│                         No profiles yet                              │
+│          Create the journal context for your trading decisions.     │
+│                          [+ Create profile]                          │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -230,16 +230,17 @@ as `Create profile` or `Save changes`, rather than a generic `Submit`.
 Unavailable data must not appear as an enabled empty select or editable fake
 value. Disable the actual control with `disabled` and
 `aria-disabled="true"`, retain Tabler's disabled appearance, and add a hint
-that names the prerequisite and where it can be completed. For example, a
-profile's venue selector remains disabled until the user creates a venue in
-Settings; the form does not duplicate an `Add venue` action.
+that names the prerequisite and where it can be completed. For example, the
+trade instrument selector remains disabled until a compatible instrument
+exists in the shared catalog; regular users who need a new market ask a staff
+member rather than creating one in the form.
 
 ## Context and responsive behavior
 
 Page direction establishes context without repeating it in every card. Profile
-pages use the profile as their parent context; venue catalog pages use the
-venue or Settings context. Keep venue instrument catalog data separate from a
-profile's journal configuration in both wording and actions.
+pages use the profile as their parent context; shared catalog pages use the
+Settings context. Keep shared catalog facts separate from a profile's journal
+configuration in both wording and actions.
 
 Layouts must remain readable at the smallest supported viewport. Header rows
 may wrap, filter grids collapse to one column, forms use `col-12`, and tables

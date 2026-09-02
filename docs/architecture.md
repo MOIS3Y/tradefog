@@ -214,55 +214,41 @@ boundaries are logged without secrets or complete configuration objects.
 ## Integration boundaries
 
 Manual journal execution is the only current execution workflow. Tradefog does
-not yet hold venue credentials, submit orders, or synchronize positions. A
-venue may carry an optional website URL and an instrument adapter kind that
-defaults to manual maintenance. Each venue owns one reusable catalog of
-products, internal normalized assets, and instruments. Profiles select from
-that catalog without copying it. The profile-scoped virtual wallet remains
-authoritative for journal availability and reservations.
+not yet hold venue credentials, submit orders, or synchronize positions. The
+shared reference catalog is staff-managed and deliberately curated rather than
+bulk-synchronized. Regular users read and reuse catalog facts but do not
+create or edit them. The profile-scoped virtual wallet remains authoritative
+for journal availability and reservations.
 
-There are three independent adapter responsibilities:
+Market data is an on-demand read-only boundary. It does not persist candles or
+feeds in the database. In the trade workspace the user selects a provider and
+the journal fetches the last closed daily candles on demand, computes
+`ATR(14)`, and stores only an ATR decision snapshot (`AUTO` or `MANUAL`
+source) on a submitted trade. Providers are `BYBIT` and `TWELVE_DATA`; an
+instrument without a source may use a manually entered `MANUAL` ATR value, and
+an instrument with no source and no value reports `N/A`. Provider failure
+cannot block manual journaling and never corrupts catalog or journal state.
 
-- a venue instrument adapter synchronizes venue products and instruments and
-  normalizes base, quote, settlement, execution identity, and order rules;
-- a market-data adapter fetches candles for one configured feed;
+There are two independent provider responsibilities:
+
+- an on-demand market-data provider fetches daily candles for ATR context in
+  the trade workspace;
 - a future execution adapter submits and synchronizes orders through a
-  configured profile-product connection.
+  configured profile connection.
 
-An instrument adapter uses public venue metadata and requires no trading
-credentials. It may synchronize complete Spot, Linear, or Cash Equity catalogs
-for the venue, but it does not select profile instruments, select market data,
-or enable execution. Synchronization creates or reuses venue assets, updates
-mutable precision and minimum-order facts, and marks missing instruments
-unavailable instead of deleting them. Product and asset identity are never
-rewritten in place after use. Spot and Cash Equity derive settlement from
-quote. Linear settlement must come from adapter metadata or explicit manual
-input; an unresolved instrument remains inactive. Adapters never infer
-equivalence between USD, USDT, USDC, or other symbols.
-
-Manual venues use the same catalog services and constraints as adapter-backed
-venues. Their instrument form accepts product, base, quote, settlement,
-execution symbol, precision, and minimum-order facts. It creates or reuses
-internal `VenueAsset` records; assets do not have an independent UI.
-
-Market data has a separate focused boundary. Every profile instrument
-selection defaults to a manual feed; Bybit and Twelve Data are explicit
-automatic choices. A provider's external symbol or quote currency cannot
-redefine the underlying venue instrument or its settlement asset. The
-on-demand HTTPX clients use explicit timeouts; persistence, cached fallback,
-provenance, and manual-versus-automatic edit authorization remain in the
-market-data service, while True Range and ATR remain pure calculations.
-Provider failure cannot block manual journaling.
+A market-data provider's external symbol or quote currency cannot redefine the
+shared venue instrument or its settlement asset. The on-demand HTTPX clients
+use explicit timeouts; provider selection and refresh authorization remain in
+the market-data service, while True Range and ATR remain pure calculations.
 
 Future order submission is a focused execution boundary. A configured
-connection and its credentials belong to a profile product, not to the user,
-venue, or public catalog record. Manual actions remain available when no
-adapter or connection exists. Before any manual or automatic transition to
-pending or open, the shared domain service verifies that the strategy and
-profile instrument selection belong to the same profile, the venue instrument
-belongs to that profile's venue, and settlement assets are exactly equal.
-Adapter failure leaves the journal decision unchanged and cannot make manual
-journaling unavailable.
+connection and its credentials belong to a user's profile, not to the shared
+catalog record. Manual actions remain available when no adapter or connection
+exists. Before any manual or automatic transition to pending or open, the
+shared domain service verifies that the trade's venue instrument settlement
+asset exactly equals the strategy settlement wallet asset. Adapter failure
+leaves the journal decision unchanged and cannot make manual journaling
+unavailable.
 
 TradingView, if ever added, is an opt-in external visual embed with visible
 attribution. It is not an ATR source and must not become a required runtime
@@ -275,19 +261,18 @@ PostgreSQL migration, without depending on PostgreSQL-specific behavior.
 
 Calculated wallet balances, strategy equity, reservations, and statistics are
 derived from stored facts until measurement shows a need for denormalization.
-Persisted calculated values exist only when
-they preserve decision context or historical reproducibility, such as risk
-snapshots on submitted trades.
+Persisted calculated values exist only when they preserve decision context or
+historical reproducibility, such as risk and ATR snapshots on submitted
+trades.
+
+Market data is not persisted. Candles are fetched on demand in the trade
+workspace, so there is no candle table to clean up and no stale cache.
 
 Multi-model domain transitions use database transactions when atomicity is
-required. Ownership is enforced at query boundaries, and database constraints
-back important invariants where practical.
-
-Catalog synchronization is transactional per venue product. Referenced venue
-assets and instruments are retained for history; delisting and user removal
-change availability rather than destroying identities. Profile instrument
-selection is a separate join boundary so profile archive state and catalog
-availability cannot overwrite one another.
+required. Owner scoping is enforced at journal query boundaries, and database
+constraints back important invariants where practical. Shared catalog records
+referenced by journal data are retained for history; delisting and staff
+removal change availability rather than destroying identities.
 
 ## Security
 

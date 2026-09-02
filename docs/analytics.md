@@ -36,12 +36,11 @@ timestamps do not move a trade between analytical periods. Closed trades are
 ordered by `trade_date`, creation time, and identifier so that calculations
 are deterministic.
 
-A `ProfileInstrument` belongs to one profile product and links to a reusable
-venue instrument. Strategy-compatible selections have the same profile and
-exactly the same settlement asset as the strategy. Filter choices narrow in
-the sequence profile, strategy, product, and instrument. A lower-level
-selection does not silently widen or replace an explicit higher-level
-selection.
+A trade references a shared `VenueInstrument` directly. Strategy-compatible
+instruments have exactly the same settlement asset as the strategy. Filter
+choices narrow in the sequence profile, strategy, product, and instrument. A
+lower-level selection does not silently widen or replace an explicit
+higher-level selection.
 
 Changing the global filter recalculates the complete selection. In
 particular, a filtered trajectory starts again at `(0, 0)`; it does not
