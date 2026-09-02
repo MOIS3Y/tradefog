@@ -13,17 +13,17 @@ def test_application_supports_english_and_russian() -> None:
 
 def test_urls_include_the_active_language() -> None:
     with override("en"):
-        assert reverse("home") == "/en/"
-        assert reverse("login") == "/en/login/"
-        assert reverse("logout") == "/en/logout/"
+        assert reverse("journal:home") == "/en/"
+        assert reverse("accounts:login") == "/en/login/"
+        assert reverse("accounts:logout") == "/en/logout/"
         assert reverse("set_language") == "/en/set-language/"
         assert reverse("admin:index") == "/en/admin/"
         assert reverse("javascript-catalog") == "/en/jsi18n/"
 
     with override("ru"):
-        assert reverse("home") == "/ru/"
-        assert reverse("login") == "/ru/login/"
-        assert reverse("logout") == "/ru/logout/"
+        assert reverse("journal:home") == "/ru/"
+        assert reverse("accounts:login") == "/ru/login/"
+        assert reverse("accounts:logout") == "/ru/logout/"
         assert reverse("set_language") == "/ru/set-language/"
         assert reverse("admin:index") == "/ru/admin/"
         assert reverse("javascript-catalog") == "/ru/jsi18n/"

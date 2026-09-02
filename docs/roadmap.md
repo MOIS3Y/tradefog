@@ -112,9 +112,64 @@ does not block the manual journal workflow.
 - owner-checked authenticated attachment delivery;
 - visible incomplete review without another complex lifecycle state.
 
+## Completed restructuring
+
+### Stage 9: account-scoped wallet and strategic-profile restructuring
+
+- owner-activated Crypto and Equities markets, venues, and market-specific
+  trading accounts;
+- account-wallet assets with account-specific balances, reservations,
+  deposits, withdrawals, and trade-result effects;
+- strategic profiles with fixed capital, fixed monetary risk, virtual equity,
+  one settlement wallet asset, and no profile capital operations;
+- venue-specific pairs whose product determines directions and which are
+  automatically available to compatible account profiles;
+- wallet-backed `1x` notional validation for pending and open trades;
+- global market candle sources and cached local candle history;
+- Crypto Spot, Crypto Linear Perpetual, and Equity Cash product rules;
+- sticky horizontal navigation shell, wallet page, grouped profile navigation,
+  market catalog, user settings, and footer;
+- a structural reorganization of journal models, forms, services, views, and
+  templates into cohesive subpackages;
+- replacement of pre-release migrations and development/test databases.
+
 ## Planned stages
 
-### Stage 9: manual-journal hardening and release
+### Stage 10: venue catalog and profile financial hierarchy
+
+- replace market activations, trading accounts, global owner assets, global
+  pairs, `ProfileAsset`, and profile-owned pair duplication with the accepted
+  venue catalog and profile-selection hierarchy;
+- make each owner-scoped `Venue` own reusable `VenueProduct`, internal
+  `VenueAsset`, and `VenueInstrument` records grouped as Spot, Linear
+  Perpetual, or Cash Equity;
+- keep assets out of standalone user-facing CRUD; manual instrument entry and
+  adapters create or reuse normalized venue assets;
+- make `TradingProfile` select compatible venue products and a deliberate
+  working subset through `ProfileProduct` and `ProfileInstrument` while owning
+  its independent wallet, strategies, and trades;
+- make profile wallet assets reference eligible venue assets exposed by active
+  profile instruments, while strategy choices remain settlement-only;
+- introduce `TradingStrategy` as the fixed-capital and fixed-risk cohort with
+  one exact settlement wallet asset;
+- enforce owner, venue, product, profile-selection, and exact-settlement
+  compatibility in selectors, draft persistence, and every pending or open
+  transition;
+- support manual venue catalogs and full adapter-backed catalog synchronization
+  without deleting referenced or delisted instruments;
+- separate manual, Bybit, and Twelve Data feeds attached to profile instrument
+  selections from venue catalog and future execution adapters;
+- reshape Settings → Venues for catalog management and the profile Instruments
+  page for selection rather than pair creation;
+- update first-use setup, trade flow, analytics terminology, owner scoping,
+  English and Russian UI, and focused regression coverage;
+- replace obsolete pre-release migrations and local development or test
+  databases rather than migrate their data.
+
+Stage 9 remains implementation history. The revised Stage 10 supersedes both
+its account/catalog model and the interim profile-owned asset and pair model.
+
+### Stage 11: manual-journal hardening and release
 
 - complete English and Russian translations;
 - ownership, lifecycle, attachment, and HTMX regression coverage;
@@ -125,11 +180,10 @@ does not block the manual journal workflow.
 
 The following work begins only after the manual journal is useful and stable:
 
-- first concrete Bybit connection and execution adapter;
-- entry, stop, and take-profit submission from the common workspace;
-- exchange state and final P&L synchronization;
-- additional market-data providers for equities and other asset classes;
-- optional TradingView embedded chart;
+- authenticated exchange execution only after a concrete workflow justifies
+  its independent complexity;
+- additional market-data providers beyond Bybit and Twelve Data;
+- optional TradingView embedded chart as a clearly external visual aid;
 - cross-profile portfolio views after currency-conversion requirements are
   known;
 - advanced comparative analytics, drawdown, and checklist correlations;

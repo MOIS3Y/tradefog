@@ -15,31 +15,106 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     template_dirs = settings.templates.django_templates()[0]["DIRS"]
     with override("en"):
         rendered_template = get_template("tradefog/base.html").render()
-        analytics_template = get_template(
-            "tradefog/journal/analytics_overview.html"
-        ).render()
+        trade_template = get_template("tradefog/trade.html").render()
+        analytics_template = get_template("tradefog/analytics.html").render()
 
     assert '<html lang="en">' in rendered_template
     assert "tradefog/vendor/htmx/htmx.min.js" in rendered_template
     assert "tradefog/vendor/tabler/tabler.min.css" in rendered_template
     assert "tradefog/vendor/tabler/tabler.min.js" in rendered_template
-    assert "tradefog/vendor/list.js/list.min.js" not in rendered_template
-    assert "tradefog/js/sortable-tables.js" not in rendered_template
-    assert "tradefog/vendor/list.js/list.min.js" in analytics_template
-    assert "tradefog/js/sortable-tables.js" in analytics_template
     assert "tradefog/js/tradefog.js" in rendered_template
-    assert "tradefog/vendor/pico" not in rendered_template
-    assert "cdn.jsdelivr.net" not in rendered_template
-    assert "function selectTheme" not in rendered_template
     assert "tradefog/images/favicon.svg" in rendered_template
     assert "data-theme-toggle" in rendered_template
-    assert "data-scroll-top" in rendered_template
     assert "navbar-brand-autodark" in rendered_template
-    assert "btn-animate-icon" not in rendered_template
-    assert "btn-animate-icon-move-start" not in rendered_template
-    assert "btn-animate-icon-rotate" not in rendered_template
-    assert "tf-navbar-control" not in rendered_template
-    assert 'data-theme-choice="system"' not in rendered_template
+    assert "venue_overview" not in rendered_template
+
+    assert "tradefog/vendor/apexcharts/apexcharts.min.js" in trade_template
+    assert "tradefog/js/market-context.js" in trade_template
+    assert "tradefog/js/trade-description.js" in trade_template
+    assert "tradefog/vendor/easymde/easymde.min.css" in trade_template
+    assert "data-market-candle-chart" in trade_template
+    assert "data-analytics-chart" in analytics_template
+    assert "tradefog/js/analytics.js" in analytics_template
+    assert "tradefog/vendor/apexcharts/apexcharts.min.js" in analytics_template
+
+    template_root = settings.static.source_dirs()[0].parent / "templates"
+    login_source = (
+        template_root / "registration/login.html"
+    ).read_text(encoding="utf-8")
+    assert "Login to your account" in login_source
+    assert "brand-oauth" in login_source
+    assert "data-password-toggle" in login_source
+    assert 'aria-disabled="true"' in login_source
+    assert "Remember me on this device" in login_source
+    assert 'aria-describedby="username-help' not in login_source
+    assert 'aria-describedby="password-help' not in login_source
+
+    page_heading_template = (
+        template_root / "tradefog/components/page_heading.html"
+    ).read_text(encoding="utf-8")
+    assert 'data-bs-toggle="tooltip"' in page_heading_template
+    assert 'class="page-title mb-0 tf-page-heading"' in page_heading_template
+    assert 'name="help-circle"' not in page_heading_template
+
+    for section_template in (
+        "home.html",
+        "profiles.html",
+        "trades.html",
+        "settings.html",
+        "analytics.html",
+    ):
+        section_source = (
+            template_root / "tradefog" / section_template
+        ).read_text(encoding="utf-8")
+        assert "components/page_heading.html" in section_source
+        assert "{% block page_header %}" in section_source
+
+    trade_source = (
+        template_root / "tradefog/trade.html"
+    ).read_text(encoding="utf-8")
+    assert "{% block page_header %}" in trade_source
+
+    for action_template in (
+        "profiles.html",
+        "trades.html",
+    ):
+        action_source = (
+            template_root / "tradefog" / action_template
+        ).read_text(encoding="utf-8")
+        assert "btn-animate-icon-rotate" in action_source
+        assert 'name="plus"' in action_source
+
+    for empty_template in (
+        "home.html",
+        "profiles.html",
+        "trades.html",
+        "settings.html",
+    ):
+        empty_source = (template_root / "tradefog" / empty_template).read_text(
+            encoding="utf-8"
+        )
+        assert "empty-bordered" in empty_source
+        assert "empty-icon" in empty_source
+        assert "empty-subtitle" in empty_source
+
+    template_source = (
+        template_root / "tradefog/base.html"
+    ).read_text(encoding="utf-8")
+    for url_name in ("home", "profiles", "trades", "analytics", "settings"):
+        assert f"{{% url 'journal:{url_name}' %}}" in template_source
+    assert 'name="settings" class="icon"' in template_source
+    assert "Account settings" in template_source
+    assert "Coming soon" in template_source
+    assert "tf-auth-shell" in template_source
+    assert "container container-tight py-4" in template_source
+    assert "data-scroll-top" in template_source
+    assert '<span class="dropdown-item disabled"' in template_source
+    assert 'aria-disabled="true"' in template_source
+    assert 'data-bs-target="#navbar-menu"' in template_source
+    assert "navbar-vertical" not in template_source
+    assert "data-sidebar-dropdown" not in template_source
+    assert "tf-navbar-control" not in template_source
+    assert 'data-theme-choice="system"' not in template_source
     assert settings.static.source_dirs()[0].is_dir()
     assert template_dirs == [
         settings.static.source_dirs()[0].parent / "templates"

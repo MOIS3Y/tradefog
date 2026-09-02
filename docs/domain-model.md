@@ -3,107 +3,207 @@
 ## Ownership
 
 All journal data belongs to one authenticated user. Public registration is not
-part of the initial product; administrators create accounts. Every profile,
-asset, pair, trade, snapshot, and attachment query is scoped by owner.
+part of the initial product; administrators create accounts. Every venue,
+catalog product, asset, instrument, profile selection, strategy, trade,
+snapshot, and attachment query is scoped by owner, either directly or through
+its owned parent.
 
 The custom user model derives from Django's `AbstractUser` so it can evolve
 without a disruptive user-model migration later.
 
-## Assets
+## Venue catalog and profile hierarchy
 
-`Asset` is an owner-scoped reusable catalog entry. It stores a normalized
-symbol, an optional descriptive name, and a small asset class such as crypto,
-equity, fiat, or other.
-
-Symbols are unique for an owner without regard to letter case. Historical
-identity remains stable after an asset is referenced. Archiving removes an
-asset from normal new selections without deleting historical relations.
-
-## Trading profiles
-
-A `TradingProfile` represents one virtual risk-managed allocation. It is
-deliberately independent from the topology and total balance of an exchange
-account.
-
-A profile stores:
-
-- owner and name;
-- execution provider;
-- capital, quote, and settlement asset;
-- market type;
-- immutable initial capital after trading begins;
-- risk percent per trade;
-- mutable absolute risk-stop capital;
-- operational status.
-
-The initial execution provider is `MANUAL`. `BYBIT` appears only when a real
-adapter exists. The provider is immutable. Capital asset and market type are
-locked once the profile has a trading pair. Initial capital and risk percent
-remain correctable while every trade is a draft and become locked after the
-first trade is submitted.
-
-One profile has one market type:
-
-- `SPOT` supports `LONG` only;
-- `LINEAR_PERPETUAL` supports `LONG` and `SHORT` with isolated margin at
-  fixed `1x` in the initial strategy.
-
-Separate Spot and Linear profiles have separate virtual capital, risk state,
-and analytics, although a future exchange connection may serve both. The
-first version excludes spot margin, configurable leverage, inverse contracts,
-expiring futures, options, and contract multipliers.
-
-## Capital operations
-
-Users do not overwrite current capital. It is derived from recorded facts:
+The domain separates reusable venue facts from profile-specific financial and
+journal state:
 
 ```text
-current_capital =
-    initial_capital
-    + sum(deposits)
-    - sum(withdrawals)
-    + sum(realized_pnl)
+User
+├── Venue
+│   ├── VenueProduct
+│   │   └── VenueInstrument
+│   └── VenueAsset
+└── TradingProfile
+    ├── Venue and market class
+    ├── ProfileProduct → VenueProduct
+    │   └── ProfileInstrument → VenueInstrument
+    │       └── MarketDataFeed
+    │           └── DailyCandle
+    ├── WalletAsset → VenueAsset
+    │   └── WalletOperation
+    ├── TradingStrategy
+    └── Trade → ProfileInstrument
 ```
 
-Capital operations are explicit `DEPOSIT` or `WITHDRAWAL` records with an
-amount, optional note, and automatic creation timestamp. They cannot be
-backdated because they represent the moment the journal allocation changes.
-They may be corrected when entered mistakenly.
+There is no cross-venue asset or instrument catalog, explicit market
+activation, or separate trading-account layer. `Venue` is the reusable public
+instrument boundary. `TradingProfile` is the independent financial and
+journal boundary and never duplicates the venue catalog.
 
-A withdrawal cannot exceed positive current virtual capital. It may occur
-while trades are open and may deliberately place the profile at or below its
-risk stop. No capital operation instructs an exchange to move funds.
+## Venues and trading profiles
 
-Deposits and withdrawals affect future position sizing and profile status but
-not trading-quality analytics.
+`Venue` is an owner-scoped exchange, broker, or other execution destination.
+It has a name, an optional website URL, and an instrument adapter kind that
+defaults to `MANUAL`. A venue may support more than one market family, so
+Crypto or Equity does not belong to the venue itself.
+
+Venues and their instrument catalogs are managed independently from profiles.
+An active venue can be reused by several profiles and cannot be archived while
+an active profile references it. Archived venues remain attached to historical
+profiles but are unavailable for new profile selection.
+
+`TradingProfile` is the user's top-level trading context, such as "Bybit Main"
+or "IBKR Equities". It belongs to one venue and fixes one market class:
+Crypto or Equity. Market class directly determines which products can be
+configured; the user does not separately activate market families.
+
+A profile selects products and instruments from its venue and owns its virtual
+wallet, strategies, and trades. Multiple profiles at the same venue share
+catalog identity while retaining independent balances, risk, configuration,
+and journal history. Archiving a profile removes the financial context from
+normal new activity without changing venue catalog facts or historical trades.
+
+## Venue products, assets, and instruments
+
+`VenueProduct` is a catalog section under one venue. Its kind is Spot, Linear
+Perpetual, or Cash Equity and is unique within that venue. It owns instrument
+catalog and adapter synchronization state. Manual venues expose the same
+sections but their instruments are maintained by the user.
+
+`VenueAsset` is an internal venue-scoped identity with a normalized symbol,
+asset class, and optional descriptive metadata. Symbols are unique within one
+venue without regard to letter case. There is no standalone asset-management
+screen. Manual instrument entry creates or reuses its base, quote, and
+settlement venue assets; adapters normalize provider metadata into the same
+records.
+
+`VenueInstrument` belongs to one venue product and uses venue assets for its
+base, quote, and settlement sides. It stores the venue execution symbol, price
+and quantity steps, minimum order rules, availability, import provenance, and
+archive or delisting state. The canonical display is `BASE/QUOTE`. A catalog
+sync never deletes an instrument referenced by a profile or trade. Product,
+base, quote, settlement, and execution identity are not mutated in place after
+use; an identity change creates a replacement instrument.
+
+Venue product kind is unique per venue, venue asset symbol is unique per venue
+without regard to case, and an active base, quote, and settlement combination
+is unique per venue product. A non-empty execution symbol is also unique within
+its venue product.
+
+The initial compatibility matrix is:
+
+| Market class | Product | Base | Quote | Settlement | Directions |
+| --- | --- | --- | --- | --- | --- |
+| Crypto | Spot | Crypto | Crypto or Fiat | Quote | LONG |
+| Crypto | Linear Perpetual | Crypto | Crypto or Fiat | Explicit | LONG, SHORT |
+| Equity | Cash | Equity | Fiat | Quote | LONG |
+
+Base and quote must differ. Spot and Cash Equity derive settlement from the
+quote asset. A Linear adapter supplies settlement when it can; otherwise the
+user must select it explicitly. An imported pair with unresolved settlement
+cannot become active or be used by a trade. Symbols are never parsed to guess
+settlement, and USD, USDT, and USDC are distinct without an explicit future
+conversion policy.
+
+Venue instrument adapters synchronize this reusable catalog for every
+supported product, including the full public Spot or Linear list when the
+adapter provides it. Missing provider instruments become unavailable or
+delisted rather than being deleted. Import never selects instruments for a
+profile and never makes an automatic market-data or execution choice.
+
+## Profile product and instrument selection
+
+`ProfileProduct` links a profile to a compatible `VenueProduct`. A Crypto
+profile may select Spot and Linear Perpetual from its venue; an Equity profile
+may select Cash Equity. Future authenticated execution configuration belongs
+to this profile product, not to the venue catalog.
+
+`ProfileInstrument` links a profile product to one instrument from the same
+venue product. It represents the deliberately enabled working subset of the
+venue catalog, so an imported venue with thousands of instruments does not
+flood trade selectors. The selection can be archived without changing the
+shared venue instrument. Trades reference this profile selection rather than
+referencing the venue catalog directly.
+
+A profile product must reference a venue product owned by the profile's venue.
+A profile instrument must reference an instrument from that exact venue
+product. Each product kind and each active instrument selection are unique
+within one profile.
+
+## Virtual wallet
+
+`WalletAsset` belongs to a profile and references one `VenueAsset` from the
+profile's venue. The same venue USDT identity can back independent wallet
+balances and reservations in several profiles. Wallet choices are the unique
+base, quote, and settlement assets exposed by the profile's active instrument
+selections, restricted to asset classes eligible for wallet accounting. Only
+wallet assets also used as settlement by an active profile instrument can be
+selected by a strategy.
+
+Wallet funds are introduced and removed only through explicit `DEPOSIT` and
+`WITHDRAWAL` operations on a selected wallet asset. An operation stores its
+wallet asset, amount, optional note, and creation time. It is a journal fact,
+not an exchange action. A wallet asset with activity or a strategy or trade
+settled in it cannot be removed.
+
+```text
+wallet_balance = deposits - withdrawals + closed_trade_realized_pnl
+available_balance = wallet_balance - reserved_notional
+```
+
+Pending-entry and open trades reserve their snapshotted planned notional at
+the fixed `1x` strategy. Drafts reserve nothing. A withdrawal cannot exceed
+positive available balance. Closing a trade is never rejected because its
+recorded P&L may legitimately make a virtual balance negative.
+
+## Trading strategies
+
+`TradingStrategy` is one fixed strategic risk cohort inside a profile. It
+stores its name, description, settlement wallet asset, strategic capital,
+risk percent, absolute risk stop, and operational status. Several strategies
+may share the same profile wallet.
+
+The selectable settlement assets for a strategy are the intersection of the
+profile wallet and settlement assets of active profile instrument selections.
+A strategy can use several products and instruments, but every selected
+instrument must have exactly the same settlement asset. Unlike currencies are
+never treated as equivalent.
+
+Strategy settlement, strategic capital, risk percent, and risk stop remain
+correctable while every strategy trade is a draft and become locked after the
+first submitted trade. The strategy name and description remain editable.
+
+The first version excludes FX, spot margin, equity short selling, configurable
+leverage, inverse contracts, expiring futures, options, and contract
+multipliers.
 
 ## Risk sizing
 
-Future trade risk uses the greater of initial and current capital:
+Future trade risk uses the fixed strategic capital:
 
 ```text
-risk_base = max(initial_capital, current_capital)
-risk_amount = risk_base * risk_percent / 100
+risk_amount = strategic_capital * risk_percent / 100
 take_profit_amount = risk_amount * 3
 ```
 
-Initial capital is therefore a floor for position-risk sizing. Losses below it
-do not shrink subsequent planned monetary risk. Profits and additional
-allocated capital above it increase planned risk proportionally.
+Profits, losses, and wallet operations never resize monetary `1R`. A trader
+who changes strategy scale creates a new strategy and may archive the old
+one. The absolute `risk_stop_capital` identifies the strategy-equity level at
+which the strategy should stop.
 
-The absolute `risk_stop_capital` is selected by the user. It identifies the
-capital level at which trading should stop. It does not trail profit or change
-automatically after deposits and withdrawals. A form may suggest 90% of
-initial capital, but only the resulting absolute amount is persisted.
+## Strategy status
 
-## Profile status
-
-Profile status has four values:
+Strategy status has four values:
 
 - `ACTIVE`;
 - `AT_RISK`;
 - `RISK_STOPPED`;
 - `ARCHIVED`.
+
+Strategy equity is a strategy result, not wallet funds:
+
+```text
+strategy_equity = strategic_capital + sum(strategy realized_pnl)
+```
 
 Pending and open trades reserve their snapshotted planned risk:
 
@@ -111,48 +211,45 @@ Pending and open trades reserve their snapshotted planned risk:
 reserved_risk =
     sum(planned_risk_amount for PENDING_ENTRY and OPEN trades)
 
-worst_case_capital = current_capital - reserved_risk
+worst_case_equity = strategy_equity - reserved_risk
 ```
 
-An archived profile always reports `ARCHIVED`. Otherwise it is
-`RISK_STOPPED` when current capital is at or below the stop, `AT_RISK` when
-current capital is above the stop but worst-case capital is at or below it,
-and `ACTIVE` otherwise. Restoring an archived profile recalculates its
+An archived strategy always reports `ARCHIVED`. Otherwise it is
+`RISK_STOPPED` when strategy equity is at or below the stop, `AT_RISK` when
+strategy equity is above the stop but worst-case equity is at or below it,
+and `ACTIVE` otherwise. Restoring an archived strategy recalculates its
 financial status.
 
 Financial facts are the source of truth. Focused domain services update the
 persisted operational status after relevant capital and trade transitions.
 
-The risk stop is advisory for manually recorded activity. A draft can always
-be saved. A manual or imported trade can be marked pending or open after a
-clear warning, and the trade stores the breach fact. A future automatic
-adapter does not send a new order that breaches the limit, but it still
-imports externally placed violating trades.
+The risk stop is advisory for manual activity. A draft can always be saved.
+A transition to pending or open records an explicit risk-stop breach after a
+clear warning. Insufficient wallet availability is a hard constraint for a
+prospective pending or open trade because the virtual wallet cannot provide
+the required `1x` notional.
 
-## Profile trading pairs
+## Strategy and instrument compatibility
 
-`ProfileTradingPair` connects one base `Asset` to one profile. Its quote and
-settlement asset is the profile's capital asset. The journal's canonical
-display is always:
+A trade belongs to one strategy and one profile instrument selection. Both
+must belong to the same profile. The underlying venue instrument must belong
+to that profile's venue and its settlement asset must exactly match the
+strategy settlement wallet asset. Product is derived from the instrument
+selection rather than duplicated on the trade.
 
 ```text
-BASE/QUOTE
+profile_instrument.profile = strategy.profile
+profile_instrument.venue_instrument.venue_product.venue =
+    strategy.profile.venue
+profile_instrument.venue_instrument.settlement_asset =
+    strategy.settlement_wallet_asset.venue_asset
 ```
 
-Base and quote must be different. One active occurrence of a base asset may
-exist in a profile. Price and quantity steps, precision, minimum quantity,
-minimum notional, optional provider symbol, and market-data source
-configuration belong to this profile-specific relation because venue rules
-may differ.
-
-The display separator is not profile configuration. A future adapter composes
-its own external symbol from structured assets—for example, Bybit may use
-`BTCUSDT` while the journal displays `BTC/USDT`. An exceptional provider can
-store an explicit external symbol on the pair relation. Venue formatting does
-not leak into the canonical journal identity.
-
-Cross-currency conversion is outside profile risk sizing. It belongs to a
-future cross-profile portfolio view if that feature becomes necessary.
+Compatible querysets hide invalid instrument selections in the interface.
+Draft persistence and every transition to `PENDING_ENTRY` or `OPEN` repeat
+the invariant in a domain service so stale forms, crafted requests, and
+future execution adapters cannot bypass it. For example, a USD strategy
+cannot use BTC/USDT even when its profile wallet also contains USDT.
 
 ## Position plan
 
@@ -169,11 +266,11 @@ SHORT take_profit = entry - distance * reward_multiple
 quantity = risk_amount / distance
 ```
 
-Quantity is rounded down to the pair's quantity step so the resulting plan
+Quantity is rounded down to the market's quantity step so the resulting plan
 does not exceed the snapshotted risk. Plans below minimum quantity or notional
-are invalid or clearly marked. A Linear plan whose notional exceeds available
-profile capital at `1x` is marked infeasible; leverage is never increased to
-make it fit.
+are invalid or clearly marked. A plan whose notional exceeds the wallet's
+available balance in its settlement asset is infeasible at `1x`; leverage is
+never increased to make it fit.
 
 Financial, price, quantity, percentage, P&L, and R calculations use decimal
 arithmetic with explicit rounding.
@@ -188,48 +285,50 @@ The initial lifecycle is:
 - `CLOSED`;
 - `CANCELLED`.
 
-A draft is an analyzed setup that may never be traded and reserves no risk.
-`PENDING_ENTRY` represents a placed but unfilled order and reserves planned
-risk. `OPEN` reserves the same risk after entry. Cancelling an unfilled order
-or closing a position releases the reservation and recalculates profile
-status.
+A draft is an analyzed setup that may never be traded and reserves no funds.
+`PENDING_ENTRY` represents a placed but unfilled manual order and reserves
+planned notional in the profile wallet. `OPEN` retains that reservation.
+Cancelling an unfilled order or closing a position releases it and
+recalculates strategy status.
 
 Lifecycle changes are coordinated by focused operations such as
 `submit_trade`, `open_trade`, `cancel_trade`, and `close_trade`. These
-operations form the shared boundary used by HTTP views now and exchange
-adapters later.
+operations form the shared boundary used by HTTP views and the manual journal.
 
 When a trade leaves `DRAFT`, it snapshots enough decision context to remain
 reproducible:
 
 - planned risk percent and amount;
 - reward multiple;
-- current capital and risk base;
+- strategy equity and fixed strategic capital;
 - risk-stop capital;
 - already reserved risk;
 - remaining risk capacity;
 - risk-limit breach state;
+- wallet balance, reservation, and available balance;
 - position-plan material values;
 - the relevant ATR context.
 
-Later capital operations, profile corrections, and other trades do not
-rewrite these snapshots.
+Later wallet operations, strategy corrections, and other trades do not rewrite
+these snapshots.
 
 ## Closing and realized result
 
 The first version does not model partial fills or exits. A partially closed
 position remains `OPEN`. Once fully closed, it stores one final signed net
-`realized_pnl` in profile currency. This number is authoritative and already
+`realized_pnl` in strategy currency. This number is authoritative and already
 includes fees, slippage, stops, targets, funding, and manual exits.
 
 An optional actual exit price is reference data. Optional total commission
 and signed funding result explain the net outcome but are not subtracted from
-it again. Realized P&L changes current profile capital when closure is
-registered in Tradefog.
+it again. Realized P&L changes the profile wallet balance for the settlement
+asset and the strategy's virtual equity when closure is registered in
+Tradefog.
 
 A retrospectively entered trade belongs analytically to its `trade_date` but
-changes current capital at registration time. Correcting journal facts
-recalculates analytics and current profile state without rewriting snapshots
+changes wallet balance and strategy equity at registration time. Correcting
+journal facts
+recalculates analytics and current strategy state without rewriting snapshots
 on other submitted trades.
 
 ## R results and quality trajectory
@@ -308,14 +407,26 @@ An owner-defined strategy checklist is a separate future concept. It measures
 setup strength relative to a selected strategy rather than predicting market
 direction and requires immutable historical strategy versions.
 
-## Market snapshots and ATR
+## Market-data feeds, snapshots, and ATR
 
-Market observations are scoped to a profile trading pair because provider,
-market type, candles, and symbol rules vary. A dated closed daily candle stores
-OHLC prices, source identity, source observation time, and trading date. Bybit
-daily candle dates identify UTC provider sessions. Each pair selects `MANUAL`
-or `BYBIT` market data independently of its execution provider; `MANUAL` is
-the default. Manual corrections take precedence over later provider refreshes.
+Market observations belong to one profile instrument selection. A selection
+has one active `MarketDataFeed`; previous feeds may remain inactive so candles
+from different providers are never mixed. A feed stores its provider,
+external symbol, provider-specific category, refresh state, and dated closed
+daily candles. The supported sources are `MANUAL`, `BYBIT`, and
+`TWELVE_DATA`, with `MANUAL` as the default.
+
+Automatic data is never enabled merely because an instrument was imported
+into a venue catalog. The user must explicitly select and configure an
+automatic source for the profile instrument.
+Manual feed candles can be added, corrected, and removed by the user.
+Automatic feed candles are read-only journal cache and change only through
+their provider adapter. Market-data symbols and reported quote currencies do
+not determine the execution pair's settlement asset.
+
+A dated closed daily candle stores OHLC prices, source observation time, and
+provider trading date. Provider session semantics remain attached to the
+feed; for example, Bybit daily candle dates identify UTC sessions.
 
 True Range and standard `ATR(14)` are deterministic calculations over closed
 daily candles. The initial ATR is the mean of the first 14 True Range values,
@@ -336,9 +447,9 @@ This comparison is advisory. It does not change the take profit, position
 size, risk, or lifecycle validity.
 
 The latest successful provider refresh, failure state, and still-forming
-session high and low are cached per pair. Provider failure preserves stored
+session high and low are cached per feed. Provider failure preserves stored
 candles and marks their context stale. When a trade leaves `DRAFT`, available
-ATR value, contributing date, source composition, current-session range,
+ATR value, contributing date, feed identity, current-session range,
 observation time, and stale state are frozen with the other decision facts.
 Missing or stale market context remains advisory and does not block the
 manual trade lifecycle.

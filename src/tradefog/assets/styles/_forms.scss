@@ -1,0 +1,6 @@
+/* Shared form-control overrides. */
+
+/* Invalid form controls share the Tabler danger border. */
+.tf-field-invalid :is(.form-control, .form-select) {
+  border-color: var(--tblr-danger);
+}

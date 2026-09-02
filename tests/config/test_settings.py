@@ -150,9 +150,9 @@ def test_model_defaults_are_used_without_config_file(
     assert config.media.max_attachment_size_mib == 10
     assert config.media.max_attachment_size_bytes() == 10 * 1024 * 1024
     assert config.authentication.user_model() == "accounts.User"
-    assert config.authentication.login_url() == "login"
-    assert config.authentication.login_redirect_url() == "home"
-    assert config.authentication.logout_redirect_url() == "login"
+    assert config.authentication.login_url() == "accounts:login"
+    assert config.authentication.login_redirect_url() == "journal:home"
+    assert config.authentication.logout_redirect_url() == "accounts:login"
 
 
 def test_structural_localization_setting_is_rejected(

@@ -1,0 +1,38 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Trades" %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          {% translate "Journal decisions" as page_direction %}
+          {% translate "Trades" as page_heading %}
+          {% translate "Manual trade decisions, execution, and post-trade review." as page_help_text %}
+          {% include "tradefog/components/page_heading.html" with direction=page_direction heading=page_heading help_text=page_help_text %}
+        </div>
+        <div class="col-auto ms-auto">
+          <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+             href="{% url 'journal:trade_new' %}">
+            {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+            {% translate "New trade" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <section class="empty empty-bordered">
+    <div class="empty-icon">
+      {% include "tradefog/components/icon.html" with name="chart-candle" %}
+    </div>
+    <h2 class="empty-title">{% translate "No trades yet" %}</h2>
+    <p class="empty-subtitle text-secondary">
+      {% translate "Record your first manual trade to start building the journal." %}
+    </p>
+  </section>
+{% endblock %}

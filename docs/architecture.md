@@ -27,14 +27,16 @@ The codebase uses a small number of cohesive Django applications:
 ```text
 tradefog/
 ├── accounts/       # custom user model and authentication
-├── journal/        # assets, profiles, pairs, trades, and calculations
+├── journal/        # profiles, strategies, instruments, trades, calculations
 ├── config/         # typed application configuration and Django settings
 ├── templates/
 └── static/
 ```
 
 `journal` is the primary domain application. Analytics remains part of it
-until analytics develops an independently complex responsibility.
+until analytics develops an independently complex responsibility. Its modules
+may be reorganized into cohesive subpackages for wallet, profiles, markets,
+trades, analytics, and review rather than growing as flat files.
 
 The intended dependency direction is:
 
@@ -77,12 +79,12 @@ large conditional state machine. Typical routes include:
 /trades/<id>/cancel/
 /trades/<id>/close/
 /analytics/
-/pairs/
+/profiles/<id>/instruments/
 ```
 
 HTMX responses are translated HTML fragments. Independently updated regions
 use partial templates. Out-of-band swaps are suitable when one domain action
-changes several independent fragments, such as plan, profile status, and
+changes several independent fragments, such as plan, strategy status, and
 remaining risk.
 
 The server remains the source of truth for persisted state. JavaScript is
@@ -90,22 +92,54 @@ limited to browser interactions that are awkward in server-rendered HTML.
 
 ## Frontend
 
-Tabler UI is the component and layout system. Its standard palette,
+Tabler UI is the component and layout system. Its vertical fluid layout and
+standard palette,
 documented components, Bootstrap utilities, validation states, and responsive
 patterns define the established visual language. Tabler, HTMX, and selected
 plugins are served locally; production pages do not depend on a CDN.
+
+Detailed page composition and presentation rules live in
+[`style-guide.md`](style-guide.md). This section records architectural
+boundaries; the style guide is authoritative for shared interface patterns.
 
 Templates use semantic HTML, accessible controls, and reusable partials where
 they represent genuinely repeated interface structure. Custom styling and
 JavaScript stay small and feature-driven.
 
+Every visible form control has a concise contextual hint that explains its
+domain meaning, effect, or expected format. Hints are linked to their controls
+with `aria-describedby`; they do not merely repeat field labels.
+
+Top-level journal sections use one shared page-heading partial: a direction,
+title, and keyboard-accessible help-circle tooltip that explains the section's
+purpose. Contextual forms and object-detail screens retain task-specific
+headers.
+
+The authenticated shell uses Tabler's sticky horizontal navigation in a shared
+`container-xl` layout. Its upper bar contains the Tradefog brand, theme
+control, and user menu with a placeholder avatar. Its Settings item is a
+disabled placeholder until account settings are designed. The second bar
+contains Home, Profiles, Trades, Analytics, and Settings. Profile detail
+navigation contains Overview, Instruments, Wallet, Strategies, Trades, and
+Settings. The trade workspace has a persistent context line for profile,
+strategy, pair, fixed monetary `1R`, and available wallet funds. A compact
+footer links to documentation, changelog, source, and sponsorship.
+
 Operational journal lists use Django query parameters for sorting,
-filtering, and pagination. HTMX replaces only the affected result region,
+filtering, and pagination. Non-analytics list filters use one shared,
+collapsed-by-default two-column panel; active values and validation errors
+keep it open. HTMX replaces only the affected result region,
 while the same URL remains directly navigable and refreshable. Tables sharing
-a profile page use independent parameter names so capital history, active
-pairs, and archived pairs do not reset one another. List.js remains limited
+a profile page use independent parameter names so instruments and wallet
+activity do not reset one another. List.js remains limited
 to the current analytics table until that interface is revisited with its
 full filtering context.
+
+The wallet belongs to one trading profile. Deposit and withdrawal controls
+live on the relevant asset card and load a server-rendered form into a small
+HTMX-powered Tabler modal. Its immutable activity table uses server-side
+asset, operation, and date filters, sorting, and pagination through the same
+URL.
 
 Material interface work follows the project's restrained, risk-discipline
 visual direction. New decoration is tied to useful information rather than a
@@ -177,43 +211,71 @@ responsible for retention. Django `DEBUG` and log level are independent.
 Meaningful domain transitions, recoverable failures, and external integration
 boundaries are logged without secrets or complete configuration objects.
 
-## Exchange and market-data boundaries
+## Integration boundaries
 
-The journal, lifecycle services, models, analytics, and primary interface are
-shared by all execution providers. Manual and future Bybit profiles do not
-fork the domain or page structure.
+Manual journal execution is the only current execution workflow. Tradefog does
+not yet hold venue credentials, submit orders, or synchronize positions. A
+venue may carry an optional website URL and an instrument adapter kind that
+defaults to manual maintenance. Each venue owns one reusable catalog of
+products, internal normalized assets, and instruments. Profiles select from
+that catalog without copying it. The profile-scoped virtual wallet remains
+authoritative for journal availability and reservations.
 
-An exchange connection is distinct from a trading profile. One connection may
-serve several virtual allocations. Exchange wallet balances are never the
-source of truth for profile capital, although an adapter may check actual
-balance before execution.
+There are three independent adapter responsibilities:
 
-A future Bybit adapter extends the shared trade workspace with execution
-controls and calls the same lifecycle operations as manual views. It may
-place entry, stop, and take-profit orders, associate external identifiers,
-synchronize state, and record final P&L. Journal review and attachments remain
-common application behavior.
+- a venue instrument adapter synchronizes venue products and instruments and
+  normalizes base, quote, settlement, execution identity, and order rules;
+- a market-data adapter fetches candles for one configured feed;
+- a future execution adapter submits and synchronizes orders through a
+  configured profile-product connection.
 
-Provider credentials, execution modes, and external order identifiers enter
-the schema only with the first working adapter. Exchange-specific code stays
-behind a small service boundary and does not spread through templates,
-analytics, or core models.
+An instrument adapter uses public venue metadata and requires no trading
+credentials. It may synchronize complete Spot, Linear, or Cash Equity catalogs
+for the venue, but it does not select profile instruments, select market data,
+or enable execution. Synchronization creates or reuses venue assets, updates
+mutable precision and minimum-order facts, and marks missing instruments
+unavailable instead of deleting them. Product and asset identity are never
+rewritten in place after use. Spot and Cash Equity derive settlement from
+quote. Linear settlement must come from adapter metadata or explicit manual
+input; an unresolved instrument remains inactive. Adapters never infer
+equivalence between USD, USDT, USDC, or other symbols.
 
-Market-data retrieval has a separate focused boundary. It can use public
-provider data without requiring the execution adapter or account credentials.
-On-demand requests use the synchronous HTTPX client with explicit timeouts and
-cached fallback data. The public Bybit client only converts provider responses
-into typed candle values. Persistence and fallback behavior remain in the
-market-data service, while True Range and ATR are pure calculations. A future
-authenticated Bybit execution adapter remains a separate boundary.
+Manual venues use the same catalog services and constraints as adapter-backed
+venues. Their instrument form accepts product, base, quote, settlement,
+execution symbol, precision, and minimum-order facts. It creates or reuses
+internal `VenueAsset` records; assets do not have an independent UI.
+
+Market data has a separate focused boundary. Every profile instrument
+selection defaults to a manual feed; Bybit and Twelve Data are explicit
+automatic choices. A provider's external symbol or quote currency cannot
+redefine the underlying venue instrument or its settlement asset. The
+on-demand HTTPX clients use explicit timeouts; persistence, cached fallback,
+provenance, and manual-versus-automatic edit authorization remain in the
+market-data service, while True Range and ATR remain pure calculations.
+Provider failure cannot block manual journaling.
+
+Future order submission is a focused execution boundary. A configured
+connection and its credentials belong to a profile product, not to the user,
+venue, or public catalog record. Manual actions remain available when no
+adapter or connection exists. Before any manual or automatic transition to
+pending or open, the shared domain service verifies that the strategy and
+profile instrument selection belong to the same profile, the venue instrument
+belongs to that profile's venue, and settlement assets are exactly equal.
+Adapter failure leaves the journal decision unchanged and cannot make manual
+journaling unavailable.
+
+TradingView, if ever added, is an opt-in external visual embed with visible
+attribution. It is not an ATR source and must not become a required runtime
+dependency for the journal.
 
 ## Persistence
 
 SQLite is the initial database. ORM code remains portable enough for a later
 PostgreSQL migration, without depending on PostgreSQL-specific behavior.
 
-Calculated statistics are derived from stored trade facts until measurement
-shows a need for denormalization. Persisted calculated values exist only when
+Calculated wallet balances, strategy equity, reservations, and statistics are
+derived from stored facts until measurement shows a need for denormalization.
+Persisted calculated values exist only when
 they preserve decision context or historical reproducibility, such as risk
 snapshots on submitted trades.
 
@@ -221,18 +283,21 @@ Multi-model domain transitions use database transactions when atomicity is
 required. Ownership is enforced at query boundaries, and database constraints
 back important invariants where practical.
 
+Catalog synchronization is transactional per venue product. Referenced venue
+assets and instruments are retained for history; delisting and user removal
+change availability rather than destroying identities. Profile instrument
+selection is a separate join boundary so profile archive state and catalog
+availability cannot overwrite one another.
+
 ## Security
 
 The application uses Django authentication, CSRF protection, and standard
 security mechanisms. Exchange keys, API secrets, session secrets, and
 production environment files are never repository content or log data.
 
-Future exchange credentials request only the permissions needed for supported
-execution. Withdrawal permission is not part of journal automation.
-
 Attachments are private by default. External failures cannot corrupt journal
-state, and the manual journal remains usable when an exchange or market-data
-provider is unavailable.
+state, and the manual journal remains usable when a market-data provider is
+unavailable.
 
 ## Development and packaging
 

@@ -1,0 +1,38 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Profiles" %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          {% translate "Profile overview" as page_direction %}
+          {% translate "Trading profiles" as page_heading %}
+          {% translate "A profile keeps one venue, its instruments, wallet, and strategies together." as page_help_text %}
+          {% include "tradefog/components/page_heading.html" with direction=page_direction heading=page_heading help_text=page_help_text %}
+        </div>
+        <div class="col-auto ms-auto">
+          <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+             href="{% url 'journal:profiles' %}">
+            {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+            {% translate "Create trading profile" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <section class="empty empty-bordered">
+    <div class="empty-icon">
+      {% include "tradefog/components/icon.html" with name="notebook" %}
+    </div>
+    <h2 class="empty-title">{% translate "No trading profiles yet" %}</h2>
+    <p class="empty-subtitle text-secondary">
+      {% translate "Create a profile to keep one venue, its instruments, wallet, and strategies together." %}
+    </p>
+  </section>
+{% endblock %}

@@ -1,16 +1,16 @@
 {% extends "tradefog/base.html" %}
 {% load i18n %}
 
-{% block title %}{% translate "Home" %} · Tradefog{% endblock %}
+{% block title %}{% translate "Settings" %} · Tradefog{% endblock %}
 
 {% block page_header %}
   <div class="page-header d-print-none">
     <div class="container-xl">
       <div class="row g-2 align-items-center">
         <div class="col">
-          {% translate "Trading journal" as page_direction %}
-          {% translate "Home" as page_heading %}
-          {% translate "Your trading journal, profiles, and analytics in one place." as page_help_text %}
+          {% translate "Configuration" as page_direction %}
+          {% translate "Settings" as page_heading %}
+          {% translate "Global project settings shared across the self-hosted journal." as page_help_text %}
           {% include "tradefog/components/page_heading.html" with direction=page_direction heading=page_heading help_text=page_help_text %}
         </div>
       </div>
@@ -21,11 +21,11 @@
 {% block content %}
   <section class="empty empty-bordered">
     <div class="empty-icon">
-      {% include "tradefog/components/icon.html" with name="home" %}
+      {% include "tradefog/components/icon.html" with name="settings" %}
     </div>
-    <h2 class="empty-title">{% translate "Welcome back" %}</h2>
+    <h2 class="empty-title">{% translate "Project settings" %}</h2>
     <p class="empty-subtitle text-secondary">
-      {% translate "This area is a placeholder until the journal backend is ready." %}
+      {% translate "Global venue configuration for all users will appear here." %}
     </p>
   </section>
 {% endblock %}

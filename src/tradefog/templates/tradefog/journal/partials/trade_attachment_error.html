@@ -1,5 +1,0 @@
-{% load i18n %}
-
-<div class="alert alert-danger py-2 mb-0 tf-upload-error" role="alert">
-  {% for error in form.file.errors %}{{ error }}{% empty %}{% translate "Upload failed. Try again." %}{% endfor %}
-</div>

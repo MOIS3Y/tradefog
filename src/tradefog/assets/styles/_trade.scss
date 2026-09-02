@@ -1,0 +1,419 @@
+/* Trade workflow: context strip, market checklist, ATR context, description,
+ * and attachments. This is the largest override group and is kept together so
+ * trade-specific presentation stays in one place.
+ */
+
+/* Sticky trade context strip shown above the draft form. */
+.tf-trade-context {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-left: 3px solid var(--tblr-primary);
+  background: color-mix(in srgb, var(--tblr-bg-surface) 94%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+/* Market checklist form and its segmented answers. */
+.tf-checklist-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.tf-checklist-grid fieldset {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.tf-checklist-options {
+  margin-top: auto;
+}
+
+.tf-checklist-options .btn {
+  width: 0;
+  flex: 1 1 0;
+  display: inline-flex;
+  min-height: 2.5rem;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.tf-direction-options > :is(.btn, .tf-disabled-direction) {
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.tf-disabled-direction .btn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+@media (min-width: 768px) {
+  .tf-checklist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Directional assessment gauge. */
+.tf-checklist-assessment-card {
+  overflow: hidden;
+}
+
+.tf-direction-gauge {
+  padding: 1rem 0.25rem 0.5rem;
+}
+
+.tf-direction-gauge-track {
+  position: relative;
+  height: 0.875rem;
+  border-radius: var(--tblr-border-radius-pill);
+  background: linear-gradient(
+    90deg,
+    var(--tblr-danger) 0%,
+    color-mix(
+      in srgb,
+      var(--tblr-danger) 20%,
+      var(--tblr-bg-surface)
+    ) 45%,
+    color-mix(
+      in srgb,
+      var(--tblr-success) 20%,
+      var(--tblr-bg-surface)
+    ) 55%,
+    var(--tblr-success) 100%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(
+    in srgb,
+    var(--tblr-body-color) 12%,
+    transparent
+  );
+}
+
+.tf-direction-gauge-midpoint {
+  position: absolute;
+  top: -0.25rem;
+  bottom: -0.25rem;
+  left: 50%;
+  width: 1px;
+  background: var(--tblr-secondary);
+  transform: translateX(-50%);
+}
+
+.tf-direction-gauge-marker {
+  position: absolute;
+  top: 50%;
+  left: var(--tf-gauge-position);
+  width: 1.625rem;
+  height: 1.625rem;
+  border: 0.3125rem solid var(--tblr-bg-surface);
+  border-radius: 50%;
+  background: var(--tblr-body-color);
+  box-shadow: 0 0 0 1px color-mix(
+    in srgb,
+    var(--tblr-body-color) 28%,
+    transparent
+  );
+  transform: translate(-50%, -50%);
+}
+
+/* ATR / range tape used by market context and target comparison. */
+.tf-range-tape {
+  position: relative;
+  height: 0.75rem;
+  overflow: visible;
+  background: var(--tblr-bg-surface-secondary);
+  border: 1px solid var(--tblr-border-color);
+  border-radius: var(--tblr-border-radius-pill);
+}
+
+.tf-range-tape-fill {
+  width: var(--tf-range-percent);
+  height: 100%;
+  background: var(--tblr-primary);
+  border-radius: inherit;
+  transition: width 180ms ease-out;
+}
+
+.tf-range-tape-fill-success {
+  background: var(--tblr-success);
+}
+
+.tf-range-tape-fill-warning {
+  background: var(--tblr-warning);
+}
+
+.tf-range-tape-marker {
+  position: absolute;
+  top: -0.3rem;
+  bottom: -0.3rem;
+  left: 75%;
+  width: 2px;
+  background: var(--tblr-warning);
+}
+
+.tf-range-tape-marker span {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  color: var(--tblr-secondary-color);
+  font-size: 0.625rem;
+  font-weight: 600;
+  transform: translateX(50%);
+}
+
+/* Market candlestick chart surface. */
+.tf-market-candle-chart {
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Trade description: rendered copy and EasyMDE editor. */
+.tf-trade-description .card-status-start {
+  border-radius: var(--tblr-card-border-radius) 0 0
+    var(--tblr-card-border-radius);
+}
+
+.tf-description-rendered {
+  max-width: 72rem;
+  line-height: 1.7;
+}
+
+.tf-description-rendered > :last-child {
+  margin-bottom: 0;
+}
+
+.tf-trade-description .EasyMDEContainer .CodeMirror {
+  color: var(--tblr-body-color);
+  border: 1px solid var(--tblr-border-color) !important;
+  border-radius: 0 0 var(--tblr-border-radius) var(--tblr-border-radius);
+  background: var(--tblr-bg-surface);
+  font-family: var(--tblr-font-sans-serif);
+  font-size: var(--tblr-body-font-size);
+  transition:
+    border-color 150ms ease-in-out,
+    box-shadow 150ms ease-in-out;
+}
+
+.tf-trade-description .EasyMDEContainer .CodeMirror-focused {
+  border-color: var(--tblr-primary) !important;
+  box-shadow: 0 0 0 0.25rem
+    color-mix(in srgb, var(--tblr-primary) 25%, transparent);
+}
+
+.tf-trade-description .editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem;
+  border: 1px solid var(--tblr-border-color) !important;
+  border-bottom: 0 !important;
+  border-radius: var(--tblr-border-radius) var(--tblr-border-radius) 0 0;
+  background: var(--tblr-bg-surface);
+  opacity: 1;
+}
+
+.tf-trade-description .editor-toolbar button {
+  width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-color: transparent;
+  color: var(--tblr-secondary-color) !important;
+  font-family: var(--tblr-font-sans-serif);
+  line-height: 2rem;
+}
+
+.tf-trade-description .editor-toolbar .tf-mde-bold {
+  font-weight: 700;
+}
+
+.tf-trade-description .editor-toolbar .tf-mde-italic {
+  font-style: italic;
+}
+
+.tf-trade-description .editor-toolbar .tf-mde-heading {
+  font-weight: 600;
+}
+
+.tf-trade-description .editor-toolbar .tf-mde-ordered-list {
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.tf-trade-description .editor-toolbar button.active,
+.tf-trade-description .editor-toolbar button:hover,
+.tf-trade-description .editor-toolbar button:focus-visible {
+  border-color: var(--tblr-border-color);
+  background: var(--tblr-bg-surface-secondary);
+  color: var(--tblr-body-color) !important;
+}
+
+.tf-trade-description .editor-toolbar i.separator {
+  height: 1.25rem;
+  margin: 0.375rem 0.25rem;
+  border-right: 0;
+  border-left: 1px solid var(--tblr-border-color);
+}
+
+.tf-trade-description .cm-s-easymde .CodeMirror-cursor,
+.tf-trade-description .CodeMirror-cursor {
+  width: 0;
+  border-right: 0;
+  border-left: 1px solid var(--tblr-body-color) !important;
+}
+
+.tf-trade-description .cm-s-easymde .cm-comment {
+  background: var(--tblr-bg-surface-secondary);
+  color: var(--tblr-body-color);
+}
+
+.tf-trade-description .cm-s-easymde .cm-link,
+.tf-trade-description .cm-s-easymde .cm-string,
+.tf-trade-description .cm-s-easymde .cm-tag {
+  color: var(--tblr-primary);
+}
+
+.tf-trade-description .cm-s-easymde .cm-attribute,
+.tf-trade-description .cm-s-easymde .cm-quote,
+.tf-trade-description .cm-s-easymde .cm-url {
+  color: var(--tblr-secondary-color);
+}
+
+.tf-trade-description .editor-preview,
+.tf-trade-description .editor-preview-side {
+  border-color: var(--tblr-border-color) !important;
+  background: var(--tblr-bg-surface) !important;
+  color: var(--tblr-body-color) !important;
+  line-height: 1.7;
+}
+
+.tf-trade-description .editor-preview pre,
+.tf-trade-description .editor-preview-side pre {
+  background: var(--tblr-bg-surface-secondary);
+  color: var(--tblr-body-color);
+}
+
+.tf-trade-description .editor-preview > :last-child,
+.tf-trade-description .editor-preview-side > :last-child {
+  margin-bottom: 0;
+}
+
+.tf-trade-description .CodeMirror-selected,
+.tf-trade-description .CodeMirror-focused .CodeMirror-selected,
+.tf-trade-description .CodeMirror-line::selection,
+.tf-trade-description .CodeMirror-line > span::selection,
+.tf-trade-description .CodeMirror-line > span > span::selection {
+  background: var(--tblr-bg-surface-secondary) !important;
+}
+
+/* Trade attachments gallery and upload feedback. */
+.tf-attachment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 1rem;
+}
+
+.tf-attachment-item {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--tblr-border-color);
+  border-radius: var(--tblr-border-radius);
+  background: var(--tblr-bg-surface);
+  transition:
+    opacity 180ms ease-out,
+    transform 180ms ease-out;
+}
+
+.tf-attachment-preview {
+  position: relative;
+  display: flex;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  background: var(--tblr-bg-surface-secondary);
+}
+
+.tf-attachment-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 180ms ease-out;
+}
+
+.tf-attachment-image .tf-attachment-preview:hover img {
+  transform: scale(1.025);
+}
+
+.tf-attachment-document {
+  gap: 0.5rem;
+  color: var(--tblr-secondary-color);
+  text-decoration: none;
+}
+
+.tf-attachment-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 3.25rem;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem;
+  font-size: 0.75rem;
+}
+
+.tf-attachment-name {
+  min-width: 0;
+}
+
+.tf-attachment-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+}
+
+.tf-attachment-actions .btn {
+  width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  padding: 0;
+}
+
+.tf-upload-actions {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.tf-upload-actions .btn {
+  width: 100%;
+  white-space: normal;
+}
+
+.tf-upload-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--tblr-dark) 42%, transparent);
+}
+
+.tf-attachment-upload.has-error .tf-upload-overlay {
+  display: none;
+}
+
+.tf-attachment-item.is-revealing {
+  opacity: 0;
+}
+
+.tf-attachment-item.is-removing {
+  opacity: 0;
+  transform: scale(0.96);
+  pointer-events: none;
+}

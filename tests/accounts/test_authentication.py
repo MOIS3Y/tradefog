@@ -105,14 +105,14 @@ def test_logout_requires_post_and_ends_session() -> None:
 def test_authentication_routes_are_language_prefixed() -> None:
     """Authentication routes should follow the active URL language."""
     with override("en"):
-        assert reverse("home") == "/en/"
-        assert reverse("login") == "/en/login/"
-        assert reverse("logout") == "/en/logout/"
+        assert reverse("journal:home") == "/en/"
+        assert reverse("accounts:login") == "/en/login/"
+        assert reverse("accounts:logout") == "/en/logout/"
 
     with override("ru"):
-        assert reverse("home") == "/ru/"
-        assert reverse("login") == "/ru/login/"
-        assert reverse("logout") == "/ru/logout/"
+        assert reverse("journal:home") == "/ru/"
+        assert reverse("accounts:login") == "/ru/login/"
+        assert reverse("accounts:logout") == "/ru/logout/"
 
 
 @mark.django_db

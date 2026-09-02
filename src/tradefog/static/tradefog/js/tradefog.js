@@ -88,6 +88,15 @@
     if (hiddenLabel) {
       hiddenLabel.textContent = label;
     }
+    const themeIcons = button.querySelectorAll(
+      ".tf-theme-icon-auto, .tf-theme-icon-dark, .tf-theme-icon-light",
+    );
+    for (const icon of themeIcons) {
+      icon.classList.toggle(
+        "d-none",
+        !icon.classList.contains(`tf-theme-icon-${choice}`),
+      );
+    }
   }
 
   /**
@@ -183,10 +192,52 @@
     updateVisibility();
   }
 
+  /** Enable Tabler's explanatory hover and focus tooltips. */
+  function initializeTooltips() {
+    if (!window.bootstrap?.Tooltip) {
+      return;
+    }
+
+    for (const element of document.querySelectorAll(
+      '[data-bs-toggle="tooltip"]',
+    )) {
+      window.bootstrap.Tooltip.getOrCreateInstance(element);
+    }
+  }
+
+  /** Toggle password visibility and its associated eye icon. */
+  function initializePasswordToggle() {
+    /** @type {HTMLButtonElement | null} */
+    const control = document.querySelector("[data-password-toggle]");
+    const input = control?.closest(".tf-password-field")?.querySelector(
+      "input[type=password]",
+    );
+    if (!control || !input) {
+      return;
+    }
+    const eye = control.querySelector(".tf-password-eye");
+    const eyeOff = control.querySelector(".tf-password-eye-off");
+    const update = (visible) => {
+      input.type = visible ? "text" : "password";
+      const label = visible
+        ? control.dataset.labelHide
+        : control.dataset.labelShow;
+      control.ariaLabel = label;
+      control.title = label;
+      eye?.classList.toggle("d-none", !visible);
+      eyeOff?.classList.toggle("d-none", visible);
+    };
+    control.addEventListener("click", () => {
+      update(input.type !== "text");
+    });
+  }
+
   /** Initialize every interactive control that depends on rendered markup. */
   function initializeControls() {
     initializeThemeToggle();
     initializeScrollTop();
+    initializeTooltips();
+    initializePasswordToggle();
   }
 
   if (document.readyState === "loading") {

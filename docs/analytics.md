@@ -7,8 +7,8 @@ series of closed trades. It helps answer four practical questions:
 
 1. Is the strategy producing a positive normalized result?
 2. How difficult was the path to that result?
-3. Where do the result and risk differ by profile, instrument, market, or
-   direction?
+3. Where do the result and risk differ by profile, strategy, instrument,
+   product, or direction?
 4. Are the strategy rules followed consistently, and which recorded errors
    recur?
 
@@ -27,17 +27,21 @@ The global filters are:
 - period: all time, rolling 30 or 90 days, year to date, rolling year, or a
   custom inclusive date range;
 - trading profile;
-- market type;
-- trading pair.
+- trading strategy;
+- product;
+- profile instrument, displayed by its canonical trading pair.
 
 `trade_date` is the source of truth for period filtering. Execution and audit
 timestamps do not move a trade between analytical periods. Closed trades are
 ordered by `trade_date`, creation time, and identifier so that calculations
 are deterministic.
 
-A trading pair belongs to a profile. Therefore the pair filter is available
-only after a profile is selected and contains only that profile's pairs. A
-pair selection never implicitly selects an otherwise hidden profile.
+A `ProfileInstrument` belongs to one profile product and links to a reusable
+venue instrument. Strategy-compatible selections have the same profile and
+exactly the same settlement asset as the strategy. Filter choices narrow in
+the sequence profile, strategy, product, and instrument. A lower-level
+selection does not silently widen or replace an explicit higher-level
+selection.
 
 Changing the global filter recalculates the complete selection. In
 particular, a filtered trajectory starts again at `(0, 0)`; it does not
@@ -72,8 +76,8 @@ Ratios and averages are always displayed together with the number of trades.
 Tradefog does not currently impose an arbitrary minimum sample size at which
 a strategy becomes statistically valid.
 
-Capital deposits, withdrawals, and profile capital do not enter normalized
-strategy-quality calculations. They may be shown in a separate capital view,
+Wallet deposits, withdrawals, and strategic capital do not enter normalized
+strategy-quality calculations. They may appear in wallet or strategy context,
 but they must not change R, X/Y trajectory, win rate, payoff, or drawdown in R.
 
 ## Result and outcome summary
@@ -216,32 +220,33 @@ source for that conclusion.
 The selected series can be grouped by:
 
 - trading profile;
-- canonical trading pair;
-- market type;
+- trading strategy;
+- canonical venue instrument;
+- product;
 - `LONG` or `SHORT` direction.
 
 Each group shows at least trade count, net R, average R, win rate, payoff,
 profit factor, and maximum drawdown in R. Group calculations restart from
 zero and retain deterministic chronological ordering within the group.
 
-Normalized R can be compared across profiles and currencies. Monetary values
-cannot be combined across different currencies without a defined conversion
-policy. Profile and sample size remain visible so that a small group is not
-mistaken for strong evidence.
+Normalized R can be compared across profiles, strategies, and currencies.
+Monetary values cannot be combined across different currencies without a
+defined conversion policy. Profile, strategy, and sample size remain visible
+so that a small group is not mistaken for strong evidence.
 
 ## Monetary result
 
 Net realized P&L answers a different question from strategy quality: how much
-money was actually recorded. It is displayed by profile and capital currency.
-Values in unlike currencies are not summed into a synthetic total.
+money was actually recorded. It is displayed by strategy and settlement
+asset. Values in unlike currencies are not summed into a synthetic total.
 
 Recorded realized P&L is already net and may include fees, slippage, funding,
 stops, targets, and manual exits. Optional commission and funding fields are
 useful for explaining costs, but must not be subtracted a second time.
 Coverage is shown whenever only some trades have those optional details.
 
-Capital change from the initial allocation, if added, is labelled exactly as
-such. It is not presented as cash-flow-adjusted investment return.
+Strategy virtual equity is labelled as strategic capital plus its realized
+P&L. It is not a wallet balance or a cash-flow-adjusted investment return.
 
 ## Decision quality and journal review
 
@@ -287,7 +292,8 @@ stages.
 ### Shared foundation and core trajectory
 
 - [x] Owner-scoped selection of closed trades with deterministic ordering.
-- [x] Global period, profile, market, and profile-dependent pair filters.
+- [x] Global period, profile, product, and instrument filters in the current
+  model.
 - [x] Recalculation of filtered results and trajectory from the origin.
 - [x] Closed, win, loss, break-even, and win-rate summary.
 - [x] Net, average, gross-profit, and gross-loss R metrics.
@@ -312,15 +318,15 @@ stages.
 
 ### Comparison and recent behavior
 
-- [ ] Add breakdowns by profile, pair, market, and direction.
+- [ ] Add breakdowns by profile, strategy, instrument, product, and direction.
 - [ ] Recalculate maximum drawdown and payoff inside each group.
 - [ ] Add rolling average R with 10, 20, and 50-trade windows.
 
 ### Monetary context
 
-- [ ] Add realized P&L grouped by profile and currency.
+- [ ] Add realized P&L grouped by strategy and currency.
 - [ ] Show commission and funding coverage without double subtraction.
-- [ ] Add clearly labelled capital change from initial allocation if needed.
+- [ ] Add strategy virtual equity and wallet activity as separate context.
 
 ### Decision quality and review
 

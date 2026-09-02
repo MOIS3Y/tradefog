@@ -6,10 +6,10 @@ Tradefog is a personal, self-hosted trading journal for a rules-based trading
 process. Its purpose is to help a trader prepare, document, track, review, and
 analyze discretionary trades while maintaining explicit risk discipline.
 
-The journal is the primary product. Exchange execution, notifications,
-external APIs, and other integrations are secondary capabilities. Tradefog is
-not an algorithmic trading platform, an exchange terminal, or a system that
-claims to predict market outcomes.
+The journal and its virtual wallet are the primary product. Tradefog is not
+an algorithmic trading platform, an exchange terminal, or a system that
+claims to predict market outcomes. Market-data providers are optional aids;
+they do not own balances, trades, or analytics.
 
 The guiding idea is:
 
@@ -44,26 +44,88 @@ history.
 
 The complete discretionary-trade workflow is:
 
-1. The user authenticates and opens the application.
-2. The user opens Trades and selects a trading profile.
-3. The trade workspace receives a trading pair and a direction.
-4. The user completes the trade-specific checklist.
-5. The directional assessment reacts to checklist changes.
-6. The workspace presents the current ATR context for the pair.
-7. The user enters the planned entry and stop prices.
-8. Tradefog calculates take profit, position quantity, and monetary risk.
-9. The trade is saved as a draft or moved to a pending or open state.
-10. An opened trade remains active until the entire position is closed.
-11. Throughout the trade, the user maintains a Markdown description and
+1. The user creates a venue and configures its Spot, Linear Perpetual, or Cash
+   Equity catalog manually or through a public instrument adapter.
+2. The user creates a trading profile by choosing that venue and Crypto or
+   Equity market class.
+3. Inside the profile, the user enables compatible venue products and selects
+   a working subset of venue instruments.
+4. Every profile instrument selection defaults to a manual market-data feed;
+   an automatic feed requires deliberate setup.
+5. The user adds eligible assets exposed by selected instruments to the
+   profile wallet and records virtual funds.
+6. The user creates a trading strategy with one compatible wallet settlement
+   asset and fixed risk parameters.
+7. The user opens Trades and selects a profile and strategy.
+8. The workspace filters products and instruments by exact strategy settlement;
+   product determines the available `LONG` and `SHORT` directions.
+9. The user completes the trade-specific checklist.
+10. The directional assessment reacts to checklist changes.
+11. The workspace presents the current ATR context for the instrument.
+12. The user enters the planned entry and stop prices.
+13. Tradefog calculates take profit, position quantity, and monetary risk.
+14. The trade is saved as a draft or moved to a pending or open state.
+15. An opened trade remains active until the entire position is closed.
+16. Throughout the trade, the user maintains a Markdown description and
     private screenshots or supporting files in the same workspace.
-12. The user records one final net realized P&L value and explicitly marks
+17. The user records one final net realized P&L value and explicitly marks
     the review complete after adding any final errors and conclusions.
-13. Profile statistics and the quality trajectory include the closed trade.
+18. Strategy statistics and the quality trajectory include the closed trade.
 
-Manual tracking is a first-class workflow. It supports exchanges without an
-API and remains available after automated adapters are introduced. For a
-manual profile, the user places and manages the order outside Tradefog and
-records its state and result in the journal.
+Manual tracking is the only execution workflow. The user places and manages
+orders outside Tradefog, then records their state and final result in the
+journal. This supports every venue, including ones with no public API.
+
+## First-use setup
+
+First use is resumable rather than a disposable modal wizard. With no venue,
+the empty home page directs the user to create one. A venue catalog is a
+reusable prerequisite; after it exists, profile setup highlights the next
+incomplete requirement:
+
+```text
+Create venue
+    ↓
+Add or synchronize venue products and instruments
+    ↓
+Create profile
+    ↓
+Select products and instruments
+    ↓
+Configure wallet
+    ↓
+Create strategy
+    ↓
+Create first trade
+```
+
+The profile form asks only for name, venue, and market class. Crypto then
+offers the venue's Spot and Linear catalogs; Equity offers its Cash Equity
+catalog. Profiles select instruments but never recreate their assets, symbols,
+precision, or order rules.
+
+A new venue defaults to manual instrument maintenance. Manual entry asks for
+base, quote, and explicit settlement metadata and creates or reuses internal
+venue assets automatically; there is no separate asset CRUD. Public
+instrument adapters synchronize complete product catalogs when available.
+Future authenticated execution connections are configured for a specific
+profile product rather than as global user or venue credentials.
+
+Venues are managed under Settings rather than inline during profile creation.
+If no active venue exists, the profile form disables its venue selector and
+save action and links to Settings → Venues.
+
+After profile instruments are selected, the wallet screen presents their
+unique eligible base, quote, and settlement assets as choices. The strategy
+form then offers only the intersection of wallet assets and active instrument
+settlements. Therefore a USD strategy cannot be created without an active
+USD-settled profile instrument.
+
+A profile is ready for drafts when it has an active instrument selection, a
+compatible wallet asset, and a strategy. Positive available wallet funds are
+required only for a transition to pending or open. Candle history and
+automatic market data are optional advisory context and never block manual
+journaling.
 
 ## Trade date
 
@@ -90,10 +152,12 @@ It combines:
 - lifecycle actions;
 - an evolving trade description, private attachments, and final review.
 
-Creating a trade has only two conceptual steps: selecting a profile and using
-the workspace. Pair selection belongs to the position section rather than a
-separate page. An empty draft is not persisted merely because a profile was
-selected; an explicit save or lifecycle action creates it.
+Creating a trade selects profile, strategy, product, and pair before using the
+rest of the cohesive workspace. Product is a filtering step and is derived
+from the final pair rather than duplicated on the trade. Pair choices belong
+to the position section and exactly match the strategy settlement asset. An
+empty draft is not persisted merely because context was selected; an explicit
+save or lifecycle action creates it.
 
 Several separately recorded entries for the same pair and direction are
 separate journal decisions. The first version has no position group, setup
@@ -108,9 +172,9 @@ is independent of the trade lifecycle and remains an editable journal fact.
 
 ## Checklist and setup assessment
 
-All profiles and markets use one application-defined directional checklist.
-Its fields and weights are not user-configurable in the initial product. It
-records four observations that remain meaningful across market types:
+All trades use one application-defined directional checklist. Its fields and
+weights are not user-configurable in the initial product. It records four
+observations that remain meaningful across market types:
 
 | Observation | Interpretation | Weight |
 | --- | --- | ---: |
@@ -150,10 +214,11 @@ workspace. A refresh action supports long-lived drafts. This design avoids a
 scheduler or background daemon. Cached data remains usable when an external
 source is temporarily unavailable and is visibly marked stale.
 
-Each profile trading pair selects its daily-candle source independently and
-defaults to manual maintenance. The public Bybit source supports Spot and
-Linear pairs without coupling market data to the profile's execution
-provider. Tradefog calculates ATR locally regardless of candle source.
+Each profile instrument selection has one active daily-candle feed and
+defaults to manual maintenance. Automatic Bybit or Twelve Data feeds are
+enabled explicitly and remain independent from venue catalog synchronization
+and execution. Manual candles are editable; automatic candles are read-only
+provider cache. Tradefog calculates ATR locally regardless of candle source.
 
 For a trade date `D`, ATR uses only candles dated before `D`. A still-forming
 Bybit candle dated `D` supplies the separate observed-session range. A
@@ -178,7 +243,7 @@ trade results. Important statistics include:
 - win rate;
 - net and average result in R;
 - gross profit and gross loss in R;
-- net realized P&L in profile currency;
+- net realized P&L in strategy currency;
 - current and maximum winning or losing streaks;
 - drawdown from the historical capital high where appropriate;
 - the X/Y quality trajectory;
@@ -190,9 +255,9 @@ Analytics supports lifetime results, common rolling ranges, and arbitrary
 is recalculated from trades selected by `trade_date`. It does not continue
 from a lifetime coordinate.
 
-Deposits, withdrawals, and capital size never enter the quality trajectory.
-When capital change is displayed, it is identified as change from the initial
-allocation rather than as a cash-flow-adjusted investment return.
+Wallet deposits and withdrawals never enter the quality trajectory. Monetary
+P&L is displayed in its settlement asset; results in unlike assets are never
+summed without an explicit conversion policy.
 
 Future comparisons may group results by setup score, checklist criterion,
 trading pair, asset, direction, provider, date range, strategy compliance, or
@@ -201,23 +266,35 @@ stable trading edge.
 
 ## Navigation and information architecture
 
-The main navigation is:
+The authenticated application uses a sticky two-row horizontal shell. The
+upper row holds the brand, theme control, and user menu; the second row holds
+the main navigation:
 
 ```text
-Home | Profiles | Assets | Pairs | Trades | Analytics
+Home
+Profiles
+Trades
+Analytics
+Settings
+User menu
+  Settings (future user settings; disabled placeholder)
+  Log out
 ```
 
-- Home is the future cross-profile summary with useful widgets.
-- Profiles contains profile parameters, capital operations, status, and
-  profile-specific trading pairs.
-- Assets contains the owner's reusable catalog of base and capital assets,
-  ordered and paginated across the complete catalog.
-- Pairs is the cross-profile market registry with direct access to pair
-  settings and stored daily candles. Its filters and server-side pagination
-  keep long market histories manageable.
-- Trades contains the cross-profile journal, owner-scoped market and lifecycle
-  filters, server-ordered paginated results, trade creation, and the trade
-  workspace.
+- Home shows the first-use action or a restrained cross-profile overview with
+  drafts and positions that need attention.
+- Profiles is the configuration root. Each profile contains Overview,
+  Instruments, Wallet, Strategies, Trades, and Settings.
+- A profile wallet contains balances, manual deposits and withdrawals,
+  reservations, available funds, and activity.
+- Settings → Venues owns reusable Spot, Linear, and Cash Equity instrument
+  catalogs. Manual venues allow instrument maintenance there; adapter-backed
+  venues synchronize their public catalogs there.
+- A profile's Instruments page selects and archives its working subset from
+  the chosen venue catalog. There is no standalone asset screen.
+- Trades contains the cross-profile journal, owner-scoped profile, strategy,
+  product, pair, and lifecycle filters, server-ordered paginated results,
+  trade creation, and the trade workspace.
 - Analytics contains lifetime and filtered quality trajectories and
   comparisons.
 
@@ -232,8 +309,11 @@ are:
 /en/
 /en/profiles/
 /en/profiles/<id>/
-/en/pairs/
-/en/assets/
+/en/profiles/<id>/instruments/
+/en/profiles/<id>/wallet/
+/en/profiles/<id>/strategies/
+/en/settings/venues/
+/en/settings/venues/<id>/instruments/
 /en/trades/
 /en/trades/new/
 /en/trades/<id>/
@@ -248,7 +328,7 @@ application does not use a redundant `/journal/` prefix.
 The following capabilities remain optional until the manual journal is
 useful and stable:
 
-- exchange execution and synchronization;
+- authenticated exchange execution and synchronization;
 - TradingView Advanced Chart embedding;
 - cross-profile portfolio conversion;
 - additional market types;

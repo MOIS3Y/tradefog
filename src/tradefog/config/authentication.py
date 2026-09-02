@@ -12,15 +12,15 @@ class AuthenticationSettings(ConfigSection):
 
     def login_url(self) -> str:
         """Return the named login route."""
-        return "login"
+        return "accounts:login"
 
     def login_redirect_url(self) -> str:
         """Return the route used after a successful login."""
-        return "home"
+        return "journal:home"
 
     def logout_redirect_url(self) -> str:
         """Return the route used after logout."""
-        return "login"
+        return "accounts:login"
 
     def password_validators(self) -> list[dict[str, str]]:
         """Return the enabled Django password validators."""
