@@ -282,7 +282,10 @@ Home
 Profiles
 Trades
 Analytics
-Settings
+Catalog
+  Assets
+  Trading pairs (planned)
+  Venues (planned)
 User menu
   Settings (future user settings; disabled placeholder)
   Log out
@@ -297,6 +300,10 @@ User menu
 - Settings → Catalog (staff only) owns the shared assets, trading pairs,
   venues, and venue instruments. Regular users read this catalog but cannot
   create or edit it; they ask a staff member for new markets.
+- Catalog is a staff-managed area that lists the shared reference catalog.
+  Its Assets page supports search, type filtering, sorting, and pagination;
+  regular users read it, while staff create and remove assets through modal
+  forms with dismissible status alerts.
 - Trades contains the cross-profile journal, owner-scoped profile, strategy,
   product, pair, and lifecycle filters, server-ordered paginated results,
   trade creation, and the trade workspace.
@@ -316,8 +323,8 @@ are:
 /en/profiles/<id>/
 /en/profiles/<id>/wallet/
 /en/profiles/<id>/strategies/
-/en/settings/catalog/
-/en/settings/catalog/venues/<id>/instruments/
+/en/catalog/assets/
+/en/catalog/venues/<id>/instruments/ (planned)
 /en/trades/
 /en/trades/new/
 /en/trades/<id>/

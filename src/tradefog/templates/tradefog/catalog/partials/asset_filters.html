@@ -1,0 +1,49 @@
+{% load i18n %}
+<form class="card card-sm tf-filter-bar mb-3"
+      method="get"
+      action="{% url 'journal:asset_overview' %}"
+      hx-get="{% url 'journal:asset_overview' %}"
+      hx-target="#asset-results"
+      hx-swap="outerHTML"
+      hx-push-url="true">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md">
+        <label class="form-label" for="id_catalog_search">
+          {% translate "Search" %}
+        </label>
+        <input class="form-control"
+               type="search"
+               id="id_catalog_search"
+               name="q"
+               value="{{ search }}"
+               placeholder="{% translate 'Symbol or name' %}"
+               autocomplete="off">
+      </div>
+      <div class="col-12 col-md-auto">
+        <label class="form-label" for="id_catalog_type">
+          {% translate "Type" %}
+        </label>
+        <select class="form-select" id="id_catalog_type" name="asset_type">
+          <option value="">{% translate "All types" %}</option>
+          {% for value, label in asset_type_choices %}
+            <option value="{{ value }}"
+                    {% if asset_type == value %}selected{% endif %}>
+              {{ label }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-auto">
+        <div class="btn-list flex-nowrap">
+          <button class="btn btn-primary" type="submit">
+            {% translate "Apply" %}
+          </button>
+          <a class="btn" href="{% url 'journal:asset_overview' %}">
+            {% translate "Reset" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>

@@ -134,14 +134,36 @@
                     <span class="nav-link-title">{% translate "Analytics" %}</span>
                   </a>
                 </li>
-                <li class="nav-item{% if request.resolver_match.url_name == 'settings' %} active{% endif %}">
-                  <a class="nav-link"
-                     href="{% url 'journal:settings' %}"
-                     {% if request.resolver_match.url_name == 'settings' %}aria-current="page"{% endif %}>
-                    <span class="nav-link-icon">{% include "tradefog/components/icon.html" with name="settings" %}</span>
-                    <span class="nav-link-title">{% translate "Settings" %}</span>
+                {% with catalog_active=request.resolver_match.url_name %}
+                <li class="nav-item dropdown{% if catalog_active == 'asset_overview' %} active{% endif %}">
+                  <a class="nav-link dropdown-toggle"
+                     href="#"
+                     data-bs-toggle="dropdown"
+                     role="button"
+                     aria-haspopup="true"
+                     aria-expanded="false"
+                     {% if catalog_active == 'asset_overview' %}aria-current="page"{% endif %}>
+                    <span class="nav-link-icon">{% include "tradefog/components/icon.html" with name="archive" %}</span>
+                    <span class="nav-link-title">{% translate "Catalog" %}</span>
                   </a>
+                  <div class="dropdown-menu">
+                    <a class="dropdown-item{% if catalog_active == 'asset_overview' %} active{% endif %}"
+                       href="{% url 'journal:asset_overview' %}">
+                      {% translate "Assets" %}
+                    </a>
+                    <span class="dropdown-item disabled"
+                          aria-disabled="true"
+                          title="{% translate 'Coming soon' %}">
+                      {% translate "Trading pairs" %}
+                    </span>
+                    <span class="dropdown-item disabled"
+                          aria-disabled="true"
+                          title="{% translate 'Coming soon' %}">
+                      {% translate "Venues" %}
+                    </span>
+                  </div>
                 </li>
+                {% endwith %}
               </ul>
             </div>
           </div>
@@ -230,6 +252,21 @@
     </div>
   </div>
   {% if user.is_authenticated %}
+    <div class="toast-container position-fixed bottom-0 end-0 p-3"
+         id="toast-region"
+         aria-live="polite"
+         aria-atomic="true"></div>
+    <template id="toast-template"
+              data-title-success="{% translate 'Success' %}"
+              data-title-danger="{% translate 'Error' %}"
+              data-title-info="{% translate 'Information' %}"
+              data-title-warning="{% translate 'Warning' %}"
+              data-time-just-now="{% translate 'just now' %}"
+              data-time-seconds="{% translate 's' %}"
+              data-time-minutes="{% translate 'm' %}"
+              data-time-hours="{% translate 'h' %}">
+      {% include "tradefog/components/toast.html" %}
+    </template>
     <button class="btn btn-primary btn-icon tf-scroll-top"
             type="button"
             data-scroll-top
@@ -239,7 +276,10 @@
   {% endif %}
   <script src="{% static 'tradefog/vendor/tabler/tabler.min.js' %}"></script>
   <script src="{% static 'tradefog/vendor/htmx/htmx.min.js' %}" defer></script>
+  <script src="{% static 'tradefog/js/htmx-config.js' %}" defer></script>
+  <script src="{% static 'tradefog/js/toasts.js' %}" defer></script>
+  <script src="{% static 'tradefog/js/modals.js' %}" defer></script>
   {% block table_sorting_scripts %}{% endblock %}
-  {% block extra_scripts %}{% endblock %}
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

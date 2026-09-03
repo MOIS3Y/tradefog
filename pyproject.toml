@@ -44,5 +44,9 @@ path = "hatch_build.py"
 line-length = 79
 target-version = "py313"
 
+[tool.basedpyright]
+reportAny = "none"
+reportExplicitAny = "none"
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tradefog.settings"

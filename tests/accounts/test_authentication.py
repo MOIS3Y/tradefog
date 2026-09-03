@@ -53,7 +53,7 @@ def test_user_can_sign_in_and_open_home() -> None:
     assert b"Open user menu" in home.content
     assert b"Ada Lovelace" in home.content
     assert b"trader" in home.content
-    assert b"Settings" in home.content
+    assert b"Catalog" in home.content
 
 
 @mark.django_db

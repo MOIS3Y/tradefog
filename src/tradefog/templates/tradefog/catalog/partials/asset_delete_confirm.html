@@ -1,0 +1,19 @@
+{% load i18n %}
+<form hx-post="{% url 'journal:asset_delete' asset.pk %}"
+      hx-target="#asset-delete-body"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+  <p class="mb-3">
+    {% blocktranslate with symbol=asset.symbol %}
+      Remove the asset {{ symbol }} from the catalog?
+    {% endblocktranslate %}
+  </p>
+  <div class="modal-footer px-0 pb-0">
+    <button class="btn" type="button" data-bs-dismiss="modal">
+      {% translate "Cancel" %}
+    </button>
+    <button class="btn btn-danger" type="submit">
+      {% translate "Remove" %}
+    </button>
+  </div>
+</form>

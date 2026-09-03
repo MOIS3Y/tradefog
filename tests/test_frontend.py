@@ -23,6 +23,9 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     assert "tradefog/vendor/tabler/tabler.min.css" in rendered_template
     assert "tradefog/vendor/tabler/tabler.min.js" in rendered_template
     assert "tradefog/js/tradefog.js" in rendered_template
+    assert "tradefog/js/htmx-config.js" in rendered_template
+    assert "tradefog/js/toasts.js" in rendered_template
+    assert "tradefog/js/modals.js" in rendered_template
     assert "tradefog/images/favicon.svg" in rendered_template
     assert "data-theme-toggle" in rendered_template
     assert "navbar-brand-autodark" in rendered_template
@@ -60,7 +63,6 @@ def test_shared_template_and_static_directories_are_configured() -> None:
         "home.html",
         "profiles.html",
         "trades.html",
-        "settings.html",
         "analytics.html",
     ):
         section_source = (
@@ -68,6 +70,14 @@ def test_shared_template_and_static_directories_are_configured() -> None:
         ).read_text(encoding="utf-8")
         assert "components/page_heading.html" in section_source
         assert "{% block page_header %}" in section_source
+
+    catalog_source = (
+        template_root / "tradefog/catalog/asset_overview.html"
+    ).read_text(encoding="utf-8")
+    assert "components/page_heading.html" in catalog_source
+    assert "{% block page_header %}" in catalog_source
+    assert "catalog/partials/asset_filters.html" in catalog_source
+    assert "catalog/partials/asset_results.html" in catalog_source
 
     trade_source = (
         template_root / "tradefog/trade.html"
@@ -88,7 +98,6 @@ def test_shared_template_and_static_directories_are_configured() -> None:
         "home.html",
         "profiles.html",
         "trades.html",
-        "settings.html",
     ):
         empty_source = (template_root / "tradefog" / empty_template).read_text(
             encoding="utf-8"
@@ -100,14 +109,26 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     template_source = (
         template_root / "tradefog/base.html"
     ).read_text(encoding="utf-8")
-    for url_name in ("home", "profiles", "trades", "analytics", "settings"):
+    for url_name in ("home", "profiles", "trades", "analytics", "asset_overview"):
         assert f"{{% url 'journal:{url_name}' %}}" in template_source
-    assert 'name="settings" class="icon"' in template_source
+    assert "Catalog" in template_source
+    assert "Trading pairs" in template_source
+    assert "Venues" in template_source
+    assert "name=\"settings\" class=\"icon\"" in template_source
     assert "Account settings" in template_source
     assert "Coming soon" in template_source
     assert "tf-auth-shell" in template_source
     assert "container container-tight py-4" in template_source
     assert "data-scroll-top" in template_source
+    assert 'id="toast-region"' in template_source
+    assert 'id="toast-template"' in template_source
+    assert "components/toast.html" in template_source
+    toast_source = (template_root / "tradefog/components/toast.html").read_text(
+        encoding="utf-8"
+    )
+    assert "toast-header" in toast_source
+    assert "status-dot" in toast_source
+    assert "data-toast-body" in toast_source
     assert '<span class="dropdown-item disabled"' in template_source
     assert 'aria-disabled="true"' in template_source
     assert 'data-bs-target="#navbar-menu"' in template_source

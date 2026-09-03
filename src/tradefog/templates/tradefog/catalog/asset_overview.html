@@ -1,0 +1,42 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Assets" %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          {% translate "Catalog" as page_direction %}
+          {% translate "Assets" as page_heading %}
+          {% translate "Reusable assets shared across the journal catalog." as page_help_text %}
+          {% include "tradefog/components/page_heading.html" with direction=page_direction heading=page_heading help_text=page_help_text %}
+        </div>
+        {% if can_manage %}
+          <div class="col-auto ms-auto">
+            <button class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#asset-create-modal"
+                    hx-get="{% url 'journal:asset_create' %}"
+                    hx-target="#asset-form-body"
+                    hx-swap="innerHTML">
+              {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+              {% translate "Add asset" %}
+            </button>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% include "tradefog/catalog/partials/asset_filters.html" %}
+  {% include "tradefog/catalog/partials/asset_results.html" %}
+  {% if can_manage %}
+    {% include "tradefog/catalog/partials/asset_create_modal.html" %}
+    {% include "tradefog/catalog/partials/asset_delete_modal.html" %}
+  {% endif %}
+{% endblock %}

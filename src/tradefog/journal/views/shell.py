@@ -1,9 +1,4 @@
-"""Views for the static journal application shell.
-
-These views render the shell pages only. No business logic or model
-access happens here; the frontend is static until backend logic is
-reintroduced.
-"""
+"""Static shell pages that are not yet backed by domain logic."""
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
@@ -38,9 +33,3 @@ def trade_new(request: HttpRequest) -> HttpResponse:
 def analytics(request: HttpRequest) -> HttpResponse:
     """Render the static analytics page."""
     return render(request, "tradefog/analytics.html")
-
-
-@login_required
-def settings(request: HttpRequest) -> HttpResponse:
-    """Render the global project settings stub page."""
-    return render(request, "tradefog/settings.html")

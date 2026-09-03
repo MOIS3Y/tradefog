@@ -43,7 +43,7 @@ title unless the card describes a genuinely distinct subsection.
 A top-level section header has three semantic parts:
 
 1. a short direction in `page-pretitle`, such as `Journal`, `Quality`, or
-   `Settings`;
+   `Catalog`;
 2. one `page-title` that names the current section;
 3. a concise explanation available from the title as a keyboard-accessible
    tooltip.
@@ -141,7 +141,7 @@ Sortable headers are links, not client-side table controls. Use
 filters and resets pagination.
 
 Pagination lives in the table card footer and uses the shared
-`journal/partials/pagination.html` partial. Pagination links preserve filters
+`components/pagination.html` component. Pagination links preserve filters
 and sorting. Collections placed independently on the same page use distinct
 query-parameter names so one collection does not reset another.
 
@@ -161,6 +161,24 @@ The partial response contains that wrapper and nothing from the page header.
 Every HTMX link also has a valid `href`, and the updated URL can be refreshed
 or shared. Templates render prepared state; filtering and sort logic remain in
 forms, query helpers, and views.
+
+Tradefog configures HTMX to swap 4xx/5xx response bodies (see the
+`responseHandling` override in `tradefog.js`), so validation errors and blocked
+mutations can render their fragment inline. An HTMX endpoint that returns an
+error must therefore respond with a meaningful fragment, or with `204`/an
+`HX-*` header when no swap is wanted.
+
+## Notifications
+
+Two kinds of feedback stay distinct. Field-level validation errors are shown
+inline in the form, in red, through `components/form_field.html` and the
+`tf-field-invalid` border; they never move out of the field. Final status
+messages for a finished operation (success or a rejected mutation) use the
+shared toast system: views dispatch a `tradefog:toast` event through the
+`HX-Trigger` response header with a `message` and `kind`, and
+`tradefog.js` renders a dismissible Tabler toast in the global
+`#toast-region`. Modal flows also dispatch `tradefog:close-modal` with the
+modal id so success or rejection closes the dialog.
 
 ## Empty states
 
@@ -239,7 +257,7 @@ member rather than creating one in the form.
 
 Page direction establishes context without repeating it in every card. Profile
 pages use the profile as their parent context; shared catalog pages use the
-Settings context. Keep shared catalog facts separate from a profile's journal
+Catalog context. Keep shared catalog facts separate from a profile's journal
 configuration in both wording and actions.
 
 Layouts must remain readable at the smallest supported viewport. Header rows
@@ -260,7 +278,7 @@ supported. Interface copy uses plain language, active voice, and sentence case.
 | Ordinary form control and hint | `components/form_field.html` |
 | Collection filter panel | `components/filter_panel.html` |
 | Shared icon markup | `components/icon.html` |
-| Server-side pagination footer | `journal/partials/pagination.html` |
+| Server-side pagination footer | `components/pagination.html` |
 | Sortable collection result | A collection-specific partial with one stable wrapper |
 | Simple centered form | `journal/simple_form.html` where its context is sufficient |
 
