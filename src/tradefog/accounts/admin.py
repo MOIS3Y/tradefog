@@ -5,7 +5,7 @@ from django.contrib.auth.admin import UserAdmin
 
 from tradefog.accounts.models import User
 
-admin.site.register(  # pyright: ignore[reportUnknownMemberType]
+admin.site.register(
     User,
     UserAdmin,
 )
