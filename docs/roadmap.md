@@ -40,7 +40,7 @@ by Stage 4 while pre-release compatibility was inexpensive.
 - owner-scoped reusable asset catalog;
 - capital asset and homogeneous market type on each profile;
 - profile-scoped trading pairs with precision and minimum-order rules;
-- Spot LONG-only and isolated `1x` Linear LONG/SHORT behavior;
+- Spot LONG-only and isolated `1x` Perpetual Future LONG/SHORT behavior;
 - cross-profile Trades section and two-step trade creation flow;
 - editable analytical trade dates;
 - deterministic `1:3` position sizing;
@@ -86,7 +86,7 @@ they measure setup strength and require immutable strategy versions.
 - deterministic True Range and Wilder `ATR(14)` calculations before the
   selected trade date;
 - a separate cached current-session range and advisory 75% ATR reference;
-- a public Bybit Spot/Linear daily-candle client using HTTPX;
+- a public Bybit Spot/Perpetual Future daily-candle client using HTTPX;
 - reactive pair/date loading and explicit draft refresh;
 - a date-safe two-week candlestick chart using the vendored ApexCharts;
 - a cross-profile pair registry with direct pair and candle-management
@@ -126,7 +126,7 @@ does not block the manual journal workflow.
   automatically available to compatible account profiles;
 - wallet-backed `1x` notional validation for pending and open trades;
 - global market candle sources and cached local candle history;
-- Crypto Spot, Crypto Linear Perpetual, and Equity Cash product rules;
+- Crypto Spot, Crypto Perpetual Future, and Equity Cash product rules;
 - sticky horizontal navigation shell, wallet page, grouped profile navigation,
   market catalog, user settings, and footer;
 - a structural reorganization of journal models, forms, services, views, and
@@ -145,7 +145,7 @@ staff-managed reference catalog that regular users read but do not edit:
   unambiguous Crypto, Equity, or Fiat type, and a reusable `TradingPair` as
   the logical `BASE/QUOTE` market;
 - introduce shared `Venue`, `VenueInstrument`, and `VenueWalletAsset`
-  records, with product kind Spot, Linear Perpetual, or Cash Equity placed on
+  records, with product kind Spot, Perpetual Future, or Cash Equity placed on
   the instrument so the market class is derived and a venue can host several
   products without duplication;
 - make only staff members create or edit catalog records; regular users read

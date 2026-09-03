@@ -150,18 +150,18 @@ save or lifecycle action creates it.
 
 A logical pair such as BTC/USDT can exist on one venue as several distinct
 executable instruments distinguished by product, for example a Spot and a
-Linear Perpetual. To avoid an ambiguous pair selector, the workspace asks for
+Perpetual Future. To avoid an ambiguous pair selector, the workspace asks for
 the product first as a two-step choice:
 
 ```text
-profile → product (Spot | Linear Perpetual | Cash Equity) → pair
+profile → product (Spot | Perpetual Future | Cash Equity) → pair
 ```
 
 The product selector offers only products that have at least one instrument on
 the profile's venue. The pair selector then lists only the instruments of the
 chosen product; each option is a concrete venue instrument shown by its
 canonical pair and product tag, never a bare logical pair. Product determines
-the available directions: Spot and Cash Equity allow `LONG`, Linear Perpetual
+the available directions: Spot and Cash Equity allow `LONG`, Perpetual Future
 allows `LONG` and `SHORT`.
 
 Several separately recorded entries for the same pair and direction are

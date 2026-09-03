@@ -9,7 +9,7 @@ Enum asset_type {
 
 Enum product_kind {
   spot
-  linear_perpetual
+  perpetual_future
   cash_equity
 }
 
@@ -92,7 +92,7 @@ Table VenueInstrument {
   id integer [pk, increment, note: 'Primary key']
   venue_id integer [not null, note: 'Venue hosting this executable market']
   pair_id integer [not null, note: 'Underlying logical trading pair']
-  product product_kind [not null, note: 'Spot/Linear Perpetual/Cash Equity; implies market class']
+  product product_kind [not null, note: 'Spot/Perpetual Future/Cash Equity; implies market class']
   exec_symbol varchar(64) [not null, note: 'Exchange execution symbol, e.g. BTCUSDT']
   price_step decimal(30, 18) [not null, note: 'Minimum price tick']
   qty_step decimal(30, 18) [not null, note: 'Minimum quantity increment']

@@ -95,8 +95,8 @@ price and quantity steps, minimum order rules, availability, and archive or
 delisting state. Because execution parameters differ per venue and product,
 `VenueInstrument` is the only record that holds the per-market symbols and
 steps; the underlying asset and pair remain shared and are never duplicated.
-Product kind is Spot, Linear Perpetual, or Cash Equity and implies the market
-class: Spot and Linear Perpetual are Crypto, Cash Equity is Equity.
+Product kind is Spot, Perpetual Future, or Cash Equity and implies the market
+class: Spot and Perpetual Future are Crypto, Cash Equity is Equity.
 
 `VenueWalletAsset` links a venue to the shared assets that can be held in a
 wallet on that venue. It is a deliberate subset rather than a derivation: not
@@ -113,13 +113,14 @@ The initial compatibility matrix is:
 | Market class | Product | Base | Quote | Settlement | Directions |
 | --- | --- | --- | --- | --- | --- |
 | Crypto | Spot | Crypto | Crypto or Fiat | Quote | LONG |
-| Crypto | Linear Perpetual | Crypto | Crypto or Fiat | Explicit | LONG, SHORT |
+| Crypto | Perpetual Future | Crypto | Crypto or Fiat | Explicit | LONG, SHORT |
 | Equity | Cash | Equity | Fiat | Quote | LONG |
 
 Base and quote must differ. Spot and Cash Equity derive settlement from the
-quote asset. A Linear venue instrument supplies settlement when it can;
-otherwise the user must select it explicitly. An instrument with unresolved
-settlement cannot be used by a trade. Symbols are never parsed to guess
+quote asset. A Perpetual Future venue instrument supplies settlement when it
+can; otherwise the user must select it explicitly. An instrument with
+unresolved settlement cannot be used by a trade. Symbols are never parsed to
+guess
 settlement, and USD, USDT, and USDC are distinct without an explicit future
 conversion policy.
 
