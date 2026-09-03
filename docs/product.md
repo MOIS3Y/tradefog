@@ -48,25 +48,28 @@ The complete discretionary-trade workflow is:
    pairs, venues, and venue instruments, plus which assets settle a wallet on
    each venue. Regular users never create or edit catalog records; they ask a
    staff member when they need a new market.
-2. The user creates a trading profile.
-3. The user creates a trading strategy with one compatible wallet settlement
+2. The user creates a trading profile and binds it to one venue.
+3. The user opens the profile wallet, adds venue-capable assets offered by
+   that venue, and records deposits and withdrawals.
+4. The user creates a trading strategy with one compatible wallet settlement
    asset and fixed risk parameters.
-4. The user opens Trades and selects a profile and strategy.
-5. The workspace filters instruments by exact strategy settlement; product
-   determines the available `LONG` and `SHORT` directions.
-6. The user completes the trade-specific checklist.
-7. The directional assessment reacts to checklist changes.
-8. The workspace presents the current ATR context for the instrument; the user
+5. The user opens Trades and selects a profile and strategy.
+6. The workspace filters instruments by exact strategy settlement and the
+   profile's venue; product determines the available `LONG` and `SHORT`
+   directions.
+7. The user completes the trade-specific checklist.
+8. The directional assessment reacts to checklist changes.
+9. The workspace presents the current ATR context for the instrument; the user
    picks a data source and refreshes it on demand.
-9. The user enters the planned entry and stop prices.
-10. Tradefog calculates take profit, position quantity, and monetary risk.
-11. The trade is saved as a draft or moved to a pending or open state.
-12. An opened trade remains active until the entire position is closed.
-13. Throughout the trade, the user maintains a Markdown description and
+10. The user enters the planned entry and stop prices.
+11. Tradefog calculates take profit, position quantity, and monetary risk.
+12. The trade is saved as a draft or moved to a pending or open state.
+13. An opened trade remains active until the entire position is closed.
+14. Throughout the trade, the user maintains a Markdown description and
     private screenshots or supporting files in the same workspace.
-14. The user records one final net realized P&L value and explicitly marks
+15. The user records one final net realized P&L value and explicitly marks
     the review complete after adding any final errors and conclusions.
-15. Strategy statistics and the quality trajectory include the closed trade.
+16. Strategy statistics and the quality trajectory include the closed trade.
 
 Manual tracking is the only execution workflow. The user places and manages
 orders outside Tradefog, then records their state and final result in the
@@ -90,20 +93,23 @@ Create strategy
 Create first trade
 ```
 
-The profile form asks only for a name. It does not ask for a venue or market
-class; the market family is derived from the product of the instrument the
-user eventually trades. Users never recreate assets, symbols, precision, or
-order rules — those live once in the shared catalog.
+The profile form asks for a name and the venue it is bound to. The market
+family is derived from the product of the instrument the user eventually
+trades; the profile does not ask for a market class. Users never recreate
+assets, symbols, precision, or order rules — those live once in the shared
+catalog.
 
 A regular user can read and use any shared instrument but cannot create or
 edit catalog records. A user who needs a new asset, pair, venue, or venue
 instrument asks a staff member to add it. Staff members manage the catalog
 under Settings rather than inline during profile creation.
 
-After the profile exists, the wallet screen presents the shared assets as
-choices. The strategy form then offers only the intersection of wallet assets
-and instrument settlements. Therefore a USD strategy cannot be created
-without an active USD-settled instrument.
+The wallet belongs to one profile and is bound to that profile's venue. Its
+screen presents only the assets that are wallet-capable on that venue
+(`VenueWalletAsset`) as choices; the user records deposits and withdrawals
+against them. The strategy form then offers only the intersection of wallet
+assets and instrument settlements. Therefore a USD strategy cannot be created
+without an active USD-settled instrument on the profile's venue.
 
 A profile is ready for drafts when it has a wallet asset and a strategy.
 Positive available wallet funds are required only for a transition to pending
@@ -141,6 +147,22 @@ from the final pair rather than duplicated on the trade. Pair choices belong
 to the position section and exactly match the strategy settlement asset. An
 empty draft is not persisted merely because context was selected; an explicit
 save or lifecycle action creates it.
+
+A logical pair such as BTC/USDT can exist on one venue as several distinct
+executable instruments distinguished by product, for example a Spot and a
+Linear Perpetual. To avoid an ambiguous pair selector, the workspace asks for
+the product first as a two-step choice:
+
+```text
+profile → product (Spot | Linear Perpetual | Cash Equity) → pair
+```
+
+The product selector offers only products that have at least one instrument on
+the profile's venue. The pair selector then lists only the instruments of the
+chosen product; each option is a concrete venue instrument shown by its
+canonical pair and product tag, never a bare logical pair. Product determines
+the available directions: Spot and Cash Equity allow `LONG`, Linear Perpetual
+allows `LONG` and `SHORT`.
 
 Several separately recorded entries for the same pair and direction are
 separate journal decisions. The first version has no position group, setup

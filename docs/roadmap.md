@@ -153,11 +153,19 @@ staff-managed reference catalog that regular users read but do not edit:
 - drop the `ProfileProduct`/`ProfileInstrument` working-subset selection
   layer and the venue-scoped `VenueAsset`; trades reference a shared
   `VenueInstrument` directly;
-- keep `TradingProfile` as the owner-scoped journal context that owns its
-  independent wallet, strategies, and trades;
+- keep `TradingProfile` as the owner-scoped journal context bound to one venue
+  and owning a one-to-one `Wallet`, strategies, and trades, with
+  `TradingProfile.owner` as the single ownership root and all journal queries
+  routed through a centralized scoping manager;
+- make `WalletAsset` reference `VenueWalletAsset` so profile wallet assets are
+  venue-capable on the profile's venue;
 - keep `TradingStrategy` as the fixed-capital and fixed-risk cohort with one
   exact settlement wallet asset, with wallet top-up preserving constant
   monetary R when a trade needs more than the strategy balance;
+- introduce a write-once `TradeSnapshot` created atomically on the
+  draft-to-pending transition, freezing the plan, risk, wallet, and ATR
+  context and backing the derived wallet reservation while the trade is
+  pending or open;
 - enforce shared-catalog, product, and exact-settlement compatibility in
   selectors, draft persistence, and every pending or open transition;
 - stop persisting market data: remove candle tables and feeds, fetch the last
@@ -187,6 +195,10 @@ The following work begins only after the manual journal is useful and stable:
 
 - authenticated exchange execution only after a concrete workflow justifies
   its independent complexity;
+- automated order placement on selected venues (initially Bybit) as an
+  additive v0.2.0 extension: owner-scoped named API keys selected by a
+  profile, one-shot order placement without background execution tracking,
+  and no effect on past trades or the manual journal;
 - additional market-data providers beyond Bybit and Twelve Data;
 - optional TradingView embedded chart as a clearly external visual aid;
 - cross-profile portfolio views after currency-conversion requirements are

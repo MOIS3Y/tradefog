@@ -241,14 +241,34 @@ shared venue instrument or its settlement asset. The on-demand HTTPX clients
 use explicit timeouts; provider selection and refresh authorization remain in
 the market-data service, while True Range and ATR remain pure calculations.
 
-Future order submission is a focused execution boundary. A configured
-connection and its credentials belong to a user's profile, not to the shared
-catalog record. Manual actions remain available when no adapter or connection
-exists. Before any manual or automatic transition to pending or open, the
-shared domain service verifies that the trade's venue instrument settlement
+Future order submission is a focused execution boundary. A user owns a list
+of named API keys rather than a key bound to a venue; a trading profile
+selects the key it uses. Manual actions remain available when no key or
+adapter exists. Before any manual or automatic transition to pending or open,
+the shared domain service verifies that the trade's venue instrument settlement
 asset exactly equals the strategy settlement wallet asset. Adapter failure
 leaves the journal decision unchanged and cannot make manual journaling
 unavailable.
+
+## Future automation
+
+Automated order placement is a deferred, additive extension, not part of the
+initial journal. It is not modeled in the current database; it is documented
+here so the schema stays forward-compatible without speculative fields.
+
+When it ships, order placement is limited to selected venues (initially Bybit)
+and is a one-shot convenience action, not a tracking system:
+
+- the user owns a list of named API keys, each a user-scoped credential that
+  a profile selects; keys are encrypted at rest, never logged or returned, and
+  grant trading permissions only — withdrawal is never requested;
+- placing an order calls the venue once, records the venue order reference on
+  the trade, and leaves execution outcome to the manual journal;
+- there is no background execution tracking: no order, position, or fill
+  tables, no polling, no webhooks, and no execution synchronization. The
+  journal remains the source of truth;
+- the extension is additive: adapters never alter past trades, and an API
+  failure leaves the draft unchanged so manual journaling is never blocked.
 
 TradingView, if ever added, is an opt-in external visual embed with visible
 attribution. It is not an ATR source and must not become a required runtime

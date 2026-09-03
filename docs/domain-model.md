@@ -5,13 +5,25 @@
 The domain has two ownership zones:
 
 - **User journal**: profiles, wallet assets and operations, strategies,
-  trades, checklist answers, snapshots, and attachments belong to one
-  authenticated user and are queried owner-scoped through the user or an
-  owned parent.
+  trades, snapshots, checklist answers, and attachments belong to one
+  authenticated user.
 - **Shared reference catalog**: assets, trading pairs, venues, venue
   instruments, and venue wallet assets form a common directory for the whole
   installation. Only staff members may create or edit catalog records; all
   authenticated users may read and reuse them.
+
+`TradingProfile.owner` is the single ownership root for all journal data.
+Child records (`WalletAsset`, `WalletOperation`, `TradingStrategy`, `Trade`,
+`TradeSnapshot`, checklist answers, and attachments) carry no redundant owner
+field; their owner is reached transitively through the profile, or through a
+trade that belongs to a profile. This keeps one source of truth for ownership
+and avoids duplicated owner fields on every table.
+
+All journal queries go through a single centralized scoping manager that adds
+`profile__owner=current_user` (or the equivalent owner-scoped filter). Journal
+services, views, and selectors must route through that manager rather than
+re-implementing ownership checks. An object is created only under the current
+user's own profile, so no path can read or mutate another user's journal data.
 
 Public registration is not part of the initial product; administrators create
 accounts. The custom user model derives from Django's `AbstractUser` so it can
@@ -28,13 +40,16 @@ Reference catalog (staff-managed, shared)
 ├── TradingPair                    # reusable BASE/QUOTE relationship
 ├── Venue
 │   ├── VenueInstrument            # executable market on one venue
-│   └── VenueWalletAsset           # settlement-capable assets on a venue
+│   └── VenueWalletAsset           # assets that can be held in a wallet on this venue
 
-User journal (owner-scoped)
-├── TradingProfile
-├── WalletAsset / WalletOperation
-├── TradingStrategy
-└── Trade → VenueInstrument
+User journal (owner-scoped via TradingProfile.owner)
+└── TradingProfile
+    └── Wallet                     # 1:1 with profile; groups wallet assets
+        ├── WalletAsset            # balance for one venue-capable asset
+        │   └── WalletOperation
+        ├── TradingStrategy
+        └── Trade
+            └── TradeSnapshot      # write-once, created at draft → pending
 ```
 
 There is no per-user or per-venue asset or pair duplication. The shared
@@ -45,11 +60,10 @@ an ATR decision snapshot is stored on a submitted trade.
 ## Venues and the shared catalog
 
 `Venue` is a shared, staff-managed exchange, broker, or other execution
-destination. It has a name, an optional website URL, and an optional default
-market-data provider used for on-demand ATR fetches. A venue carries no market
-class itself; its supported markets are derived from the products of its
-instruments. A venue may therefore host Crypto and Equity instruments together
-without duplication.
+destination. It has a name and an optional website URL. A venue carries no
+market class itself; its supported markets are derived from the products of
+its instruments. A venue may therefore host Crypto and Equity instruments
+together without duplication.
 
 The catalog is deliberately curated rather than bulk-imported: users add only
 the instruments they actually trade. A user who needs a new asset, pair,
@@ -57,10 +71,10 @@ venue, or venue instrument asks a staff member to create it. Regular users
 read and reuse the shared catalog but cannot create or edit its records.
 
 `TradingProfile` is the user's top-level trading context, such as "Bybit Main"
-or "Equities". It owns the user's virtual wallet, strategies, and trades and
-reuses shared venue instruments without copying catalog facts. Profiles share
-catalog identity while retaining independent balances, risk, configuration,
-and journal history.
+or "Equities". It is bound to exactly one `Venue`, owns the user's virtual
+wallet, strategies, and trades, and reuses that venue's shared instruments
+without copying catalog facts. Profiles share catalog identity while retaining
+independent balances, risk, configuration, and journal history.
 
 ## Assets, trading pairs, and venue instruments
 
@@ -84,9 +98,10 @@ steps; the underlying asset and pair remain shared and are never duplicated.
 Product kind is Spot, Linear Perpetual, or Cash Equity and implies the market
 class: Spot and Linear Perpetual are Crypto, Cash Equity is Equity.
 
-`VenueWalletAsset` links a venue to the shared assets that are
-settlement-capable on that venue. It is a deliberate subset rather than a
-derivation: not every available asset can settle a wallet there.
+`VenueWalletAsset` links a venue to the shared assets that can be held in a
+wallet on that venue. It is a deliberate subset rather than a derivation: not
+every available asset is wallet-capable there, and a profile wallet may only
+reference these assets.
 
 Asset symbol is unique installation-wide without regard to letter case. A base
 and quote combination is unique per `TradingPair`, and an active base, quote,
@@ -117,12 +132,19 @@ trades. A trade therefore points straight at the venue instrument it concerns.
 
 ## Virtual wallet
 
-`WalletAsset` belongs to a profile and references one shared `Asset`. The same
-USDT identity can back independent wallet balances and reservations in several
-profiles. Wallet choices are the unique base, quote, and settlement assets
-exposed by the instruments the profile trades, restricted to asset classes
-eligible for wallet accounting. Only wallet assets also used as settlement by a
-traded instrument can be selected by a strategy.
+`Wallet` is the profile's wallet and is strictly one-to-one with its
+`TradingProfile`. It holds no money itself; it groups the wallet assets that
+carry balances. Because a profile is bound to one venue, the wallet only
+offers the assets that the venue exposes as wallet-capable through
+`VenueWalletAsset`. A "global wallet" in the interface is a UI-only aggregation
+over the user's profile wallets; it is not a separate stored entity and does
+not create a second ownership root.
+
+`WalletAsset` belongs to one wallet and references a `VenueWalletAsset` (rather
+than a bare `Asset`), so its asset is structurally guaranteed to be
+venue-capable for the profile's venue. The same USDT identity can back
+independent wallet balances in several profiles. Only wallet assets that are
+also used as settlement by a traded instrument can be selected by a strategy.
 
 Wallet funds are introduced and removed only through explicit `DEPOSIT` and
 `WITHDRAWAL` operations on a selected wallet asset. An operation stores its
@@ -131,14 +153,26 @@ not an exchange action. A wallet asset with activity or a strategy or trade
 settled in it cannot be removed.
 
 ```text
-wallet_balance = deposits - withdrawals + closed_trade_realized_pnl
+wallet_balance    = deposits - withdrawals + closed_trade_realized_pnl
+reserved_notional = SUM(snapshot.planned_notional)
+                    WHERE trade.status IN (PENDING_ENTRY, OPEN)
 available_balance = wallet_balance - reserved_notional
 ```
 
-Pending-entry and open trades reserve their snapshotted planned notional at
-the fixed `1x` strategy. Drafts reserve nothing. A withdrawal cannot exceed
-positive available balance. Closing a trade is never rejected because its
-recorded P&L may legitimately make a virtual balance negative.
+Reservation is derived state, not a stored record. It is the live sum of the
+frozen `planned_notional` from `TradeSnapshot` rows whose trade is still
+`PENDING_ENTRY` or `OPEN`. Drafts reserve nothing. Because the reserving
+amount is read from the immutable snapshot, it never fluctuates while a trade
+reserves funds. A trade releases its reservation simply by leaving
+`PENDING_ENTRY` or `OPEN` (moving to `CLOSED` or `CANCELLED`): it then drops
+out of the summation, so no manual reservation bookkeeping is needed.
+
+`available_balance` is derived across several tables, so a withdrawal cannot
+exceed the positive available balance, and a pending or open trade must fit in
+the wallet at `1x`; both are enforced in a focused domain service inside a
+database transaction rather than by a database `CHECK` constraint. Closing a
+trade is never rejected because its recorded P&L may legitimately make a
+virtual balance negative.
 
 ## Trading strategies
 
@@ -216,20 +250,26 @@ the required `1x` notional.
 
 ## Strategy and instrument compatibility
 
-A trade belongs to one strategy. The instrument's settlement asset must
-exactly match the strategy settlement wallet asset. Product is derived from
-the instrument rather than duplicated on the trade.
+A trade belongs to one strategy and one profile. The profile is bound to one
+venue, so a trade uses only that venue's instruments. The instrument's
+settlement asset must exactly match the strategy settlement wallet asset, and
+the strategy settlement wallet asset must belong to the profile wallet and be
+venue-capable on the profile's venue. Product is derived from the instrument
+rather than duplicated on the trade.
 
 ```text
+profile.venue == trade.venue_instrument.venue
 trade.venue_instrument.settlement_asset =
-    strategy.settlement_wallet_asset.asset
+    strategy.settlement_wallet_asset.venue_wallet_asset.asset
+strategy.settlement_wallet_asset ∈ profile.Wallet.WalletAsset
 ```
 
 Compatible querysets hide invalid instrument choices in the interface. Draft
 persistence and every transition to `PENDING_ENTRY` or `OPEN` repeat the
 invariant in a domain service so stale forms, crafted requests, and future
 execution adapters cannot bypass it. For example, a USD strategy cannot use
-BTC/USDT even when its profile wallet also contains USDT.
+BTC/USDT even when its profile wallet also contains USDT, and a profile bound
+to one venue cannot trade another venue's instrument.
 
 ## Position plan
 
@@ -291,6 +331,30 @@ reproducible:
 
 Later wallet operations, strategy corrections, and other trades do not rewrite
 these snapshots.
+
+## Decision snapshot
+
+The frozen decision context is a separate write-once entity, `TradeSnapshot`,
+in a one-to-one relationship with its `Trade`. It is created atomically in the
+same database transaction as the `DRAFT → PENDING_ENTRY` transition and is
+never mutated afterwards.
+
+The snapshot stores the working fields it copies at that moment, so the
+authoritative plan, risk, wallet, and ATR facts live in the snapshot rather
+than in editable `Trade` fields:
+
+- the position plan: entry, stop, take profit, quantity, reward multiple;
+- the risk plan: risk percent, risk amount, planned notional, strategy equity,
+  fixed strategic capital, risk-stop capital, already reserved risk, remaining
+  risk capacity, and risk-limit breach state;
+- the wallet context: balance, already-reserved notional, and available
+  balance;
+- the ATR context.
+
+Because the snapshot freezes the plan, a `PENDING_ENTRY` trade is cancellable
+but not re-plannable: the reserving `planned_notional` never fluctuates while
+the trade reserves funds. `Trade` working fields are locked once the snapshot
+exists, enforced by the same domain service that owns the transition.
 
 ## Closing and realized result
 

@@ -1,0 +1,247 @@
+// Tradefog proposed database
+// Two ownership zones: shared staff-managed catalog, owner-scoped journal.
+
+Enum asset_type {
+  crypto
+  equity
+  fiat
+}
+
+Enum product_kind {
+  spot
+  linear_perpetual
+  cash_equity
+}
+
+Enum atr_source {
+  auto
+  manual
+}
+
+Enum trade_status {
+  draft
+  pending_entry
+  open
+  closed
+  cancelled
+}
+
+Enum direction {
+  long
+  short
+}
+
+Enum strategy_status {
+  active
+  at_risk
+  risk_stopped
+  archived
+}
+
+Enum wallet_operation_kind {
+  deposit
+  withdrawal
+}
+
+// ---------------------------------------------------------------------------
+// Shared reference catalog (staff-managed)
+// ---------------------------------------------------------------------------
+
+Table users {
+  id integer [pk, increment, note: 'Primary key']
+  username varchar(150) [unique, not null, note: 'Login identifier']
+  password varchar(128) [not null, note: 'Hashed password']
+  is_staff boolean [default: false, not null, note: 'Grants write access to the shared catalog']
+  is_active boolean [default: true, not null, note: 'Account enabled flag']
+  Note: 'Authenticated user. Journal data is owner-scoped; only staff edit the catalog.'
+}
+
+Table Asset {
+  id integer [pk, increment, note: 'Primary key']
+  symbol varchar(32) [not null, note: 'Normalized symbol, unique installation-wide, case-insensitive']
+  name varchar(255) [note: 'Human-readable display name']
+  asset_type asset_type [not null, note: 'Unambiguous type: Crypto, Equity, or Fiat']
+  Note: 'Shared global asset identity. Reused across all venues; a symbol maps to exactly one asset.'
+  indexes {
+    (symbol) [unique, name: 'asset_symbol_idx']
+  }
+}
+
+Table TradingPair {
+  id integer [pk, increment, note: 'Primary key']
+  base_id integer [not null, note: 'Base asset of the pair']
+  quote_id integer [not null, note: 'Quote asset of the pair']
+  canonical_symbol varchar(32) [unique, not null, note: 'Normalized identity, e.g. BTCUSDT']
+  Note: 'Reusable logical BASE/QUOTE market. Carries no execution parameters; entered once for the whole installation.'
+  indexes {
+    (base_id, quote_id) [unique, name: 'trading_pair_base_quote_idx', note: 'One logical pair per base/quote combination']
+  }
+}
+
+Table Venue {
+  id integer [pk, increment, note: 'Primary key']
+  name varchar(128) [not null, note: 'Exchange or broker name, unique']
+  website varchar(255) [note: 'Optional venue website URL']
+  Note: 'Shared execution destination. Carries no market class; markets are derived from its instruments.'
+  indexes {
+    (name) [unique, name: 'venue_name_idx']
+  }
+}
+
+Table VenueInstrument {
+  id integer [pk, increment, note: 'Primary key']
+  venue_id integer [not null, note: 'Venue hosting this executable market']
+  pair_id integer [not null, note: 'Underlying logical trading pair']
+  product product_kind [not null, note: 'Spot/Linear Perpetual/Cash Equity; implies market class']
+  exec_symbol varchar(64) [not null, note: 'Exchange execution symbol, e.g. BTCUSDT']
+  price_step decimal(30, 18) [not null, note: 'Minimum price tick']
+  qty_step decimal(30, 18) [not null, note: 'Minimum quantity increment']
+  min_qty decimal(30, 18) [note: 'Minimum order quantity']
+  min_notional decimal(30, 18) [note: 'Minimum order notional']
+  settlement_asset_id integer [note: 'Explicit settlement for linear; spot/cash derive it from quote']
+  active boolean [default: true, not null, note: 'Tradable availability; delisting changes this, never identity']
+  Note: 'The only record holding per-venue, per-product execution parameters. Asset and pair stay shared, never duplicated.'
+  indexes {
+    (venue_id, pair_id, product) [unique, name: 'venue_instrument_venue_pair_product_idx', note: 'One product per pair per venue']
+    (venue_id, exec_symbol) [unique, name: 'venue_instrument_venue_exec_symbol_idx', note: 'Execution symbol unique within a venue']
+  }
+}
+
+Table VenueWalletAsset {
+  id integer [pk, increment, note: 'Primary key']
+  venue_id integer [not null, note: 'Venue the asset can settle on']
+  asset_id integer [not null, note: 'Shared asset usable as wallet/settlement']
+  Note: 'Deliberate subset of assets that are settlement-capable on a venue.'
+  indexes {
+    (venue_id, asset_id) [unique, name: 'venue_wallet_asset_venue_asset_idx']
+  }
+}
+
+// ---------------------------------------------------------------------------
+// User journal (owner-scoped)
+// ---------------------------------------------------------------------------
+
+Table TradingProfile {
+  id integer [pk, increment, note: 'Primary key']
+  owner_id integer [not null, note: 'Owning user; the single ownership root for all journal data below this profile']
+  venue_id integer [not null, note: 'Venue this profile is bound to; the profile trades only this venue instrument and holds only its wallet assets']
+  name varchar(128) [not null, note: 'Profile name, e.g. Bybit Main']
+  archived boolean [default: false, not null, note: 'Soft-archived, no longer used for new activity']
+  Note: 'Owner-scoped journal context owning wallet, strategies, and trades. owner_id is the single source of truth for ownership; all child records scope through this profile. Bound to one venue. Reuses shared catalog without copying it.'
+}
+
+Table Wallet {
+  id integer [pk, increment, note: 'Primary key']
+  profile_id integer [unique, not null, note: 'Exactly one wallet per profile']
+  Note: 'The profile wallet, one-to-one with its profile. Holds no money itself; it groups WalletAsset balances. A global wallet is a UI-only aggregation over the profile wallets of the user.'
+}
+
+Table WalletAsset {
+  id integer [pk, increment, note: 'Primary key']
+  wallet_id integer [not null, note: 'Owning wallet; owner is the profile owner (single ownership root)']
+  venue_wallet_asset_id integer [not null, note: 'Venue-capable asset this balance holds; its venue equals the profile venue']
+  Note: 'A balance for one asset available on the profile venue. References VenueWalletAsset so the asset is structurally venue-capable for the profile. Ownership is scoped transitively through the wallet and profile.'
+  indexes {
+    (wallet_id, venue_wallet_asset_id) [unique, name: 'wallet_asset_wallet_venue_asset_idx']
+  }
+}
+
+Table WalletOperation {
+  id integer [pk, increment, note: 'Primary key']
+  wallet_asset_id integer [not null, note: 'Wallet asset affected; owner scoped through its wallet and profile']
+  kind wallet_operation_kind [not null, note: 'Deposit or withdrawal']
+  amount decimal(30, 18) [not null, note: 'Signed amount moved in or out']
+  note varchar(255) [note: 'Optional free-text note']
+  created_at timestamp [default: `now()`, not null, note: 'Operation time']
+  Note: 'Journal fact introducing or removing virtual funds. Not an exchange action. Ownership is scoped transitively through TradingProfile.owner.'
+}
+
+Table TradingStrategy {
+  id integer [pk, increment, note: 'Primary key']
+  profile_id integer [not null, note: 'Owning profile; owner is the profile owner (single ownership root)']
+  name varchar(128) [not null, note: 'Strategy name']
+  description text [note: 'Strategy description']
+  settlement_wallet_asset_id integer [not null, note: 'Exact settlement asset for all its trades']
+  strategic_capital decimal(30, 18) [not null, note: 'Fixed capital used for risk sizing']
+  risk_percent decimal(10, 6) [not null, note: 'Risk percent of strategic capital per trade']
+  risk_stop_capital decimal(30, 18) [note: 'Absolute equity level at which the strategy stops']
+  status strategy_status [not null, note: 'Operational status recalculated from financial facts']
+  Note: 'Fixed-capital, fixed-risk cohort. Trades settle in exactly this wallet asset. Ownership is scoped transitively through TradingProfile.owner.'
+}
+
+Table Trade {
+  id integer [pk, increment, note: 'Primary key']
+  profile_id integer [not null, note: 'Owning profile; owner is the profile owner (single ownership root)']
+  strategy_id integer [not null, note: 'Owning strategy']
+  venue_instrument_id integer [not null, note: 'Shared instrument traded; references catalog directly']
+  trade_date date [not null, note: 'Analytical date; source of truth for time filters']
+  status trade_status [not null, note: 'Draft, pending, open, closed, or cancelled']
+  direction direction [not null, note: 'Long or short; locked once the snapshot exists']
+  description_markdown text [note: 'Evolving Markdown description in any state']
+  review_completed_at timestamp [note: 'Optional review completion time; closed trades only']
+  realized_pnl decimal(30, 18) [note: 'Final signed net P&L when closed']
+  actual_exit_price decimal(30, 18) [note: 'Optional reference exit price']
+  total_commission decimal(30, 18) [note: 'Optional total commission context']
+  funding_result decimal(30, 18) [note: 'Optional signed funding context']
+  created_at timestamp [default: `now()`, not null, note: 'Creation time']
+  Note: 'Working journal record and lifecycle. Ownership is scoped transitively through TradingProfile.owner. Decision context is frozen into TradeSnapshot on the draft-to-pending transition; Trade working fields are locked from then on.'
+}
+
+Table TradeSnapshot {
+  id integer [pk, increment, note: 'Primary key']
+  trade_id integer [unique, not null, note: 'One write-once snapshot per trade']
+  planned_entry decimal(30, 18) [not null, note: 'Frozen planned entry price']
+  planned_stop decimal(30, 18) [not null, note: 'Frozen planned stop price']
+  planned_take_profit decimal(30, 18) [note: 'Frozen take profit, derived at 1:3']
+  quantity decimal(30, 18) [note: 'Frozen position quantity']
+  reward_multiple decimal(10, 6) [note: 'Fixed reward multiple, 3']
+  planned_risk_percent decimal(10, 6) [note: 'Frozen risk percent']
+  planned_risk_amount decimal(30, 18) [note: 'Frozen monetary risk']
+  planned_notional decimal(30, 18) [note: 'Frozen notional at 1x; the reserving amount while the trade is pending or open']
+  strategy_equity decimal(30, 18) [note: 'Frozen strategy equity']
+  strategic_capital decimal(30, 18) [note: 'Frozen fixed strategic capital']
+  risk_stop_capital decimal(30, 18) [note: 'Frozen risk-stop level']
+  already_reserved_risk decimal(30, 18) [note: 'Frozen risk already reserved by other trades']
+  remaining_risk_capacity decimal(30, 18) [note: 'Frozen remaining risk capacity']
+  risk_limit_breach boolean [note: 'Frozen risk-stop breach state']
+  wallet_balance decimal(30, 18) [note: 'Frozen wallet balance']
+  wallet_reserved decimal(30, 18) [note: 'Frozen already-reserved notional']
+  wallet_available decimal(30, 18) [note: 'Frozen available balance']
+  atr_value decimal(30, 18) [note: 'Frozen ATR value']
+  atr_source atr_source [note: 'AUTO from live provider candles, or MANUAL entered value']
+  atr_contributing_date date [note: 'Last date contributing to the ATR snapshot']
+  atr_observation_time timestamp [note: 'When the ATR context was observed']
+  atr_stale boolean [note: 'True if the snapshot context is stale']
+  created_at timestamp [default: `now()`, not null, note: 'Write-once creation time']
+  Note: 'Immutable decision context written atomically on the draft-to-pending transition. Its planned_notional backs the derived wallet reservation while the trade is pending or open. Ownership is scoped transitively through the trade and its profile.'
+}
+
+// ---------------------------------------------------------------------------
+// Relations
+// ---------------------------------------------------------------------------
+
+Ref: TradingPair.base_id > Asset.id
+Ref: TradingPair.quote_id > Asset.id
+
+Ref: VenueInstrument.venue_id > Venue.id
+Ref: VenueInstrument.pair_id > TradingPair.id
+Ref: VenueInstrument.settlement_asset_id > Asset.id
+
+Ref: VenueWalletAsset.venue_id > Venue.id
+Ref: VenueWalletAsset.asset_id > Asset.id
+
+Ref: TradingProfile.owner_id > users.id
+Ref: TradingProfile.venue_id > Venue.id
+Ref: Wallet.profile_id > TradingProfile.id
+Ref: WalletAsset.wallet_id > Wallet.id
+Ref: WalletAsset.venue_wallet_asset_id > VenueWalletAsset.id
+Ref: WalletOperation.wallet_asset_id > WalletAsset.id
+
+Ref: TradingStrategy.profile_id > TradingProfile.id
+Ref: TradingStrategy.settlement_wallet_asset_id > WalletAsset.id
+
+Ref: Trade.profile_id > TradingProfile.id
+Ref: Trade.strategy_id > TradingStrategy.id
+Ref: Trade.venue_instrument_id > VenueInstrument.id
+
+Ref: TradeSnapshot.trade_id > Trade.id
