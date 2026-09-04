@@ -1,0 +1,7 @@
+{% load i18n %}
+<div id="profile-heading"{% if swap_oob %} hx-swap-oob="outerHTML"{% endif %}>
+  {% translate "Journal" as page_direction %}
+  {% translate "Trading profile" as page_heading %}
+  {% translate "The trading context bound to one venue with its own wallet and strategies." as page_help_text %}
+  {% include "tradefog/components/page_heading.html" with direction=page_direction heading=profile.name help_text=page_help_text %}
+</div>

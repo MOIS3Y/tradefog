@@ -476,3 +476,113 @@ def test_archive_toast_renders_in_russian() -> None:
     assert response.status_code == 200
     trigger = json.loads(response.headers["HX-Trigger"])
     assert trigger["tradefog:toast"]["message"] == "Профиль архивирован."
+
+
+@mark.django_db
+def test_profile_detail_anonymous_user_is_redirected() -> None:
+    with override("en"):
+        response = Client().get(reverse("journal:profile_detail", args=(1,)))
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/en/login/?next=/en/profiles/1/"
+
+
+@mark.django_db
+def test_profile_detail_renders_four_tabs_with_overview_active() -> None:
+    client, owner = _owner_client()
+    profile = _profile(owner, _venue(), name="Main")
+    with override("en"):
+        response = client.get(
+            reverse("journal:profile_detail", args=(profile.pk,))
+        )
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert profile.name in content
+    assert 'id="profile-overview-tab"' in content
+    assert 'id="profile-wallet-tab"' in content
+    assert 'id="profile-strategies-tab"' in content
+    assert 'id="profile-settings-tab"' in content
+    assert 'class="nav-link active" href="#profile-overview-tab"' in content
+    assert 'class="tab-pane active show" id="profile-overview-tab"' in content
+    assert "Back to profiles" in content
+
+
+@mark.django_db
+def test_profile_detail_shows_summary_and_counts() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue, name="Main")
+    wallet = Wallet.objects.create(profile=profile)
+    wallet_asset = _wallet_asset(venue)
+    WalletAsset.objects.create(
+        wallet=wallet, venue_wallet_asset=wallet_asset
+    )
+    _strategy(profile)
+    with override("en"):
+        response = client.get(
+            reverse("journal:profile_detail", args=(profile.pk,))
+        )
+
+    content = response.content.decode()
+    assert "Bybit" in content
+    assert "Active" in content
+    assert "Wallet assets" in content
+    assert "Strategies" in content
+    assert "Trades" in content
+    assert '>1</span>' in content
+
+
+@mark.django_db
+def test_profile_detail_shows_archived_status() -> None:
+    client, owner = _owner_client()
+    profile = _profile(owner, _venue(), name="Main", archived=True)
+    with override("en"):
+        response = client.get(
+            reverse("journal:profile_detail", args=(profile.pk,))
+        )
+
+    content = response.content.decode()
+    assert "Archived" in content
+    assert "Active" not in content
+
+
+@mark.django_db
+def test_profile_detail_hides_content_from_other_users() -> None:
+    _client, owner = _owner_client()
+    profile = _profile(owner, _venue(), name="Main")
+    intruder = _login_as(username="intruder")
+    with override("en"):
+        response = intruder.get(
+            reverse("journal:profile_detail", args=(profile.pk,))
+        )
+
+    assert response.status_code == 404
+
+
+@mark.django_db
+def test_profile_detail_renders_tabs_in_russian() -> None:
+    client, owner = _owner_client()
+    profile = _profile(owner, _venue(), name="Main")
+    with override("ru"):
+        response = client.get(
+            reverse("journal:profile_detail", args=(profile.pk,))
+        )
+
+    content = response.content.decode()
+    assert "Обзор" in content
+    assert "Кошелёк" in content
+    assert "Стратегии" in content
+    assert "Настройки" in content
+    assert "Назад к профилям" in content
+
+
+@mark.django_db
+def test_profile_card_links_to_detail() -> None:
+    client, owner = _owner_client()
+    profile = _profile(owner, _venue(), name="Main")
+    with override("en"):
+        response = client.get(reverse("journal:profile_overview"))
+
+    detail_url = reverse("journal:profile_detail", args=(profile.pk,))
+    assert f'href="{detail_url}"' in response.content.decode()

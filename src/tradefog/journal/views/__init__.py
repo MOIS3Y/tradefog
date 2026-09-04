@@ -28,6 +28,7 @@ from tradefog.journal.views.profiles import (
     profile_archive,
     profile_create,
     profile_delete,
+    profile_detail,
     profile_overview,
     profile_restore,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "profile_archive",
     "profile_create",
     "profile_delete",
+    "profile_detail",
     "profile_overview",
     "profile_restore",
     "trade_new",

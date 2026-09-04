@@ -303,6 +303,11 @@ User menu
   directly from its card. Archiving keeps the wallet, strategies, and trade
   history intact but hides the profile from new trades and analytics until it
   is restored; only an archived profile can be deleted permanently.
+  Opening a profile card shows its detail page as a card with four tabs —
+  Overview, Wallet, Strategies, and Settings. The Overview tab is a static
+  summary of the profile: its bound venue, status, and wallet-asset, strategy,
+  and trade counts. The Wallet, Strategies, and Settings tabs are introduced
+  in later stages.
 - A profile wallet contains balances, manual deposits and withdrawals,
   reservations, available funds, and activity.
 - Settings → Catalog (staff only) owns the shared assets, trading pairs,

@@ -35,6 +35,11 @@ urlpatterns = [
         views.profile_delete,
         name="profile_delete",
     ),
+    path(
+        "profiles/<int:pk>/",
+        views.profile_detail,
+        name="profile_detail",
+    ),
 
     path("trades/", views.trades, name="trades"),
     path("trades/new/", views.trade_new, name="trade_new"),

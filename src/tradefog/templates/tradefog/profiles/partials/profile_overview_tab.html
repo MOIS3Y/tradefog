@@ -1,0 +1,50 @@
+{% load i18n %}
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title mb-0">{% translate "Details" %}</h3>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-4 text-secondary">{% translate "Venue" %}</dt>
+          <dd class="col-8">
+            {% include "tradefog/components/icon.html" with name="coin" class="icon-inline" %}
+            {{ profile.venue.name }}
+          </dd>
+          <dt class="col-4 text-secondary">{% translate "Status" %}</dt>
+          <dd class="col-8">
+            {% if profile.archived %}
+              <span class="badge bg-orange-lt">{% translate "Archived" %}</span>
+            {% else %}
+              <span class="badge bg-green-lt">{% translate "Active" %}</span>
+            {% endif %}
+          </dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title mb-0">{% translate "Contents" %}</h3>
+      </div>
+      <div class="card-body">
+        <div class="list-group list-group-flush">
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            {% translate "Wallet assets" %}
+            <span class="badge bg-secondary-lt">{{ profile.wallet_asset_count }}</span>
+          </div>
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            {% translate "Strategies" %}
+            <span class="badge bg-secondary-lt">{{ profile.strategy_count }}</span>
+          </div>
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            {% translate "Trades" %}
+            <span class="badge bg-secondary-lt">{{ profile.trade_count }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
