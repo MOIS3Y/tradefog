@@ -37,9 +37,17 @@ class Asset(models.Model):
         instruments_settled: Manager[VenueInstrument]
         wallet_venues: Manager[VenueWalletAsset]
 
-    symbol = models.CharField(max_length=32, unique=True)
-    name = models.CharField(max_length=255, blank=True)
-    asset_type = models.CharField(max_length=16, choices=AssetType.choices)
+    symbol = models.CharField(
+        max_length=32, unique=True, verbose_name=_("Symbol")
+    )
+    name = models.CharField(
+        max_length=255, blank=True, verbose_name=_("Name")
+    )
+    asset_type = models.CharField(
+        max_length=16,
+        choices=AssetType.choices,
+        verbose_name=_("Asset type"),
+    )
 
     @final
     class Meta:
@@ -69,16 +77,19 @@ class TradingPair(models.Model):
         Asset,
         on_delete=models.PROTECT,
         related_name="pairs_base",
+        verbose_name=_("Base asset"),
     )
     quote = models.ForeignKey(
         Asset,
         on_delete=models.PROTECT,
         related_name="pairs_quote",
+        verbose_name=_("Quote asset"),
     )
     canonical_symbol = models.CharField(
         max_length=32,
         unique=True,
         help_text="Normalized display identity, for example BTC/USD.",
+        verbose_name=_("Symbol"),
     )
 
     @final
@@ -111,8 +122,10 @@ class Venue(models.Model):
         instruments: Manager[VenueInstrument]
         wallet_assets: Manager[VenueWalletAsset]
 
-    name = models.CharField(max_length=128, unique=True)
-    website = models.URLField(blank=True)
+    name = models.CharField(
+        max_length=128, unique=True, verbose_name=_("Name")
+    )
+    website = models.URLField(blank=True, verbose_name=_("Website"))
 
     @final
     class Meta:
@@ -145,27 +158,45 @@ class VenueInstrument(models.Model):
         Venue,
         on_delete=models.PROTECT,
         related_name="instruments",
+        verbose_name=_("Venue"),
     )
     pair = models.ForeignKey(
         TradingPair,
         on_delete=models.PROTECT,
         related_name="instruments",
+        verbose_name=_("Trading pair"),
     )
-    product = models.CharField(max_length=32, choices=ProductKind.choices)
-    exec_symbol = models.CharField(max_length=64)
-    price_step = models.DecimalField(max_digits=30, decimal_places=18)
-    qty_step = models.DecimalField(max_digits=30, decimal_places=18)
+    product = models.CharField(
+        max_length=32,
+        choices=ProductKind.choices,
+        verbose_name=_("Product"),
+    )
+    exec_symbol = models.CharField(
+        max_length=64, verbose_name=_("Execution symbol")
+    )
+    price_step = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Price step"),
+    )
+    qty_step = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Quantity step"),
+    )
     min_qty = models.DecimalField(
         max_digits=30,
         decimal_places=18,
         null=True,
         blank=True,
+        verbose_name=_("Minimum quantity"),
     )
     min_notional = models.DecimalField(
         max_digits=30,
         decimal_places=18,
         null=True,
         blank=True,
+        verbose_name=_("Minimum notional"),
     )
     settlement_asset = models.ForeignKey(
         Asset,
@@ -173,8 +204,11 @@ class VenueInstrument(models.Model):
         related_name="instruments_settled",
         null=True,
         blank=True,
+        verbose_name=_("Settlement asset"),
     )
-    active = models.BooleanField(default=True)
+    active = models.BooleanField(
+        default=True, verbose_name=_("Active")
+    )
 
     @final
     class Meta:
@@ -214,11 +248,13 @@ class VenueWalletAsset(models.Model):
         Venue,
         on_delete=models.PROTECT,
         related_name="wallet_assets",
+        verbose_name=_("Venue"),
     )
     asset = models.ForeignKey(
         Asset,
         on_delete=models.PROTECT,
         related_name="wallet_venues",
+        verbose_name=_("Asset"),
     )
 
     @final

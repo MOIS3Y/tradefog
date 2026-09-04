@@ -7,8 +7,7 @@
       {{ count }} wallet assets
     {% endblocktranslate %}
   </div>
-  <div class="card">
-    {% if section.wallet_assets %}
+  {% if section.wallet_assets %}
       <div class="table-responsive">
         <table class="table table-vcenter card-table">
           <thead>
@@ -114,5 +113,4 @@
         {% endif %}
       </section>
     {% endif %}
-  </div>
 </div>

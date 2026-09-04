@@ -214,6 +214,20 @@ def test_search_filter_and_type_filter() -> None:
 
 
 @mark.django_db
+def test_asset_filters_collapsed_by_default_and_open_when_active() -> None:
+    _asset(symbol="BTC", name="Bitcoin", asset_type="crypto")
+    client = _login_as()
+
+    with override("en"):
+        default = client.get(reverse("journal:asset_overview"))
+        active = client.get(reverse("journal:asset_overview"), {"q": "Bitcoin"})
+
+    assert 'class="collapse" id="asset-filters"' in default.content.decode()
+    assert 'class="collapse show" id="asset-filters"' in active.content.decode()
+    assert "Filters" in default.content.decode()
+
+
+@mark.django_db
 def test_sort_links_change_column_order() -> None:
     _asset(symbol="BTC", name="Zeta", asset_type="crypto")
     _asset(symbol="AAPL", name="Alpha", asset_type="equity")

@@ -16,6 +16,7 @@ from tradefog.journal.forms import (
 )
 from tradefog.journal.models import (
     Asset,
+    StrategyCapital,
     Trade,
     TradingPair,
     TradingProfile,
@@ -104,9 +105,11 @@ def _journal_chain(
     strategy = TradingStrategy.objects.create(
         profile=profile,
         name="S1",
-        settlement_wallet_asset=wallet_asset,
-        strategic_capital=Decimal(1000),
         risk_percent=Decimal(1),
+        reward_multiple=Decimal(3),
+    )
+    StrategyCapital.objects.create(
+        strategy=strategy, wallet_asset=wallet_asset, capital=Decimal(1000)
     )
     return profile, wallet, wallet_asset, strategy, venue_wallet_asset
 
@@ -116,7 +119,6 @@ def test_venue_modals_are_dialog_centered() -> None:
     catalog_root = repo_root / "src/tradefog/templates/tradefog/catalog"
     for template in (
         "partials/venue_create_modal.html",
-        "partials/venue_edit_modal.html",
         "partials/venue_delete_modal.html",
         "partials/wallet_asset_add_modal.html",
         "partials/wallet_asset_remove_modal.html",
@@ -172,7 +174,6 @@ def test_staff_user_sees_management_actions_on_cards() -> None:
     content = response.content.decode()
     assert "Add venue" in content
     assert "Remove venue" in content
-    assert "Edit venue" in content
 
 
 @mark.django_db
@@ -262,6 +263,10 @@ def test_staff_can_edit_venue_with_success_alert() -> None:
     trigger = response.headers["HX-Trigger"]
     assert "Venue updated." in trigger
     assert '"kind": "success"' in trigger
+    content = response.content.decode()
+    assert 'id="venue-heading"' in content
+    assert 'hx-swap-oob="outerHTML"' in content
+    assert "Bybit Pro" in content
 
 
 @mark.django_db
@@ -328,7 +333,7 @@ def test_regular_user_cannot_delete_venue() -> None:
 
 
 @mark.django_db
-def test_venue_detail_renders_identity_and_both_sections() -> None:
+def test_venue_detail_renders_tabs_and_both_sections() -> None:
     venue = _venue(name="Bybit")
     pair = _pair(base="BTC", quote="USDT", base_type="crypto", quote_type="crypto")
     _instrument(venue, pair)
@@ -338,12 +343,26 @@ def test_venue_detail_renders_identity_and_both_sections() -> None:
 
     assert response.status_code == 200
     content = response.content.decode()
-    assert 'id="venue-identity"' in content
+    assert 'id="venue-heading"' in content
+    assert 'id="venue-instruments-tab"' in content
+    assert 'id="venue-wallet-tab"' in content
+    assert 'id="venue-settings-tab"' in content
     assert 'id="wallet-asset-results"' in content
     assert 'id="instrument-results"' in content
     assert "BTC/USDT" in content
     assert "ETH" in content
     assert "Back to venues" in content
+
+
+@mark.django_db
+def test_venue_detail_instruments_tab_is_active_by_default() -> None:
+    venue = _venue(name="Bybit")
+    with override("en"):
+        response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
+
+    content = response.content.decode()
+    assert 'class="nav-link active" href="#venue-instruments-tab"' in content
+    assert 'class="tab-pane active show" id="venue-instruments-tab"' in content
 
 
 @mark.django_db
@@ -353,9 +372,11 @@ def test_regular_user_reads_detail_without_manage_actions() -> None:
         response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
 
     content = response.content.decode()
-    assert "Edit" not in content
     assert "Add wallet asset" not in content
     assert "Add instrument" not in content
+    assert "Save changes" not in content
+    assert venue.name in content
+    assert "Settings" in content
 
 
 @mark.django_db
@@ -369,7 +390,108 @@ def test_staff_user_sees_manage_actions_on_detail() -> None:
     content = response.content.decode()
     assert "Add wallet asset" in content
     assert "Add instrument" in content
-    assert "Edit" in content
+    assert "Save changes" in content
+
+
+@mark.django_db
+def test_staff_settings_tab_shows_prefilled_name_and_website_inputs() -> None:
+    venue = _venue(name="Bybit")
+    venue.website = "https://www.bybit.com"
+    venue.save()
+    with override("en"):
+        response = _login_as(is_staff=True).get(
+            reverse("journal:venue_detail", args=(venue.pk,))
+        )
+
+    content = response.content.decode()
+    assert 'value="Bybit"' in content
+    assert 'value="https://www.bybit.com"' in content
+    assert "Save changes" in content
+
+
+@mark.django_db
+def test_regular_user_settings_tab_shows_readonly_values_only() -> None:
+    venue = _venue(name="Bybit")
+    venue.website = "https://www.bybit.com"
+    venue.save()
+    with override("en"):
+        response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
+
+    content = response.content.decode()
+    assert "Bybit" in content
+    assert "https://www.bybit.com" in content
+    assert "Save changes" not in content
+
+
+@mark.django_db
+def test_venue_detail_filters_collapsed_by_default() -> None:
+    venue = _venue(name="Bybit")
+    with override("en"):
+        response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
+
+    content = response.content.decode()
+    assert 'class="collapse" id="venue-instrument-filters"' in content
+    assert 'class="collapse" id="venue-wallet-filters"' in content
+    assert 'data-bs-target="#venue-instrument-filters"' in content
+
+
+@mark.django_db
+def test_venue_detail_renders_instruments_and_filters_in_russian() -> None:
+    venue = _venue(name="Bybit")
+    with override("ru"):
+        response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
+
+    content = response.content.decode()
+    assert "Инструменты" in content
+    assert "Фильтры" in content
+
+
+@mark.django_db
+def test_venue_settings_form_renders_russian_labels() -> None:
+    venue = _venue(name="Bybit")
+    with override("ru"):
+        response = _login_as(is_staff=True).get(
+            reverse("journal:venue_edit", args=(venue.pk,))
+        )
+
+    content = response.content.decode()
+    assert "Название" in content
+    assert "Веб-сайт" in content
+
+
+@mark.django_db
+def test_instrument_form_renders_russian_labels() -> None:
+    venue = _venue(name="Bybit")
+    _pair(base="BTC")
+    with override("ru"):
+        response = _login_as(is_staff=True).get(
+            reverse("journal:instrument_add", args=(venue.pk,))
+        )
+
+    content = response.content.decode()
+    assert "Торговая пара" in content
+    assert "Продукт" in content
+    assert "Исполняемый символ" in content
+    assert "Шаг цены" in content
+    assert "Шаг количества" in content
+    assert "Расчётный актив" in content
+
+
+@mark.django_db
+def test_venue_detail_filters_open_when_active() -> None:
+    venue = _venue(name="Bybit")
+    _instrument(venue, _pair(base="BTC"))
+    _wallet_asset(venue, _asset(symbol="USDT", asset_type="crypto"))
+    client = _login_as()
+    with override("en"):
+        response = client.get(
+            reverse("journal:venue_detail", args=(venue.pk,)),
+            {"section": "instruments", "i_product": "spot"},
+        )
+
+    content = response.content.decode()
+    assert 'class="collapse show" id="venue-instrument-filters"' in content
+    assert 'class="collapse" id="venue-wallet-filters"' in content
 
 
 @mark.django_db
@@ -717,53 +839,68 @@ def test_regular_user_cannot_edit_instrument() -> None:
 
 
 @mark.django_db
-def test_staff_can_toggle_instrument_delisting() -> None:
+def test_staff_can_delist_instrument_via_edit_form() -> None:
     venue = _venue(name="Bybit")
     instrument = _instrument(venue, _pair(), exec_symbol="BTCUSD")
     client = _login_as(is_staff=True)
     with override("en"):
         response = client.post(
-            reverse(
-                "journal:instrument_toggle", args=(venue.pk, instrument.pk)
-            )
+            reverse("journal:instrument_edit", args=(venue.pk, instrument.pk)),
+            {
+                "pair": instrument.pair.pk,
+                "product": "spot",
+                "exec_symbol": "BTCUSD",
+                "price_step": "0.1",
+                "qty_step": "0.001",
+                "settlement_asset": "",
+            },
         )
 
     instrument.refresh_from_db()
     assert instrument.active is False
     assert response.status_code == 200
-    trigger = response.headers["HX-Trigger"]
-    assert "Instrument delisted." in trigger
-    assert '"kind": "success"' in trigger
 
 
 @mark.django_db
-def test_staff_can_reenable_delisted_instrument() -> None:
+def test_staff_can_reenable_instrument_via_edit_form() -> None:
     venue = _venue(name="Bybit")
     instrument = _instrument(venue, _pair(), exec_symbol="BTCUSD", active=False)
     client = _login_as(is_staff=True)
     with override("en"):
         response = client.post(
-            reverse(
-                "journal:instrument_toggle", args=(venue.pk, instrument.pk)
-            )
+            reverse("journal:instrument_edit", args=(venue.pk, instrument.pk)),
+            {
+                "pair": instrument.pair.pk,
+                "product": "spot",
+                "exec_symbol": "BTCUSD",
+                "price_step": "0.1",
+                "qty_step": "0.001",
+                "settlement_asset": "",
+                "active": "on",
+            },
         )
 
     instrument.refresh_from_db()
     assert instrument.active is True
-    trigger = response.headers["HX-Trigger"]
-    assert "Instrument enabled." in trigger
+    assert response.status_code == 200
 
 
 @mark.django_db
-def test_regular_user_cannot_toggle_instrument() -> None:
+def test_staff_cannot_delist_instrument_via_edit_form() -> None:
     venue = _venue(name="Bybit")
     instrument = _instrument(venue, _pair(), exec_symbol="BTCUSD")
     client = _login_as()
     with override("en"):
         response = client.post(
-            reverse(
-                "journal:instrument_toggle", args=(venue.pk, instrument.pk)
-            )
+            reverse("journal:instrument_edit", args=(venue.pk, instrument.pk)),
+            {
+                "pair": instrument.pair.pk,
+                "product": "spot",
+                "exec_symbol": "HACKED",
+                "price_step": "0.1",
+                "qty_step": "0.001",
+                "settlement_asset": "",
+            },
         )
 
     assert response.status_code == 403
@@ -936,10 +1073,10 @@ def test_venue_cards_render_plural_counts_in_russian() -> None:
 
 
 @mark.django_db
-def test_active_instrument_shows_open_eye_icon() -> None:
+def test_instrument_row_shows_eye_details_button_for_all_users() -> None:
     venue = _venue(name="Bybit")
     _instrument(venue, _pair(base="BTC"), exec_symbol="BTCUSD")
-    client = _login_as(is_staff=True)
+    client = _login_as()
     with override("en"):
         response = client.get(
             reverse("journal:venue_detail", args=(venue.pk,)),
@@ -950,17 +1087,13 @@ def test_active_instrument_shows_open_eye_icon() -> None:
     content = response.content.decode()
     assert '#tabler-eye"' in content
     assert '#tabler-eye-off"' not in content
+    assert 'data-bs-target="#instrument-detail-modal"' in content
 
 
 @mark.django_db
-def test_delisted_instrument_shows_closed_eye_icon() -> None:
+def test_instrument_table_has_no_delisting_switch() -> None:
     venue = _venue(name="Bybit")
-    _instrument(
-        venue,
-        _pair(base="BTC"),
-        exec_symbol="BTCUSD",
-        active=False,
-    )
+    _instrument(venue, _pair(base="BTC"), exec_symbol="BTCUSD")
     client = _login_as(is_staff=True)
     with override("en"):
         response = client.get(
@@ -969,6 +1102,93 @@ def test_delisted_instrument_shows_closed_eye_icon() -> None:
             HTTP_HX_REQUEST="true",
         )
 
+    assert 'role="switch"' not in response.content.decode()
+
+
+@mark.django_db
+def test_instrument_edit_form_uses_switch_for_active_field() -> None:
+    venue = _venue(name="Bybit")
+    instrument = _instrument(venue, _pair(base="BTC"), exec_symbol="BTCUSD")
+    client = _login_as(is_staff=True)
+    with override("en"):
+        response = client.get(
+            reverse("journal:instrument_edit", args=(venue.pk, instrument.pk))
+        )
+
     content = response.content.decode()
-    assert '#tabler-eye-off"' in content
-    assert '#tabler-eye"' not in content
+    assert 'role="switch"' in content
+    assert "name=\"active\"" in content
+    assert "checked" in content
+
+
+@mark.django_db
+def test_regular_user_can_view_instrument_details() -> None:
+    venue = _venue(name="Bybit")
+    instrument = _instrument(venue, _pair(base="BTC"), exec_symbol="BTCUSD")
+    client = _login_as()
+    with override("en"):
+        response = client.get(
+            reverse("journal:instrument_detail", args=(venue.pk, instrument.pk))
+        )
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "BTC/USD" in content
+    assert "BTCUSD" in content
+    assert "Price step" in content
+    assert "Quantity step" in content
+
+
+@mark.django_db
+def test_staff_can_view_instrument_details() -> None:
+    venue = _venue(name="Bybit")
+    instrument = _instrument(venue, _pair(base="BTC"), exec_symbol="BTCUSD")
+    client = _login_as(is_staff=True)
+    with override("en"):
+        response = client.get(
+            reverse("journal:instrument_detail", args=(venue.pk, instrument.pk))
+        )
+
+    assert response.status_code == 200
+    assert "Quantity step" in response.content.decode()
+
+
+@mark.django_db
+def test_instrument_detail_shows_explicit_or_derived_settlement() -> None:
+    venue = _venue(name="Bybit")
+    pair = _pair(base="BTC", quote="USDT", base_type="crypto", quote_type="crypto")
+    explicit = _instrument(
+        venue, pair, product="perpetual_future", exec_symbol="BTCPERP"
+    )
+    explicit.settlement_asset = pair.quote
+    explicit.save()
+    spot = _instrument(venue, pair, exec_symbol="BTCSPOT")
+    client = _login_as()
+    with override("en"):
+        explicit_resp = client.get(
+            reverse("journal:instrument_detail", args=(venue.pk, explicit.pk))
+        )
+        spot_resp = client.get(
+            reverse("journal:instrument_detail", args=(venue.pk, spot.pk))
+        )
+
+    assert "USDT" in explicit_resp.content.decode()
+    assert "quote asset" in spot_resp.content.decode()
+
+
+@mark.django_db
+def test_instrument_table_shows_settlement_column() -> None:
+    venue = _venue(name="Bybit")
+    _instrument(venue, _pair(base="BTC"))
+    client = _login_as()
+    with override("en"):
+        response = client.get(
+            reverse("journal:venue_detail", args=(venue.pk,)),
+            {"section": "instruments"},
+            HTTP_HX_REQUEST="true",
+        )
+
+    content = response.content.decode()
+    assert "Settlement" in content
+    assert "Status" in content
+    assert content.count("Settlement") == 1

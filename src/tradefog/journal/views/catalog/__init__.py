@@ -16,8 +16,8 @@ from tradefog.journal.views.catalog.assets import (
 from tradefog.journal.views.catalog.instruments import (
     instrument_add,
     instrument_delete,
+    instrument_detail,
     instrument_edit,
-    instrument_toggle,
 )
 from tradefog.journal.views.catalog.pairs import (
     pair_create,
@@ -40,8 +40,8 @@ __all__ = [
     "asset_overview",
     "instrument_add",
     "instrument_delete",
+    "instrument_detail",
     "instrument_edit",
-    "instrument_toggle",
     "pair_create",
     "pair_delete",
     "pair_overview",

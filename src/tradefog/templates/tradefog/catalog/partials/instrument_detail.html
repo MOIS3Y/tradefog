@@ -1,0 +1,32 @@
+{% load i18n %}
+<dl class="row mb-0">
+  <dt class="col-4 text-secondary">{% translate "Pair" %}</dt>
+  <dd class="col-8">{{ instrument.pair.canonical_symbol }}</dd>
+  <dt class="col-4 text-secondary">{% translate "Product" %}</dt>
+  <dd class="col-8">{{ instrument.get_product_display }}</dd>
+  <dt class="col-4 text-secondary">{% translate "Execution symbol" %}</dt>
+  <dd class="col-8">{{ instrument.exec_symbol }}</dd>
+  <dt class="col-4 text-secondary">{% translate "Price step" %}</dt>
+  <dd class="col-8">{{ instrument.price_step }}</dd>
+  <dt class="col-4 text-secondary">{% translate "Quantity step" %}</dt>
+  <dd class="col-8">{{ instrument.qty_step }}</dd>
+  <dt class="col-4 text-secondary">{% translate "Minimum quantity" %}</dt>
+  <dd class="col-8">{% if instrument.min_qty %}{{ instrument.min_qty }}{% else %}&mdash;{% endif %}</dd>
+  <dt class="col-4 text-secondary">{% translate "Minimum notional" %}</dt>
+  <dd class="col-8">{% if instrument.min_notional %}{{ instrument.min_notional }}{% else %}&mdash;{% endif %}</dd>
+  <dt class="col-4 text-secondary">{% translate "Settlement" %}</dt>
+  <dd class="col-8">
+    {% if instrument.settlement_asset %}
+      {{ instrument.settlement_asset.symbol }}
+    {% else %}
+      {{ instrument.pair.quote.symbol }}
+      <span class="text-secondary">({% translate "quote asset" %})</span>
+    {% endif %}
+  </dd>
+  <dt class="col-4 text-secondary">{% translate "Status" %}</dt>
+  <dd class="col-8">
+    <span class="badge {% if instrument.active %}bg-green-lt{% else %}bg-secondary-lt{% endif %}">
+      {% if instrument.active %}{% translate "Active" %}{% else %}{% translate "Delisted" %}{% endif %}
+    </span>
+  </dd>
+</dl>

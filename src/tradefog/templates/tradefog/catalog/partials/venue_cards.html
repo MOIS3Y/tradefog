@@ -23,16 +23,6 @@
                     <button class="btn btn-icon"
                             type="button"
                             data-bs-toggle="modal"
-                            data-bs-target="#venue-edit-modal"
-                            hx-get="{% url 'journal:venue_edit' venue.pk %}"
-                            hx-target="#venue-edit-body"
-                            hx-swap="innerHTML"
-                            aria-label="{% translate 'Edit venue' %}">
-                      {% include "tradefog/components/icon.html" with name="pencil" %}
-                    </button>
-                    <button class="btn btn-icon"
-                            type="button"
-                            data-bs-toggle="modal"
                             data-bs-target="#venue-delete-modal"
                             hx-get="{% url 'journal:venue_delete' venue.pk %}"
                             hx-target="#venue-delete-body"

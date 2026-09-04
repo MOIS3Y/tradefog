@@ -22,11 +22,12 @@ from tradefog.journal.models.profiles import (
     WalletAsset,
     WalletOperation,
 )
-from tradefog.journal.models.strategies import TradingStrategy
+from tradefog.journal.models.strategies import StrategyCapital, TradingStrategy
 from tradefog.journal.models.trades import Trade, TradeSnapshot
 
 __all__ = [
     "Asset",
+    "StrategyCapital",
     "Trade",
     "TradeSnapshot",
     "TradingPair",

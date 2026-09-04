@@ -13,27 +13,32 @@
           {% translate "Reusable BASE/QUOTE markets shared across the journal catalog." as page_help_text %}
           {% include "tradefog/components/page_heading.html" with direction=page_direction heading=page_heading help_text=page_help_text %}
         </div>
-        {% if can_manage %}
-          <div class="col-auto ms-auto">
-            <button class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
-                    type="button"
-                    data-bs-toggle="modal"
-                    data-bs-target="#pair-create-modal"
-                    hx-get="{% url 'journal:pair_create' %}"
-                    hx-target="#pair-form-body"
-                    hx-swap="innerHTML">
-              {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
-              {% translate "Add pair" %}
-            </button>
+        <div class="col-auto ms-auto">
+          <div class="btn-list flex-nowrap">
+            {% include "tradefog/components/filter_toggle.html" with filter_id="pair-filters" filters_active=filters_active %}
+            {% if can_manage %}
+              <button class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+                      type="button"
+                      data-bs-toggle="modal"
+                      data-bs-target="#pair-create-modal"
+                      hx-get="{% url 'journal:pair_create' %}"
+                      hx-target="#pair-form-body"
+                      hx-swap="innerHTML">
+                {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+                {% translate "Add pair" %}
+              </button>
+            {% endif %}
           </div>
-        {% endif %}
+        </div>
       </div>
     </div>
   </div>
 {% endblock %}
 
 {% block content %}
-  {% include "tradefog/catalog/partials/pair_filters.html" %}
+  <div class="collapse{% if filters_active %} show{% endif %}" id="pair-filters">
+    {% include "tradefog/catalog/partials/pair_filters.html" %}
+  </div>
   {% include "tradefog/catalog/partials/pair_results.html" %}
   {% if can_manage %}
     {% include "tradefog/catalog/partials/pair_create_modal.html" %}

@@ -90,9 +90,9 @@ urlpatterns = [
         name="instrument_edit",
     ),
     path(
-        "catalog/venues/<int:pk>/instruments/<int:instrument_pk>/toggle/",
-        views.instrument_toggle,
-        name="instrument_toggle",
+        "catalog/venues/<int:pk>/instruments/<int:instrument_pk>/detail/",
+        views.instrument_detail,
+        name="instrument_detail",
     ),
     path(
         "catalog/venues/<int:pk>/instruments/<int:instrument_pk>/delete/",

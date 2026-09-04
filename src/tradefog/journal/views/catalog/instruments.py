@@ -34,12 +34,15 @@ INSTRUMENT_SORT_FIELDS = {
     "-product": ("-product", "-pair__canonical_symbol", "-id"),
     "exec_symbol": ("exec_symbol", "pair__canonical_symbol", "id"),
     "-exec_symbol": ("-exec_symbol", "-pair__canonical_symbol", "-id"),
+    "settlement": ("settlement_asset__symbol", "pair__canonical_symbol", "id"),
+    "-settlement": ("-settlement_asset__symbol", "-pair__canonical_symbol", "-id"),
 }
 
 INSTRUMENT_SORT_COLUMNS = (
     ("pair", _("Pair")),
     ("product", _("Product")),
     ("exec_symbol", _("Execution symbol")),
+    ("settlement", _("Settlement")),
 )
 
 
@@ -185,51 +188,27 @@ def instrument_edit(
 
 
 @login_required
-def instrument_toggle(
+def instrument_detail(
     request: HttpRequest, pk: int, instrument_pk: int
 ) -> HttpResponse:
-    """Delist or re-enable a venue instrument by flipping its ``active`` flag.
+    """Render the read-only details of one venue instrument.
 
-    Delisting keeps the instrument referenced by past trades while removing it
-    from future trade selection. The action returns the refreshed results
-    wrapper out of band plus a toast naming the resulting state.
+    Any authenticated user, staff or not, can inspect the instrument's
+    parameters. The fragment is loaded into a modal by a per-row button.
     """
-    if not request.user.is_staff:
-        raise PermissionDenied
     venue = get_object_or_404(Venue, pk=pk)
     instrument = get_object_or_404(
-        VenueInstrument, venue=venue, pk=instrument_pk
+        VenueInstrument.objects.select_related(
+            "pair__base", "pair__quote", "settlement_asset"
+        ),
+        venue=venue,
+        pk=instrument_pk,
     )
-    instrument.active = not instrument.active
-    instrument.save(
-        update_fields=("active",)
-    )
-    context = instrument_context(
+    return render(
         request,
-        venue,
-        instrument_list_state(request, venue),
-        can_manage=True,
-        swap_oob=True,
+        "tradefog/catalog/partials/instrument_detail.html",
+        {"venue": venue, "instrument": instrument},
     )
-    response = render(
-        request,
-        "tradefog/catalog/partials/instrument_results.html",
-        {"section": context},
-    )
-    message = (
-        _("Instrument delisted.")
-        if not instrument.active
-        else _("Instrument enabled.")
-    )
-    response["HX-Trigger"] = json.dumps(
-        {
-            "tradefog:toast": {
-                "message": str(message),
-                "kind": "success",
-            }
-        }
-    )
-    return response
 
 
 @login_required

@@ -309,14 +309,20 @@ User menu
 - Trading pairs lists the reusable BASE/QUOTE markets with search, a dynamic
   base/quote asset-type filter, sorting, and pagination; regular users read
   it, while staff create and remove pairs through modal forms with
-  dismissible status alerts.
+  dismissible status alerts. A Filters button above the results reveals the
+  filter panel, which is collapsed by default and stays open while its
+  filters are applied.
 - Venues lists the shared exchanges and execution destinations as a small
   responsive card grid with instrument and wallet-asset counts; regular users
-  read it, while staff create, edit, and remove venues through modal forms.
-  A venue detail page shows the venue's wallet-capable assets and executable
-  instruments as two independent, filterable table sections. Staff add and
-  remove wallet assets, and add, edit, delist (toggle active), or remove
-  instruments through modal forms and an inline delisting control.
+  read it, while staff create and remove venues through modal forms. A venue
+  detail page presents the venue through three card tabs: Instruments (the
+  executable markets with filters, sorting, a settlement column, and a read-only
+  details modal open to every user), Wallet assets (the venue-capable assets),
+  and Settings (the venue name and website). A Filters button beside the add
+  action reveals each collection's filter panel. Staff manage instruments and
+  wallet assets through modal forms, delist instruments with an inline switch,
+  and edit the venue name and website on the Settings tab; regular users read
+  every tab and inspect instrument parameters, with Settings shown read-only.
 - Trades contains the cross-profile journal, owner-scoped profile, strategy,
   product, pair, and lifecycle filters, server-ordered paginated results,
   trade creation, and the trade workspace.

@@ -1,0 +1,7 @@
+{% load i18n %}
+<div id="venue-heading"{% if swap_oob %} hx-swap-oob="outerHTML"{% endif %}>
+  {% translate "Catalog" as page_direction %}
+  {% translate "Venue" as page_heading %}
+  {% translate "Wallet assets and executable instruments available on this venue." as page_help_text %}
+  {% include "tradefog/components/page_heading.html" with direction=page_direction heading=venue.name help_text=page_help_text %}
+</div>

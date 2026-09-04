@@ -63,6 +63,14 @@ class StrategyStatus(models.TextChoices):
     ARCHIVED = "archived", _("Archived")
 
 
+class WalletAssetStatus(models.TextChoices):
+    """Money-health status of a wallet asset against its deposit floor."""
+
+    ACTIVE = "active", _("Active")
+    AT_RISK = "at_risk", _("At risk")
+    RISK_STOPPED = "risk_stopped", _("Risk stopped")
+
+
 class WalletOperationKind(models.TextChoices):
     """Kind of a virtual wallet journal operation."""
 

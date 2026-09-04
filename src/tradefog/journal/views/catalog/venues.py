@@ -134,12 +134,13 @@ def venue_create(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def venue_edit(request: HttpRequest, pk: int) -> HttpResponse:
-    """Render the edit form fragment or update a catalog venue.
+    """Render the settings form fragment or update a catalog venue.
 
-    A GET request supplies the modal form. A valid POST updates the venue and
-    returns both the card grid and the detail identity card out of band so the
-    change lands whether the edit was started from the collection or the
-    detail page. An invalid POST returns the form with errors and a 422 status.
+    The venue's name and website are edited inline on the venue detail page's
+    Settings tab. A valid POST saves the venue and returns the refreshed
+    settings form plus an out-of-band ``#venue-heading`` fragment so the page
+    title follows a renamed venue; an invalid POST returns the form with field
+    errors and a 422 status.
     """
     if not request.user.is_staff:
         raise PermissionDenied
@@ -155,38 +156,37 @@ def venue_edit(request: HttpRequest, pk: int) -> HttpResponse:
                 )
                 return render(
                     request,
-                    "tradefog/catalog/partials/venue_edit_form.html",
+                    "tradefog/catalog/partials/venue_settings_form.html",
                     {"form": form, "venue": venue},
                     status=422,
                 )
-            cards_html = render_to_string(
-                "tradefog/catalog/partials/venue_cards.html",
-                _card_context(request),
+            settings_html = render_to_string(
+                "tradefog/catalog/partials/venue_settings_form.html",
+                {"form": form, "venue": venue},
             )
-            identity_html = render_to_string(
-                "tradefog/catalog/partials/venue_identity.html",
-                {"venue": venue, "can_manage": True, "swap_oob": True},
+            heading_html = render_to_string(
+                "tradefog/catalog/partials/venue_heading.html",
+                {"venue": venue, "swap_oob": True},
             )
-            response = HttpResponse(cards_html + identity_html)
+            response = HttpResponse(settings_html + heading_html)
             response["HX-Trigger"] = json.dumps(
                 {
                     "tradefog:toast": {
                         "message": str(_("Venue updated.")),
                         "kind": "success",
-                    },
-                    "tradefog:close-modal": {"id": "venue-edit-modal"},
+                    }
                 }
             )
             return response
         return render(
             request,
-            "tradefog/catalog/partials/venue_edit_form.html",
+            "tradefog/catalog/partials/venue_settings_form.html",
             {"form": form, "venue": venue},
             status=422,
         )
     return render(
         request,
-        "tradefog/catalog/partials/venue_edit_form.html",
+        "tradefog/catalog/partials/venue_settings_form.html",
         {"form": form, "venue": venue},
     )
 
@@ -291,6 +291,7 @@ def venue_detail(request: HttpRequest, pk: int) -> HttpResponse:
     context = {
         "venue": venue,
         "can_manage": can_manage,
+        "form": VenueForm(instance=venue),
         "search": wallet_state["search"],
         "asset_type": wallet_state["asset_type"],
         "asset_type_choices": AssetType.choices,

@@ -183,12 +183,14 @@ staff-managed reference catalog that regular users read but do not edit:
 Catalog collection pages for Assets and Trading pairs are implemented first:
 each lists the shared records with server-side search, filtering, sorting,
 and pagination, while staff create and remove records through modal forms.
-Venues follow as a small responsive card grid with a detail page that hosts
-the venue's wallet-capable assets and executable instruments as two
-filterable, sortable table sections; staff manage wallet assets and add,
-edit, delist, and remove instruments through modal forms and an inline
-delisting control. The remaining wallet and trade-reference restructuring
-continues in this stage.
+Venues follow as a small responsive card grid with a detail page that groups
+the venue's instruments, wallet-capable assets, and settings as card tabs;
+staff manage instruments and wallet assets through modal forms and an inline
+delisting switch, and edit the venue name and website on the Settings tab.
+Instrument parameters are visible to every user through a read-only details
+modal and a settlement column. Catalog and venue filters are revealed by a
+Filters button and collapsed by default. The remaining wallet and
+trade-reference restructuring continues in this stage.
 
 Stage 9 remains implementation history. The revised Stage 10 supersedes its
 account/catalog model, the interim profile-owned asset and pair model, and the

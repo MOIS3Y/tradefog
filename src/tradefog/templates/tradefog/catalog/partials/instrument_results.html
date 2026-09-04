@@ -7,8 +7,7 @@
       {{ count }} instruments
     {% endblocktranslate %}
   </div>
-  <div class="card">
-    {% if section.instruments %}
+  {% if section.instruments %}
       <div class="table-responsive">
         <table class="table table-vcenter card-table">
           <thead>
@@ -30,7 +29,7 @@
                 </th>
               {% endfor %}
               <th>{% translate "Status" %}</th>
-              {% if section.can_manage %}<th class="w-1"></th>{% endif %}
+              <th class="w-1"></th>
             </tr>
           </thead>
           <tbody>
@@ -43,6 +42,13 @@
                   </span>
                 </td>
                 <td class="text-secondary">{{ instrument.exec_symbol }}</td>
+                <td class="tf-ticker">
+                  {% if instrument.settlement_asset %}
+                    {{ instrument.settlement_asset.symbol }}
+                  {% else %}
+                    {{ instrument.pair.quote.symbol }}
+                  {% endif %}
+                </td>
                 <td>
                   <span class="badge {% if instrument.active %}bg-green-lt{% else %}bg-secondary-lt{% endif %}">
                     {% if instrument.active %}
@@ -52,30 +58,19 @@
                     {% endif %}
                   </span>
                 </td>
-                {% if section.can_manage %}
-                  <td class="text-end">
-                    <div class="btn-list flex-nowrap justify-content-end">
-                      <form class="m-0"
-                            hx-post="{% url 'journal:instrument_toggle' section.venue.pk instrument.pk %}"
-                            hx-target="#instrument-results"
-                            hx-swap="outerHTML">
-                        {% csrf_token %}
-                        <button class="btn btn-icon"
-                                type="submit"
-                                {% if instrument.active %}
-                                  aria-label="{% translate 'Delist instrument' %}"
-                                  title="{% translate 'Delist' %}"
-                                {% else %}
-                                  aria-label="{% translate 'Enable instrument' %}"
-                                  title="{% translate 'Enable' %}"
-                                {% endif %}>
-                          {% if instrument.active %}
-                            {% include "tradefog/components/icon.html" with name="eye" %}
-                          {% else %}
-                            {% include "tradefog/components/icon.html" with name="eye-off" %}
-                          {% endif %}
-                        </button>
-                      </form>
+                <td class="text-end">
+                  <div class="btn-list flex-nowrap justify-content-end">
+                    <button class="btn btn-icon"
+                            type="button"
+                            data-bs-toggle="modal"
+                            data-bs-target="#instrument-detail-modal"
+                            hx-get="{% url 'journal:instrument_detail' section.venue.pk instrument.pk %}"
+                            hx-target="#instrument-detail-body"
+                            hx-swap="innerHTML"
+                            aria-label="{% translate 'View instrument details' %}">
+                      {% include "tradefog/components/icon.html" with name="eye" %}
+                    </button>
+                    {% if section.can_manage %}
                       <button class="btn btn-icon"
                               type="button"
                               data-bs-toggle="modal"
@@ -96,9 +91,9 @@
                               aria-label="{% translate 'Remove instrument' %}">
                         {% include "tradefog/components/icon.html" with name="trash" %}
                       </button>
-                    </div>
-                  </td>
-                {% endif %}
+                    {% endif %}
+                  </div>
+                </td>
               </tr>
             {% endfor %}
           </tbody>
@@ -149,5 +144,4 @@
         {% endif %}
       </section>
     {% endif %}
-  </div>
 </div>

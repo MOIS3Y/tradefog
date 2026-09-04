@@ -42,51 +42,69 @@ class Trade(models.Model):
         TradingProfile,
         on_delete=models.CASCADE,
         related_name="trades",
+        verbose_name=_("Profile"),
     )
     strategy = models.ForeignKey(
         TradingStrategy,
         on_delete=models.PROTECT,
         related_name="trades",
+        verbose_name=_("Strategy"),
     )
     venue_instrument = models.ForeignKey(
         VenueInstrument,
         on_delete=models.PROTECT,
         related_name="trades",
+        verbose_name=_("Venue instrument"),
     )
-    trade_date = models.DateField()
+    trade_date = models.DateField(verbose_name=_("Trade date"))
     status = models.CharField(
         max_length=32,
         choices=TradeStatus.choices,
         default=TradeStatus.DRAFT,
+        verbose_name=_("Status"),
     )
-    direction = models.CharField(max_length=8, choices=Direction.choices)
-    description_markdown = models.TextField(blank=True)
-    review_completed_at = models.DateTimeField(null=True, blank=True)
+    direction = models.CharField(
+        max_length=8,
+        choices=Direction.choices,
+        verbose_name=_("Direction"),
+    )
+    description_markdown = models.TextField(
+        blank=True, verbose_name=_("Description")
+    )
+    review_completed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("Review completed at")
+    )
     realized_pnl = models.DecimalField(
         max_digits=30,
         decimal_places=18,
         null=True,
         blank=True,
+        verbose_name=_("Realized P&L"),
     )
     actual_exit_price = models.DecimalField(
         max_digits=30,
         decimal_places=18,
         null=True,
         blank=True,
+        verbose_name=_("Actual exit price"),
     )
     total_commission = models.DecimalField(
         max_digits=30,
         decimal_places=18,
         null=True,
         blank=True,
+        verbose_name=_("Total commission"),
     )
     funding_result = models.DecimalField(
         max_digits=30,
         decimal_places=18,
         null=True,
         blank=True,
+        verbose_name=_("Funding result"),
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("Created at")
+    )
 
     @final
     class Meta:
@@ -119,59 +137,118 @@ class TradeSnapshot(models.Model):
         Trade,
         on_delete=models.CASCADE,
         related_name="snapshot",
+        verbose_name=_("Trade"),
     )
-    planned_entry = models.DecimalField(max_digits=30, decimal_places=18)
-    planned_stop = models.DecimalField(max_digits=30, decimal_places=18)
+    planned_entry = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Planned entry"),
+    )
+    planned_stop = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Planned stop"),
+    )
     planned_take_profit = models.DecimalField(
         max_digits=30,
         decimal_places=18,
         null=True,
         blank=True,
+        verbose_name=_("Planned take profit"),
     )
     quantity = models.DecimalField(
         max_digits=30,
         decimal_places=18,
         null=True,
         blank=True,
+        verbose_name=_("Quantity"),
     )
-    reward_multiple = models.DecimalField(max_digits=10, decimal_places=6)
-    planned_risk_percent = models.DecimalField(max_digits=10, decimal_places=6)
-    planned_risk_amount = models.DecimalField(max_digits=30, decimal_places=18)
-    planned_notional = models.DecimalField(max_digits=30, decimal_places=18)
-    strategy_equity = models.DecimalField(max_digits=30, decimal_places=18)
-    strategic_capital = models.DecimalField(max_digits=30, decimal_places=18)
+    reward_multiple = models.DecimalField(
+        max_digits=10,
+        decimal_places=6,
+        verbose_name=_("Reward multiple"),
+    )
+    planned_risk_percent = models.DecimalField(
+        max_digits=10,
+        decimal_places=6,
+        verbose_name=_("Planned risk percent"),
+    )
+    planned_risk_amount = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Planned risk amount"),
+    )
+    planned_notional = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Planned notional"),
+    )
+    allocation_capital = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Allocation capital"),
+    )
     risk_stop_capital = models.DecimalField(
         max_digits=30,
         decimal_places=18,
         null=True,
         blank=True,
+        verbose_name=_("Risk stop capital"),
     )
     already_reserved_risk = models.DecimalField(
-        max_digits=30, decimal_places=18
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Already reserved risk"),
     )
     remaining_risk_capacity = models.DecimalField(
-        max_digits=30, decimal_places=18
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Remaining risk capacity"),
     )
-    risk_limit_breach = models.BooleanField(default=False)
-    wallet_balance = models.DecimalField(max_digits=30, decimal_places=18)
-    wallet_reserved = models.DecimalField(max_digits=30, decimal_places=18)
-    wallet_available = models.DecimalField(max_digits=30, decimal_places=18)
+    deposit_floor_breach = models.BooleanField(
+        default=False, verbose_name=_("Deposit floor breach")
+    )
+    wallet_balance = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Wallet balance"),
+    )
+    wallet_reserved = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Wallet reserved"),
+    )
+    wallet_available = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        verbose_name=_("Wallet available"),
+    )
     atr_value = models.DecimalField(
         max_digits=30,
         decimal_places=18,
         null=True,
         blank=True,
+        verbose_name=_("ATR value"),
     )
     atr_source = models.CharField(
         max_length=16,
         choices=ATRSource.choices,
         null=True,
         blank=True,
+        verbose_name=_("ATR source"),
     )
-    atr_contributing_date = models.DateField(null=True, blank=True)
-    atr_observation_time = models.DateTimeField(null=True, blank=True)
-    atr_stale = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    atr_contributing_date = models.DateField(
+        null=True, blank=True, verbose_name=_("ATR contributing date")
+    )
+    atr_observation_time = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("ATR observation time")
+    )
+    atr_stale = models.BooleanField(
+        default=False, verbose_name=_("ATR stale")
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("Created at")
+    )
 
     @final
     class Meta:

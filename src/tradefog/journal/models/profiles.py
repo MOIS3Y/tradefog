@@ -17,7 +17,10 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from tradefog.journal.models.catalog import Venue, VenueWalletAsset
-from tradefog.journal.models.enums import WalletOperationKind
+from tradefog.journal.models.enums import (
+    WalletAssetStatus,
+    WalletOperationKind,
+)
 
 if TYPE_CHECKING:
     from django.db.models import Manager
@@ -43,14 +46,18 @@ class TradingProfile(models.Model):
         cast(str, settings.AUTH_USER_MODEL),
         on_delete=models.CASCADE,
         related_name="profiles",
+        verbose_name=_("Owner"),
     )
     venue = models.ForeignKey(
         Venue,
         on_delete=models.PROTECT,
         related_name="profiles",
+        verbose_name=_("Venue"),
     )
-    name = models.CharField(max_length=128)
-    archived = models.BooleanField(default=False)
+    name = models.CharField(max_length=128, verbose_name=_("Name"))
+    archived = models.BooleanField(
+        default=False, verbose_name=_("Archived")
+    )
 
     @final
     class Meta:
@@ -80,6 +87,7 @@ class Wallet(models.Model):
         TradingProfile,
         on_delete=models.CASCADE,
         related_name="wallet",
+        verbose_name=_("Profile"),
     )
 
     @final
@@ -111,11 +119,27 @@ class WalletAsset(models.Model):
         Wallet,
         on_delete=models.CASCADE,
         related_name="assets",
+        verbose_name=_("Wallet"),
     )
     venue_wallet_asset = models.ForeignKey(
         VenueWalletAsset,
         on_delete=models.PROTECT,
         related_name="wallet_assets",
+        verbose_name=_("Venue wallet asset"),
+    )
+    risk_stop_capital = models.DecimalField(
+        max_digits=30,
+        decimal_places=18,
+        null=True,
+        blank=True,
+        verbose_name=_("Risk stop capital"),
+        help_text=_("Advisory deposit floor that highlights a bleeding deposit."),
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=WalletAssetStatus.choices,
+        default=WalletAssetStatus.ACTIVE,
+        verbose_name=_("Status"),
     )
 
     @final
@@ -150,11 +174,22 @@ class WalletOperation(models.Model):
         WalletAsset,
         on_delete=models.PROTECT,
         related_name="operations",
+        verbose_name=_("Wallet asset"),
     )
-    kind = models.CharField(max_length=16, choices=WalletOperationKind.choices)
-    amount = models.DecimalField(max_digits=30, decimal_places=18)
-    note = models.CharField(max_length=255, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    kind = models.CharField(
+        max_length=16,
+        choices=WalletOperationKind.choices,
+        verbose_name=_("Kind"),
+    )
+    amount = models.DecimalField(
+        max_digits=30, decimal_places=18, verbose_name=_("Amount")
+    )
+    note = models.CharField(
+        max_length=255, blank=True, verbose_name=_("Note")
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("Created at")
+    )
 
     @final
     class Meta:

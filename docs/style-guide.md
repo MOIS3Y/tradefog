@@ -109,29 +109,39 @@ in nearby help text or a tooltip.
 
 ## Filters
 
-Use `tradefog/components/filter_panel.html` for non-analytics collection
-filters. The panel is a GET form inside collapsed `details.card.card-sm`:
+Non-analytics collection filters use a collapse toggle plus a GET form. A
+`tradefog/components/filter_toggle.html` button labelled `Filters` reveals the
+panel, which is a `card.card-sm` GET form wrapped in a `div.collapse`. The
+panel sits in its normal place (above the results) and is collapsed by default,
+saving vertical space. It renders expanded (the `show` class) whenever a filter
+is active so the user can see and clear what is applied:
 
 ```text
-┌─ Filters                                      [Active]          [›] ─┐
-│                                                                  │
-│ Label                          Label                              │
-│ [control                   ]   [control                       ]   │
-│ Contextual hint                Contextual hint                    │
-│                                                                  │
-│                                  [Reset filters] [Apply]          │
-└──────────────────────────────────────────────────────────────────┘
+                           [Filters]  [+ Add instrument]
+
+┌─ Filters ────────────────────────────────────────────────┐
+│ Label                          Label                     │
+│ [control                   ]   [control               ] │
+│ Contextual hint                Contextual hint           │
+│                              [Reset filters] [Apply]     │
+└──────────────────────────────────────────────────────────┘
+┌─ results ────────────────────────────────────────────────┐
+│ ...                                                      │
+└──────────────────────────────────────────────────────────┘
 ```
 
-The panel is closed by default and opens when a filter is active or validation
-fails. Controls use one column on small screens and two columns from the
-`md` breakpoint. Each field has a concise contextual hint and visible errors.
+The toggle uses `data-bs-toggle="collapse"` and `data-bs-target="#<id>"`; the
+wrap is `<div class="collapse{% if filters_active %} show{% endif %}" id="<id>">`.
+Because the collapse state is client-side and HTMX swaps only the results
+wrapper, applying filters never collapses the panel. The filter form itself
+must still work as a normal navigable GET request; HTMX progressively enhances
+it with `hx-get`, `hx-target`, `hx-swap="outerHTML"`, and `hx-push-url="true"`.
+Reset is a normal link to the collection URL. The server validates parameters,
+applies owner scoping, and supplies the canonical filter state.
 
-The form must work as a normal navigable GET request. HTMX progressively
-enhances it with `hx-get`, `hx-target`, `hx-swap="outerHTML"`, and
-`hx-push-url="true"`. Reset is a normal link to the collection URL. The server
-validates parameters, applies owner scoping, and supplies the canonical filter
-state.
+Note: this client-side collapse deviates from the strictly no-JavaScript
+`<details>` approach so the Filter control can sit beside the primary action
+and free interface space; the filter form remains usable as a GET request.
 
 ## Sorting and pagination
 
@@ -157,6 +167,16 @@ sorts, and paginates through prefixed query parameters (for example `wa_q` and
 `i_sort`) and only that wrapper is swapped by HTMX, so one section never
 resets another. A detail page retains the shared page header slot with the
 object name as its heading.
+
+When a detail page groups several collections plus an edit surface, prefer
+Tabler's card-header-tabs: a single card whose `card-header` holds the tab
+navigation and whose `card-body` holds the `tab-content`. Each tab-pane is one
+collection (filter and table) or the object's settings form. The collection
+results partials render the count, table, and pagination directly inside the
+pane without their own card wrapper. The active tab is client-side state, so
+HTMX swaps that update only a results wrapper leave the tab selection intact.
+Make the page heading an out-of-band swappable region so renaming the object
+updates the header title without a reload.
 
 Filtering, sorting, and pagination replace only one stable result wrapper:
 
@@ -289,7 +309,7 @@ supported. Interface copy uses plain language, active voice, and sentence case.
 | --- | --- |
 | Direction, title, and help tooltip | `components/page_heading.html` |
 | Ordinary form control and hint | `components/form_field.html` |
-| Collection filter panel | `components/filter_panel.html` |
+| Collection filter toggle | `components/filter_toggle.html` |
 | Shared icon markup | `components/icon.html` |
 | Server-side pagination footer | `components/pagination.html` |
 | Sortable collection result | A collection-specific partial with one stable wrapper |
