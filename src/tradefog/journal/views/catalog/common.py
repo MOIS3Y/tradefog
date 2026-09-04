@@ -28,20 +28,31 @@ def build_results_context[ModelT: Model](
     can_manage: bool,
     results_key: str,
     swap_oob: bool = False,
+    sort_parameter: str = "sort",
+    page_parameter: str = "page",
 ) -> dict[str, Any]:
     """Build the shared results-wrapper context for a catalog list.
 
     The domain object list is stored under ``results_key`` on the returned
-    mapping.
+    mapping. Several collections on one page pass distinct ``sort_parameter``
+    and ``page_parameter`` values so they do not reset one another.
     """
     page_obj = Paginator(queryset, page_size).get_page(
-        request.GET.get("page")
+        request.GET.get(page_parameter)
     )
     return {
         "page_obj": page_obj,
         results_key: page_obj.object_list,
-        "pagination": _pagination_urls(request, page_obj),
-        "sort_headers": _sort_headers(request, current_sort, columns),
+        "pagination": _pagination_urls(
+            request, page_obj, page_parameter=page_parameter
+        ),
+        "sort_headers": _sort_headers(
+            request,
+            current_sort,
+            columns,
+            sort_parameter=sort_parameter,
+            page_parameter=page_parameter,
+        ),
         "filters_active": filters_active,
         "can_manage": can_manage,
         "swap_oob": swap_oob,

@@ -1,0 +1,51 @@
+{% load i18n %}
+<form class="card card-sm tf-filter-bar mb-3"
+      method="get"
+      action="{% url 'journal:venue_detail' venue.pk %}"
+      hx-get="{% url 'journal:venue_detail' venue.pk %}"
+      hx-target="#instrument-results"
+      hx-swap="outerHTML"
+      hx-push-url="true">
+  <input type="hidden" name="section" value="instruments">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md">
+        <label class="form-label" for="id_instrument_search">
+          {% translate "Search" %}
+        </label>
+        <input class="form-control"
+               type="search"
+               id="id_instrument_search"
+               name="i_q"
+               value="{{ i_search }}"
+               placeholder="{% translate 'Pair or execution symbol' %}"
+               autocomplete="off">
+      </div>
+      <div class="col-12 col-md-auto">
+        <label class="form-label" for="id_instrument_product">
+          {% translate "Product" %}
+        </label>
+        <select class="form-select" id="id_instrument_product" name="i_product">
+          <option value="">{% translate "All products" %}</option>
+          {% for value, label in product_choices %}
+            <option value="{{ value }}"
+                    {% if i_product == value %}selected{% endif %}>
+              {{ label }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-auto">
+        <div class="btn-list flex-nowrap">
+          <button class="btn btn-primary" type="submit">
+            {% translate "Apply" %}
+          </button>
+          <a class="btn"
+             href="{% url 'journal:venue_detail' venue.pk %}?section=instruments">
+            {% translate "Reset" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>

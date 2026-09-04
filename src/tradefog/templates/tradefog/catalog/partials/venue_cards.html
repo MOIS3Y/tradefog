@@ -1,0 +1,103 @@
+{% load i18n %}
+<div id="venue-grid"{% if swap_oob %} hx-swap-oob="outerHTML"{% endif %}>
+  {% if venues %}
+    <div class="text-secondary mb-2">
+      {% blocktranslate count count=venues|length %}
+        {{ count }} venue
+      {% plural %}
+        {{ count }} venues
+      {% endblocktranslate %}
+    </div>
+    <div class="row g-3">
+      {% for venue in venues %}
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="card">
+            <div class="card-body">
+              <div class="d-flex align-items-start justify-content-between gap-2">
+                <a class="card-title mb-1"
+                   href="{% url 'journal:venue_detail' venue.pk %}">
+                  {{ venue.name }}
+                </a>
+                {% if can_manage %}
+                  <div class="btn-list flex-nowrap">
+                    <button class="btn btn-icon"
+                            type="button"
+                            data-bs-toggle="modal"
+                            data-bs-target="#venue-edit-modal"
+                            hx-get="{% url 'journal:venue_edit' venue.pk %}"
+                            hx-target="#venue-edit-body"
+                            hx-swap="innerHTML"
+                            aria-label="{% translate 'Edit venue' %}">
+                      {% include "tradefog/components/icon.html" with name="pencil" %}
+                    </button>
+                    <button class="btn btn-icon"
+                            type="button"
+                            data-bs-toggle="modal"
+                            data-bs-target="#venue-delete-modal"
+                            hx-get="{% url 'journal:venue_delete' venue.pk %}"
+                            hx-target="#venue-delete-body"
+                            hx-swap="innerHTML"
+                            aria-label="{% translate 'Remove venue' %}">
+                      {% include "tradefog/components/icon.html" with name="trash" %}
+                    </button>
+                  </div>
+                {% endif %}
+              </div>
+              {% if venue.website %}
+                <a class="text-secondary small"
+                   href="{{ venue.website }}"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                  {% include "tradefog/components/icon.html" with name="device-desktop" class="icon-inline" %}
+                  {{ venue.website }}
+                </a>
+              {% else %}
+                <span class="text-secondary small">&mdash;</span>
+              {% endif %}
+              <div class="d-flex flex-wrap gap-2 mt-3">
+                <span class="badge bg-secondary-lt">
+                  {% blocktranslate count count=venue.instrument_count %}
+                    {{ count }} instrument
+                  {% plural %}
+                    {{ count }} instruments
+                  {% endblocktranslate %}
+                </span>
+                <span class="badge bg-secondary-lt">
+                  {% blocktranslate count count=venue.wallet_asset_count %}
+                    {{ count }} wallet asset
+                  {% plural %}
+                    {{ count }} wallet assets
+                  {% endblocktranslate %}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <section class="empty empty-bordered">
+      <div class="empty-icon">
+        {% include "tradefog/components/icon.html" with name="archive" %}
+      </div>
+      <h2 class="empty-title">{% translate "No venues yet" %}</h2>
+      <p class="empty-subtitle text-secondary">
+        {% translate "The catalog is empty; ask a staff member to add venues." %}
+      </p>
+      {% if can_manage %}
+        <div class="empty-action">
+          <button class="btn btn-primary"
+                  type="button"
+                  data-bs-toggle="modal"
+                  data-bs-target="#venue-create-modal"
+                  hx-get="{% url 'journal:venue_create' %}"
+                  hx-target="#venue-form-body"
+                  hx-swap="innerHTML">
+            {% include "tradefog/components/icon.html" with name="plus" class="icon" %}
+            {% translate "Add venue" %}
+          </button>
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>

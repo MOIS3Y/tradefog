@@ -139,14 +139,14 @@
                   </a>
                 </li>
                 {% with catalog_active=request.resolver_match.url_name %}
-                <li class="nav-item dropdown{% if catalog_active == 'asset_overview' or catalog_active == 'pair_overview' %} active{% endif %}">
+                <li class="nav-item dropdown{% if catalog_active == 'asset_overview' or catalog_active == 'pair_overview' or catalog_active == 'venue_overview' or catalog_active == 'venue_detail' %} active{% endif %}">
                   <a class="nav-link dropdown-toggle"
                      href="#"
                      data-bs-toggle="dropdown"
                      role="button"
                      aria-haspopup="true"
                      aria-expanded="false"
-                     {% if catalog_active == 'asset_overview' or catalog_active == 'pair_overview' %}aria-current="page"{% endif %}>
+                     {% if catalog_active == 'asset_overview' or catalog_active == 'pair_overview' or catalog_active == 'venue_overview' or catalog_active == 'venue_detail' %}aria-current="page"{% endif %}>
                     <span class="nav-link-icon">{% include "tradefog/components/icon.html" with name="archive" %}</span>
                     <span class="nav-link-title">{% translate "Catalog" %}</span>
                   </a>
@@ -159,11 +159,10 @@
                        href="{% url 'journal:pair_overview' %}">
                       {% translate "Trading pairs" %}
                     </a>
-                    <span class="dropdown-item disabled"
-                          aria-disabled="true"
-                          title="{% translate 'Coming soon' %}">
+                    <a class="dropdown-item{% if catalog_active == 'venue_overview' or catalog_active == 'venue_detail' %} active{% endif %}"
+                       href="{% url 'journal:venue_overview' %}">
                       {% translate "Venues" %}
-                    </span>
+                    </a>
                   </div>
                 </li>
                 {% endwith %}

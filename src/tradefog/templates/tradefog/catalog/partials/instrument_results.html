@@ -1,0 +1,153 @@
+{% load i18n %}
+<div id="instrument-results"{% if section.swap_oob %} hx-swap-oob="outerHTML"{% endif %}>
+  <div class="text-secondary mb-2">
+    {% blocktranslate count count=section.page_obj.paginator.count %}
+      {{ count }} instrument
+    {% plural %}
+      {{ count }} instruments
+    {% endblocktranslate %}
+  </div>
+  <div class="card">
+    {% if section.instruments %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              {% for header in section.sort_headers %}
+                <th{% if header.active %} aria-sort="{% if header.descending %}descending{% else %}ascending{% endif %}"{% endif %}>
+                  <a class="tf-sort-link{% if header.active %} active{% endif %}"
+                     href="{{ header.url }}"
+                     hx-get="{{ header.url }}"
+                     hx-target="#instrument-results"
+                     hx-swap="outerHTML"
+                     hx-push-url="true">
+                    {{ header.label }}{% if header.active %}
+                      <span aria-hidden="true">
+                        {% if header.descending %}↓{% else %}↑{% endif %}
+                      </span>
+                    {% endif %}
+                  </a>
+                </th>
+              {% endfor %}
+              <th>{% translate "Status" %}</th>
+              {% if section.can_manage %}<th class="w-1"></th>{% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for instrument in section.instruments %}
+              <tr>
+                <td class="tf-ticker">{{ instrument.pair.canonical_symbol }}</td>
+                <td>
+                  <span class="badge {% if instrument.product == 'perpetual_future' %}bg-purple-lt{% elif instrument.product == 'spot' %}bg-green-lt{% else %}bg-blue-lt{% endif %}">
+                    {{ instrument.get_product_display }}
+                  </span>
+                </td>
+                <td class="text-secondary">{{ instrument.exec_symbol }}</td>
+                <td>
+                  <span class="badge {% if instrument.active %}bg-green-lt{% else %}bg-secondary-lt{% endif %}">
+                    {% if instrument.active %}
+                      {% translate "Active" %}
+                    {% else %}
+                      {% translate "Delisted" %}
+                    {% endif %}
+                  </span>
+                </td>
+                {% if section.can_manage %}
+                  <td class="text-end">
+                    <div class="btn-list flex-nowrap justify-content-end">
+                      <form class="m-0"
+                            hx-post="{% url 'journal:instrument_toggle' section.venue.pk instrument.pk %}"
+                            hx-target="#instrument-results"
+                            hx-swap="outerHTML">
+                        {% csrf_token %}
+                        <button class="btn btn-icon"
+                                type="submit"
+                                {% if instrument.active %}
+                                  aria-label="{% translate 'Delist instrument' %}"
+                                  title="{% translate 'Delist' %}"
+                                {% else %}
+                                  aria-label="{% translate 'Enable instrument' %}"
+                                  title="{% translate 'Enable' %}"
+                                {% endif %}>
+                          {% if instrument.active %}
+                            {% include "tradefog/components/icon.html" with name="eye" %}
+                          {% else %}
+                            {% include "tradefog/components/icon.html" with name="eye-off" %}
+                          {% endif %}
+                        </button>
+                      </form>
+                      <button class="btn btn-icon"
+                              type="button"
+                              data-bs-toggle="modal"
+                              data-bs-target="#instrument-edit-modal"
+                              hx-get="{% url 'journal:instrument_edit' section.venue.pk instrument.pk %}"
+                              hx-target="#instrument-edit-body"
+                              hx-swap="innerHTML"
+                              aria-label="{% translate 'Edit instrument' %}">
+                        {% include "tradefog/components/icon.html" with name="pencil" %}
+                      </button>
+                      <button class="btn btn-icon"
+                              type="button"
+                              data-bs-toggle="modal"
+                              data-bs-target="#instrument-delete-modal"
+                              hx-get="{% url 'journal:instrument_delete' section.venue.pk instrument.pk %}"
+                              hx-target="#instrument-delete-body"
+                              hx-swap="innerHTML"
+                              aria-label="{% translate 'Remove instrument' %}">
+                        {% include "tradefog/components/icon.html" with name="trash" %}
+                      </button>
+                    </div>
+                  </td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% with section.page_obj as page_obj %}{% with section.pagination as pagination %}
+        {% include "tradefog/components/pagination.html" with pagination_target="#instrument-results" %}
+      {% endwith %}{% endwith %}
+    {% else %}
+      <section class="empty">
+        <div class="empty-icon">
+          {% include "tradefog/components/icon.html" with name="chart-candle" %}
+        </div>
+        {% if section.filters_active %}
+          <h2 class="empty-title">
+            {% translate "No instruments match your filters" %}
+          </h2>
+          <p class="empty-subtitle text-secondary">
+            {% translate "Try a different search or reset the filters." %}
+          </p>
+          <div class="empty-action">
+            <a class="btn"
+               href="{% url 'journal:venue_detail' section.venue.pk %}?section=instruments">
+              {% translate "Reset filters" %}
+            </a>
+          </div>
+        {% else %}
+          <h2 class="empty-title">
+            {% translate "No instruments yet" %}
+          </h2>
+          <p class="empty-subtitle text-secondary">
+            {% translate "Add the executable markets available on this venue." %}
+          </p>
+          {% if section.can_manage %}
+            <div class="empty-action">
+              <button class="btn btn-primary"
+                      type="button"
+                      data-bs-toggle="modal"
+                      data-bs-target="#instrument-add-modal"
+                      hx-get="{% url 'journal:instrument_add' section.venue.pk %}"
+                      hx-target="#instrument-form-body"
+                      hx-swap="innerHTML">
+                {% include "tradefog/components/icon.html" with name="plus" class="icon" %}
+                {% translate "Add instrument" %}
+              </button>
+            </div>
+          {% endif %}
+        {% endif %}
+      </section>
+    {% endif %}
+  </div>
+</div>

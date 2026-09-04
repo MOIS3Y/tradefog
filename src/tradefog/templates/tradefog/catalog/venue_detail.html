@@ -1,0 +1,77 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ venue.name }} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          {% translate "Catalog" as page_direction %}
+          {% translate "Venue" as page_heading %}
+          {% translate "Wallet assets and executable instruments available on this venue." as page_help_text %}
+          {% include "tradefog/components/page_heading.html" with direction=page_direction heading=venue.name help_text=page_help_text %}
+        </div>
+        <div class="col-auto ms-auto">
+          <a class="btn" href="{% url 'journal:venue_overview' %}">
+            {% translate "Back to venues" %}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% include "tradefog/catalog/partials/venue_identity.html" %}
+
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h3 class="mb-0">{% translate "Wallet assets" %}</h3>
+    {% if can_manage %}
+      <button class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+              type="button"
+              data-bs-toggle="modal"
+              data-bs-target="#wallet-asset-add-modal"
+              hx-get="{% url 'journal:wallet_asset_add' venue.pk %}"
+              hx-target="#wallet-asset-form-body"
+              hx-swap="innerHTML">
+        {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+        {% translate "Add wallet asset" %}
+      </button>
+    {% endif %}
+  </div>
+  {% include "tradefog/catalog/partials/wallet_asset_filters.html" %}
+  {% with wallet_asset_context as section %}
+    {% include "tradefog/catalog/partials/wallet_asset_results.html" %}
+  {% endwith %}
+
+  <div class="d-flex align-items-center justify-content-between mb-2 mt-4">
+    <h3 class="mb-0">{% translate "Instruments" %}</h3>
+    {% if can_manage %}
+      <button class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+              type="button"
+              data-bs-toggle="modal"
+              data-bs-target="#instrument-add-modal"
+              hx-get="{% url 'journal:instrument_add' venue.pk %}"
+              hx-target="#instrument-form-body"
+              hx-swap="innerHTML">
+        {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+        {% translate "Add instrument" %}
+      </button>
+    {% endif %}
+  </div>
+  {% include "tradefog/catalog/partials/instrument_filters.html" %}
+  {% with instrument_context as section %}
+    {% include "tradefog/catalog/partials/instrument_results.html" %}
+  {% endwith %}
+
+  {% if can_manage %}
+    {% include "tradefog/catalog/partials/venue_edit_modal.html" %}
+    {% include "tradefog/catalog/partials/wallet_asset_add_modal.html" %}
+    {% include "tradefog/catalog/partials/wallet_asset_remove_modal.html" %}
+    {% include "tradefog/catalog/partials/instrument_add_modal.html" %}
+    {% include "tradefog/catalog/partials/instrument_edit_modal.html" %}
+    {% include "tradefog/catalog/partials/instrument_delete_modal.html" %}
+  {% endif %}
+{% endblock %}

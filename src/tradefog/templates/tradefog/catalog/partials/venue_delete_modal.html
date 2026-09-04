@@ -1,0 +1,21 @@
+{% load i18n %}
+<div class="modal modal-blur fade"
+     id="venue-delete-modal"
+     tabindex="-1"
+     aria-labelledby="venue-delete-modal-title"
+     aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="venue-delete-modal-title">
+          {% translate "Remove venue?" %}
+        </h2>
+        <button class="btn-close"
+                type="button"
+                data-bs-dismiss="modal"
+                aria-label="{% translate 'Close' %}"></button>
+      </div>
+      <div class="modal-body" id="venue-delete-body"></div>
+    </div>
+  </div>
+</div>

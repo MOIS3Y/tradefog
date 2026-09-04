@@ -145,6 +145,19 @@ Pagination lives in the table card footer and uses the shared
 and sorting. Collections placed independently on the same page use distinct
 query-parameter names so one collection does not reset another.
 
+When a collection is naturally small, prefer a responsive card grid over a
+paginated table. A card grid shows the primary value as a link to a detail
+page, supporting values, and row-level actions without the ceremony of
+sorting and pagination. Collections that can grow large (such as a venue's
+instruments) keep the table, filter, sort, and pagination pattern.
+
+A detail page that hosts several independent collections gives each collection
+its own section heading and its own results wrapper. Each section filters,
+sorts, and paginates through prefixed query parameters (for example `wa_q` and
+`i_sort`) and only that wrapper is swapped by HTMX, so one section never
+resets another. A detail page retains the shared page header slot with the
+object name as its heading.
+
 Filtering, sorting, and pagination replace only one stable result wrapper:
 
 ```text

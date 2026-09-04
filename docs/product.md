@@ -287,7 +287,7 @@ Analytics
 Catalog
   Assets
   Trading pairs
-  Venues (planned)
+  Venues
 User menu
   Settings (future user settings; disabled placeholder)
   Log out
@@ -310,6 +310,13 @@ User menu
   base/quote asset-type filter, sorting, and pagination; regular users read
   it, while staff create and remove pairs through modal forms with
   dismissible status alerts.
+- Venues lists the shared exchanges and execution destinations as a small
+  responsive card grid with instrument and wallet-asset counts; regular users
+  read it, while staff create, edit, and remove venues through modal forms.
+  A venue detail page shows the venue's wallet-capable assets and executable
+  instruments as two independent, filterable table sections. Staff add and
+  remove wallet assets, and add, edit, delist (toggle active), or remove
+  instruments through modal forms and an inline delisting control.
 - Trades contains the cross-profile journal, owner-scoped profile, strategy,
   product, pair, and lifecycle filters, server-ordered paginated results,
   trade creation, and the trade workspace.
@@ -331,7 +338,8 @@ are:
 /en/profiles/<id>/strategies/
 /en/catalog/assets/
 /en/catalog/pairs/
-/en/catalog/venues/<id>/instruments/ (planned)
+/en/catalog/venues/
+/en/catalog/venues/<id>/
 /en/trades/
 /en/trades/new/
 /en/trades/<id>/

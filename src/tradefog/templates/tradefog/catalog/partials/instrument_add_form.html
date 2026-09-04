@@ -1,0 +1,44 @@
+{% load i18n %}
+<form hx-post="{% url 'journal:instrument_add' venue.pk %}"
+      hx-target="#instrument-form-body"
+      hx-swap="innerHTML"
+      novalidate>
+  {% csrf_token %}
+  <div class="row g-3">
+    <div class="col-12">
+      {% include "tradefog/components/form_field.html" with field=form.pair %}
+    </div>
+    <div class="col-12 col-md-6">
+      {% include "tradefog/components/form_field.html" with field=form.product %}
+    </div>
+    <div class="col-12 col-md-6">
+      {% include "tradefog/components/form_field.html" with field=form.exec_symbol %}
+    </div>
+    <div class="col-12 col-md-6">
+      {% include "tradefog/components/form_field.html" with field=form.price_step %}
+    </div>
+    <div class="col-12 col-md-6">
+      {% include "tradefog/components/form_field.html" with field=form.qty_step %}
+    </div>
+    <div class="col-12 col-md-6">
+      {% include "tradefog/components/form_field.html" with field=form.min_qty %}
+    </div>
+    <div class="col-12 col-md-6">
+      {% include "tradefog/components/form_field.html" with field=form.min_notional %}
+    </div>
+    <div class="col-12 col-md-6">
+      {% include "tradefog/components/form_field.html" with field=form.settlement_asset %}
+    </div>
+    <div class="col-12">
+      {% include "tradefog/components/form_field.html" with field=form.active %}
+    </div>
+  </div>
+  <div class="modal-footer px-0 pb-0">
+    <button class="btn" type="button" data-bs-dismiss="modal">
+      {% translate "Cancel" %}
+    </button>
+    <button class="btn btn-primary" type="submit">
+      {% translate "Add instrument" %}
+    </button>
+  </div>
+</form>

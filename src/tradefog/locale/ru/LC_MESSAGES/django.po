@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tradefog\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-03 13:37+0000\n"
+"POT-Creation-Date: 2026-09-04 07:18+0000\n"
 "PO-Revision-Date: 2026-09-02 11:26+0000\n"
 "Last-Translator: tradefog maintainers\n"
 "Language-Team: Russian\n"
@@ -41,7 +41,7 @@ msgstr "Контекст дневного диапазона"
 msgid "Pairs"
 msgstr "Пары"
 
-#: tests/test_localization.py:54 src/tradefog/templates/tradefog/base.html:273
+#: tests/test_localization.py:54 src/tradefog/templates/tradefog/base.html:279
 msgid "Back to top"
 msgstr "Наверх"
 
@@ -105,30 +105,130 @@ msgstr "Рассчитанный объём ниже минимального д
 msgid "Calculated order value is below the instrument minimum."
 msgstr "Рассчитанная стоимость заявки ниже минимальной для инструмента."
 
-#: src/tradefog/journal/forms/catalog.py:22
+#: src/tradefog/journal/forms/catalog.py:30
 msgid "BTC"
 msgstr "BTC"
 
-#: src/tradefog/journal/forms/catalog.py:29
+#: src/tradefog/journal/forms/catalog.py:37
 msgid "Bitcoin"
 msgstr "Bitcoin"
 
-#: src/tradefog/journal/forms/catalog.py:39
+#: src/tradefog/journal/forms/catalog.py:47
 msgid "Upper-case symbol, unique across the catalog."
 msgstr "Символ в верхнем регистре, уникальный для каталога."
 
-#: src/tradefog/journal/forms/catalog.py:41
+#: src/tradefog/journal/forms/catalog.py:49
 msgid "Common display name."
 msgstr "Обычное отображаемое название."
 
-#: src/tradefog/journal/forms/catalog.py:43
+#: src/tradefog/journal/forms/catalog.py:51
 msgid "The unambiguous class of this asset."
 msgstr "Однозначный класс этого актива."
 
-#: src/tradefog/journal/forms/catalog.py:51
-#: src/tradefog/journal/views/catalog.py:106
+#: src/tradefog/journal/forms/catalog.py:59
+#: src/tradefog/journal/views/catalog/assets.py:94
 msgid "An asset with this symbol already exists."
 msgstr "Актив с таким символом уже существует."
+
+#: src/tradefog/journal/forms/catalog.py:86
+msgid "The asset that is bought or sold in the pair."
+msgstr "Актив, который покупается или продаётся в паре."
+
+#: src/tradefog/journal/forms/catalog.py:87
+msgid "The asset that prices the base asset."
+msgstr "Актив, в котором котируется базовый актив."
+
+#: src/tradefog/journal/forms/catalog.py:103
+msgid "Base and quote must be different assets."
+msgstr "Базовый и котировочный активы должны различаться."
+
+#: src/tradefog/journal/forms/catalog.py:111
+#: src/tradefog/journal/views/catalog/pairs.py:87
+msgid "This trading pair already exists."
+msgstr "Эта торговая пара уже существует."
+
+#: src/tradefog/journal/forms/catalog.py:138
+msgid "Bybit"
+msgstr ""
+
+#: src/tradefog/journal/forms/catalog.py:145
+msgid "https://"
+msgstr ""
+
+#: src/tradefog/journal/forms/catalog.py:154
+#, fuzzy
+#| msgid "Upper-case symbol, unique across the catalog."
+msgid "Display name, unique across the catalog."
+msgstr "Символ в верхнем регистре, уникальный для каталога."
+
+#: src/tradefog/journal/forms/catalog.py:157
+msgid "Optional official website for this venue."
+msgstr "Необязательный официальный сайт площадки."
+
+#: src/tradefog/journal/forms/catalog.py:169
+#: src/tradefog/journal/views/catalog/venues.py:98
+#: src/tradefog/journal/views/catalog/venues.py:154
+msgid "A venue with this name already exists."
+msgstr "Площадка с таким названием уже существует."
+
+#: src/tradefog/journal/forms/catalog.py:202
+#: src/tradefog/journal/views/catalog/venues.py:329
+msgid "This asset is already available on the venue."
+msgstr "Этот актив уже доступен на площадке."
+
+#: src/tradefog/journal/forms/catalog.py:205
+msgid "The asset becomes available to wallet balances on this venue."
+msgstr "Актив станет доступен для балансов кошелька на этой площадке."
+
+#: src/tradefog/journal/forms/catalog.py:268
+msgid "Settles in quote asset"
+msgstr "Расчёт в котируемом активе"
+
+#: src/tradefog/journal/forms/catalog.py:270
+msgid "The logical BASE/QUOTE market traded on the venue."
+msgstr "Логический рынок BASE/QUOTE, торгуемый на площадке."
+
+#: src/tradefog/journal/forms/catalog.py:272
+msgid "Settlement derives from the quote asset for Spot and Cash Equity."
+msgstr "Расчёт производится в котируемом активе для Spot и Cash Equity."
+
+#: src/tradefog/journal/forms/catalog.py:275
+msgid "The venue's own execution symbol, unique on this venue."
+msgstr "Собственный исполняемый символ площадки, уникальный на этой площадке."
+
+#: src/tradefog/journal/forms/catalog.py:278
+msgid "Smallest price movement the venue accepts."
+msgstr "Минимальный шаг цены, который принимает площадка."
+
+#: src/tradefog/journal/forms/catalog.py:281
+msgid "Smallest quantity increment the venue accepts."
+msgstr "Минимальный шаг количества, который принимает площадка."
+
+#: src/tradefog/journal/forms/catalog.py:284
+msgid "Optional minimum order quantity."
+msgstr "Необязательный минимальный объём ордера."
+
+#: src/tradefog/journal/forms/catalog.py:287
+msgid "Optional minimum order notional."
+msgstr "Необязательная минимальная стоимость ордера."
+
+#: src/tradefog/journal/forms/catalog.py:290
+msgid "Optional explicit settlement for a Perpetual Future."
+msgstr "Необязательный явный расчётный актив для Perpetual Future."
+
+#: src/tradefog/journal/forms/catalog.py:293
+msgid "Delisted instruments stop appearing in trade selection."
+msgstr "Исключённые из листинга инструменты не появляются при выборе сделки."
+
+#: src/tradefog/journal/forms/catalog.py:318
+msgid "This pair and product already exist on the venue."
+msgstr "Эта пара и продукт уже существуют на площадке."
+
+#: src/tradefog/journal/forms/catalog.py:335
+#: src/tradefog/journal/views/catalog/instruments.py:75
+#: src/tradefog/journal/views/catalog/instruments.py:144
+msgid "This execution symbol already exists on the venue."
+msgstr "Этот исполняемый символ уже существует на площадке."
 
 #: src/tradefog/journal/models/catalog.py:47
 msgid "asset"
@@ -184,15 +284,15 @@ msgstr "Фиат"
 
 #: src/tradefog/journal/models/enums.py:28
 msgid "Spot"
-msgstr ""
+msgstr "Спот"
 
 #: src/tradefog/journal/models/enums.py:29
 msgid "Perpetual Future"
-msgstr ""
+msgstr "Перпетуал-фьючерс"
 
 #: src/tradefog/journal/models/enums.py:30
 msgid "Cash Equity"
-msgstr ""
+msgstr "Кэш-акции"
 
 #: src/tradefog/journal/models/enums.py:36
 msgid "Auto"
@@ -237,8 +337,9 @@ msgid "Short"
 msgstr ""
 
 #: src/tradefog/journal/models/enums.py:60
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:49
 msgid "Active"
-msgstr ""
+msgstr "Активен"
 
 #: src/tradefog/journal/models/enums.py:61
 msgid "At risk"
@@ -330,30 +431,126 @@ msgstr "Скриншот входа"
 msgid "trade snapshots"
 msgstr ""
 
-#: src/tradefog/journal/views/catalog.py:45
+#: src/tradefog/journal/views/catalog/assets.py:45
+#: src/tradefog/journal/views/catalog/pairs.py:42
 msgid "Symbol"
-msgstr ""
+msgstr "Символ"
 
-#: src/tradefog/journal/views/catalog.py:46
+#: src/tradefog/journal/views/catalog/assets.py:46
+#: src/tradefog/journal/views/catalog/venues.py:46
 msgid "Name"
-msgstr ""
+msgstr "Название"
 
-#: src/tradefog/journal/views/catalog.py:47
+#: src/tradefog/journal/views/catalog/assets.py:47
+#: src/tradefog/journal/views/catalog/venues.py:47
 #: src/tradefog/templates/tradefog/catalog/partials/asset_filters.html:25
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_filters.html:26
 msgid "Type"
 msgstr "Тип"
 
-#: src/tradefog/journal/views/catalog.py:123
+#: src/tradefog/journal/views/catalog/assets.py:113
 msgid "Asset added."
 msgstr "Актив добавлен."
 
-#: src/tradefog/journal/views/catalog.py:164
+#: src/tradefog/journal/views/catalog/assets.py:154
 msgid "This asset is in use and cannot be removed."
 msgstr "Этот актив используется и не может быть удалён."
 
-#: src/tradefog/journal/views/catalog.py:181
+#: src/tradefog/journal/views/catalog/assets.py:173
 msgid "Asset removed."
 msgstr "Актив удалён."
+
+#: src/tradefog/journal/views/catalog/instruments.py:40
+#: src/tradefog/templates/tradefog/analytics.html:152
+msgid "Pair"
+msgstr "Пара"
+
+#: src/tradefog/journal/views/catalog/instruments.py:41
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_filters.html:26
+msgid "Product"
+msgstr "Продукт"
+
+#: src/tradefog/journal/views/catalog/instruments.py:42
+msgid "Execution symbol"
+msgstr "Исполняемый символ"
+
+#: src/tradefog/journal/views/catalog/instruments.py:98
+msgid "Instrument added."
+msgstr "Инструмент добавлен."
+
+#: src/tradefog/journal/views/catalog/instruments.py:167
+msgid "Instrument updated."
+msgstr "Инструмент обновлён."
+
+#: src/tradefog/journal/views/catalog/instruments.py:220
+msgid "Instrument delisted."
+msgstr "Инструмент исключён из листинга."
+
+#: src/tradefog/journal/views/catalog/instruments.py:222
+msgid "Instrument enabled."
+msgstr "Инструмент включён."
+
+#: src/tradefog/journal/views/catalog/instruments.py:261
+msgid "This instrument is in use and cannot be removed."
+msgstr "Этот инструмент используется и не может быть удалён."
+
+#: src/tradefog/journal/views/catalog/instruments.py:284
+msgid "Instrument removed."
+msgstr "Инструмент удалён."
+
+#: src/tradefog/journal/views/catalog/pairs.py:40
+msgid "Base asset"
+msgstr "Базовый актив"
+
+#: src/tradefog/journal/views/catalog/pairs.py:41
+msgid "Quote asset"
+msgstr "Котировочный актив"
+
+#: src/tradefog/journal/views/catalog/pairs.py:106
+msgid "Trading pair added."
+msgstr "Торговая пара добавлена."
+
+#: src/tradefog/journal/views/catalog/pairs.py:143
+msgid "This trading pair is in use and cannot be removed."
+msgstr "Эта торговая пара используется и не может быть удалена."
+
+#: src/tradefog/journal/views/catalog/pairs.py:167
+msgid "Trading pair removed."
+msgstr "Торговая пара удалена."
+
+#: src/tradefog/journal/views/catalog/venues.py:45
+#, fuzzy
+#| msgid "Assets"
+msgid "Asset"
+msgstr "Активы"
+
+#: src/tradefog/journal/views/catalog/venues.py:115
+msgid "Venue added."
+msgstr "Площадка добавлена."
+
+#: src/tradefog/journal/views/catalog/venues.py:174
+msgid "Venue updated."
+msgstr "Площадка обновлена."
+
+#: src/tradefog/journal/views/catalog/venues.py:215
+msgid "This venue is in use and cannot be removed."
+msgstr "Эта площадка используется и не может быть удалена."
+
+#: src/tradefog/journal/views/catalog/venues.py:232
+msgid "Venue removed."
+msgstr "Площадка удалена."
+
+#: src/tradefog/journal/views/catalog/venues.py:352
+msgid "Wallet asset added."
+msgstr "Актив кошелька добавлен."
+
+#: src/tradefog/journal/views/catalog/venues.py:398
+msgid "This wallet asset is in use and cannot be removed."
+msgstr "Этот актив кошелька используется и не может быть удалён."
+
+#: src/tradefog/journal/views/catalog/venues.py:421
+msgid "Wallet asset removed."
+msgstr "Актив кошелька удалён."
 
 #: src/tradefog/templates/registration/login.html:4
 #: src/tradefog/templates/registration/login.html:96
@@ -399,7 +596,7 @@ msgstr "Продолжить через OAuth"
 
 #: src/tradefog/templates/tradefog/analytics.html:4
 #: src/tradefog/templates/tradefog/analytics.html:12
-#: src/tradefog/templates/tradefog/base.html:134
+#: src/tradefog/templates/tradefog/base.html:138
 msgid "Analytics"
 msgstr "Аналитика"
 
@@ -481,10 +678,6 @@ msgstr "Решения по траектории"
 msgid "Direction"
 msgstr "Направление"
 
-#: src/tradefog/templates/tradefog/analytics.html:152
-msgid "Pair"
-msgstr "Пара"
-
 #: src/tradefog/templates/tradefog/analytics.html:153
 #: src/tradefog/templates/tradefog/trade.html:40
 msgid "Profile"
@@ -504,159 +697,184 @@ msgstr "Результат"
 msgid "Open trade"
 msgstr "Открыть сделку"
 
-#: src/tradefog/templates/tradefog/base.html:22
-#: src/tradefog/templates/tradefog/base.html:28
-#: src/tradefog/templates/tradefog/base.html:58
-#: src/tradefog/templates/tradefog/base.html:64
+#: src/tradefog/templates/tradefog/base.html:24
+#: src/tradefog/templates/tradefog/base.html:30
+#: src/tradefog/templates/tradefog/base.html:61
+#: src/tradefog/templates/tradefog/base.html:67
 msgid "Theme: Auto"
 msgstr "Тема: Авто"
 
-#: src/tradefog/templates/tradefog/base.html:23
-#: src/tradefog/templates/tradefog/base.html:59
+#: src/tradefog/templates/tradefog/base.html:25
+#: src/tradefog/templates/tradefog/base.html:62
 msgid "Theme: Dark"
 msgstr "Тема: Тёмная"
 
-#: src/tradefog/templates/tradefog/base.html:24
-#: src/tradefog/templates/tradefog/base.html:60
+#: src/tradefog/templates/tradefog/base.html:26
+#: src/tradefog/templates/tradefog/base.html:63
 msgid "Theme: Light"
 msgstr "Тема: Светлая"
 
-#: src/tradefog/templates/tradefog/base.html:40
+#: src/tradefog/templates/tradefog/base.html:43
 msgid "Toggle navigation"
 msgstr "Переключить навигацию"
 
-#: src/tradefog/templates/tradefog/base.html:71
+#: src/tradefog/templates/tradefog/base.html:74
 msgid "Open user menu"
 msgstr "Открыть меню пользователя"
 
-#: src/tradefog/templates/tradefog/base.html:84
-#: src/tradefog/templates/tradefog/base.html:156
-#: src/tradefog/templates/tradefog/base.html:161
+#: src/tradefog/templates/tradefog/base.html:87
 msgid "Coming soon"
 msgstr "Скоро"
 
-#: src/tradefog/templates/tradefog/base.html:86
+#: src/tradefog/templates/tradefog/base.html:89
 msgid "Account settings"
 msgstr "Настройки учётной записи"
 
-#: src/tradefog/templates/tradefog/base.html:93
-#: src/tradefog/templates/tradefog/base.html:195
+#: src/tradefog/templates/tradefog/base.html:96
+#: src/tradefog/templates/tradefog/base.html:198
 msgid "Log out"
 msgstr "Выйти"
 
-#: src/tradefog/templates/tradefog/base.html:110
+#: src/tradefog/templates/tradefog/base.html:114
 #: src/tradefog/templates/tradefog/home.html:4
 #: src/tradefog/templates/tradefog/home.html:12
 msgid "Home"
 msgstr "Главная"
 
-#: src/tradefog/templates/tradefog/base.html:118
+#: src/tradefog/templates/tradefog/base.html:122
 #: src/tradefog/templates/tradefog/profiles.html:4
 msgid "Profiles"
 msgstr "Профили"
 
-#: src/tradefog/templates/tradefog/base.html:126
+#: src/tradefog/templates/tradefog/base.html:130
 #: src/tradefog/templates/tradefog/trades.html:4
 #: src/tradefog/templates/tradefog/trades.html:12
 msgid "Trades"
 msgstr "Сделки"
 
-#: src/tradefog/templates/tradefog/base.html:147
+#: src/tradefog/templates/tradefog/base.html:151
 #: src/tradefog/templates/tradefog/catalog/asset_overview.html:11
+#: src/tradefog/templates/tradefog/catalog/pair_overview.html:11
+#: src/tradefog/templates/tradefog/catalog/venue_detail.html:11
+#: src/tradefog/templates/tradefog/catalog/venue_overview.html:11
 msgid "Catalog"
 msgstr "Каталог"
 
-#: src/tradefog/templates/tradefog/base.html:152
+#: src/tradefog/templates/tradefog/base.html:156
 #: src/tradefog/templates/tradefog/catalog/asset_overview.html:4
 #: src/tradefog/templates/tradefog/catalog/asset_overview.html:12
 msgid "Assets"
 msgstr "Активы"
 
-#: src/tradefog/templates/tradefog/base.html:157
+#: src/tradefog/templates/tradefog/base.html:160
+#: src/tradefog/templates/tradefog/catalog/pair_overview.html:4
+#: src/tradefog/templates/tradefog/catalog/pair_overview.html:12
 msgid "Trading pairs"
 msgstr "Торговые пары"
 
-#: src/tradefog/templates/tradefog/base.html:162
+#: src/tradefog/templates/tradefog/base.html:164
+#: src/tradefog/templates/tradefog/catalog/venue_overview.html:4
+#: src/tradefog/templates/tradefog/catalog/venue_overview.html:12
 msgid "Venues"
 msgstr "Площадки"
 
-#: src/tradefog/templates/tradefog/base.html:180
+#: src/tradefog/templates/tradefog/base.html:183
 msgid "Log out?"
 msgstr "Выйти?"
 
-#: src/tradefog/templates/tradefog/base.html:184
+#: src/tradefog/templates/tradefog/base.html:187
 #: src/tradefog/templates/tradefog/catalog/partials/asset_create_modal.html:16
 #: src/tradefog/templates/tradefog/catalog/partials/asset_delete_modal.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_add_modal.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_delete_modal.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_edit_modal.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/pair_create_modal.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/pair_delete_modal.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/venue_create_modal.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/venue_delete_modal.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/venue_edit_modal.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_add_modal.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_remove_modal.html:16
 #: src/tradefog/templates/tradefog/components/toast.html:17
 #: src/tradefog/templates/tradefog/trade.html:607
 msgid "Close"
 msgstr "Закрыть"
 
-#: src/tradefog/templates/tradefog/base.html:187
+#: src/tradefog/templates/tradefog/base.html:190
 msgid "Are you sure you want to log out?"
 msgstr "Вы уверены, что хотите выйти?"
 
-#: src/tradefog/templates/tradefog/base.html:191
+#: src/tradefog/templates/tradefog/base.html:194
 #: src/tradefog/templates/tradefog/catalog/partials/asset_create_form.html:12
 #: src/tradefog/templates/tradefog/catalog/partials/asset_delete_confirm.html:13
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_add_form.html:38
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_delete_confirm.html:13
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_edit_form.html:38
+#: src/tradefog/templates/tradefog/catalog/partials/pair_create_form.html:11
+#: src/tradefog/templates/tradefog/catalog/partials/pair_delete_confirm.html:13
+#: src/tradefog/templates/tradefog/catalog/partials/venue_create_form.html:11
+#: src/tradefog/templates/tradefog/catalog/partials/venue_delete_confirm.html:13
+#: src/tradefog/templates/tradefog/catalog/partials/venue_edit_form.html:11
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_add_form.html:10
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_remove_confirm.html:13
 #: src/tradefog/templates/tradefog/trade.html:508
 #: src/tradefog/templates/tradefog/trade.html:620
 msgid "Cancel"
 msgstr "Отмена"
 
-#: src/tradefog/templates/tradefog/base.html:221
+#: src/tradefog/templates/tradefog/base.html:226
 msgid "Documentation"
 msgstr "Документация"
 
-#: src/tradefog/templates/tradefog/base.html:224
+#: src/tradefog/templates/tradefog/base.html:229
 msgid "License"
 msgstr "Лицензия"
 
-#: src/tradefog/templates/tradefog/base.html:227
+#: src/tradefog/templates/tradefog/base.html:232
 msgid "Source code"
 msgstr "Исходный код"
 
-#: src/tradefog/templates/tradefog/base.html:232
+#: src/tradefog/templates/tradefog/base.html:237
 msgid "Sponsor"
 msgstr "Спонсор"
 
-#: src/tradefog/templates/tradefog/base.html:240
+#: src/tradefog/templates/tradefog/base.html:245
 msgid "Created with"
 msgstr "Создано с"
 
-#: src/tradefog/templates/tradefog/base.html:242
+#: src/tradefog/templates/tradefog/base.html:247
 msgid "by"
 msgstr "от"
 
-#: src/tradefog/templates/tradefog/base.html:260
+#: src/tradefog/templates/tradefog/base.html:266
 msgid "Success"
 msgstr "Успех"
 
-#: src/tradefog/templates/tradefog/base.html:261
+#: src/tradefog/templates/tradefog/base.html:267
 msgid "Error"
 msgstr "Ошибка"
 
-#: src/tradefog/templates/tradefog/base.html:262
+#: src/tradefog/templates/tradefog/base.html:268
 msgid "Information"
 msgstr "Информация"
 
-#: src/tradefog/templates/tradefog/base.html:263
+#: src/tradefog/templates/tradefog/base.html:269
 msgid "Warning"
 msgstr "Предупреждение"
 
-#: src/tradefog/templates/tradefog/base.html:264
+#: src/tradefog/templates/tradefog/base.html:270
 msgid "just now"
 msgstr "только что"
 
-#: src/tradefog/templates/tradefog/base.html:265
+#: src/tradefog/templates/tradefog/base.html:271
 msgid "s"
 msgstr "с"
 
-#: src/tradefog/templates/tradefog/base.html:266
+#: src/tradefog/templates/tradefog/base.html:272
 msgid "m"
 msgstr "м"
 
-#: src/tradefog/templates/tradefog/base.html:267
+#: src/tradefog/templates/tradefog/base.html:273
 msgid "h"
 msgstr "ч"
 
@@ -671,6 +889,17 @@ msgstr "Переиспользуемые активы, общие для кат�
 msgid "Add asset"
 msgstr "Добавить актив"
 
+#: src/tradefog/templates/tradefog/catalog/pair_overview.html:13
+msgid "Reusable BASE/QUOTE markets shared across the journal catalog."
+msgstr "Переиспользуемые рынки BASE/QUOTE, общие для каталога журнала."
+
+#: src/tradefog/templates/tradefog/catalog/pair_overview.html:26
+#: src/tradefog/templates/tradefog/catalog/partials/pair_create_form.html:14
+#: src/tradefog/templates/tradefog/catalog/partials/pair_create_modal.html:11
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:107
+msgid "Add pair"
+msgstr "Добавить пару"
+
 #: src/tradefog/templates/tradefog/catalog/partials/asset_delete_confirm.html:7
 #, python-format
 msgid ""
@@ -683,6 +912,10 @@ msgstr ""
 "    "
 
 #: src/tradefog/templates/tradefog/catalog/partials/asset_delete_confirm.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_delete_confirm.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/pair_delete_confirm.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/venue_delete_confirm.html:16
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_remove_confirm.html:16
 msgid "Remove"
 msgstr "Удалить"
 
@@ -691,22 +924,33 @@ msgid "Remove asset?"
 msgstr "Удалить актив?"
 
 #: src/tradefog/templates/tradefog/catalog/partials/asset_filters.html:13
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_filters.html:14
+#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:13
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_filters.html:14
 msgid "Search"
 msgstr "Поиск"
 
 #: src/tradefog/templates/tradefog/catalog/partials/asset_filters.html:20
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_filters.html:21
 msgid "Symbol or name"
 msgstr "Символ или название"
 
 #: src/tradefog/templates/tradefog/catalog/partials/asset_filters.html:28
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_filters.html:29
 msgid "All types"
 msgstr "Все типы"
 
 #: src/tradefog/templates/tradefog/catalog/partials/asset_filters.html:40
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_filters.html:41
+#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:40
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_filters.html:41
 msgid "Apply"
 msgstr "Применить"
 
 #: src/tradefog/templates/tradefog/catalog/partials/asset_filters.html:43
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_filters.html:45
+#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:43
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_filters.html:45
 msgid "Reset"
 msgstr "Сбросить"
 
@@ -742,10 +986,16 @@ msgid "No assets match your filters"
 msgstr "Ни один актив не подходит под фильтры"
 
 #: src/tradefog/templates/tradefog/catalog/partials/asset_results.html:79
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:120
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:85
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_results.html:85
 msgid "Try a different search or reset the filters."
-msgstr "Измените поиск или сбросьте фильтры."
+msgstr "Попробуйте другой поиск или сбросьте фильтры."
 
 #: src/tradefog/templates/tradefog/catalog/partials/asset_results.html:83
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:125
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:89
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_results.html:90
 msgid "Reset filters"
 msgstr "Сбросить фильтры"
 
@@ -757,7 +1007,318 @@ msgstr "Активов пока нет"
 msgid "The catalog is empty; ask a staff member to add assets."
 msgstr "Каталог пуст; попросите сотрудника добавить активы."
 
-#: src/tradefog/templates/tradefog/catalog/partials/pagination.html:5
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_add_form.html:41
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_add_modal.html:11
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:145
+#: src/tradefog/templates/tradefog/catalog/venue_detail.html:60
+msgid "Add instrument"
+msgstr "Добавить инструмент"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_delete_confirm.html:7
+msgid ""
+"\n"
+"      Remove the %(product)s instrument %(pair)s from this venue?\n"
+"    "
+msgstr "\n      Удалить инструмент %(product)s %(pair)s с этой площадки?\n    "
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_delete_modal.html:11
+msgid "Remove instrument?"
+msgstr "Удалить инструмент?"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_edit_form.html:41
+#: src/tradefog/templates/tradefog/catalog/partials/venue_edit_form.html:14
+msgid "Save changes"
+msgstr "Сохранить изменения"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_edit_modal.html:11
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:86
+msgid "Edit instrument"
+msgstr "Изменить инструмент"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_filters.html:21
+msgid "Pair or execution symbol"
+msgstr "Пара или исполняемый символ"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_filters.html:29
+#, fuzzy
+#| msgid "All pair types"
+msgid "All products"
+msgstr "Все типы пар"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:4
+msgid ""
+"\n"
+"      %(count)s instrument\n"
+"    "
+msgid_plural ""
+"\n"
+"      %(count)s instruments\n"
+"    "
+msgstr[0] "\n      %(count)s инструмент\n    "
+msgstr[1] "\n      %(count)s инструмента\n    "
+msgstr[2] "\n      %(count)s инструментов\n    "
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:32
+msgid "Status"
+msgstr "Статус"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:51
+msgid "Delisted"
+msgstr "Исключён из листинга"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:66
+msgid "Delist instrument"
+msgstr "Исключить инструмент из листинга"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:67
+msgid "Delist"
+msgstr "Исключить из листинга"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:69
+msgid "Enable instrument"
+msgstr "Включить инструмент"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:70
+msgid "Enable"
+msgstr "Включить"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:96
+msgid "Remove instrument"
+msgstr "Удалить инструмент"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:117
+msgid "No instruments match your filters"
+msgstr "Инструменты не соответствуют вашим фильтрам"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:130
+msgid "No instruments yet"
+msgstr "Инструментов пока нет"
+
+#: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:133
+msgid "Add the executable markets available on this venue."
+msgstr "Добавьте исполняемые рынки, доступные на этой площадке."
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_delete_confirm.html:7
+#, python-format
+msgid ""
+"\n"
+"      Remove the trading pair %(pair)s from the catalog?\n"
+"    "
+msgstr ""
+"\n"
+"      Удалить торговую пару %(pair)s из каталога?\n"
+"    "
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_delete_modal.html:11
+msgid "Remove pair?"
+msgstr "Удалить пару?"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:20
+msgid "Symbol, base or quote"
+msgstr "Символ, базовый или котировочный актив"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:25
+msgid "Pair type"
+msgstr "Тип пары"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:28
+msgid "All pair types"
+msgstr "Все типы пар"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:4
+#, python-format
+msgid ""
+"\n"
+"      %(count)s trading pair\n"
+"    "
+msgid_plural ""
+"\n"
+"      %(count)s trading pairs\n"
+"    "
+msgstr[0] ""
+"\n"
+"      %(count)s торговая пара\n"
+"    "
+msgstr[1] ""
+"\n"
+"      %(count)s торговые пары\n"
+"    "
+msgstr[2] ""
+"\n"
+"      %(count)s торговых пар\n"
+"    "
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:32
+msgid "Relation"
+msgstr "Отношение"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:63
+msgid "Remove pair"
+msgstr "Удалить пару"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:82
+msgid "No trading pairs match your filters"
+msgstr "Ни одна торговая пара не подходит под фильтры"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:93
+msgid "No trading pairs yet"
+msgstr "Торговых пар пока нет"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:95
+msgid "The catalog is empty; ask a staff member to add pairs."
+msgstr "Каталог пуст; попросите сотрудника добавить пары."
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_cards.html:5
+msgid ""
+"\n"
+"        %(count)s venue\n"
+"      "
+msgid_plural ""
+"\n"
+"        %(count)s venues\n"
+"      "
+msgstr[0] "\n        %(count)s площадка\n      "
+msgstr[1] "\n        %(count)s площадки\n      "
+msgstr[2] "\n        %(count)s площадок\n      "
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_cards.html:30
+#: src/tradefog/templates/tradefog/catalog/partials/venue_edit_modal.html:11
+msgid "Edit venue"
+msgstr "Изменить площадку"
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_cards.html:40
+msgid "Remove venue"
+msgstr "Удалить площадку"
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_cards.html:59
+msgid ""
+"\n"
+"                    %(count)s instrument\n"
+"                  "
+msgid_plural ""
+"\n"
+"                    %(count)s instruments\n"
+"                  "
+msgstr[0] "\n                    %(count)s инструмент\n                  "
+msgstr[1] "\n                    %(count)s инструмента\n                  "
+msgstr[2] "\n                    %(count)s инструментов\n                  "
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_cards.html:66
+msgid ""
+"\n"
+"                    %(count)s wallet asset\n"
+"                  "
+msgid_plural ""
+"\n"
+"                    %(count)s wallet assets\n"
+"                  "
+msgstr[0] "\n                    %(count)s актив кошелька\n                  "
+msgstr[1] "\n                    %(count)s актива кошелька\n                  "
+msgstr[2] "\n                    %(count)s активов кошелька\n                  "
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_cards.html:83
+msgid "No venues yet"
+msgstr "Площадок пока нет"
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_cards.html:85
+msgid "The catalog is empty; ask a staff member to add venues."
+msgstr "Каталог пуст; попросите сотрудника добавить площадки."
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_cards.html:97
+#: src/tradefog/templates/tradefog/catalog/partials/venue_create_form.html:14
+#: src/tradefog/templates/tradefog/catalog/partials/venue_create_modal.html:11
+#: src/tradefog/templates/tradefog/catalog/venue_overview.html:26
+msgid "Add venue"
+msgstr "Добавить площадку"
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_delete_confirm.html:7
+msgid ""
+"\n"
+"      Remove the venue %(name)s from the catalog?\n"
+"    "
+msgstr "\n      Удалить площадку %(name)s из каталога?\n    "
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_delete_modal.html:11
+msgid "Remove venue?"
+msgstr "Удалить площадку?"
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_identity.html:8
+#: src/tradefog/templates/tradefog/catalog/venue_detail.html:12
+msgid "Venue"
+msgstr "Площадка"
+
+#: src/tradefog/templates/tradefog/catalog/partials/venue_identity.html:32
+msgid "Edit"
+msgstr "Изменить"
+
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_add_form.html:13
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_add_modal.html:11
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_results.html:110
+#: src/tradefog/templates/tradefog/catalog/venue_detail.html:40
+msgid "Add wallet asset"
+msgstr "Добавить актив кошелька"
+
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_remove_confirm.html:7
+msgid ""
+"\n"
+"      Stop offering %(symbol)s as a wallet asset on this venue?\n"
+"    "
+msgstr "\n      Перестать предлагать %(symbol)s как актив кошелька на этой площадке?\n    "
+
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_remove_modal.html:11
+msgid "Remove wallet asset?"
+msgstr "Удалить актив кошелька?"
+
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_results.html:4
+msgid ""
+"\n"
+"      %(count)s wallet asset\n"
+"    "
+msgid_plural ""
+"\n"
+"      %(count)s wallet assets\n"
+"    "
+msgstr[0] "\n      %(count)s актив кошелька\n    "
+msgstr[1] "\n      %(count)s актива кошелька\n    "
+msgstr[2] "\n      %(count)s активов кошелька\n    "
+
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_results.html:61
+msgid "Remove wallet asset"
+msgstr "Удалить актив кошелька"
+
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_results.html:82
+msgid "No wallet assets match your filters"
+msgstr "Активы кошелька не соответствуют вашим фильтрам"
+
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_results.html:95
+msgid "No wallet assets yet"
+msgstr "Активов кошелька пока нет"
+
+#: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_results.html:98
+msgid "Link the assets that can be held in a wallet on this venue."
+msgstr "Свяжите активы, которые можно хранить в кошельке на этой площадке."
+
+#: src/tradefog/templates/tradefog/catalog/venue_detail.html:13
+msgid "Wallet assets and executable instruments available on this venue."
+msgstr "Активы кошелька и исполняемые инструменты, доступные на этой площадке."
+
+#: src/tradefog/templates/tradefog/catalog/venue_detail.html:18
+msgid "Back to venues"
+msgstr "Назад к площадкам"
+
+#: src/tradefog/templates/tradefog/catalog/venue_detail.html:30
+msgid "Wallet assets"
+msgstr "Активы кошелька"
+
+#: src/tradefog/templates/tradefog/catalog/venue_detail.html:50
+msgid "Instruments"
+msgstr "Инструменты"
+
+#: src/tradefog/templates/tradefog/catalog/venue_overview.html:13
+msgid "Shared exchanges, brokers, and execution destinations."
+msgstr "Общие биржи, брокеры и места исполнения."
+
+#: src/tradefog/templates/tradefog/components/pagination.html:5
 #, python-format
 msgid ""
 "\n"
@@ -768,15 +1329,15 @@ msgstr ""
 "        Страница %(current)s из %(total)s\n"
 "      "
 
-#: src/tradefog/templates/tradefog/catalog/partials/pagination.html:17
+#: src/tradefog/templates/tradefog/components/pagination.html:17
 #, fuzzy
 #| msgid "Preview"
 msgid "Previous page"
 msgstr "Предпросмотр"
 
-#: src/tradefog/templates/tradefog/catalog/partials/pagination.html:28
+#: src/tradefog/templates/tradefog/components/pagination.html:28
 msgid "Next page"
-msgstr ""
+msgstr "Следующая страница"
 
 #: src/tradefog/templates/tradefog/home.html:11
 msgid "Trading journal"
@@ -1282,120 +1843,3 @@ msgstr "Сделок пока нет"
 #: src/tradefog/templates/tradefog/trades.html:35
 msgid "Record your first manual trade to start building the journal."
 msgstr "Запишите первую ручную сделку, чтобы начать вести журнал."
-
-#: src/tradefog/templates/tradefog/catalog/pair_overview.html:18
-#: src/tradefog/templates/tradefog/catalog/partials/pair_create_form.html:14
-#: src/tradefog/templates/tradefog/catalog/partials/pair_create_modal.html:11
-#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:103
-msgid "Add pair"
-msgstr "Добавить пару"
-
-#: src/tradefog/templates/tradefog/catalog/pair_overview.html:13
-msgid "Reusable BASE/QUOTE markets shared across the journal catalog."
-msgstr "Переиспользуемые рынки BASE/QUOTE, общие для каталога журнала."
-
-#: src/tradefog/journal/views/catalog/pairs.py:139
-msgid "Trading pair added."
-msgstr "Торговая пара добавлена."
-
-#: src/tradefog/journal/views/catalog/pairs.py:181
-msgid "Trading pair removed."
-msgstr "Торговая пара удалена."
-
-#: src/tradefog/journal/views/catalog/pairs.py:172
-msgid "This trading pair is in use and cannot be removed."
-msgstr "Эта торговая пара используется и не может быть удалена."
-
-#: src/tradefog/journal/views/catalog/pairs.py:91
-msgid "This trading pair already exists."
-msgstr "Эта торговая пара уже существует."
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_delete_modal.html:11
-msgid "Remove pair?"
-msgstr "Удалить пару?"
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:89
-msgid "Remove pair"
-msgstr "Удалить пару"
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_delete_confirm.html:6
-#, python-format
-msgid ""
-"\n"
-"      Remove the trading pair %(pair)s from the catalog?\n"
-"    "
-msgstr ""
-"\n"
-"      Удалить торговую пару %(pair)s из каталога?\n"
-"    "
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:24
-msgid "Pair type"
-msgstr "Тип пары"
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:30
-msgid "All pair types"
-msgstr "Все типы пар"
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:19
-msgid "Symbol, base or quote"
-msgstr "Символ, базовый или котировочный актив"
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:38
-msgid "Relation"
-msgstr "Отношение"
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:72
-msgid "No trading pairs match your filters"
-msgstr "Ни одна торговая пара не подходит под фильтры"
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:88
-msgid "No trading pairs yet"
-msgstr "Торговых пар пока нет"
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:92
-msgid "The catalog is empty; ask a staff member to add pairs."
-msgstr "Каталог пуст; попросите сотрудника добавить пары."
-
-#: src/tradefog/journal/views/catalog/pairs.py:57
-msgid "Base asset"
-msgstr "Базовый актив"
-
-#: src/tradefog/journal/views/catalog/pairs.py:58
-msgid "Quote asset"
-msgstr "Котировочный актив"
-
-#: src/tradefog/journal/forms/catalog.py:118
-msgid "The asset that is bought or sold in the pair."
-msgstr "Актив, который покупается или продаётся в паре."
-
-#: src/tradefog/journal/forms/catalog.py:121
-msgid "The asset that prices the base asset."
-msgstr "Актив, в котором котируется базовый актив."
-
-#: src/tradefog/journal/forms/catalog.py:127
-msgid "Base and quote must be different assets."
-msgstr "Базовый и котировочный активы должны различаться."
-
-#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:4
-#, python-format
-msgid ""
-"\n"
-"      %(count)s trading pair\n"
-"    "
-msgid_plural ""
-"\n"
-"      %(count)s trading pairs\n"
-"    "
-msgstr[0] ""
-"\n"
-"      %(count)s торговая пара\n"
-"    "
-msgstr[1] ""
-"\n"
-"      %(count)s торговые пары\n"
-"    "
-msgstr[2] ""
-"\n"
-"      %(count)s торговых пар\n"
-"    "
