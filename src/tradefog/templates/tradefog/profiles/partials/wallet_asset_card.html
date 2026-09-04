@@ -1,0 +1,60 @@
+{% load i18n formats %}
+<div class="col-12 col-sm-6 col-lg-4">
+  <div class="card">
+    <div class="card-body">
+      <div class="d-flex align-items-start justify-content-between gap-2">
+        <div>
+          <div class="tf-ticker h3 mb-0">{{ row.asset.venue_wallet_asset.asset.symbol }}</div>
+          <div class="text-secondary small">
+            {{ row.asset.venue_wallet_asset.asset.name }}
+          </div>
+        </div>
+        {% if row.status == "risk_stopped" %}
+          <span class="badge bg-red-lt">{% translate "Risk stopped" %}</span>
+        {% else %}
+          <span class="badge bg-green-lt">{% translate "Active" %}</span>
+        {% endif %}
+      </div>
+      <div class="tf-wallet-value mt-3">{{ row.balance|compact }}</div>
+      <div class="text-secondary small">
+        {% if row.asset.risk_stop_capital is not None %}
+          {% translate "Floor" %}: {{ row.asset.risk_stop_capital|compact }}
+        {% else %}
+          {% translate "No deposit floor" %}
+        {% endif %}
+      </div>
+      {% if section.can_manage %}
+        <div class="btn-list mt-3">
+          <button class="btn btn-outline-success"
+                  type="button"
+                  data-bs-toggle="modal"
+                  data-bs-target="#wallet-deposit-modal"
+                  hx-get="{% url 'journal:wallet_deposit' section.profile.pk row.asset.pk %}"
+                  hx-target="#wallet-deposit-body"
+                  hx-swap="innerHTML">
+            {% translate "Deposit" %}
+          </button>
+          <button class="btn btn-outline-danger"
+                  type="button"
+                  data-bs-toggle="modal"
+                  data-bs-target="#wallet-withdraw-modal"
+                  hx-get="{% url 'journal:wallet_withdraw' section.profile.pk row.asset.pk %}"
+                  hx-target="#wallet-withdraw-body"
+                  hx-swap="innerHTML">
+            {% translate "Withdraw" %}
+          </button>
+          <button class="btn btn-icon btn-outline-secondary"
+                  type="button"
+                  data-bs-toggle="modal"
+                  data-bs-target="#wallet-edit-modal"
+                  hx-get="{% url 'journal:wallet_edit' section.profile.pk row.asset.pk %}"
+                  hx-target="#wallet-edit-body"
+                  hx-swap="innerHTML"
+                  aria-label="{% translate 'Edit wallet asset' %}">
+            {% include "tradefog/components/icon.html" with name="pencil" %}
+          </button>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>

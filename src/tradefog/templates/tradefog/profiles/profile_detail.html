@@ -42,10 +42,9 @@
             {% translate "Strategies" %}
           </a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#profile-settings-tab" data-bs-toggle="tab">
-            {% include "tradefog/components/icon.html" with name="settings" class="icon-1" %}
-            {% translate "Settings" %}
+        <li class="nav-item ms-auto">
+          <a class="nav-link" href="#profile-settings-tab" data-bs-toggle="tab" title="{% translate 'Settings' %}" aria-label="{% translate 'Settings' %}">
+            {% include "tradefog/components/icon.html" with name="settings" %}
           </a>
         </li>
       </ul>
@@ -56,7 +55,9 @@
           {% include "tradefog/profiles/partials/profile_overview_tab.html" %}
         </div>
         <div class="tab-pane" id="profile-wallet-tab">
-          {% include "tradefog/profiles/partials/profile_wallet_tab.html" %}
+          {% with wallet as section %}
+            {% include "tradefog/profiles/partials/wallet_content.html" %}
+          {% endwith %}
         </div>
         <div class="tab-pane" id="profile-strategies-tab">
           {% include "tradefog/profiles/partials/profile_strategies_tab.html" %}
@@ -67,4 +68,9 @@
       </div>
     </div>
   </div>
+
+  {% include "tradefog/profiles/partials/wallet_add_modal.html" %}
+  {% include "tradefog/profiles/partials/wallet_deposit_modal.html" %}
+  {% include "tradefog/profiles/partials/wallet_withdraw_modal.html" %}
+  {% include "tradefog/profiles/partials/wallet_edit_modal.html" %}
 {% endblock %}

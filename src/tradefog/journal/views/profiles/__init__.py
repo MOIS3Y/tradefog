@@ -13,6 +13,12 @@ from tradefog.journal.views.profiles.overview import (
     profile_overview,
     profile_restore,
 )
+from tradefog.journal.views.profiles.wallet import (
+    wallet_add,
+    wallet_deposit,
+    wallet_edit,
+    wallet_withdraw,
+)
 
 __all__ = [
     "profile_archive",
@@ -21,4 +27,8 @@ __all__ = [
     "profile_detail",
     "profile_overview",
     "profile_restore",
+    "wallet_add",
+    "wallet_deposit",
+    "wallet_edit",
+    "wallet_withdraw",
 ]

@@ -306,10 +306,15 @@ User menu
   Opening a profile card shows its detail page as a card with four tabs —
   Overview, Wallet, Strategies, and Settings. The Overview tab is a static
   summary of the profile: its bound venue, status, and wallet-asset, strategy,
-  and trade counts. The Wallet, Strategies, and Settings tabs are introduced
-  in later stages.
-- A profile wallet contains balances, manual deposits and withdrawals,
-  reservations, available funds, and activity.
+  and trade counts. The Strategies and Settings tabs arrive in later stages.
+- A profile wallet shows the assets the user holds on the profile's venue as
+  a card grid with a derived balance and money-health status. The user adds
+  assets from the venue's wallet-capable set, records manual deposits and
+  withdrawals through modal forms, and edits each asset's advisory deposit
+  floor. A withdrawal cannot exceed the asset's positive available balance.
+  Recent operations appear in a sortable, paginated table. Wallet management
+  is read-only for archived profiles: their balances and history stay visible
+  but cannot change until the profile is restored.
 - Settings → Catalog (staff only) owns the shared assets, trading pairs,
   venues, and venue instruments. Regular users read this catalog but cannot
   create or edit it; they ask a staff member for new markets.

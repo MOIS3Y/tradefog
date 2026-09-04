@@ -31,6 +31,10 @@ from tradefog.journal.views.profiles import (
     profile_detail,
     profile_overview,
     profile_restore,
+    wallet_add,
+    wallet_deposit,
+    wallet_edit,
+    wallet_withdraw,
 )
 from tradefog.journal.views.shell import (
     analytics,
@@ -65,6 +69,10 @@ __all__ = [
     "venue_detail",
     "venue_edit",
     "venue_overview",
+    "wallet_add",
     "wallet_asset_add",
     "wallet_asset_remove",
+    "wallet_deposit",
+    "wallet_edit",
+    "wallet_withdraw",
 ]

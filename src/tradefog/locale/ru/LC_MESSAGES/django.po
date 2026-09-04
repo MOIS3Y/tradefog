@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tradefog\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 14:37+0000\n"
+"POT-Creation-Date: 2026-09-04 15:27+0000\n"
 "PO-Revision-Date: 2026-09-02 11:26+0000\n"
 "Last-Translator: tradefog maintainers\n"
 "Language-Team: Russian\n"
@@ -241,6 +241,46 @@ msgstr ""
 msgid "The exchange or broker this profile is bound to."
 msgstr ""
 
+#: src/tradefog/journal/forms/wallet.py:57
+msgid "Choose an asset"
+msgstr "Выберите актив"
+
+#: src/tradefog/journal/forms/wallet.py:59
+#: src/tradefog/journal/views/profiles/wallet.py:96
+msgid "This asset is already in the wallet."
+msgstr "Этот актив уже есть в кошельке."
+
+#: src/tradefog/journal/forms/wallet.py:62
+msgid "An asset that the profile venue can hold in a wallet."
+msgstr "Актив, который площадка профиля может хранить в кошельке."
+
+#: src/tradefog/journal/forms/wallet.py:114
+#: src/tradefog/journal/models/profiles.py:191
+#: src/tradefog/journal/views/profiles/wallet.py:65
+msgid "Amount"
+msgstr "Сумма"
+
+#: src/tradefog/journal/forms/wallet.py:116
+msgid "A positive amount to record."
+msgstr "Положительная сумма для записи."
+
+#: src/tradefog/journal/forms/wallet.py:119
+msgid "Optional note for this operation."
+msgstr "Необязательная заметка к операции."
+
+#: src/tradefog/journal/forms/wallet.py:127
+msgid "The amount must be positive."
+msgstr "Сумма должна быть положительной."
+
+#: src/tradefog/journal/forms/wallet.py:146
+#, python-format
+msgid "The withdrawal cannot exceed the available balance of %(balance)s."
+msgstr "Вывод не может превышать доступный баланс %(balance)s."
+
+#: src/tradefog/journal/forms/wallet.py:183
+msgid "Advisory deposit floor that highlights a bleeding deposit. Leave empty for none."
+msgstr "Советующий депозитный порог, который подсвечивает истощающийся депозит. Оставьте пустым, если нет."
+
 #: src/tradefog/journal/models/catalog.py:41
 #: src/tradefog/journal/models/catalog.py:92
 #: src/tradefog/journal/views/catalog/assets.py:45
@@ -356,6 +396,7 @@ msgstr "Расчётный актив"
 #: src/tradefog/templates/tradefog/catalog/partials/instrument_detail.html:29
 #: src/tradefog/templates/tradefog/catalog/partials/instrument_results.html:55
 #: src/tradefog/templates/tradefog/profiles/partials/profile_overview_tab.html:20
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_asset_card.html:15
 msgid "Active"
 msgstr "Активен"
 
@@ -369,6 +410,7 @@ msgstr "инструменты площадки"
 
 #: src/tradefog/journal/models/catalog.py:257
 #: src/tradefog/journal/views/catalog/venues.py:45
+#: src/tradefog/journal/views/profiles/wallet.py:63
 msgid "Asset"
 msgstr "Актив"
 
@@ -453,8 +495,9 @@ msgstr ""
 
 #: src/tradefog/journal/models/enums.py:62
 #: src/tradefog/journal/models/enums.py:71
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_asset_card.html:13
 msgid "Risk stopped"
-msgstr ""
+msgstr "Риск остановлен"
 
 #: src/tradefog/journal/models/enums.py:63
 #: src/tradefog/journal/models/profiles.py:59
@@ -464,12 +507,17 @@ msgid "Archived"
 msgstr "В архиве"
 
 #: src/tradefog/journal/models/enums.py:77
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_asset_card.html:35
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_deposit_form.html:19
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_deposit_modal.html:11
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_operations.html:43
 msgid "Deposit"
-msgstr ""
+msgstr "Депозит"
 
 #: src/tradefog/journal/models/enums.py:78
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_operations.html:45
 msgid "Withdrawal"
-msgstr ""
+msgstr "Вывод"
 
 #: src/tradefog/journal/models/profiles.py:49
 msgid "Owner"
@@ -504,7 +552,6 @@ msgid "wallets"
 msgstr "кошельки"
 
 #: src/tradefog/journal/models/profiles.py:128
-#: src/tradefog/templates/tradefog/profiles/partials/profile_wallet_tab.html:6
 #: src/tradefog/templates/tradefog/profiles/profile_detail.html:36
 msgid "Wallet"
 msgstr "Кошелёк"
@@ -547,14 +594,12 @@ msgid "Wallet asset"
 msgstr "Активы кошелька"
 
 #: src/tradefog/journal/models/profiles.py:188
+#: src/tradefog/journal/views/profiles/wallet.py:64
 msgid "Kind"
 msgstr "Тип"
 
-#: src/tradefog/journal/models/profiles.py:191
-msgid "Amount"
-msgstr "Сумма"
-
 #: src/tradefog/journal/models/profiles.py:194
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_operations.html:31
 msgid "Note"
 msgstr "Заметка"
 
@@ -877,6 +922,31 @@ msgstr "Профиль удалён."
 msgid "The profile already has this status."
 msgstr "У профиля уже этот статус."
 
+#: src/tradefog/journal/views/profiles/wallet.py:62
+#: src/tradefog/templates/tradefog/analytics.html:154
+msgid "Date"
+msgstr "Дата"
+
+#: src/tradefog/journal/views/profiles/wallet.py:107
+msgid "Asset added to wallet."
+msgstr "Актив добавлен в кошелёк."
+
+#: src/tradefog/journal/views/profiles/wallet.py:159
+msgid "Asset updated."
+msgstr "Актив обновлён."
+
+#: src/tradefog/journal/views/profiles/wallet.py:205
+msgid "Withdrawal recorded."
+msgstr "Вывод записан."
+
+#: src/tradefog/journal/views/profiles/wallet.py:207
+msgid "Deposit recorded."
+msgstr "Депозит записан."
+
+#: src/tradefog/journal/views/profiles/wallet.py:379
+msgid "Restore the profile to manage its wallet."
+msgstr "Восстановите профиль, чтобы управлять кошельком."
+
 #: src/tradefog/templates/registration/login.html:4
 #: src/tradefog/templates/registration/login.html:96
 msgid "Sign in"
@@ -997,10 +1067,6 @@ msgstr "Максимум"
 msgid "Trajectory decisions"
 msgstr "Решения по траектории"
 
-#: src/tradefog/templates/tradefog/analytics.html:154
-msgid "Date"
-msgstr "Дата"
-
 #: src/tradefog/templates/tradefog/analytics.html:155
 msgid "Result"
 msgstr "Результат"
@@ -1114,6 +1180,10 @@ msgstr "Выйти?"
 #: src/tradefog/templates/tradefog/profiles/partials/profile_archive_modal.html:16
 #: src/tradefog/templates/tradefog/profiles/partials/profile_create_modal.html:16
 #: src/tradefog/templates/tradefog/profiles/partials/profile_delete_modal.html:16
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_add_modal.html:16
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_deposit_modal.html:16
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_edit_modal.html:16
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_withdraw_modal.html:16
 #: src/tradefog/templates/tradefog/trade.html:607
 msgid "Close"
 msgstr "Закрыть"
@@ -1137,6 +1207,10 @@ msgstr "Вы уверены, что хотите выйти?"
 #: src/tradefog/templates/tradefog/profiles/partials/profile_archive_confirm.html:14
 #: src/tradefog/templates/tradefog/profiles/partials/profile_create_form.html:11
 #: src/tradefog/templates/tradefog/profiles/partials/profile_delete_confirm.html:13
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_add_form.html:10
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_deposit_form.html:16
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_edit_form.html:10
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_withdraw_form.html:16
 #: src/tradefog/templates/tradefog/trade.html:508
 #: src/tradefog/templates/tradefog/trade.html:620
 msgid "Cancel"
@@ -1206,6 +1280,10 @@ msgstr "Переиспользуемые активы, общие для кат�
 #: src/tradefog/templates/tradefog/catalog/partials/asset_create_form.html:15
 #: src/tradefog/templates/tradefog/catalog/partials/asset_create_modal.html:11
 #: src/tradefog/templates/tradefog/catalog/partials/asset_results.html:101
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_add_form.html:13
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_add_modal.html:11
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_content.html:13
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_content.html:43
 msgid "Add asset"
 msgstr "Добавить актив"
 
@@ -1656,6 +1734,7 @@ msgid "No wallet assets match your filters"
 msgstr "Активы кошелька не соответствуют вашим фильтрам"
 
 #: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_results.html:94
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_content.html:29
 msgid "No wallet assets yet"
 msgstr "Активов кошелька пока нет"
 
@@ -1933,9 +2012,85 @@ msgstr "Настройки профиля появятся на следующе
 msgid "Strategy management arrives in a later stage."
 msgstr "Управление стратегиями появится на следующем этапе."
 
-#: src/tradefog/templates/tradefog/profiles/partials/profile_wallet_tab.html:8
-msgid "Wallet management arrives in a later stage."
-msgstr "Управление кошельком появится на следующем этапе."
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_asset_card.html:21
+msgid "Floor"
+msgstr "Порог"
+
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_asset_card.html:23
+msgid "No deposit floor"
+msgstr "Без депозитного порога"
+
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_asset_card.html:44
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_withdraw_form.html:19
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_withdraw_modal.html:11
+msgid "Withdraw"
+msgstr "Вывести"
+
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_asset_card.html:53
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_edit_modal.html:11
+msgid "Edit wallet asset"
+msgstr "Изменить актив кошелька"
+
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_content.html:31
+msgid "Add the assets you hold on this venue to start recording deposits and withdrawals."
+msgstr "Добавьте активы, которые вы держите на этой площадке, чтобы начать записывать депозиты и выводы."
+
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_deposit_form.html:8
+#, python-format
+msgid ""
+"\n"
+"      Record a deposit into %(symbol)s.\n"
+"    "
+msgstr ""
+"\n"
+"      Записать депозит на %(symbol)s.\n"
+"    "
+
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_edit_form.html:13
+msgid "Save"
+msgstr "Сохранить"
+
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_operations.html:2
+msgid "Recent operations"
+msgstr "Последние операции"
+
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_operations.html:4
+#, python-format
+msgid ""
+"\n"
+"    %(count)s operation\n"
+"  "
+msgid_plural ""
+"\n"
+"    %(count)s operations\n"
+"  "
+msgstr[0] ""
+"\n"
+"    %(count)s операция\n"
+"  "
+msgstr[1] ""
+"\n"
+"    %(count)s операции\n"
+"  "
+msgstr[2] ""
+"\n"
+"    %(count)s операций\n"
+"  "
+
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_operations.html:63
+msgid "No operations yet"
+msgstr "Операций пока нет"
+
+#: src/tradefog/templates/tradefog/profiles/partials/wallet_withdraw_form.html:8
+#, python-format
+msgid ""
+"\n"
+"      Record a withdrawal from %(symbol)s.\n"
+"    "
+msgstr ""
+"\n"
+"      Записать вывод с %(symbol)s.\n"
+"    "
 
 #: src/tradefog/templates/tradefog/profiles/profile_detail.html:15
 msgid "Back to profiles"
@@ -2370,6 +2525,19 @@ msgstr "Сделок пока нет"
 #: src/tradefog/templates/tradefog/trades.html:35
 msgid "Record your first manual trade to start building the journal."
 msgstr "Запишите первую ручную сделку, чтобы начать вести журнал."
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "            Floor: %(floor)s\n"
+#~ "          "
+#~ msgstr ""
+#~ "\n"
+#~ "            Порог: %(floor)s\n"
+#~ "          "
+
+#~ msgid "Wallet management arrives in a later stage."
+#~ msgstr "Управление кошельком появится на следующем этапе."
 
 #~ msgid "A profile keeps one venue, its instruments, wallet, and strategies together."
 #~ msgstr "Профиль объединяет одну биржу, её инструменты, кошелёк и стратегии."

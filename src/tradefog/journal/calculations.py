@@ -152,3 +152,24 @@ def calculate_position_plan(
         planned_risk_amount=planned_risk_amount,
         target_risk_amount=target_risk_amount,
     )
+
+
+def wallet_balance(
+    total_deposits: Decimal, total_withdrawals: Decimal
+) -> Decimal:
+    """Return the virtual balance of a wallet asset from its operations."""
+    return total_deposits - total_withdrawals
+
+
+def wallet_asset_status(
+    balance: Decimal, risk_stop_capital: Decimal | None
+) -> str:
+    """Return the money-health status of a wallet asset against its floor.
+
+    A wallet asset is ``RISK_STOPPED`` when its balance is at or below its
+    advisory deposit floor and ``ACTIVE`` otherwise. The ``AT_RISK`` state
+    depends on reservations from open trades and arrives with that stage.
+    """
+    if risk_stop_capital is not None and balance <= risk_stop_capital:
+        return "risk_stopped"
+    return "active"

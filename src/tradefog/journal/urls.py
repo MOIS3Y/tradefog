@@ -40,6 +40,26 @@ urlpatterns = [
         views.profile_detail,
         name="profile_detail",
     ),
+    path(
+        "profiles/<int:pk>/wallet/assets/add/",
+        views.wallet_add,
+        name="wallet_add",
+    ),
+    path(
+        "profiles/<int:pk>/wallet/assets/<int:asset_pk>/deposit/",
+        views.wallet_deposit,
+        name="wallet_deposit",
+    ),
+    path(
+        "profiles/<int:pk>/wallet/assets/<int:asset_pk>/withdraw/",
+        views.wallet_withdraw,
+        name="wallet_withdraw",
+    ),
+    path(
+        "profiles/<int:pk>/wallet/assets/<int:asset_pk>/edit/",
+        views.wallet_edit,
+        name="wallet_edit",
+    ),
 
     path("trades/", views.trades, name="trades"),
     path("trades/new/", views.trade_new, name="trade_new"),

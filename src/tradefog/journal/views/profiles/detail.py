@@ -8,14 +8,13 @@ remaining tabs are empty until their dedicated stages land.
 
 from __future__ import annotations
 
-from typing import Any
-
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 
 from tradefog.journal.models import TradingProfile
+from tradefog.journal.views.profiles.wallet import wallet_context
 
 
 @login_required
@@ -38,15 +37,19 @@ def profile_detail(
         )
         .get()
     )
+    if request.headers.get("HX-Request") == "true" and (
+        "op_sort" in request.GET or "op_page" in request.GET
+    ):
+        return render(
+            request,
+            "tradefog/profiles/partials/wallet_content.html",
+            {"section": wallet_context(request, profile)},
+        )
     return render(
         request,
         "tradefog/profiles/profile_detail.html",
-        _detail_context(profile),
+        {
+            "profile": profile,
+            "wallet": wallet_context(request, profile),
+        },
     )
-
-
-def _detail_context(profile: TradingProfile) -> dict[str, Any]:
-    """Build the detail-page context for one profile."""
-    return {
-        "profile": profile,
-    }

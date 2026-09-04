@@ -1,0 +1,16 @@
+{% load i18n %}
+<form hx-post="{% url 'journal:wallet_edit' profile.pk wallet_asset.pk %}"
+      hx-target="#wallet-edit-body"
+      hx-swap="innerHTML"
+      novalidate>
+  {% csrf_token %}
+  {% include "tradefog/components/form_field.html" with field=form.risk_stop_capital %}
+  <div class="modal-footer px-0 pb-0">
+    <button class="btn" type="button" data-bs-dismiss="modal">
+      {% translate "Cancel" %}
+    </button>
+    <button class="btn btn-outline-primary" type="submit">
+      {% translate "Save" %}
+    </button>
+  </div>
+</form>

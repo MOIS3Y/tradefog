@@ -1,0 +1,22 @@
+{% load i18n %}
+<form hx-post="{% url 'journal:wallet_withdraw' profile.pk wallet_asset.pk %}"
+      hx-target="#wallet-withdraw-body"
+      hx-swap="innerHTML"
+      novalidate>
+  {% csrf_token %}
+  <p class="text-secondary mb-3">
+    {% blocktranslate with symbol=wallet_asset.venue_wallet_asset.asset.symbol %}
+      Record a withdrawal from {{ symbol }}.
+    {% endblocktranslate %}
+  </p>
+  {% include "tradefog/components/form_field.html" with field=form.amount %}
+  {% include "tradefog/components/form_field.html" with field=form.note %}
+  <div class="modal-footer px-0 pb-0">
+    <button class="btn" type="button" data-bs-dismiss="modal">
+      {% translate "Cancel" %}
+    </button>
+    <button class="btn btn-outline-danger" type="submit">
+      {% translate "Withdraw" %}
+    </button>
+  </div>
+</form>
