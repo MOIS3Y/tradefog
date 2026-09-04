@@ -1,5 +1,15 @@
-// Tradefog proposed database
-// Two ownership zones: shared staff-managed catalog, owner-scoped journal.
+// Tradefog database (revised: owner-scoped reusable strategies)
+// Two ownership zones: shared staff catalog, owner-scoped journal.
+//
+// Three conceptual layers for risk and money:
+//   Edge layer      TradingStrategy   risk_percent + reward_multiple (R:R).
+//                    Trading skill is measured in dimensionless R and is
+//                    therefore currency-agnostic.
+//   Allocation layer StrategyCapital   fixed capital per wallet asset a strategy
+//                    commits to trade; one row per (strategy, wallet_asset).
+//   Money layer      Wallet/WalletAsset  balances plus the advisory deposit
+//                    floor risk_stop_capital; deposit health is per asset,
+//                    global to the user, and never blocks a trade.
 
 Enum asset_type {
   crypto
@@ -36,6 +46,12 @@ Enum strategy_status {
   at_risk
   risk_stopped
   archived
+}
+
+Enum wallet_asset_status {
+  active
+  at_risk
+  risk_stopped
 }
 
 Enum wallet_operation_kind {
@@ -140,7 +156,9 @@ Table WalletAsset {
   id integer [pk, increment, note: 'Primary key']
   wallet_id integer [not null, note: 'Owning wallet; owner is the profile owner (single ownership root)']
   venue_wallet_asset_id integer [not null, note: 'Venue-capable asset this balance holds; its venue equals the profile venue']
-  Note: 'A balance for one asset available on the profile venue. References VenueWalletAsset so the asset is structurally venue-capable for the profile. Ownership is scoped transitively through the wallet and profile.'
+  risk_stop_capital decimal(30, 18) [note: 'Advisory deposit floor; editable; global per asset. Highlights a bleeding deposit but never blocks a trade.']
+  status wallet_asset_status [not null, note: 'Derived from balance against the floor; persisted and recomputed by a domain service']
+  Note: 'A balance for one asset available on the profile venue, plus the money-layer deposit floor. References VenueWalletAsset so the asset is structurally venue-capable for the profile. Ownership is scoped transitively through the wallet and profile.'
   indexes {
     (wallet_id, venue_wallet_asset_id) [unique, name: 'wallet_asset_wallet_venue_asset_idx']
   }
@@ -158,15 +176,24 @@ Table WalletOperation {
 
 Table TradingStrategy {
   id integer [pk, increment, note: 'Primary key']
-  profile_id integer [not null, note: 'Owning profile; owner is the profile owner (single ownership root)']
-  name varchar(128) [not null, note: 'Strategy name']
+  profile_id integer [not null, note: 'Owning profile; the strategy is a tool of the profile, not a shared catalog record']
+  name varchar(128) [not null, note: 'Strategy name, e.g. Easy']
   description text [note: 'Strategy description']
-  settlement_wallet_asset_id integer [not null, note: 'Exact settlement asset for all its trades']
-  strategic_capital decimal(30, 18) [not null, note: 'Fixed capital used for risk sizing']
-  risk_percent decimal(10, 6) [not null, note: 'Risk percent of strategic capital per trade']
-  risk_stop_capital decimal(30, 18) [note: 'Absolute equity level at which the strategy stops']
-  status strategy_status [not null, note: 'Operational status recalculated from financial facts']
-  Note: 'Fixed-capital, fixed-risk cohort. Trades settle in exactly this wallet asset. Ownership is scoped transitively through TradingProfile.owner.'
+  risk_percent decimal(10, 6) [not null, note: 'Risk percent of the per-asset allocation capital per trade']
+  reward_multiple decimal(10, 6) [not null, default: 3, note: 'Fixed reward ratio (R:R), e.g. 3 means take profit = risk * 3']
+  status strategy_status [not null, note: 'ARCHIVED if the user archived it; otherwise the worst status among its StrategyCapital wallet assets']
+  Note: 'Edge layer: the fixed risk and reward coefficients of a strategy cohort. Ownership is scoped transitively through TradingProfile.owner. Capital lives per asset in StrategyCapital, so one strategy is reused across every wallet asset it allocates.'
+}
+
+Table StrategyCapital {
+  id integer [pk, increment, note: 'Primary key']
+  strategy_id integer [not null, note: 'Owning strategy']
+  wallet_asset_id integer [not null, note: 'Wallet asset this allocation commits to; must belong to the same profile wallet as the strategy']
+  capital decimal(30, 18) [not null, note: 'Fixed risk base for this asset; locked after the first submitted trade settling in it. New rows may be added when another asset becomes available.']
+  Note: 'Allocation layer: fixed capital per wallet asset that a strategy commits. risk_amount = capital * risk_percent / 100. Ownership is scoped transitively through the strategy and profile.'
+  indexes {
+    (strategy_id, wallet_asset_id) [unique, name: 'strategy_capital_strategy_wallet_asset_idx', note: 'One allocation per strategy and wallet asset']
+  }
 }
 
 Table Trade {
@@ -179,12 +206,12 @@ Table Trade {
   direction direction [not null, note: 'Long or short; locked once the snapshot exists']
   description_markdown text [note: 'Evolving Markdown description in any state']
   review_completed_at timestamp [note: 'Optional review completion time; closed trades only']
-  realized_pnl decimal(30, 18) [note: 'Final signed net P&L when closed']
+  realized_pnl decimal(30, 18) [note: 'Final signed net P&L when closed, in the settlement asset']
   actual_exit_price decimal(30, 18) [note: 'Optional reference exit price']
   total_commission decimal(30, 18) [note: 'Optional total commission context']
   funding_result decimal(30, 18) [note: 'Optional signed funding context']
   created_at timestamp [default: `now()`, not null, note: 'Creation time']
-  Note: 'Working journal record and lifecycle. Ownership is scoped transitively through TradingProfile.owner. Decision context is frozen into TradeSnapshot on the draft-to-pending transition; Trade working fields are locked from then on.'
+  Note: 'Working journal record and lifecycle. Ownership is scoped transitively through TradingProfile.owner. The instrument settlement asset must match the asset of one StrategyCapital of the strategy. Decision context is frozen into TradeSnapshot on the draft-to-pending transition; Trade working fields are locked from then on.'
 }
 
 Table TradeSnapshot {
@@ -192,18 +219,17 @@ Table TradeSnapshot {
   trade_id integer [unique, not null, note: 'One write-once snapshot per trade']
   planned_entry decimal(30, 18) [not null, note: 'Frozen planned entry price']
   planned_stop decimal(30, 18) [not null, note: 'Frozen planned stop price']
-  planned_take_profit decimal(30, 18) [note: 'Frozen take profit, derived at 1:3']
+  planned_take_profit decimal(30, 18) [note: 'Frozen take profit, derived at the reward multiple']
   quantity decimal(30, 18) [note: 'Frozen position quantity']
-  reward_multiple decimal(10, 6) [note: 'Fixed reward multiple, 3']
-  planned_risk_percent decimal(10, 6) [note: 'Frozen risk percent']
-  planned_risk_amount decimal(30, 18) [note: 'Frozen monetary risk']
+  reward_multiple decimal(10, 6) [note: 'Frozen reward multiple from the strategy']
+  planned_risk_percent decimal(10, 6) [note: 'Frozen risk percent from the strategy']
+  planned_risk_amount decimal(30, 18) [note: 'Frozen monetary risk = allocation_capital * risk_percent / 100']
   planned_notional decimal(30, 18) [note: 'Frozen notional at 1x; the reserving amount while the trade is pending or open']
-  strategy_equity decimal(30, 18) [note: 'Frozen strategy equity']
-  strategic_capital decimal(30, 18) [note: 'Frozen fixed strategic capital']
-  risk_stop_capital decimal(30, 18) [note: 'Frozen risk-stop level']
-  already_reserved_risk decimal(30, 18) [note: 'Frozen risk already reserved by other trades']
-  remaining_risk_capacity decimal(30, 18) [note: 'Frozen remaining risk capacity']
-  risk_limit_breach boolean [note: 'Frozen risk-stop breach state']
+  allocation_capital decimal(30, 18) [note: 'Frozen StrategyCapital.capital for the settlement asset']
+  risk_stop_capital decimal(30, 18) [note: 'Frozen WalletAsset.risk_stop_capital']
+  already_reserved_risk decimal(30, 18) [note: 'Frozen risk already reserved by other trades of the same strategy and asset']
+  remaining_risk_capacity decimal(30, 18) [note: 'Frozen remaining risk capacity for the strategy and asset']
+  deposit_floor_breach boolean [note: 'Frozen deposit-floor breach state']
   wallet_balance decimal(30, 18) [note: 'Frozen wallet balance']
   wallet_reserved decimal(30, 18) [note: 'Frozen already-reserved notional']
   wallet_available decimal(30, 18) [note: 'Frozen available balance']
@@ -238,7 +264,8 @@ Ref: WalletAsset.venue_wallet_asset_id > VenueWalletAsset.id
 Ref: WalletOperation.wallet_asset_id > WalletAsset.id
 
 Ref: TradingStrategy.profile_id > TradingProfile.id
-Ref: TradingStrategy.settlement_wallet_asset_id > WalletAsset.id
+Ref: StrategyCapital.strategy_id > TradingStrategy.id
+Ref: StrategyCapital.wallet_asset_id > WalletAsset.id
 
 Ref: Trade.profile_id > TradingProfile.id
 Ref: Trade.strategy_id > TradingStrategy.id

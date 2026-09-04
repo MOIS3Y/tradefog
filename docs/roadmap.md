@@ -159,9 +159,11 @@ staff-managed reference catalog that regular users read but do not edit:
   routed through a centralized scoping manager;
 - make `WalletAsset` reference `VenueWalletAsset` so profile wallet assets are
   venue-capable on the profile's venue;
-- keep `TradingStrategy` as the fixed-capital and fixed-risk cohort with one
-  exact settlement wallet asset, with wallet top-up preserving constant
-  monetary R when a trade needs more than the strategy balance;
+- keep `TradingStrategy` as the profile-scoped edge layer (risk percent and
+  reward multiple) backed by `StrategyCapital` per-asset allocations, so one
+  strategy is reused across every wallet asset it allocates and the fixed
+  allocation capital is never resized; the advisory `risk_stop_capital`
+  deposit floor lives on `WalletAsset`;
 - introduce a write-once `TradeSnapshot` created atomically on the
   draft-to-pending transition, freezing the plan, risk, wallet, and ATR
   context and backing the derived wallet reservation while the trade is

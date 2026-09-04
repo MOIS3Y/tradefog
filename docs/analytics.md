@@ -29,18 +29,20 @@ The global filters are:
 - trading profile;
 - trading strategy;
 - product;
-- profile instrument, displayed by its canonical trading pair.
+- profile instrument, displayed by its canonical trading pair;
+- settlement asset (currency).
 
 `trade_date` is the source of truth for period filtering. Execution and audit
 timestamps do not move a trade between analytical periods. Closed trades are
 ordered by `trade_date`, creation time, and identifier so that calculations
 are deterministic.
 
-A trade references a shared `VenueInstrument` directly. Strategy-compatible
-instruments have exactly the same settlement asset as the strategy. Filter
-choices narrow in the sequence profile, strategy, product, and instrument. A
-lower-level selection does not silently widen or replace an explicit
-higher-level selection.
+A trade references a shared `VenueInstrument` directly and belongs to a
+profile-scoped strategy. Strategy-compatible instruments settle in one of the
+strategy's allocated wallet assets. Filter choices narrow in the sequence
+profile, strategy, product, instrument, and settlement asset. A lower-level
+selection does not silently widen or replace an explicit higher-level
+selection.
 
 Changing the global filter recalculates the complete selection. In
 particular, a filtered trajectory starts again at `(0, 0)`; it does not
@@ -60,6 +62,13 @@ closed trade:
 result_r = realized_pnl / planned_risk_amount
 ```
 
+Because the numerator and denominator are both in the settlement currency of
+the same trade, `result_r` is dimensionless. R-based quality metrics are
+therefore currency-agnostic and can be aggregated across the wallet assets a
+strategy allocates without mixing monetary units; monetary results remain per
+settlement asset. The analytical cohort of a strategy is its set of closed
+trades; narrowing by settlement asset restricts that cohort to one currency.
+
 The trade is classified as:
 
 - a win when `result_r > 0`;
@@ -75,9 +84,10 @@ Ratios and averages are always displayed together with the number of trades.
 Tradefog does not currently impose an arbitrary minimum sample size at which
 a strategy becomes statistically valid.
 
-Wallet deposits, withdrawals, and strategic capital do not enter normalized
-strategy-quality calculations. They may appear in wallet or strategy context,
-but they must not change R, X/Y trajectory, win rate, payoff, or drawdown in R.
+Wallet deposits, withdrawals, and strategy capital allocations do not enter
+normalized strategy-quality calculations. They may appear in wallet or strategy
+context, but they must not change R, X/Y trajectory, win rate, payoff, or
+drawdown in R.
 
 ## Result and outcome summary
 
@@ -115,8 +125,8 @@ X += abs(min(result_r, 0))
 Y += max(result_r, 0) / reward_multiple
 ```
 
-Every submitted trade preserves its reward multiple. With the current fixed
-`1:3` strategy, the break-even line is:
+Every submitted trade preserves its strategy's reward multiple. With the
+default `1:3` strategy, the break-even line is:
 
 ```text
 Y = X / 3
@@ -244,8 +254,9 @@ stops, targets, and manual exits. Optional commission and funding fields are
 useful for explaining costs, but must not be subtracted a second time.
 Coverage is shown whenever only some trades have those optional details.
 
-Strategy virtual equity is labelled as strategic capital plus its realized
-P&L. It is not a wallet balance or a cash-flow-adjusted investment return.
+Wallet-asset balance and its advisory `risk_stop_capital` are separate money
+context: they show whether the deposit is being drained, independent of the
+strategy cohort. Neither is a cash-flow-adjusted investment return.
 
 ## Decision quality and journal review
 
@@ -325,7 +336,8 @@ stages.
 
 - [ ] Add realized P&L grouped by strategy and currency.
 - [ ] Show commission and funding coverage without double subtraction.
-- [ ] Add strategy virtual equity and wallet activity as separate context.
+- [ ] Add wallet-asset balance, deposit floor, and wallet activity as separate
+  context.
 
 ### Decision quality and review
 

@@ -31,9 +31,9 @@ monthly accounting period, monthly target, or required trading frequency. A
 small number of clean profitable decisions is more valuable than a larger
 mixed sequence that produces the same normalized result.
 
-The planned risk/reward ratio is fixed at `1:3`. It is a product strategy
-constant rather than a user preference. The take-profit price is calculated
-from entry and stop prices and cannot be edited independently.
+The planned risk/reward ratio comes from the strategy (the default is `1:3`)
+rather than being a per-trade user preference. The take-profit price is
+calculated from entry and stop prices and cannot be edited independently.
 
 Tradefog is an honest personal journal, not a regulatory audit system. Users
 can correct dates and journal facts when they make a mistake. The application
@@ -51,12 +51,14 @@ The complete discretionary-trade workflow is:
 2. The user creates a trading profile and binds it to one venue.
 3. The user opens the profile wallet, adds venue-capable assets offered by
    that venue, and records deposits and withdrawals.
-4. The user creates a trading strategy with one compatible wallet settlement
-   asset and fixed risk parameters.
+4. The user creates a trading strategy: sets the risk percent and reward
+   multiple, and allocates a fixed capital to each available wallet asset the
+   strategy will trade against. One strategy is reused across all its
+   allocated assets.
 5. The user opens Trades and selects a profile and strategy.
-6. The workspace filters instruments by exact strategy settlement and the
-   profile's venue; product determines the available `LONG` and `SHORT`
-   directions.
+6. The workspace filters instruments by the strategy's allocated settlement
+   assets and the profile's venue; product determines the available `LONG`
+   and `SHORT` directions.
 7. The user completes the trade-specific checklist.
 8. The directional assessment reacts to checklist changes.
 9. The workspace presents the current ATR context for the instrument; the user
@@ -250,7 +252,7 @@ trade results. Important statistics include:
 - win rate;
 - net and average result in R;
 - gross profit and gross loss in R;
-- net realized P&L in strategy currency;
+- net realized P&L per settlement asset;
 - current and maximum winning or losing streaks;
 - drawdown from the historical capital high where appropriate;
 - the X/Y quality trajectory;

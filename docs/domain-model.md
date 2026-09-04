@@ -45,9 +45,10 @@ Reference catalog (staff-managed, shared)
 User journal (owner-scoped via TradingProfile.owner)
 └── TradingProfile
     └── Wallet                     # 1:1 with profile; groups wallet assets
-        ├── WalletAsset            # balance for one venue-capable asset
+        ├── WalletAsset            # balance + advisory deposit floor for one venue-capable asset
         │   └── WalletOperation
-        ├── TradingStrategy
+        ├── TradingStrategy        # edge layer: risk percent + reward multiple
+        │   └── StrategyCapital    # allocation layer: fixed capital per wallet asset
         └── Trade
             └── TradeSnapshot      # write-once, created at draft → pending
 ```
@@ -144,8 +145,12 @@ not create a second ownership root.
 `WalletAsset` belongs to one wallet and references a `VenueWalletAsset` (rather
 than a bare `Asset`), so its asset is structurally guaranteed to be
 venue-capable for the profile's venue. The same USDT identity can back
-independent wallet balances in several profiles. Only wallet assets that are
-also used as settlement by a traded instrument can be selected by a strategy.
+independent wallet balances in several profiles.
+
+A wallet asset carries an optional advisory `risk_stop_capital`: a deposit
+floor the user can set and edit freely. Its purpose is to highlight a bleeding
+deposit, not to block trading. Only wallet assets that are also used as
+settlement by a traded instrument can be allocated by a strategy.
 
 Wallet funds are introduced and removed only through explicit `DEPOSIT` and
 `WITHDRAWAL` operations on a selected wallet asset. An operation stores its
@@ -177,20 +182,31 @@ virtual balance negative.
 
 ## Trading strategies
 
-`TradingStrategy` is one fixed strategic risk cohort inside a profile. It
-stores its name, description, settlement wallet asset, strategic capital,
-risk percent, absolute risk stop, and operational status. Several strategies
-may share the same profile wallet.
+`TradingStrategy` is a fixed strategic risk cohort inside a profile. It is the
+edge layer: it stores its name, description, the risk percent, the fixed
+reward multiple, and its operational status. Strategies are a tool of the
+profile, not a shared catalog record: each user creates their own cohort,
+because a strategy definition (risk and reward) is tied to the user's own
+capital scale.
 
-The selectable settlement assets for a strategy are the intersection of the
-profile wallet and the settlement assets of the instruments the strategy
-trades. A strategy can use several products and instruments, but every
-instrument must have exactly the same settlement asset. Unlike currencies are
-never treated as equivalent.
+The capital that backs a strategy is not a single number; it is a set of
+per-asset allocations held in `StrategyCapital`. Each allocation references a
+`WalletAsset` of the profile wallet and stores a fixed `capital` for that
+asset. One strategy is therefore reused across every wallet asset it allocates
+and can trade any instrument whose settlement asset has an allocation. Several
+strategies may share the same profile wallet.
 
-Strategy settlement, strategic capital, risk percent, and risk stop remain
-correctable while every strategy trade is a draft and become locked after the
-first submitted trade. The strategy name and description remain editable.
+A `StrategyCapital.capital` is fixed and becomes locked after the first
+submitted trade that settles in that asset. It can never be resized, because
+resizing a fixed risk base would silently deepen later drawdowns. New
+allocations may be added when another wallet asset becomes available in the
+wallet; a new allocation locks from its own first submitted trade. A user who
+wants to trade larger sums creates a new strategy rather than resizing an
+existing one.
+
+Risk percent, reward multiple, and allocations remain correctable while every
+strategy trade is a draft and become locked after the first submitted trade.
+The strategy name and description remain editable.
 
 The first version excludes FX, spot margin, equity short selling, configurable
 leverage, inverse contracts, expiring futures, options, and contract
@@ -198,17 +214,21 @@ multipliers.
 
 ## Risk sizing
 
-Future trade risk uses the fixed strategic capital:
+Future trade risk uses the fixed per-asset allocation:
 
 ```text
-risk_amount = strategic_capital * risk_percent / 100
-take_profit_amount = risk_amount * 3
+risk_amount = StrategyCapital(strategy, asset).capital * risk_percent / 100
+take_profit_amount = risk_amount * reward_multiple
 ```
 
-Profits, losses, and wallet operations never resize monetary `1R`. A trader
-who changes strategy scale creates a new strategy and may archive the old
-one. The absolute `risk_stop_capital` identifies the strategy-equity level at
-which the strategy should stop.
+The allocation is only the risk base. The position notional is sized from the
+stop distance so that the resulting risk is exactly `risk_amount`, and is
+drawn against the wallet's available balance at `1x`; with a tight stop the
+notional can exceed the allocation, but the risk and take profit remain fixed.
+A trader who changes strategy scale creates a new strategy and may archive the
+old one.
+
+Profits, losses, and wallet operations never resize the fixed allocations.
 
 ## Strategy status
 
@@ -219,33 +239,33 @@ Strategy status has four values:
 - `RISK_STOPPED`;
 - `ARCHIVED`.
 
-Strategy equity is a strategy result, not wallet funds:
+Money health lives on the wallet asset, not on the strategy. Each wallet asset
+with an allocation is compared against its own advisory `risk_stop_capital`:
 
 ```text
-strategy_equity = strategic_capital + sum(strategy realized_pnl)
+wallet_balance = deposits - withdrawals + sum(realized_pnl in this asset)
+reserved_notional =
+    SUM(snapshot.planned_notional)
+    WHERE trade.status IN (PENDING_ENTRY, OPEN) AND settles in this asset
+worst_case_balance = wallet_balance - reserved_notional
 ```
 
-Pending and open trades reserve their snapshotted planned risk:
+A wallet asset is `RISK_STOPPED` when its balance is at or below its floor,
+`AT_RISK` when its balance is above the floor but its worst-case balance is at
+or below it, and `ACTIVE` otherwise. The floor is advisory: it never blocks a
+trade, it only highlights that the deposit is being drained.
 
-```text
-reserved_risk =
-    sum(planned_risk_amount for PENDING_ENTRY and OPEN trades)
-
-worst_case_equity = strategy_equity - reserved_risk
-```
-
-An archived strategy always reports `ARCHIVED`. Otherwise it is
-`RISK_STOPPED` when strategy equity is at or below the stop, `AT_RISK` when
-strategy equity is above the stop but worst-case equity is at or below it,
-and `ACTIVE` otherwise. Restoring an archived strategy recalculates its
+A strategy aggregates the statuses of the wallet assets it allocates: an
+archived strategy always reports `ARCHIVED`; otherwise it reports the worst
+status among its allocations. Restoring an archived strategy recalculates its
 financial status.
 
 Financial facts are the source of truth. Focused domain services update the
 persisted operational status after relevant capital and trade transitions.
 
-The risk stop is advisory for manual activity. A draft can always be saved.
-A transition to pending or open records an explicit risk-stop breach after a
-clear warning. Insufficient wallet availability is a hard constraint for a
+The risk floor is advisory for manual activity. A draft can always be saved.
+A transition to pending or open records an explicit deposit-floor breach after
+a clear warning. Insufficient wallet availability is a hard constraint for a
 prospective pending or open trade because the virtual wallet cannot provide
 the required `1x` notional.
 
@@ -253,29 +273,30 @@ the required `1x` notional.
 
 A trade belongs to one strategy and one profile. The profile is bound to one
 venue, so a trade uses only that venue's instruments. The instrument's
-settlement asset must exactly match the strategy settlement wallet asset, and
-the strategy settlement wallet asset must belong to the profile wallet and be
-venue-capable on the profile's venue. Product is derived from the instrument
-rather than duplicated on the trade.
+settlement asset must match the asset of one `StrategyCapital` of the
+strategy, and that `StrategyCapital` must reference a wallet asset of the
+profile wallet that is venue-capable on the profile's venue. Product is
+derived from the instrument rather than duplicated on the trade.
 
 ```text
 profile.venue == trade.venue_instrument.venue
-trade.venue_instrument.settlement_asset =
-    strategy.settlement_wallet_asset.venue_wallet_asset.asset
-strategy.settlement_wallet_asset ∈ profile.Wallet.WalletAsset
+∃ allocation ∈ trade.strategy.StrategyCapital:
+    allocation.wallet_asset.venue_wallet_asset.asset
+        == trade.venue_instrument.settlement_asset
+allocation.wallet_asset ∈ profile.Wallet.WalletAsset
 ```
 
 Compatible querysets hide invalid instrument choices in the interface. Draft
 persistence and every transition to `PENDING_ENTRY` or `OPEN` repeat the
 invariant in a domain service so stale forms, crafted requests, and future
-execution adapters cannot bypass it. For example, a USD strategy cannot use
-BTC/USDT even when its profile wallet also contains USDT, and a profile bound
-to one venue cannot trade another venue's instrument.
+execution adapters cannot bypass it. For example, a strategy that allocates
+USDT cannot use BTC/BNB (which settles in BNB) unless it also allocates BNB,
+and a profile bound to one venue cannot trade another venue's instrument.
 
 ## Position plan
 
 The trader supplies direction, planned entry, and planned stop. The reward
-multiple is the code-defined constant `3`.
+multiple comes from the strategy (the code-defined default is `3`).
 
 ```text
 LONG distance = entry - stop
@@ -321,11 +342,10 @@ reproducible:
 
 - planned risk percent and amount;
 - reward multiple;
-- strategy equity and fixed strategic capital;
-- risk-stop capital;
+- allocation capital and the wallet-asset deposit floor;
 - already reserved risk;
 - remaining risk capacity;
-- risk-limit breach state;
+- deposit-floor breach state;
 - wallet balance, reservation, and available balance;
 - position-plan material values;
 - the relevant ATR context.
@@ -345,9 +365,9 @@ authoritative plan, risk, wallet, and ATR facts live in the snapshot rather
 than in editable `Trade` fields:
 
 - the position plan: entry, stop, take profit, quantity, reward multiple;
-- the risk plan: risk percent, risk amount, planned notional, strategy equity,
-  fixed strategic capital, risk-stop capital, already reserved risk, remaining
-  risk capacity, and risk-limit breach state;
+- the risk plan: risk percent, risk amount, planned notional, allocation
+  capital, the wallet-asset deposit floor, already reserved risk, remaining
+  risk capacity, and deposit-floor breach state;
 - the wallet context: balance, already-reserved notional, and available
   balance;
 - the ATR context.
@@ -361,20 +381,18 @@ exists, enforced by the same domain service that owns the transition.
 
 The first version does not model partial fills or exits. A partially closed
 position remains `OPEN`. Once fully closed, it stores one final signed net
-`realized_pnl` in strategy currency. This number is authoritative and already
-includes fees, slippage, stops, targets, funding, and manual exits.
+`realized_pnl` in its settlement asset. This number is authoritative and
+already includes fees, slippage, stops, targets, funding, and manual exits.
 
 An optional actual exit price is reference data. Optional total commission
 and signed funding result explain the net outcome but are not subtracted from
 it again. Realized P&L changes the profile wallet balance for the settlement
-asset and the strategy's virtual equity when closure is registered in
-Tradefog.
+asset when closure is registered in Tradefog.
 
 A retrospectively entered trade belongs analytically to its `trade_date` but
-changes wallet balance and strategy equity at registration time. Correcting
-journal facts
-recalculates analytics and current strategy state without rewriting snapshots
-on other submitted trades.
+changes wallet balance and strategy analytics at registration time. Correcting
+journal facts recalculates analytics and current strategy state without
+rewriting snapshots on other submitted trades.
 
 ## R results and quality trajectory
 
@@ -405,10 +423,14 @@ The break-even line is:
 Y = X / reward_multiple
 ```
 
-With the fixed strategy it is `Y = X / 3`. There is no target line. The
-coordinate after each deterministically ordered closed trade is preserved or
-reproducibly derived so charts can display the path rather than only the
-final point.
+Because `result_r` is dimensionless (both numerator and denominator are in the
+settlement currency of the same trade), R-based quality metrics are
+currency-agnostic: they can be aggregated across the wallet assets a strategy
+allocates without mixing monetary units. Monetary results remain per
+settlement asset. With the default strategy it is `Y = X / 3`. There is no
+target line. The coordinate after each deterministically ordered closed trade
+is preserved or reproducibly derived so charts can display the path rather
+than only the final point.
 
 For filtered analytics, closed trades are selected by editable `trade_date`,
 ordered deterministically, and recalculated from `(0, 0)`. Counts, streaks,
