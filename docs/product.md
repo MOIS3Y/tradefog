@@ -284,7 +284,7 @@ Trades
 Analytics
 Catalog
   Assets
-  Trading pairs (planned)
+  Trading pairs
   Venues (planned)
 User menu
   Settings (future user settings; disabled placeholder)
@@ -304,6 +304,10 @@ User menu
   Its Assets page supports search, type filtering, sorting, and pagination;
   regular users read it, while staff create and remove assets through modal
   forms with dismissible status alerts.
+- Trading pairs lists the reusable BASE/QUOTE markets with search, a dynamic
+  base/quote asset-type filter, sorting, and pagination; regular users read
+  it, while staff create and remove pairs through modal forms with
+  dismissible status alerts.
 - Trades contains the cross-profile journal, owner-scoped profile, strategy,
   product, pair, and lifecycle filters, server-ordered paginated results,
   trade creation, and the trade workspace.
@@ -324,6 +328,7 @@ are:
 /en/profiles/<id>/wallet/
 /en/profiles/<id>/strategies/
 /en/catalog/assets/
+/en/catalog/pairs/
 /en/catalog/venues/<id>/instruments/ (planned)
 /en/trades/
 /en/trades/new/

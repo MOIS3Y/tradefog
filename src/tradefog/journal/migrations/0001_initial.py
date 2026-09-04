@@ -265,7 +265,7 @@ class Migration(migrations.Migration):
                 (
                     "canonical_symbol",
                     models.CharField(
-                        help_text="Normalized display identity, for example BTCUSDT.",
+                        help_text="Normalized display identity, for example BTC/USD.",
                         max_length=32,
                         unique=True,
                     ),

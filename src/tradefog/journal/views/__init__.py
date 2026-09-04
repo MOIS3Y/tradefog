@@ -9,6 +9,9 @@ from tradefog.journal.views.catalog import (
     asset_create,
     asset_delete,
     asset_overview,
+    pair_create,
+    pair_delete,
+    pair_overview,
 )
 from tradefog.journal.views.shell import (
     analytics,
@@ -24,6 +27,9 @@ __all__ = [
     "asset_delete",
     "asset_overview",
     "home",
+    "pair_create",
+    "pair_delete",
+    "pair_overview",
     "profiles",
     "trade_new",
     "trades",

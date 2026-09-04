@@ -1,6 +1,7 @@
 {% load i18n static %}{% get_current_language as current_language %}
 <!doctype html>
 <html lang="{{ current_language }}">
+<!-- Head -->
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,6 +15,7 @@
 </head>
 <body hx-headers='{"x-csrftoken": "{{ csrf_token }}"}'>
   <div class="page">
+    <!-- Anonymous shell: theme toggle shown without authentication -->
     {% if not user.is_authenticated %}
       <span class="navbar-brand-autodark visually-hidden">Tradefog</span>
       <button class="btn btn-icon border-0 bg-transparent position-fixed top-0 end-0 m-3"
@@ -29,6 +31,7 @@
       </button>
     {% endif %}
     {% if user.is_authenticated %}
+      <!-- Top bar: brand, theme toggle, user menu -->
       <header class="navbar navbar-expand-md d-print-none">
         <div class="container-xl">
           <button class="navbar-toggler"
@@ -97,6 +100,7 @@
           </div>
         </div>
       </header>
+      <!-- Main navigation menu -->
       <header class="navbar-expand-md d-print-none">
         <div class="collapse navbar-collapse" id="navbar-menu">
           <div class="navbar">
@@ -135,14 +139,14 @@
                   </a>
                 </li>
                 {% with catalog_active=request.resolver_match.url_name %}
-                <li class="nav-item dropdown{% if catalog_active == 'asset_overview' %} active{% endif %}">
+                <li class="nav-item dropdown{% if catalog_active == 'asset_overview' or catalog_active == 'pair_overview' %} active{% endif %}">
                   <a class="nav-link dropdown-toggle"
                      href="#"
                      data-bs-toggle="dropdown"
                      role="button"
                      aria-haspopup="true"
                      aria-expanded="false"
-                     {% if catalog_active == 'asset_overview' %}aria-current="page"{% endif %}>
+                     {% if catalog_active == 'asset_overview' or catalog_active == 'pair_overview' %}aria-current="page"{% endif %}>
                     <span class="nav-link-icon">{% include "tradefog/components/icon.html" with name="archive" %}</span>
                     <span class="nav-link-title">{% translate "Catalog" %}</span>
                   </a>
@@ -151,11 +155,10 @@
                        href="{% url 'journal:asset_overview' %}">
                       {% translate "Assets" %}
                     </a>
-                    <span class="dropdown-item disabled"
-                          aria-disabled="true"
-                          title="{% translate 'Coming soon' %}">
+                    <a class="dropdown-item{% if catalog_active == 'pair_overview' %} active{% endif %}"
+                       href="{% url 'journal:pair_overview' %}">
                       {% translate "Trading pairs" %}
-                    </span>
+                    </a>
                     <span class="dropdown-item disabled"
                           aria-disabled="true"
                           title="{% translate 'Coming soon' %}">
@@ -169,6 +172,7 @@
           </div>
         </div>
       </header>
+      <!-- Logout confirmation modal -->
       <div class="modal modal-blur fade"
            id="logout-modal"
            tabindex="-1"
@@ -199,6 +203,7 @@
         </div>
       </div>
     {% endif %}
+    <!-- Page content: header, messages, and child templates -->
     <div class="page-wrapper{% if not user.is_authenticated %} tf-auth-shell{% endif %}">
       {% if user.is_authenticated %}{% block page_header %}{% endblock %}{% endif %}
       <main class="page-body">
@@ -211,6 +216,7 @@
         </div>
       </main>
       {% if user.is_authenticated %}
+        <!-- Footer -->
         <footer class="footer footer-transparent d-print-none">
           <div class="container-xl">
             <div class="row text-center align-items-center flex-row-reverse">
@@ -252,6 +258,7 @@
     </div>
   </div>
   {% if user.is_authenticated %}
+    <!-- Global UI: toasts and back-to-top control -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3"
          id="toast-region"
          aria-live="polite"
@@ -274,6 +281,7 @@
       {% include "tradefog/components/icon.html" with name="arrow-up" %}
     </button>
   {% endif %}
+  <!-- Application scripts -->
   <script src="{% static 'tradefog/vendor/tabler/tabler.min.js' %}"></script>
   <script src="{% static 'tradefog/vendor/htmx/htmx.min.js' %}" defer></script>
   <script src="{% static 'tradefog/js/htmx-config.js' %}" defer></script>

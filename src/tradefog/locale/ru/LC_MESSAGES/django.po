@@ -721,12 +721,15 @@ msgid_plural ""
 "      %(count)s assets\n"
 "    "
 msgstr[0] ""
+"\n"
 "      %(count)s актив\n"
 "    "
 msgstr[1] ""
+"\n"
 "      %(count)s актива\n"
 "    "
 msgstr[2] ""
+"\n"
 "      %(count)s активов\n"
 "    "
 
@@ -1279,3 +1282,120 @@ msgstr "Сделок пока нет"
 #: src/tradefog/templates/tradefog/trades.html:35
 msgid "Record your first manual trade to start building the journal."
 msgstr "Запишите первую ручную сделку, чтобы начать вести журнал."
+
+#: src/tradefog/templates/tradefog/catalog/pair_overview.html:18
+#: src/tradefog/templates/tradefog/catalog/partials/pair_create_form.html:14
+#: src/tradefog/templates/tradefog/catalog/partials/pair_create_modal.html:11
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:103
+msgid "Add pair"
+msgstr "Добавить пару"
+
+#: src/tradefog/templates/tradefog/catalog/pair_overview.html:13
+msgid "Reusable BASE/QUOTE markets shared across the journal catalog."
+msgstr "Переиспользуемые рынки BASE/QUOTE, общие для каталога журнала."
+
+#: src/tradefog/journal/views/catalog/pairs.py:139
+msgid "Trading pair added."
+msgstr "Торговая пара добавлена."
+
+#: src/tradefog/journal/views/catalog/pairs.py:181
+msgid "Trading pair removed."
+msgstr "Торговая пара удалена."
+
+#: src/tradefog/journal/views/catalog/pairs.py:172
+msgid "This trading pair is in use and cannot be removed."
+msgstr "Эта торговая пара используется и не может быть удалена."
+
+#: src/tradefog/journal/views/catalog/pairs.py:91
+msgid "This trading pair already exists."
+msgstr "Эта торговая пара уже существует."
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_delete_modal.html:11
+msgid "Remove pair?"
+msgstr "Удалить пару?"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:89
+msgid "Remove pair"
+msgstr "Удалить пару"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_delete_confirm.html:6
+#, python-format
+msgid ""
+"\n"
+"      Remove the trading pair %(pair)s from the catalog?\n"
+"    "
+msgstr ""
+"\n"
+"      Удалить торговую пару %(pair)s из каталога?\n"
+"    "
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:24
+msgid "Pair type"
+msgstr "Тип пары"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:30
+msgid "All pair types"
+msgstr "Все типы пар"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_filters.html:19
+msgid "Symbol, base or quote"
+msgstr "Символ, базовый или котировочный актив"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:38
+msgid "Relation"
+msgstr "Отношение"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:72
+msgid "No trading pairs match your filters"
+msgstr "Ни одна торговая пара не подходит под фильтры"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:88
+msgid "No trading pairs yet"
+msgstr "Торговых пар пока нет"
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:92
+msgid "The catalog is empty; ask a staff member to add pairs."
+msgstr "Каталог пуст; попросите сотрудника добавить пары."
+
+#: src/tradefog/journal/views/catalog/pairs.py:57
+msgid "Base asset"
+msgstr "Базовый актив"
+
+#: src/tradefog/journal/views/catalog/pairs.py:58
+msgid "Quote asset"
+msgstr "Котировочный актив"
+
+#: src/tradefog/journal/forms/catalog.py:118
+msgid "The asset that is bought or sold in the pair."
+msgstr "Актив, который покупается или продаётся в паре."
+
+#: src/tradefog/journal/forms/catalog.py:121
+msgid "The asset that prices the base asset."
+msgstr "Актив, в котором котируется базовый актив."
+
+#: src/tradefog/journal/forms/catalog.py:127
+msgid "Base and quote must be different assets."
+msgstr "Базовый и котировочный активы должны различаться."
+
+#: src/tradefog/templates/tradefog/catalog/partials/pair_results.html:4
+#, python-format
+msgid ""
+"\n"
+"      %(count)s trading pair\n"
+"    "
+msgid_plural ""
+"\n"
+"      %(count)s trading pairs\n"
+"    "
+msgstr[0] ""
+"\n"
+"      %(count)s торговая пара\n"
+"    "
+msgstr[1] ""
+"\n"
+"      %(count)s торговые пары\n"
+"    "
+msgstr[2] ""
+"\n"
+"      %(count)s торговых пар\n"
+"    "

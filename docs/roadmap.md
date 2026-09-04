@@ -178,6 +178,12 @@ staff-managed reference catalog that regular users read but do not edit:
 - replace obsolete pre-release migrations and local development or test
   databases rather than migrate their data.
 
+Catalog collection pages for Assets and Trading pairs are implemented first:
+each lists the shared records with server-side search, filtering, sorting,
+and pagination, while staff create and remove records through modal forms.
+The remaining venue, instrument, wallet, and trade-reference restructuring
+continues in this stage.
+
 Stage 9 remains implementation history. The revised Stage 10 supersedes its
 account/catalog model, the interim profile-owned asset and pair model, and the
 venue-scoped `VenueAsset`/selection-layer model.

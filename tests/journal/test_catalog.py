@@ -277,7 +277,7 @@ def test_protected_asset_delete_is_blocked() -> None:
     _ = TradingPair.objects.create(
         base=base,
         quote=quote,
-        canonical_symbol="BTCUSD",
+        canonical_symbol="BTC/USD",
     )
     client = _login_as(is_staff=True)
     with override("en"):

@@ -78,7 +78,7 @@ class TradingPair(models.Model):
     canonical_symbol = models.CharField(
         max_length=32,
         unique=True,
-        help_text="Normalized display identity, for example BTCUSDT.",
+        help_text="Normalized display identity, for example BTC/USD.",
     )
 
     @final

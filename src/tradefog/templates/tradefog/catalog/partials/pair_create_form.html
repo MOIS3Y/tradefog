@@ -1,0 +1,17 @@
+{% load i18n %}
+<form hx-post="{% url 'journal:pair_create' %}"
+      hx-target="#pair-form-body"
+      hx-swap="innerHTML"
+      novalidate>
+  {% csrf_token %}
+  {% include "tradefog/components/form_field.html" with field=form.base %}
+  {% include "tradefog/components/form_field.html" with field=form.quote %}
+  <div class="modal-footer px-0 pb-0">
+    <button class="btn" type="button" data-bs-dismiss="modal">
+      {% translate "Cancel" %}
+    </button>
+    <button class="btn btn-primary" type="submit">
+      {% translate "Add pair" %}
+    </button>
+  </div>
+</form>

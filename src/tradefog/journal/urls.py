@@ -29,4 +29,19 @@ urlpatterns = [
         views.asset_delete,
         name="asset_delete",
     ),
+    path(
+        "catalog/pairs/",
+        views.pair_overview,
+        name="pair_overview",
+    ),
+    path(
+        "catalog/pairs/create/",
+        views.pair_create,
+        name="pair_create",
+    ),
+    path(
+        "catalog/pairs/<int:pk>/delete/",
+        views.pair_delete,
+        name="pair_delete",
+    ),
 ]

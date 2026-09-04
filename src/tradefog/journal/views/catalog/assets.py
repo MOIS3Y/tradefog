@@ -1,4 +1,4 @@
-"""Views for the shared, staff-managed reference catalog.
+"""Views for the shared asset collection page.
 
 The catalog is read by every authenticated user. Staff members additionally
 create and remove catalog records from the assets collection page; those
@@ -14,11 +14,10 @@ fragment and rely on the modal script in ``tradefog.js`` to close on success.
 from __future__ import annotations
 
 import json
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.core.paginator import Page, Paginator
 from django.db import IntegrityError
 from django.db.models import Q, QuerySet
 from django.db.models.deletion import ProtectedError
@@ -29,6 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from tradefog.journal.forms import AssetForm
 from tradefog.journal.models import Asset
 from tradefog.journal.models.enums import AssetType
+from tradefog.journal.views.catalog.common import build_results_context
 
 ASSET_PAGE_SIZE = 10
 
@@ -62,22 +62,10 @@ class _AssetListState(TypedDict):
 def asset_overview(request: HttpRequest) -> HttpResponse:
     """List shared catalog assets with server-side filters and sorting."""
     state = _asset_list_state(request)
-    page_obj = Paginator(
-        state["queryset"],
-        ASSET_PAGE_SIZE,
-    ).get_page(request.GET.get("page"))
-    context = {
-        "page_obj": page_obj,
-        "assets": page_obj.object_list,
-        "pagination": _pagination_urls(request, page_obj),
-        "sort_headers": _sort_headers(request, state["current_sort"]),
-        "filters_active": state["filters_active"],
-        "search": state["search"],
-        "asset_type": state["asset_type"],
-        "asset_type_choices": AssetType.choices,
-        "can_manage": request.user.is_staff,
-        "swap_oob": False,
-    }
+    context = _results_context(request, state)
+    context["asset_type_choices"] = AssetType.choices
+    context["search"] = state["search"]
+    context["asset_type"] = state["asset_type"]
     template = "tradefog/catalog/asset_overview.html"
     if request.headers.get("HX-Request") == "true":
         template = "tradefog/catalog/partials/asset_results.html"
@@ -111,7 +99,9 @@ def asset_create(request: HttpRequest) -> HttpResponse:
                     {"form": form},
                     status=422,
                 )
-            context = _results_context(request, swap_oob=True)
+            context = _results_context(
+                request, _asset_list_state(request), swap_oob=True
+            )
             response = render(
                 request,
                 "tradefog/catalog/partials/asset_results.html",
@@ -169,7 +159,9 @@ def asset_delete(request: HttpRequest, pk: int) -> HttpResponse:
                 }
             )
             return response
-        context = _results_context(request, swap_oob=True)
+        context = _results_context(
+            request, _asset_list_state(request), swap_oob=True
+        )
         response = render(
             request,
             "tradefog/catalog/partials/asset_results.html",
@@ -218,70 +210,19 @@ def _asset_list_state(request: HttpRequest) -> _AssetListState:
 
 def _results_context(
     request: HttpRequest,
+    state: _AssetListState,
     *,
     swap_oob: bool = False,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     """Build the results wrapper context for the current request state."""
-    state = _asset_list_state(request)
-    page_obj = Paginator(
-        state["queryset"],
-        ASSET_PAGE_SIZE,
-    ).get_page(request.GET.get("page"))
-    return {
-        "page_obj": page_obj,
-        "assets": page_obj.object_list,
-        "pagination": _pagination_urls(request, page_obj),
-        "sort_headers": _sort_headers(request, state["current_sort"]),
-        "filters_active": state["filters_active"],
-        "can_manage": request.user.is_staff,
-        "swap_oob": swap_oob,
-    }
-
-
-def _sort_headers(
-    request: HttpRequest,
-    current_sort: str,
-    *,
-    sort_parameter: str = "sort",
-    page_parameter: str = "page",
-) -> tuple[dict[str, str | bool], ...]:
-    """Build safe sort links while preserving the active filter query."""
-    headers: list[dict[str, str | bool]] = []
-    for key, label in SORT_COLUMNS:
-        active = current_sort.lstrip("-") == key
-        descending = current_sort == f"-{key}"
-        next_sort = key if descending or not active else f"-{key}"
-        query = request.GET.copy()
-        query[sort_parameter] = next_sort
-        _removed_page = query.pop(page_parameter, None)
-        headers.append(
-            {
-                "key": key,
-                "label": label,
-                "url": f"?{query.urlencode()}",
-                "active": active,
-                "descending": descending,
-            }
-        )
-    return tuple(headers)
-
-
-def _pagination_urls(
-    request: HttpRequest,
-    page_obj: Page,
-    page_parameter: str = "page",
-) -> dict[str, str | None]:
-    """Preserve all list state while changing one page parameter."""
-    previous_url = None
-    next_url = None
-    if page_obj.has_previous():
-        previous_query = request.GET.copy()
-        previous_query[page_parameter] = str(
-            page_obj.previous_page_number()
-        )
-        previous_url = f"?{previous_query.urlencode()}"
-    if page_obj.has_next():
-        next_query = request.GET.copy()
-        next_query[page_parameter] = str(page_obj.next_page_number())
-        next_url = f"?{next_query.urlencode()}"
-    return {"previous_url": previous_url, "next_url": next_url}
+    return build_results_context(
+        request,
+        queryset=state["queryset"],
+        page_size=ASSET_PAGE_SIZE,
+        current_sort=state["current_sort"],
+        columns=SORT_COLUMNS,
+        filters_active=state["filters_active"],
+        can_manage=request.user.is_staff,
+        results_key="assets",
+        swap_oob=swap_oob,
+    )

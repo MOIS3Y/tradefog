@@ -71,7 +71,7 @@ Table TradingPair {
   id integer [pk, increment, note: 'Primary key']
   base_id integer [not null, note: 'Base asset of the pair']
   quote_id integer [not null, note: 'Quote asset of the pair']
-  canonical_symbol varchar(32) [unique, not null, note: 'Normalized identity, e.g. BTCUSDT']
+  canonical_symbol varchar(32) [unique, not null, note: 'Normalized identity, e.g. BTC/USD']
   Note: 'Reusable logical BASE/QUOTE market. Carries no execution parameters; entered once for the whole installation.'
   indexes {
     (base_id, quote_id) [unique, name: 'trading_pair_base_quote_idx', note: 'One logical pair per base/quote combination']

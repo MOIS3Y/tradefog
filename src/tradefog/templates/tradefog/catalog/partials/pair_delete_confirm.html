@@ -1,0 +1,19 @@
+{% load i18n %}
+<form hx-post="{% url 'journal:pair_delete' pair.pk %}"
+      hx-target="#pair-delete-body"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+  <p class="mb-3">
+    {% blocktranslate with pair=pair.canonical_symbol %}
+      Remove the trading pair {{ pair }} from the catalog?
+    {% endblocktranslate %}
+  </p>
+  <div class="modal-footer px-0 pb-0">
+    <button class="btn" type="button" data-bs-dismiss="modal">
+      {% translate "Cancel" %}
+    </button>
+    <button class="btn btn-danger" type="submit">
+      {% translate "Remove" %}
+    </button>
+  </div>
+</form>

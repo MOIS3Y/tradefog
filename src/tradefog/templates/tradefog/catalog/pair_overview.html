@@ -1,0 +1,42 @@
+{% extends "tradefog/base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Trading pairs" %} · Tradefog{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          {% translate "Catalog" as page_direction %}
+          {% translate "Trading pairs" as page_heading %}
+          {% translate "Reusable BASE/QUOTE markets shared across the journal catalog." as page_help_text %}
+          {% include "tradefog/components/page_heading.html" with direction=page_direction heading=page_heading help_text=page_help_text %}
+        </div>
+        {% if can_manage %}
+          <div class="col-auto ms-auto">
+            <button class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#pair-create-modal"
+                    hx-get="{% url 'journal:pair_create' %}"
+                    hx-target="#pair-form-body"
+                    hx-swap="innerHTML">
+              {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+              {% translate "Add pair" %}
+            </button>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% include "tradefog/catalog/partials/pair_filters.html" %}
+  {% include "tradefog/catalog/partials/pair_results.html" %}
+  {% if can_manage %}
+    {% include "tradefog/catalog/partials/pair_create_modal.html" %}
+    {% include "tradefog/catalog/partials/pair_delete_modal.html" %}
+  {% endif %}
+{% endblock %}
