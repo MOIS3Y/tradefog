@@ -61,6 +61,12 @@ class TradingProfile(models.Model):
 
     @final
     class Meta:
+        constraints = (
+            models.UniqueConstraint(
+                fields=("owner", "name"),
+                name="trading_profile_owner_name_idx",
+            ),
+        )
         ordering = ("name",)
         verbose_name = _("trading profile")
         verbose_name_plural = _("trading profiles")

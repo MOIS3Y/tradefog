@@ -61,7 +61,7 @@ def test_shared_template_and_static_directories_are_configured() -> None:
 
     for section_template in (
         "home.html",
-        "profiles.html",
+        "profiles/overview.html",
         "trades.html",
         "analytics.html",
     ):
@@ -85,7 +85,7 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     assert "{% block page_header %}" in trade_source
 
     for action_template in (
-        "profiles.html",
+        "profiles/overview.html",
         "trades.html",
     ):
         action_source = (
@@ -96,7 +96,7 @@ def test_shared_template_and_static_directories_are_configured() -> None:
 
     for empty_template in (
         "home.html",
-        "profiles.html",
+        "profiles/partials/profile_cards.html",
         "trades.html",
     ):
         empty_source = (template_root / "tradefog" / empty_template).read_text(
@@ -109,7 +109,7 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     template_source = (
         template_root / "tradefog/base.html"
     ).read_text(encoding="utf-8")
-    for url_name in ("home", "profiles", "trades", "analytics", "asset_overview"):
+    for url_name in ("home", "profile_overview", "trades", "analytics", "asset_overview"):
         assert f"{{% url 'journal:{url_name}' %}}" in template_source
     assert "Catalog" in template_source
     assert "Trading pairs" in template_source

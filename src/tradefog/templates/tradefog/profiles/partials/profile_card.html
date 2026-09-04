@@ -1,0 +1,70 @@
+{% load i18n %}
+<div class="col-12 col-sm-6 col-lg-4">
+  <div class="card">
+    <div class="card-body">
+      <div class="d-flex align-items-start justify-content-between gap-2">
+        <a class="card-title mb-1"
+           href="{% url 'journal:profile_overview' %}">
+          {{ profile.name }}
+        </a>
+        <div class="btn-list flex-nowrap">
+          {% if profile.archived %}
+            <button class="btn btn-icon"
+                    type="button"
+                    hx-post="{% url 'journal:profile_restore' profile.pk %}"
+                    hx-swap="none"
+                    aria-label="{% translate 'Restore profile' %}">
+              {% include "tradefog/components/icon.html" with name="restore" %}
+            </button>
+            <button class="btn btn-icon"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#profile-delete-modal"
+                    hx-get="{% url 'journal:profile_delete' profile.pk %}"
+                    hx-target="#profile-delete-body"
+                    hx-swap="innerHTML"
+                    aria-label="{% translate 'Delete profile' %}">
+              {% include "tradefog/components/icon.html" with name="trash" %}
+            </button>
+          {% else %}
+            <button class="btn btn-icon"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#profile-archive-modal"
+                    hx-get="{% url 'journal:profile_archive' profile.pk %}"
+                    hx-target="#profile-archive-body"
+                    hx-swap="innerHTML"
+                    aria-label="{% translate 'Archive profile' %}">
+              {% include "tradefog/components/icon.html" with name="archive" %}
+            </button>
+          {% endif %}
+        </div>
+      </div>
+      <span class="text-secondary small">
+        {% include "tradefog/components/icon.html" with name="coin" class="icon-inline" %}
+        {{ profile.venue.name }}
+      </span>
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <span class="badge bg-secondary-lt">
+          {% blocktranslate count count=profile.wallet_asset_count %}
+            {{ count }} wallet asset
+          {% plural %}
+            {{ count }} wallet assets
+          {% endblocktranslate %}
+        </span>
+        <span class="badge bg-secondary-lt">
+          {% blocktranslate count count=profile.strategy_count %}
+            {{ count }} strategy
+          {% plural %}
+            {{ count }} strategies
+          {% endblocktranslate %}
+        </span>
+        {% if profile.archived %}
+          <span class="badge bg-orange-lt">
+            {% translate "Archived" %}
+          </span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

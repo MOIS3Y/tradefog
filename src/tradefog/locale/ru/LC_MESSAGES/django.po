@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tradefog\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-04 09:42+0000\n"
+"POT-Creation-Date: 2026-09-04 14:07+0000\n"
 "PO-Revision-Date: 2026-09-02 11:26+0000\n"
 "Last-Translator: tradefog maintainers\n"
 "Language-Team: Russian\n"
@@ -10,8 +10,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
-"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
 #: tests/test_localization.py:45 src/tradefog/config/localization.py:25
 msgid "English"
@@ -230,6 +229,18 @@ msgstr "Эта пара и продукт уже существуют на пл�
 msgid "This execution symbol already exists on the venue."
 msgstr "Этот исполняемый символ уже существует на площадке."
 
+#: src/tradefog/journal/forms/profiles.py:27
+msgid "Bybit Main"
+msgstr ""
+
+#: src/tradefog/journal/forms/profiles.py:40
+msgid "A short label for this trading context."
+msgstr ""
+
+#: src/tradefog/journal/forms/profiles.py:43
+msgid "The exchange or broker this profile is bound to."
+msgstr ""
+
 #: src/tradefog/journal/models/catalog.py:41
 #: src/tradefog/journal/models/catalog.py:92
 #: src/tradefog/journal/views/catalog/assets.py:45
@@ -445,6 +456,7 @@ msgstr ""
 
 #: src/tradefog/journal/models/enums.py:63
 #: src/tradefog/journal/models/profiles.py:59
+#: src/tradefog/templates/tradefog/profiles/partials/profile_card.html:64
 msgid "Archived"
 msgstr "В архиве"
 
@@ -460,19 +472,19 @@ msgstr ""
 msgid "Owner"
 msgstr "Владелец"
 
-#: src/tradefog/journal/models/profiles.py:65
+#: src/tradefog/journal/models/profiles.py:71
 #, fuzzy
 #| msgid "Trading profiles"
 msgid "trading profile"
 msgstr "Торговые профили"
 
-#: src/tradefog/journal/models/profiles.py:66
+#: src/tradefog/journal/models/profiles.py:72
 #, fuzzy
 #| msgid "Trading profiles"
 msgid "trading profiles"
 msgstr "Торговые профили"
 
-#: src/tradefog/journal/models/profiles.py:90
+#: src/tradefog/journal/models/profiles.py:96
 #: src/tradefog/journal/models/strategies.py:45
 #: src/tradefog/journal/models/trades.py:45
 #: src/tradefog/templates/tradefog/analytics.html:153
@@ -480,32 +492,32 @@ msgstr "Торговые профили"
 msgid "Profile"
 msgstr "Профиль"
 
-#: src/tradefog/journal/models/profiles.py:95
+#: src/tradefog/journal/models/profiles.py:101
 msgid "wallet"
 msgstr "кошелёк"
 
-#: src/tradefog/journal/models/profiles.py:96
+#: src/tradefog/journal/models/profiles.py:102
 msgid "wallets"
 msgstr "кошельки"
 
-#: src/tradefog/journal/models/profiles.py:122
+#: src/tradefog/journal/models/profiles.py:128
 msgid "Wallet"
 msgstr "Кошелёк"
 
-#: src/tradefog/journal/models/profiles.py:128
+#: src/tradefog/journal/models/profiles.py:134
 msgid "Venue wallet asset"
 msgstr "Актив кошелька площадки"
 
-#: src/tradefog/journal/models/profiles.py:135
+#: src/tradefog/journal/models/profiles.py:141
 #: src/tradefog/journal/models/trades.py:196
 msgid "Risk stop capital"
 msgstr "Стоп-капитал риска"
 
-#: src/tradefog/journal/models/profiles.py:136
+#: src/tradefog/journal/models/profiles.py:142
 msgid "Advisory deposit floor that highlights a bleeding deposit."
 msgstr "Советующий депозитный порог, который подсвечивает истощающийся депозит."
 
-#: src/tradefog/journal/models/profiles.py:142
+#: src/tradefog/journal/models/profiles.py:148
 #: src/tradefog/journal/models/strategies.py:66
 #: src/tradefog/journal/models/trades.py:64
 #: src/tradefog/templates/tradefog/catalog/partials/instrument_detail.html:26
@@ -513,44 +525,44 @@ msgstr "Советующий депозитный порог, который п�
 msgid "Status"
 msgstr "Статус"
 
-#: src/tradefog/journal/models/profiles.py:153
+#: src/tradefog/journal/models/profiles.py:159
 msgid "wallet asset"
 msgstr "актив кошелька"
 
-#: src/tradefog/journal/models/profiles.py:154
+#: src/tradefog/journal/models/profiles.py:160
 msgid "wallet assets"
 msgstr "активы кошелька"
 
-#: src/tradefog/journal/models/profiles.py:177
+#: src/tradefog/journal/models/profiles.py:183
 #: src/tradefog/journal/models/strategies.py:104
 #, fuzzy
 #| msgid "Wallet assets"
 msgid "Wallet asset"
 msgstr "Активы кошелька"
 
-#: src/tradefog/journal/models/profiles.py:182
+#: src/tradefog/journal/models/profiles.py:188
 msgid "Kind"
 msgstr "Тип"
 
-#: src/tradefog/journal/models/profiles.py:185
+#: src/tradefog/journal/models/profiles.py:191
 msgid "Amount"
 msgstr "Сумма"
 
-#: src/tradefog/journal/models/profiles.py:188
+#: src/tradefog/journal/models/profiles.py:194
 msgid "Note"
 msgstr "Заметка"
 
-#: src/tradefog/journal/models/profiles.py:191
+#: src/tradefog/journal/models/profiles.py:197
 #: src/tradefog/journal/models/trades.py:106
 #: src/tradefog/journal/models/trades.py:250
 msgid "Created at"
 msgstr "Создано"
 
-#: src/tradefog/journal/models/profiles.py:197
+#: src/tradefog/journal/models/profiles.py:203
 msgid "wallet operation"
 msgstr "операция кошелька"
 
-#: src/tradefog/journal/models/profiles.py:198
+#: src/tradefog/journal/models/profiles.py:204
 msgid "wallet operations"
 msgstr "операции кошелька"
 
@@ -827,6 +839,38 @@ msgstr "Этот актив кошелька используется и не м
 msgid "Wallet asset removed."
 msgstr "Актив кошелька удалён."
 
+#: src/tradefog/journal/views/profiles/overview.py:59
+msgid "A profile with this name already exists."
+msgstr "Профиль с таким именем уже существует."
+
+#: src/tradefog/journal/views/profiles/overview.py:76
+msgid "Profile created."
+msgstr "Профиль создан."
+
+#: src/tradefog/journal/views/profiles/overview.py:120
+msgid "Profile archived."
+msgstr "Профиль архивирован."
+
+#: src/tradefog/journal/views/profiles/overview.py:142
+msgid "Profile not found."
+msgstr "Профиль не найден."
+
+#: src/tradefog/journal/views/profiles/overview.py:156
+msgid "Profile restored."
+msgstr "Профиль восстановлен."
+
+#: src/tradefog/journal/views/profiles/overview.py:181
+msgid "Archive the profile before deleting it permanently."
+msgstr "Сначала архивируйте профиль, чтобы удалить его окончательно."
+
+#: src/tradefog/journal/views/profiles/overview.py:195
+msgid "Profile deleted."
+msgstr "Профиль удалён."
+
+#: src/tradefog/journal/views/profiles/overview.py:239
+msgid "The profile already has this status."
+msgstr "У профиля уже этот статус."
+
 #: src/tradefog/templates/registration/login.html:4
 #: src/tradefog/templates/registration/login.html:96
 msgid "Sign in"
@@ -1006,7 +1050,7 @@ msgid "Home"
 msgstr "Главная"
 
 #: src/tradefog/templates/tradefog/base.html:122
-#: src/tradefog/templates/tradefog/profiles.html:4
+#: src/tradefog/templates/tradefog/profiles/overview.html:4
 msgid "Profiles"
 msgstr "Профили"
 
@@ -1060,6 +1104,9 @@ msgstr "Выйти?"
 #: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_add_modal.html:16
 #: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_remove_modal.html:16
 #: src/tradefog/templates/tradefog/components/toast.html:17
+#: src/tradefog/templates/tradefog/profiles/partials/profile_archive_modal.html:16
+#: src/tradefog/templates/tradefog/profiles/partials/profile_create_modal.html:16
+#: src/tradefog/templates/tradefog/profiles/partials/profile_delete_modal.html:16
 #: src/tradefog/templates/tradefog/trade.html:607
 msgid "Close"
 msgstr "Закрыть"
@@ -1080,6 +1127,9 @@ msgstr "Вы уверены, что хотите выйти?"
 #: src/tradefog/templates/tradefog/catalog/partials/venue_delete_confirm.html:13
 #: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_add_form.html:10
 #: src/tradefog/templates/tradefog/catalog/partials/wallet_asset_remove_confirm.html:13
+#: src/tradefog/templates/tradefog/profiles/partials/profile_archive_confirm.html:14
+#: src/tradefog/templates/tradefog/profiles/partials/profile_create_form.html:11
+#: src/tradefog/templates/tradefog/profiles/partials/profile_delete_confirm.html:13
 #: src/tradefog/templates/tradefog/trade.html:508
 #: src/tradefog/templates/tradefog/trade.html:620
 msgid "Cancel"
@@ -1667,34 +1717,180 @@ msgstr "С возвращением"
 msgid "This area is a placeholder until the journal backend is ready."
 msgstr "Это область-заглушка, пока бэкенд журнала не готов."
 
-#: src/tradefog/templates/tradefog/profiles.html:11
-msgid "Profile overview"
-msgstr "Обзор профилей"
+#: src/tradefog/templates/tradefog/profiles/overview.html:11
+msgid "Journal"
+msgstr "Журнал"
 
-#: src/tradefog/templates/tradefog/profiles.html:12
+#: src/tradefog/templates/tradefog/profiles/overview.html:12
 msgid "Trading profiles"
 msgstr "Торговые профили"
 
-#: src/tradefog/templates/tradefog/profiles.html:13
+#: src/tradefog/templates/tradefog/profiles/overview.html:13
+msgid "Each profile is a trading context bound to one venue with its own wallet and strategies."
+msgstr "Каждый профиль — это торговый контекст на одной бирже со своим кошельком и стратегиями."
+
+#: src/tradefog/templates/tradefog/profiles/overview.html:25
+#: src/tradefog/templates/tradefog/profiles/partials/profile_cards.html:51
+#: src/tradefog/templates/tradefog/profiles/partials/profile_create_form.html:14
+#: src/tradefog/templates/tradefog/profiles/partials/profile_create_modal.html:11
+msgid "Create profile"
+msgstr "Создать профиль"
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_archive_confirm.html:7
+#, python-format
 msgid ""
-"A profile keeps one venue, its instruments, wallet, and strategies together."
-msgstr "Профиль объединяет одну биржу, её инструменты, кошелёк и стратегии."
+"\n"
+"      Archive the profile %(name)s? Its trades and history are kept and it\n"
+"      stops appearing in new trades and analytics until restored.\n"
+"    "
+msgstr ""
+"\n"
+"      Архивировать профиль %(name)s? Его сделки и история сохраняются, а\n"
+"      сам профиль исчезнет из новых сделок и аналитики до восстановления.\n"
+"    "
 
-#: src/tradefog/templates/tradefog/profiles.html:20
-msgid "Create trading profile"
-msgstr "Создать торговый профиль"
+#: src/tradefog/templates/tradefog/profiles/partials/profile_archive_confirm.html:17
+msgid "Archive"
+msgstr "Архивировать"
 
-#: src/tradefog/templates/tradefog/profiles.html:33
+#: src/tradefog/templates/tradefog/profiles/partials/profile_archive_modal.html:11
+msgid "Archive profile?"
+msgstr "Архивировать профиль?"
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_card.html:16
+msgid "Restore profile"
+msgstr "Восстановить профиль"
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_card.html:26
+msgid "Delete profile"
+msgstr "Удалить профиль"
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_card.html:37
+msgid "Archive profile"
+msgstr "Архивировать профиль"
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_card.html:49
+#, python-format
+msgid ""
+"\n"
+"            %(count)s wallet asset\n"
+"          "
+msgid_plural ""
+"\n"
+"            %(count)s wallet assets\n"
+"          "
+msgstr[0] ""
+"\n"
+"            %(count)s актив кошелька\n"
+"          "
+msgstr[1] ""
+"\n"
+"            %(count)s актива кошелька\n"
+"          "
+msgstr[2] ""
+"\n"
+"            %(count)s активов кошелька\n"
+"          "
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_card.html:56
+#, python-format
+msgid ""
+"\n"
+"            %(count)s strategy\n"
+"          "
+msgid_plural ""
+"\n"
+"            %(count)s strategies\n"
+"          "
+msgstr[0] ""
+"\n"
+"            %(count)s стратегия\n"
+"          "
+msgstr[1] ""
+"\n"
+"            %(count)s стратегии\n"
+"          "
+msgstr[2] ""
+"\n"
+"            %(count)s стратегий\n"
+"          "
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_cards.html:5
+#, python-format
+msgid ""
+"\n"
+"        %(count)s profile\n"
+"      "
+msgid_plural ""
+"\n"
+"        %(count)s profiles\n"
+"      "
+msgstr[0] ""
+"\n"
+"        %(count)s профиль\n"
+"      "
+msgstr[1] ""
+"\n"
+"        %(count)s профиля\n"
+"      "
+msgstr[2] ""
+"\n"
+"        %(count)s профилей\n"
+"      "
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_cards.html:18
+msgid "Archives"
+msgstr "Архив"
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_cards.html:20
+#, python-format
+msgid ""
+"\n"
+"            %(count)s archived profile\n"
+"          "
+msgid_plural ""
+"\n"
+"            %(count)s archived profiles\n"
+"          "
+msgstr[0] ""
+"\n"
+"            %(count)s архивный профиль\n"
+"          "
+msgstr[1] ""
+"\n"
+"            %(count)s архивных профиля\n"
+"          "
+msgstr[2] ""
+"\n"
+"            %(count)s архивных профилей\n"
+"          "
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_cards.html:38
 msgid "No trading profiles yet"
 msgstr "Торговых профилей пока нет"
 
-#: src/tradefog/templates/tradefog/profiles.html:35
+#: src/tradefog/templates/tradefog/profiles/partials/profile_cards.html:40
+msgid "Create a profile to start your trading journal on a specific venue."
+msgstr "Создайте профиль, чтобы начать торговый журнал на конкретной бирже."
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_delete_confirm.html:7
+#, python-format
 msgid ""
-"Create a profile to keep one venue, its instruments, wallet, and strategies "
-"together."
+"\n"
+"      Delete the profile %(name)s and everything inside it?\n"
+"    "
 msgstr ""
-"Создайте профиль, чтобы объединить одну биржу, её инструменты, кошелёк и "
-"стратегии."
+"\n"
+"      Удалить профиль %(name)s и всё, что внутри него?\n"
+"    "
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_delete_confirm.html:16
+msgid "Delete"
+msgstr "Удалить"
+
+#: src/tradefog/templates/tradefog/profiles/partials/profile_delete_modal.html:11
+msgid "Delete profile?"
+msgstr "Удалить профиль?"
 
 #: src/tradefog/templates/tradefog/trade.html:4
 #: src/tradefog/templates/tradefog/trades.html:20
@@ -1723,12 +1919,8 @@ msgid "Trade decision"
 msgstr "Решение о сделке"
 
 #: src/tradefog/templates/tradefog/trade.html:68
-msgid ""
-"The analytical date, market, direction, entry, and stop remain editable "
-"while this is a draft."
-msgstr ""
-"Аналитическая дата, рынок, направление, вход и стоп остаются редактируемыми, "
-"пока это черновик."
+msgid "The analytical date, market, direction, entry, and stop remain editable while this is a draft."
+msgstr "Аналитическая дата, рынок, направление, вход и стоп остаются редактируемыми, пока это черновик."
 
 #: src/tradefog/templates/tradefog/trade.html:130
 msgid "Position plan"
@@ -1856,8 +2048,7 @@ msgid "Market checklist"
 msgstr "Рыночный чек-лист"
 
 #: src/tradefog/templates/tradefog/trade.html:324
-msgid ""
-"Record observable context. The assessment is guidance, not a prediction."
+msgid "Record observable context. The assessment is guidance, not a prediction."
 msgstr "Фиксируйте наблюдаемый контекст. Оценка — это ориентир, а не прогноз."
 
 #: src/tradefog/templates/tradefog/trade.html:331
@@ -1867,8 +2058,7 @@ msgstr "Общее настроение рынка"
 
 #: src/tradefog/templates/tradefog/trade.html:333
 msgid "Behavior of the relevant broad market, sector, or related assets."
-msgstr ""
-"Поведение соответствующего широкого рынка, сектора или связанных активов."
+msgstr "Поведение соответствующего широкого рынка, сектора или связанных активов."
 
 #: src/tradefog/templates/tradefog/trade.html:339
 msgid "Bearish"
@@ -1971,20 +2161,16 @@ msgid "Review incomplete"
 msgstr "Разбор не завершён"
 
 #: src/tradefog/templates/tradefog/trade.html:466
-msgid ""
-"Keep observations, execution notes, errors, and conclusions with the trade."
-msgstr ""
-"Храните наблюдения, заметки об исполнении, ошибки и выводы вместе со сделкой."
+msgid "Keep observations, execution notes, errors, and conclusions with the trade."
+msgstr "Храните наблюдения, заметки об исполнении, ошибки и выводы вместе со сделкой."
 
 #: src/tradefog/templates/tradefog/trade.html:471
 msgid "Edit description"
 msgstr "Редактировать описание"
 
 #: src/tradefog/templates/tradefog/trade.html:480
-msgid ""
-"Observed a clean break of the daily consolidation with above-average volume."
-msgstr ""
-"Наблюдался чистый пробой дневной консолидации при объёме выше среднего."
+msgid "Observed a clean break of the daily consolidation with above-average volume."
+msgstr "Наблюдался чистый пробой дневной консолидации при объёме выше среднего."
 
 #: src/tradefog/templates/tradefog/trade.html:486
 msgid "Saving…"
@@ -2131,6 +2317,9 @@ msgstr "Сделок пока нет"
 #: src/tradefog/templates/tradefog/trades.html:35
 msgid "Record your first manual trade to start building the journal."
 msgstr "Запишите первую ручную сделку, чтобы начать вести журнал."
+
+#~ msgid "A profile keeps one venue, its instruments, wallet, and strategies together."
+#~ msgstr "Профиль объединяет одну биржу, её инструменты, кошелёк и стратегии."
 
 #~ msgid "Instrument delisted."
 #~ msgstr "Инструмент исключён из листинга."

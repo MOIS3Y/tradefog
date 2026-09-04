@@ -296,7 +296,13 @@ User menu
 - Home shows the first-use action or a restrained cross-profile overview with
   drafts and positions that need attention.
 - Profiles is the configuration root. Each profile contains Overview, Wallet,
-  Strategies, Trades, and Settings.
+  Strategies, Trades, and Settings. The overview is an owner-scoped card grid:
+  active profiles sit in the main grid, and archived profiles are listed below
+  under an Archives heading that appears only when at least one profile is
+  archived. A profile is archived through a confirmation modal and restored
+  directly from its card. Archiving keeps the wallet, strategies, and trade
+  history intact but hides the profile from new trades and analytics until it
+  is restored; only an archived profile can be deleted permanently.
 - A profile wallet contains balances, manual deposits and withdrawals,
   reservations, available funds, and activity.
 - Settings → Catalog (staff only) owns the shared assets, trading pairs,

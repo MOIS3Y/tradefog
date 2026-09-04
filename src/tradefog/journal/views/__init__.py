@@ -24,10 +24,16 @@ from tradefog.journal.views.catalog import (
     wallet_asset_add,
     wallet_asset_remove,
 )
+from tradefog.journal.views.profiles import (
+    profile_archive,
+    profile_create,
+    profile_delete,
+    profile_overview,
+    profile_restore,
+)
 from tradefog.journal.views.shell import (
     analytics,
     home,
-    profiles,
     trade_new,
     trades,
 )
@@ -45,7 +51,11 @@ __all__ = [
     "pair_create",
     "pair_delete",
     "pair_overview",
-    "profiles",
+    "profile_archive",
+    "profile_create",
+    "profile_delete",
+    "profile_overview",
+    "profile_restore",
     "trade_new",
     "trades",
     "venue_create",

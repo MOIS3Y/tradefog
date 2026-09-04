@@ -11,10 +11,12 @@ from tradefog.journal.forms.catalog import (
     VenueInstrumentForm,
     VenueWalletAssetForm,
 )
+from tradefog.journal.forms.profiles import TradingProfileForm
 
 __all__ = [
     "AssetForm",
     "TradingPairForm",
+    "TradingProfileForm",
     "VenueForm",
     "VenueInstrumentForm",
     "VenueWalletAssetForm",

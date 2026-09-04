@@ -12,12 +12,6 @@ def home(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-def profiles(request: HttpRequest) -> HttpResponse:
-    """Render the trading profiles stub page."""
-    return render(request, "tradefog/profiles.html")
-
-
-@login_required
 def trades(request: HttpRequest) -> HttpResponse:
     """Render the trades stub page."""
     return render(request, "tradefog/trades.html")

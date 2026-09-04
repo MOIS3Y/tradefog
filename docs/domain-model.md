@@ -72,10 +72,16 @@ venue, or venue instrument asks a staff member to create it. Regular users
 read and reuse the shared catalog but cannot create or edit its records.
 
 `TradingProfile` is the user's top-level trading context, such as "Bybit Main"
-or "Equities". It is bound to exactly one `Venue`, owns the user's virtual
-wallet, strategies, and trades, and reuses that venue's shared instruments
-without copying catalog facts. Profiles share catalog identity while retaining
-independent balances, risk, configuration, and journal history.
+ or "Equities". It is bound to exactly one `Venue`, owns the user's virtual
+ wallet, strategies, and trades, and reuses that venue's shared instruments
+ without copying catalog facts. Profiles share catalog identity while retaining
+ independent balances, risk, configuration, and journal history.
+
+ An archived profile keeps its wallet, strategies, and trades intact but is
+ excluded from new trades and analytics until restored. Only an archived
+ profile can be deleted permanently; an active profile must be archived first.
+ `archived` is the single flag that owner-scoped trade and analytics queries
+ filter on.
 
 ## Assets, trading pairs, and venue instruments
 

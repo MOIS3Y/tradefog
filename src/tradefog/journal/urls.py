@@ -8,7 +8,34 @@ app_name = "journal"
 
 urlpatterns = [
     path("", views.home, name="home"),
-    path("profiles/", views.profiles, name="profiles"),
+
+    # Profiles:
+    path(
+        "profiles/",
+        views.profile_overview,
+        name="profile_overview",
+    ),
+    path(
+        "profiles/create/",
+        views.profile_create,
+        name="profile_create",
+    ),
+    path(
+        "profiles/<int:pk>/archive/",
+        views.profile_archive,
+        name="profile_archive",
+    ),
+    path(
+        "profiles/<int:pk>/restore/",
+        views.profile_restore,
+        name="profile_restore",
+    ),
+    path(
+        "profiles/<int:pk>/delete/",
+        views.profile_delete,
+        name="profile_delete",
+    ),
+
     path("trades/", views.trades, name="trades"),
     path("trades/new/", views.trade_new, name="trade_new"),
     path("analytics/", views.analytics, name="analytics"),
