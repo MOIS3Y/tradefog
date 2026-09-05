@@ -12,6 +12,10 @@ from tradefog.journal.forms.catalog import (
     VenueWalletAssetForm,
 )
 from tradefog.journal.forms.profiles import TradingProfileForm
+from tradefog.journal.forms.strategies import (
+    StrategyCapitalForm,
+    TradingStrategyForm,
+)
 from tradefog.journal.forms.wallet import (
     WalletAssetAddForm,
     WalletAssetEditForm,
@@ -20,8 +24,10 @@ from tradefog.journal.forms.wallet import (
 
 __all__ = [
     "AssetForm",
+    "StrategyCapitalForm",
     "TradingPairForm",
     "TradingProfileForm",
+    "TradingStrategyForm",
     "VenueForm",
     "VenueInstrumentForm",
     "VenueWalletAssetForm",

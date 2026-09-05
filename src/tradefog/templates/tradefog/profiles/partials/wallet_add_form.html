@@ -1,16 +1,33 @@
 {% load i18n %}
-<form hx-post="{% url 'journal:wallet_add' profile.pk %}"
-      hx-target="#wallet-add-body"
-      hx-swap="innerHTML"
-      novalidate>
-  {% csrf_token %}
-  {% include "tradefog/components/form_field.html" with field=form.venue_wallet_asset %}
-  <div class="modal-footer px-0 pb-0">
-    <button class="btn" type="button" data-bs-dismiss="modal">
-      {% translate "Cancel" %}
-    </button>
-    <button class="btn btn-outline-primary" type="submit">
-      {% translate "Add asset" %}
-    </button>
-  </div>
-</form>
+{% if form.fields.venue_wallet_asset.queryset %}
+  <form hx-post="{% url 'journal:wallet_add' profile.pk %}"
+        hx-target="#wallet-add-body"
+        hx-swap="innerHTML"
+        novalidate>
+    {% csrf_token %}
+    {% include "tradefog/components/form_field.html" with field=form.venue_wallet_asset %}
+    <div class="modal-footer px-0 pb-0">
+      <button class="btn" type="button" data-bs-dismiss="modal">
+        {% translate "Cancel" %}
+      </button>
+      <button class="btn btn-outline-primary" type="submit">
+        {% translate "Add asset" %}
+      </button>
+    </div>
+  </form>
+{% else %}
+  <section class="empty">
+    <div class="empty-icon">
+      {% include "tradefog/components/icon.html" with name="coin" %}
+    </div>
+    <h2 class="empty-title">{% translate "All venue assets are already added" %}</h2>
+    <p class="empty-subtitle text-secondary">
+      {% translate "Every asset your venue can hold is already in the wallet." %}
+    </p>
+    <div class="empty-action">
+      <button class="btn" type="button" data-bs-dismiss="modal">
+        {% translate "Close" %}
+      </button>
+    </div>
+  </section>
+{% endif %}

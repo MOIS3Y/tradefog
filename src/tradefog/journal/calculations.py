@@ -161,15 +161,29 @@ def wallet_balance(
     return total_deposits - total_withdrawals
 
 
+def available_balance(
+    balance: Decimal, reserved_notional: Decimal
+) -> Decimal:
+    """Return the spendable balance after active trade reservations."""
+    return balance - reserved_notional
+
+
 def wallet_asset_status(
-    balance: Decimal, risk_stop_capital: Decimal | None
+    balance: Decimal,
+    worst_case_balance: Decimal,
+    risk_stop_capital: Decimal | None,
 ) -> str:
     """Return the money-health status of a wallet asset against its floor.
 
     A wallet asset is ``RISK_STOPPED`` when its balance is at or below its
-    advisory deposit floor and ``ACTIVE`` otherwise. The ``AT_RISK`` state
-    depends on reservations from open trades and arrives with that stage.
+    advisory deposit floor, ``AT_RISK`` when the balance is above the floor
+    but its worst-case balance (after active trade reservations) is at or
+    below it, and ``ACTIVE`` otherwise.
     """
-    if risk_stop_capital is not None and balance <= risk_stop_capital:
+    if risk_stop_capital is None:
+        return "active"
+    if balance <= risk_stop_capital:
         return "risk_stopped"
+    if worst_case_balance <= risk_stop_capital:
+        return "at_risk"
     return "active"

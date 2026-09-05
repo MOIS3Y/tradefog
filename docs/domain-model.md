@@ -202,17 +202,21 @@ asset. One strategy is therefore reused across every wallet asset it allocates
 and can trade any instrument whose settlement asset has an allocation. Several
 strategies may share the same profile wallet.
 
-A `StrategyCapital.capital` is fixed and becomes locked after the first
-submitted trade that settles in that asset. It can never be resized, because
-resizing a fixed risk base would silently deepen later drawdowns. New
-allocations may be added when another wallet asset becomes available in the
-wallet; a new allocation locks from its own first submitted trade. A user who
-wants to trade larger sums creates a new strategy rather than resizing an
-existing one.
+A `StrategyCapital.capital` is fixed from creation and can never be resized or
+replaced, because resizing a fixed risk base would silently deepen later
+drawdowns. An allocation is archived rather than deleted; archiving is refused
+while any unfinished trade (draft, pending, or open) settles in the asset, so a
+trade cannot inherit a frozen-then-removed risk base. A closed or cancelled
+trade never blocks archiving. Restoring an archived allocation brings its asset
+back into trade eligibility with its original fixed capital. New allocations
+may be added when another wallet asset becomes available in the wallet; an
+archived allocation keeps its slot, so it can never be recreated with a larger
+value. A user who wants to trade larger sums creates a new strategy rather than
+resizing an existing one.
 
-Risk percent, reward multiple, and allocations remain correctable while every
-strategy trade is a draft and become locked after the first submitted trade.
-The strategy name and description remain editable.
+Risk percent, reward multiple, and allocation capital are set once at strategy
+creation and are never editable afterwards, so a draft cannot inherit changed
+plan parameters. The strategy name and description remain editable.
 
 The first version excludes FX, spot margin, equity short selling, configurable
 leverage, inverse contracts, expiring futures, options, and contract

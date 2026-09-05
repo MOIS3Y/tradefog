@@ -16,7 +16,10 @@ from typing import TYPE_CHECKING, final, override
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from tradefog.journal.models.enums import StrategyStatus
+from tradefog.journal.models.enums import (
+    StrategyCapitalStatus,
+    StrategyStatus,
+)
 from tradefog.journal.models.profiles import TradingProfile, WalletAsset
 
 if TYPE_CHECKING:
@@ -27,8 +30,8 @@ if TYPE_CHECKING:
 class TradingStrategy(models.Model):
     """A fixed strategic risk/reward cohort inside one profile.
 
-    Risk percent and reward multiple are correctable while every strategy
-    trade is a draft and become locked after the first submitted trade. The
+    Risk percent and reward multiple are set once at creation and are never
+    editable afterwards, so a draft cannot inherit changed plan parameters. The
     strategy name and description remain editable. Strategies are archived
     rather than deleted.
     """
@@ -81,9 +84,12 @@ class TradingStrategy(models.Model):
 class StrategyCapital(models.Model):
     """A fixed capital allocation of one strategy to one wallet asset.
 
-    The allocation capital locks after the first submitted trade that settles
-    in its asset. New allocations may be added when another wallet asset
-    becomes available; a new allocation locks from its own first trade.
+    The allocation capital is fixed from creation and can never be resized or
+    replaced, because resizing a fixed risk base would silently deepen later
+    drawdowns. An allocation is archived rather than deleted when its asset is
+    delisted; archiving is refused while an unfinished trade settles in the
+    asset. A new allocation may be added when another wallet asset becomes
+    available.
     """
 
     if TYPE_CHECKING:
@@ -107,6 +113,12 @@ class StrategyCapital(models.Model):
         max_digits=30,
         decimal_places=18,
         verbose_name=_("Capital"),
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=StrategyCapitalStatus.choices,
+        default=StrategyCapitalStatus.ACTIVE,
+        verbose_name=_("Status"),
     )
 
     @final

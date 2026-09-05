@@ -10,12 +10,19 @@
           </div>
         </div>
         {% if row.status == "risk_stopped" %}
-          <span class="badge bg-red-lt">{% translate "Risk stopped" %}</span>
+          <span class="badge bg-red-lt">{% translate "Below floor" %}</span>
+        {% elif row.status == "at_risk" %}
+          <span class="badge bg-warning-lt">{% translate "At risk" %}</span>
         {% else %}
           <span class="badge bg-green-lt">{% translate "Active" %}</span>
         {% endif %}
       </div>
-      <div class="tf-wallet-value mt-3">{{ row.balance|compact }}</div>
+      <div class="tf-wallet-value mt-3">{{ row.available|compact }}</div>
+      {% if row.reserved > 0 %}
+        <div class="text-secondary small">
+          {% translate "Reserved" %}: {{ row.reserved|compact }}
+        </div>
+      {% endif %}
       <div class="text-secondary small">
         {% if row.asset.risk_stop_capital is not None %}
           {% translate "Floor" %}: {{ row.asset.risk_stop_capital|compact }}

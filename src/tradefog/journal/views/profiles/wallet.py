@@ -20,6 +20,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext_lazy as _
 
 from tradefog.journal.calculations import (
+    available_balance,
     wallet_asset_status,
     wallet_balance,
 )
@@ -35,6 +36,7 @@ from tradefog.journal.models import (
     WalletOperation,
 )
 from tradefog.journal.models.enums import WalletOperationKind
+from tradefog.journal.services import reserved_notional
 from tradefog.journal.views.catalog.common import build_results_context
 
 OPERATION_PAGE_SIZE = 10
@@ -71,6 +73,8 @@ class _AssetSummary(TypedDict):
 
     asset: WalletAsset
     balance: Decimal
+    reserved: Decimal
+    available: Decimal
     status: str
 
 
@@ -247,7 +251,7 @@ def wallet_context(
     """Build the wallet tab context for one profile."""
     wallet = _wallet_of(profile)
     asset_rows = [
-        _summarize_asset(asset)
+        _summarize_asset(asset, profile)
         for asset in wallet.assets.select_related(
             "venue_wallet_asset__asset"
         ).order_by("venue_wallet_asset__asset__symbol")
@@ -279,8 +283,10 @@ def wallet_context(
     }
 
 
-def _summarize_asset(asset: WalletAsset) -> _AssetSummary:
-    """Derive the balance and status of one wallet asset."""
+def _summarize_asset(
+    asset: WalletAsset, profile: TradingProfile
+) -> _AssetSummary:
+    """Derive the balance, reservation, and status of one wallet asset."""
     total_deposits = asset.operations.filter(
         kind=WalletOperationKind.DEPOSIT
     ).aggregate(total=Sum("amount"))["total"] or Decimal(0)
@@ -288,11 +294,17 @@ def _summarize_asset(asset: WalletAsset) -> _AssetSummary:
         kind=WalletOperationKind.WITHDRAWAL
     ).aggregate(total=Sum("amount"))["total"] or Decimal(0)
     balance = wallet_balance(total_deposits, total_withdrawals)
+    reserved = reserved_notional(
+        profile, asset.venue_wallet_asset.asset_id
+    )
+    available = available_balance(balance, reserved)
     return {
         "asset": asset,
         "balance": balance,
+        "reserved": reserved,
+        "available": available,
         "status": wallet_asset_status(
-            balance, asset.risk_stop_capital
+            balance, available, asset.risk_stop_capital
         ),
     }
 

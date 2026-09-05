@@ -14,6 +14,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 
 from tradefog.journal.models import TradingProfile
+from tradefog.journal.views.profiles.strategies import strategies_context
 from tradefog.journal.views.profiles.wallet import wallet_context
 
 
@@ -37,19 +38,25 @@ def profile_detail(
         )
         .get()
     )
-    if request.headers.get("HX-Request") == "true" and (
-        "op_sort" in request.GET or "op_page" in request.GET
-    ):
-        return render(
-            request,
-            "tradefog/profiles/partials/wallet_content.html",
-            {"section": wallet_context(request, profile)},
-        )
+    if request.headers.get("HX-Request") == "true":
+        if "op_sort" in request.GET or "op_page" in request.GET:
+            return render(
+                request,
+                "tradefog/profiles/partials/wallet_content.html",
+                {"section": wallet_context(request, profile)},
+            )
+        if "st_sort" in request.GET or "st_page" in request.GET:
+            return render(
+                request,
+                "tradefog/profiles/partials/strategies_content.html",
+                {"section": strategies_context(request, profile)},
+            )
     return render(
         request,
         "tradefog/profiles/profile_detail.html",
         {
             "profile": profile,
             "wallet": wallet_context(request, profile),
+            "strategies": strategies_context(request, profile),
         },
     )

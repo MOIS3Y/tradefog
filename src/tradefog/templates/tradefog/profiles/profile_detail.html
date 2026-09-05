@@ -60,7 +60,9 @@
           {% endwith %}
         </div>
         <div class="tab-pane" id="profile-strategies-tab">
-          {% include "tradefog/profiles/partials/profile_strategies_tab.html" %}
+          {% with strategies as section %}
+            {% include "tradefog/profiles/partials/strategies_content.html" %}
+          {% endwith %}
         </div>
         <div class="tab-pane" id="profile-settings-tab">
           {% include "tradefog/profiles/partials/profile_settings_tab.html" %}
@@ -73,4 +75,9 @@
   {% include "tradefog/profiles/partials/wallet_deposit_modal.html" %}
   {% include "tradefog/profiles/partials/wallet_withdraw_modal.html" %}
   {% include "tradefog/profiles/partials/wallet_edit_modal.html" %}
+
+  {% include "tradefog/profiles/partials/strategy_create_modal.html" %}
+  {% include "tradefog/profiles/partials/strategy_edit_modal.html" %}
+  {% include "tradefog/profiles/partials/strategy_archive_modal.html" %}
+  {% include "tradefog/profiles/partials/strategy_detail_modal.html" %}
 {% endblock %}

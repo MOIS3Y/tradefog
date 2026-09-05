@@ -71,6 +71,8 @@ class TradingPair(models.Model):
 
     if TYPE_CHECKING:
         id: int
+        base_id: int
+        quote_id: int
         instruments: Manager[VenueInstrument]
 
     base = models.ForeignKey(

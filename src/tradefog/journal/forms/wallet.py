@@ -8,7 +8,10 @@ from django.db.models import Sum
 from django.forms import ModelChoiceField
 from django.utils.translation import gettext_lazy as _
 
-from tradefog.journal.calculations import wallet_balance
+from tradefog.journal.calculations import (
+    available_balance,
+    wallet_balance,
+)
 from tradefog.journal.models import (
     VenueWalletAsset,
     Wallet,
@@ -16,6 +19,8 @@ from tradefog.journal.models import (
     WalletOperation,
 )
 from tradefog.journal.models.enums import WalletOperationKind
+from tradefog.journal.services import reserved_notional
+from tradefog.journal.widgets import CompactNumberInput
 
 
 @final
@@ -86,7 +91,7 @@ class WalletOperationForm(forms.ModelForm):
         model: type[WalletOperation] = WalletOperation
         fields: tuple[str, ...] = ("amount", "note")
         widgets: ClassVar[dict[str, forms.Widget]] = {
-            "amount": forms.NumberInput(
+            "amount": CompactNumberInput(
                 attrs={
                     "class": "form-control",
                     "step": "any",
@@ -140,7 +145,12 @@ class WalletOperationForm(forms.ModelForm):
             total_withdrawals = self.wallet_asset.operations.filter(
                 kind=WalletOperationKind.WITHDRAWAL
             ).aggregate(total=Sum("amount"))["total"] or Decimal(0)
-            available = wallet_balance(total_deposits, total_withdrawals)
+            balance = wallet_balance(total_deposits, total_withdrawals)
+            reserved = reserved_notional(
+                self.wallet_asset.wallet.profile,
+                self.wallet_asset.venue_wallet_asset.asset_id,
+            )
+            available = available_balance(balance, reserved)
             if amount > available:
                 message = _(
                     "The withdrawal cannot exceed the available balance "
@@ -168,7 +178,7 @@ class WalletAssetEditForm(forms.ModelForm):
         model: type[WalletAsset] = WalletAsset
         fields: tuple[str, ...] = ("risk_stop_capital",)
         widgets: ClassVar[dict[str, forms.Widget]] = {
-            "risk_stop_capital": forms.NumberInput(
+            "risk_stop_capital": CompactNumberInput(
                 attrs={
                     "class": "form-control",
                     "step": "any",

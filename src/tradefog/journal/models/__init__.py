@@ -16,6 +16,7 @@ from tradefog.journal.models.catalog import (
     VenueInstrument,
     VenueWalletAsset,
 )
+from tradefog.journal.models.enums import StrategyCapitalStatus
 from tradefog.journal.models.profiles import (
     TradingProfile,
     Wallet,
@@ -28,6 +29,7 @@ from tradefog.journal.models.trades import Trade, TradeSnapshot
 __all__ = [
     "Asset",
     "StrategyCapital",
+    "StrategyCapitalStatus",
     "Trade",
     "TradeSnapshot",
     "TradingPair",

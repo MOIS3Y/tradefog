@@ -13,6 +13,17 @@ from tradefog.journal.views.profiles.overview import (
     profile_overview,
     profile_restore,
 )
+from tradefog.journal.views.profiles.strategies import (
+    strategies_context,
+    strategy_archive,
+    strategy_capital_add,
+    strategy_capital_archive,
+    strategy_capital_restore,
+    strategy_create,
+    strategy_detail,
+    strategy_edit,
+    strategy_restore,
+)
 from tradefog.journal.views.profiles.wallet import (
     wallet_add,
     wallet_deposit,
@@ -27,6 +38,15 @@ __all__ = [
     "profile_detail",
     "profile_overview",
     "profile_restore",
+    "strategies_context",
+    "strategy_archive",
+    "strategy_capital_add",
+    "strategy_capital_archive",
+    "strategy_capital_restore",
+    "strategy_create",
+    "strategy_detail",
+    "strategy_edit",
+    "strategy_restore",
     "wallet_add",
     "wallet_deposit",
     "wallet_edit",

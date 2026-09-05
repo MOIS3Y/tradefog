@@ -1,0 +1,21 @@
+{% load i18n %}
+<div class="modal modal-blur fade"
+     id="strategy-create-modal"
+     tabindex="-1"
+     aria-labelledby="strategy-create-modal-title"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="strategy-create-modal-title">
+          {% translate "Add strategy" %}
+        </h2>
+        <button class="btn-close"
+                type="button"
+                data-bs-dismiss="modal"
+                aria-label="{% translate 'Close' %}"></button>
+      </div>
+      <div class="modal-body" id="strategy-create-body"></div>
+    </div>
+  </div>
+</div>

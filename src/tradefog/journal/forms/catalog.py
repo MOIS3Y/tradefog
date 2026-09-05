@@ -14,6 +14,7 @@ from tradefog.journal.models import (
     VenueWalletAsset,
 )
 from tradefog.journal.models.enums import ProductKind
+from tradefog.journal.widgets import CompactNumberInput
 
 
 @final
@@ -243,10 +244,16 @@ class VenueInstrumentForm(forms.ModelForm):
             "pair": forms.Select(attrs={"class": "form-select"}),
             "product": forms.Select(attrs={"class": "form-select"}),
             "exec_symbol": forms.TextInput(attrs={"class": "form-control"}),
-            "price_step": forms.NumberInput(attrs={"class": "form-control"}),
-            "qty_step": forms.NumberInput(attrs={"class": "form-control"}),
-            "min_qty": forms.NumberInput(attrs={"class": "form-control"}),
-            "min_notional": forms.NumberInput(
+            "price_step": CompactNumberInput(
+                attrs={"class": "form-control"}
+            ),
+            "qty_step": CompactNumberInput(
+                attrs={"class": "form-control"}
+            ),
+            "min_qty": CompactNumberInput(
+                attrs={"class": "form-control"}
+            ),
+            "min_notional": CompactNumberInput(
                 attrs={"class": "form-control"}
             ),
             "settlement_asset": forms.Select(attrs={"class": "form-select"}),

@@ -12,8 +12,13 @@ from pytest import mark
 from tradefog.accounts.models import User
 from tradefog.journal.models import (
     Asset,
+    Trade,
+    TradeSnapshot,
+    TradingPair,
     TradingProfile,
+    TradingStrategy,
     Venue,
+    VenueInstrument,
     VenueWalletAsset,
     Wallet,
     WalletAsset,
@@ -75,6 +80,53 @@ def _operation(
         kind=kind,
         amount=amount,
     )
+
+
+def _reserve_trade(
+    profile: TradingProfile,
+    strategy: TradingStrategy,
+    wallet_asset: WalletAsset,
+    notional: Decimal,
+) -> Trade:
+    """Create a pending-entry trade reserving the asset's wallet capital."""
+    venue = profile.venue
+    pair = TradingPair.objects.create(
+        base=Asset.objects.create(symbol="BTC", asset_type="crypto"),
+        quote=wallet_asset.venue_wallet_asset.asset,
+        canonical_symbol="BTC/USDT",
+    )
+    instrument = VenueInstrument.objects.create(
+        venue=venue,
+        pair=pair,
+        product="spot",
+        exec_symbol="BTCUSDT",
+        price_step=Decimal("0.1"),
+        qty_step=Decimal("0.001"),
+    )
+    trade = Trade.objects.create(
+        profile=profile,
+        strategy=strategy,
+        venue_instrument=instrument,
+        trade_date="2026-01-01",
+        direction="long",
+        status="pending_entry",
+    )
+    TradeSnapshot.objects.create(
+        trade=trade,
+        planned_entry=Decimal(100),
+        planned_stop=Decimal(90),
+        reward_multiple=Decimal(3),
+        planned_risk_percent=Decimal(1),
+        planned_risk_amount=Decimal(10),
+        planned_notional=notional,
+        allocation_capital=Decimal(1000),
+        already_reserved_risk=Decimal(0),
+        remaining_risk_capacity=Decimal(10),
+        wallet_balance=Decimal(1000),
+        wallet_reserved=Decimal(0),
+        wallet_available=Decimal(1000),
+    )
+    return trade
 
 
 def test_wallet_modals_are_dialog_centered() -> None:
@@ -150,7 +202,7 @@ def test_add_asset_creates_wallet_asset() -> None:
 
 
 @mark.django_db
-def test_duplicate_wallet_asset_add_returns_422() -> None:
+def test_wallet_add_shows_empty_state_when_all_assets_are_linked() -> None:
     client, owner = _owner_client()
     venue = _venue()
     profile = _profile(owner, venue)
@@ -158,13 +210,13 @@ def test_duplicate_wallet_asset_add_returns_422() -> None:
     venue_asset = _venue_wallet_asset(venue, "USDT")
     _wallet_asset(wallet, venue_asset)
     with override("en"):
-        response = client.post(
+        response = client.get(
             reverse("journal:wallet_add", args=(profile.pk,)),
-            {"venue_wallet_asset": venue_asset.pk},
         )
 
-    assert response.status_code == 422
-    assert "This asset is already in the wallet." in response.content.decode()
+    content = response.content.decode()
+    assert "All venue assets are already added" in content
+    assert "Add asset" not in content
 
 
 @mark.django_db
@@ -265,7 +317,7 @@ def test_edit_floor_updates_risk_stop_capital() -> None:
 
 
 @mark.django_db
-def test_asset_card_shows_balance_and_risk_stopped_status() -> None:
+def test_asset_card_shows_balance_and_below_floor_status() -> None:
     client, owner = _owner_client()
     venue = _venue()
     profile = _profile(owner, venue)
@@ -282,7 +334,7 @@ def test_asset_card_shows_balance_and_risk_stopped_status() -> None:
     content = response.content.decode()
     assert "USDT" in content
     assert "100" in content
-    assert "Risk stopped" in content
+    assert "Below floor" in content
 
 
 @mark.django_db
@@ -488,3 +540,63 @@ def _login_as(username: str) -> Client:
     user = User.objects.create_user(username=username, password=PASSWORD)
     client.force_login(user)
     return client
+
+
+@mark.django_db
+def test_reservation_reduces_available_balance() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue)
+    wallet = _wallet(profile)
+    wallet_asset = _wallet_asset(wallet, _venue_wallet_asset(venue, "USDT"))
+    _operation(wallet_asset, amount=Decimal(1000))
+    strategy = TradingStrategy.objects.create(
+        profile=profile,
+        name="S",
+        risk_percent=Decimal(1),
+        reward_multiple=Decimal(3),
+    )
+    _reserve_trade(profile, strategy, wallet_asset, Decimal(400))
+    with override("en"):
+        response = client.get(
+            reverse("journal:profile_detail", args=(profile.pk,))
+        )
+
+    content = response.content.decode()
+    assert "600" in content
+    assert "400" in content
+
+
+@mark.django_db
+def test_withdrawal_respects_reservation() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue)
+    wallet = _wallet(profile)
+    wallet_asset = _wallet_asset(wallet, _venue_wallet_asset(venue, "USDT"))
+    _operation(wallet_asset, amount=Decimal(1000))
+    strategy = TradingStrategy.objects.create(
+        profile=profile,
+        name="S",
+        risk_percent=Decimal(1),
+        reward_multiple=Decimal(3),
+    )
+    _reserve_trade(profile, strategy, wallet_asset, Decimal(400))
+    with override("en"):
+        over = client.post(
+            reverse(
+                "journal:wallet_withdraw",
+                args=(profile.pk, wallet_asset.pk),
+            ),
+            {"amount": "700"},
+        )
+        allowed = client.post(
+            reverse(
+                "journal:wallet_withdraw",
+                args=(profile.pk, wallet_asset.pk),
+            ),
+            {"amount": "500"},
+        )
+
+    assert over.status_code == 422
+    assert allowed.status_code == 200

@@ -60,6 +60,48 @@ urlpatterns = [
         views.wallet_edit,
         name="wallet_edit",
     ),
+    path(
+        "profiles/<int:pk>/strategies/create/",
+        views.strategy_create,
+        name="strategy_create",
+    ),
+    path(
+        "profiles/<int:pk>/strategies/<int:strategy_pk>/edit/",
+        views.strategy_edit,
+        name="strategy_edit",
+    ),
+    path(
+        "profiles/<int:pk>/strategies/<int:strategy_pk>/detail/",
+        views.strategy_detail,
+        name="strategy_detail",
+    ),
+    path(
+        "profiles/<int:pk>/strategies/<int:strategy_pk>/archive/",
+        views.strategy_archive,
+        name="strategy_archive",
+    ),
+    path(
+        "profiles/<int:pk>/strategies/<int:strategy_pk>/restore/",
+        views.strategy_restore,
+        name="strategy_restore",
+    ),
+    path(
+        "profiles/<int:pk>/strategies/<int:strategy_pk>/capital/add/",
+        views.strategy_capital_add,
+        name="strategy_capital_add",
+    ),
+    path(
+        "profiles/<int:pk>/strategies/<int:strategy_pk>/capital/"
+        + "<int:capital_pk>/archive/",
+        views.strategy_capital_archive,
+        name="strategy_capital_archive",
+    ),
+    path(
+        "profiles/<int:pk>/strategies/<int:strategy_pk>/capital/"
+        + "<int:capital_pk>/restore/",
+        views.strategy_capital_restore,
+        name="strategy_capital_restore",
+    ),
 
     path("trades/", views.trades, name="trades"),
     path("trades/new/", views.trade_new, name="trade_new"),
