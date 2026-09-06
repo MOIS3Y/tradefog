@@ -1,0 +1,35 @@
+{% load i18n %}
+<form hx-post="{% url 'journal:wallet_remove' profile.pk wallet_asset.pk %}"
+      hx-target="#wallet-remove-body"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+  {% if can_hard_delete %}
+    <p class="mb-3">
+      {% blocktranslate with symbol=wallet_asset.venue_wallet_asset.asset.symbol %}
+        Remove {{ symbol }} from your wallet? This asset has no recorded operations or strategy allocations.
+      {% endblocktranslate %}
+    </p>
+    <div class="modal-footer px-0 pb-0">
+      <button class="btn" type="button" data-bs-dismiss="modal">
+        {% translate "Cancel" %}
+      </button>
+      <button class="btn btn-danger" type="submit">
+        {% translate "Remove" %}
+      </button>
+    </div>
+  {% else %}
+    <p class="mb-3">
+      {% blocktranslate with symbol=wallet_asset.venue_wallet_asset.asset.symbol %}
+        Archive {{ symbol }} in your wallet? Its past transactions and history will be kept. Archiving requires a zero balance and no active strategy allocations.
+      {% endblocktranslate %}
+    </p>
+    <div class="modal-footer px-0 pb-0">
+      <button class="btn" type="button" data-bs-dismiss="modal">
+        {% translate "Cancel" %}
+      </button>
+      <button class="btn btn-primary" type="submit">
+        {% translate "Archive" %}
+      </button>
+    </div>
+  {% endif %}
+</form>

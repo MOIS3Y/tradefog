@@ -47,10 +47,29 @@
                     {{ wallet_asset.asset.get_asset_type_display }}
                   </span>
                 </td>
+                <td>
+                  <span class="badge {% if wallet_asset.is_active %}bg-green-lt{% else %}bg-secondary-lt{% endif %}">
+                    {% if wallet_asset.is_active %}
+                      {% translate "Active" %}
+                    {% else %}
+                      {% translate "Delisted" %}
+                    {% endif %}
+                  </span>
+                </td>
                 {% if section.can_manage %}
                   <td class="text-end">
-                    <div class="btn-list flex-nowrap justify-content-end">
-                      <button class="btn btn-icon"
+                    <div class="btn-actions justify-content-end">
+                      <button class="btn btn-action"
+                              type="button"
+                              data-bs-toggle="modal"
+                              data-bs-target="#wallet-asset-edit-modal"
+                              hx-get="{% url 'journal:wallet_asset_edit' section.venue.pk wallet_asset.pk %}"
+                              hx-target="#wallet-asset-edit-body"
+                              hx-swap="innerHTML"
+                              aria-label="{% translate 'Edit wallet asset' %}">
+                        {% include "tradefog/components/icon.html" with name="pencil" %}
+                      </button>
+                      <button class="btn btn-action"
                               type="button"
                               data-bs-toggle="modal"
                               data-bs-target="#wallet-asset-remove-modal"

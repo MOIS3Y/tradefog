@@ -1,9 +1,10 @@
-"""Tests for shared venues, their wallet assets, and executable instruments."""
-
+import json
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from typing import Any, cast
 
+from django.forms import ModelChoiceField
 from django.test import Client
 from django.urls import reverse
 from django.utils.translation import override
@@ -31,10 +32,11 @@ from tradefog.journal.models import (
 PASSWORD = "correct-horse-battery-staple"
 
 
-def _login_as(**user_fields: object) -> Client:
+def _login_as(**user_fields: Any) -> Client:
     client = Client()
+    username = user_fields.pop("username", "trader")
     user = User.objects.create_user(
-        username=user_fields.pop("username", "trader"),
+        username=username,
         password=PASSWORD,
         **user_fields,
     )
@@ -51,7 +53,9 @@ def _asset(**fields: object) -> Asset:
     )
 
 
-def _pair(base: str = "BTC", quote: str = "USD", **fields: object) -> TradingPair:
+def _pair(
+    base: str = "BTC", quote: str = "USD", **fields: object
+) -> TradingPair:
     base_type = fields.pop("base_type", "crypto")
     quote_type = fields.pop("quote_type", "fiat")
     base_asset, _created = Asset.objects.get_or_create(
@@ -70,11 +74,13 @@ def _pair(base: str = "BTC", quote: str = "USD", **fields: object) -> TradingPai
     )
 
 
-def _venue(name: str = "Bybit") -> Venue:
-    return Venue.objects.create(name=name)
+def _venue(name: str = "Bybit", **fields: object) -> Venue:
+    return Venue.objects.create(name=name, **fields)
 
 
-def _instrument(venue: Venue, pair: TradingPair, **fields: object) -> VenueInstrument:
+def _instrument(
+    venue: Venue, pair: TradingPair, **fields: object
+) -> VenueInstrument:
     return VenueInstrument.objects.create(
         venue=venue,
         pair=pair,
@@ -92,7 +98,9 @@ def _wallet_asset(venue: Venue, asset: Asset) -> VenueWalletAsset:
 
 def _journal_chain(
     user: User, venue: Venue, asset: Asset
-) -> tuple[TradingProfile, Wallet, WalletAsset, TradingStrategy, VenueWalletAsset]:
+) -> tuple[
+    TradingProfile, Wallet, WalletAsset, TradingStrategy, VenueWalletAsset
+]:
     """Build a minimal owner-scoped journal so a link can be protected."""
     venue_wallet_asset = _wallet_asset(venue, asset)
     profile = TradingProfile.objects.create(
@@ -121,6 +129,7 @@ def test_venue_modals_are_dialog_centered() -> None:
         "partials/venue_create_modal.html",
         "partials/venue_delete_modal.html",
         "partials/wallet_asset_add_modal.html",
+        "partials/wallet_asset_edit_modal.html",
         "partials/wallet_asset_remove_modal.html",
         "partials/instrument_delete_modal.html",
     ):
@@ -146,7 +155,9 @@ def test_anonymous_user_is_redirected_to_login() -> None:
         response = Client().get(reverse("journal:venue_overview"))
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/en/login/?next=/en/catalog/venues/"
+    assert (
+        response.headers["Location"] == "/en/login/?next=/en/catalog/venues/"
+    )
 
 
 @mark.django_db
@@ -179,7 +190,9 @@ def test_staff_user_sees_management_actions_on_cards() -> None:
 @mark.django_db
 def test_venue_cards_show_instrument_and_wallet_counts() -> None:
     venue = _venue(name="Bybit")
-    pair = _pair(base="BTC", quote="USDT", base_type="crypto", quote_type="crypto")
+    pair = _pair(
+        base="BTC", quote="USDT", base_type="crypto", quote_type="crypto"
+    )
     _instrument(venue, pair)
     _wallet_asset(venue, _asset(symbol="ETH", asset_type="crypto"))
     with override("en"):
@@ -203,6 +216,7 @@ def test_venue_empty_state_offers_create_for_staff() -> None:
 
 @mark.django_db
 def test_staff_can_create_venue_with_success_alert() -> None:
+    _pair()
     client = _login_as(is_staff=True)
     with override("en"):
         response = client.post(
@@ -223,6 +237,7 @@ def test_staff_can_create_venue_with_success_alert() -> None:
 
 @mark.django_db
 def test_duplicate_venue_name_shows_form_error() -> None:
+    _pair()
     _venue(name="Bybit")
     client = _login_as(is_staff=True)
     with override("en"):
@@ -232,7 +247,51 @@ def test_duplicate_venue_name_shows_form_error() -> None:
 
     assert response.status_code == 422
     assert Venue.objects.count() == 1
-    assert "A venue with this name already exists." in response.content.decode()
+    assert (
+        "A venue with this name already exists." in response.content.decode()
+    )
+
+
+@mark.django_db
+def test_venue_create_modal_no_pairs_en() -> None:
+    client = _login_as(is_staff=True)
+    with override("en"):
+        response = client.get(reverse("journal:venue_create"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "No trading pairs available" in content
+    assert "Add at least one trading pair to the catalog first" in content
+    assert "Go to trading pairs" in content
+    assert reverse("journal:pair_overview") in content
+    assert '<input type="text" name="name"' not in content
+
+
+@mark.django_db
+def test_venue_create_modal_no_pairs_ru() -> None:
+    client = _login_as(is_staff=True)
+    with override("ru"):
+        response = client.get(reverse("journal:venue_create"))
+        pair_url = reverse("journal:pair_overview")
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Нет доступных торговых пар" in content
+    assert "Сначала добавьте хотя бы одну торговую пару в каталог" in content
+    assert "Перейти к торговым парам" in content
+    assert pair_url in content
+
+
+@mark.django_db
+def test_venue_create_post_no_pairs_returns_conflict() -> None:
+    client = _login_as(is_staff=True)
+    with override("en"):
+        response = client.post(
+            reverse("journal:venue_create"),
+            {"name": "Bybit"},
+        )
+
+    assert response.status_code == 409
 
 
 @mark.django_db
@@ -286,7 +345,7 @@ def test_regular_user_cannot_edit_venue() -> None:
 
 @mark.django_db
 def test_staff_can_delete_venue_with_success_alert() -> None:
-    venue = _venue(name="Bybit")
+    venue = _venue(name="Bybit", is_active=False)
     client = _login_as(is_staff=True)
     with override("en"):
         response = client.post(
@@ -302,8 +361,25 @@ def test_staff_can_delete_venue_with_success_alert() -> None:
 
 
 @mark.django_db
+def test_active_venue_cannot_be_deleted() -> None:
+    venue = _venue(name="Bybit", is_active=True)
+    client = _login_as(is_staff=True)
+    with override("en"):
+        response = client.post(
+            reverse("journal:venue_delete", args=(venue.pk,))
+        )
+
+    assert response.status_code == 409
+    assert Venue.objects.filter(pk=venue.pk).exists()
+    trigger = response.headers["HX-Trigger"]
+    assert "Archive the venue before removing it permanently." in trigger
+    assert '"kind": "danger"' in trigger
+    assert "venue-delete-modal" in trigger
+
+
+@mark.django_db
 def test_protected_venue_delete_is_blocked() -> None:
-    venue = _venue(name="Bybit")
+    venue = _venue(name="Bybit", is_active=False)
     pair = _pair()
     _instrument(venue, pair)
     client = _login_as(is_staff=True)
@@ -321,7 +397,7 @@ def test_protected_venue_delete_is_blocked() -> None:
 
 @mark.django_db
 def test_regular_user_cannot_delete_venue() -> None:
-    venue = _venue(name="Bybit")
+    venue = _venue(name="Bybit", is_active=False)
     client = _login_as()
     with override("en"):
         response = client.post(
@@ -335,11 +411,15 @@ def test_regular_user_cannot_delete_venue() -> None:
 @mark.django_db
 def test_venue_detail_renders_tabs_and_both_sections() -> None:
     venue = _venue(name="Bybit")
-    pair = _pair(base="BTC", quote="USDT", base_type="crypto", quote_type="crypto")
+    pair = _pair(
+        base="BTC", quote="USDT", base_type="crypto", quote_type="crypto"
+    )
     _instrument(venue, pair)
     _wallet_asset(venue, _asset(symbol="ETH", asset_type="crypto"))
     with override("en"):
-        response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
+        response = _login_as().get(
+            reverse("journal:venue_detail", args=(venue.pk,))
+        )
 
     assert response.status_code == 200
     content = response.content.decode()
@@ -358,7 +438,9 @@ def test_venue_detail_renders_tabs_and_both_sections() -> None:
 def test_venue_detail_instruments_tab_is_active_by_default() -> None:
     venue = _venue(name="Bybit")
     with override("en"):
-        response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
+        response = _login_as().get(
+            reverse("journal:venue_detail", args=(venue.pk,))
+        )
 
     content = response.content.decode()
     assert 'class="nav-link active" href="#venue-instruments-tab"' in content
@@ -369,7 +451,9 @@ def test_venue_detail_instruments_tab_is_active_by_default() -> None:
 def test_regular_user_reads_detail_without_manage_actions() -> None:
     venue = _venue(name="Bybit")
     with override("en"):
-        response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
+        response = _login_as().get(
+            reverse("journal:venue_detail", args=(venue.pk,))
+        )
 
     content = response.content.decode()
     assert "Add wallet asset" not in content
@@ -411,15 +495,19 @@ def test_staff_settings_tab_shows_prefilled_name_and_website_inputs() -> None:
 
 @mark.django_db
 def test_regular_user_settings_tab_shows_readonly_values_only() -> None:
-    venue = _venue(name="Bybit")
+    venue = _venue(name="Bybit", description="Top derivatives exchange.")
     venue.website = "https://www.bybit.com"
     venue.save()
     with override("en"):
-        response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
+        response = _login_as().get(
+            reverse("journal:venue_detail", args=(venue.pk,))
+        )
 
     content = response.content.decode()
     assert "Bybit" in content
     assert "https://www.bybit.com" in content
+    assert "Top derivatives exchange." in content
+    assert "Active" in content
     assert "Save changes" not in content
 
 
@@ -427,7 +515,9 @@ def test_regular_user_settings_tab_shows_readonly_values_only() -> None:
 def test_venue_detail_filters_collapsed_by_default() -> None:
     venue = _venue(name="Bybit")
     with override("en"):
-        response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
+        response = _login_as().get(
+            reverse("journal:venue_detail", args=(venue.pk,))
+        )
 
     content = response.content.decode()
     assert 'class="collapse" id="venue-instrument-filters"' in content
@@ -439,7 +529,9 @@ def test_venue_detail_filters_collapsed_by_default() -> None:
 def test_venue_detail_renders_instruments_and_filters_in_russian() -> None:
     venue = _venue(name="Bybit")
     with override("ru"):
-        response = _login_as().get(reverse("journal:venue_detail", args=(venue.pk,)))
+        response = _login_as().get(
+            reverse("journal:venue_detail", args=(venue.pk,))
+        )
 
     content = response.content.decode()
     assert "Инструменты" in content
@@ -536,8 +628,10 @@ def test_wallet_asset_form_filters_out_linked_assets() -> None:
     free = _asset(symbol="ETH")
     _wallet_asset(venue, linked)
     form = VenueWalletAssetForm(venue=venue)
-
-    options = [int(v) for v in form.fields["asset"].queryset.values_list("id", flat=True)]
+    asset_field = cast(ModelChoiceField, form.fields["asset"])
+    options = [
+        int(v) for v in asset_field.queryset.values_list("id", flat=True)
+    ]
     assert free.pk in options
     assert linked.pk not in options
 
@@ -591,7 +685,9 @@ def test_regular_user_cannot_add_wallet_asset() -> None:
         )
 
     assert response.status_code == 403
-    assert not VenueWalletAsset.objects.filter(venue=venue, asset=asset).exists()
+    assert not VenueWalletAsset.objects.filter(
+        venue=venue, asset=asset
+    ).exists()
 
 
 @mark.django_db
@@ -636,8 +732,25 @@ def test_protected_wallet_asset_remove_is_blocked() -> None:
     assert response.status_code == 409
     assert VenueWalletAsset.objects.filter(pk=venue_wallet_asset.pk).exists()
     trigger = response.headers["HX-Trigger"]
-    assert "This wallet asset is in use and cannot be removed." in trigger
+    assert (
+        "This wallet asset is referenced by user wallets and cannot be removed."
+        in trigger
+    )
     assert '"kind": "danger"' in trigger
+
+    with override("ru"):
+        ru_response = client.post(
+            reverse(
+                "journal:wallet_asset_remove",
+                args=(venue.pk, venue_wallet_asset.pk),
+            )
+        )
+    assert ru_response.status_code == 409
+    ru_payload = json.loads(ru_response.headers["HX-Trigger"])
+    assert (
+        ru_payload["tradefog:toast"]["message"]
+        == "Этот актив используется в кошельках пользователей и не может быть удалён. Деактивируйте его вместо удаления."
+    )
 
 
 @mark.django_db
@@ -674,7 +787,7 @@ def test_instrument_form_clears_settlement_for_spot() -> None:
             "min_qty": "",
             "min_notional": "",
             "settlement_asset": settlement.pk,
-            "active": "on",
+            "is_active": "on",
         },
         venue=venue,
     )
@@ -696,7 +809,7 @@ def test_instrument_form_rejects_duplicate_pair_product() -> None:
             "price_step": "0.1",
             "qty_step": "0.001",
             "settlement_asset": "",
-            "active": "on",
+            "is_active": "on",
         },
         venue=venue,
     )
@@ -721,7 +834,7 @@ def test_instrument_form_rejects_duplicate_exec_symbol() -> None:
             "price_step": "0.1",
             "qty_step": "0.001",
             "settlement_asset": "",
-            "active": "on",
+            "is_active": "on",
         },
         venue=venue,
     )
@@ -749,7 +862,7 @@ def test_staff_can_add_instrument_with_success_alert() -> None:
                 "min_qty": "",
                 "min_notional": "",
                 "settlement_asset": "",
-                "active": "on",
+                "is_active": "on",
             },
         )
 
@@ -778,7 +891,7 @@ def test_regular_user_cannot_add_instrument() -> None:
                 "price_step": "0.1",
                 "qty_step": "0.001",
                 "settlement_asset": "",
-                "active": "on",
+                "is_active": "on",
             },
         )
 
@@ -801,7 +914,7 @@ def test_staff_can_edit_instrument_with_success_alert() -> None:
                 "price_step": "0.1",
                 "qty_step": "0.001",
                 "settlement_asset": "",
-                "active": "on",
+                "is_active": "on",
             },
         )
 
@@ -829,7 +942,7 @@ def test_regular_user_cannot_edit_instrument() -> None:
                 "price_step": "0.1",
                 "qty_step": "0.001",
                 "settlement_asset": "",
-                "active": "on",
+                "is_active": "on",
             },
         )
 
@@ -857,14 +970,16 @@ def test_staff_can_delist_instrument_via_edit_form() -> None:
         )
 
     instrument.refresh_from_db()
-    assert instrument.active is False
+    assert instrument.is_active is False
     assert response.status_code == 200
 
 
 @mark.django_db
 def test_staff_can_reenable_instrument_via_edit_form() -> None:
     venue = _venue(name="Bybit")
-    instrument = _instrument(venue, _pair(), exec_symbol="BTCUSD", active=False)
+    instrument = _instrument(
+        venue, _pair(), exec_symbol="BTCUSD", is_active=False
+    )
     client = _login_as(is_staff=True)
     with override("en"):
         response = client.post(
@@ -876,12 +991,12 @@ def test_staff_can_reenable_instrument_via_edit_form() -> None:
                 "price_step": "0.1",
                 "qty_step": "0.001",
                 "settlement_asset": "",
-                "active": "on",
+                "is_active": "on",
             },
         )
 
     instrument.refresh_from_db()
-    assert instrument.active is True
+    assert instrument.is_active is True
     assert response.status_code == 200
 
 
@@ -905,7 +1020,46 @@ def test_staff_cannot_delist_instrument_via_edit_form() -> None:
 
     assert response.status_code == 403
     instrument.refresh_from_db()
-    assert instrument.active is True
+    assert instrument.is_active is True
+
+
+@mark.django_db
+def test_staff_can_toggle_wallet_asset_active() -> None:
+    venue = _venue(name="Bybit")
+    asset = _asset(symbol="USDT")
+    wallet_asset = _wallet_asset(venue, asset)
+    client = _login_as(is_staff=True)
+    with override("en"):
+        # GET form
+        response = client.get(
+            reverse(
+                "journal:wallet_asset_edit", args=(venue.pk, wallet_asset.pk)
+            )
+        )
+        assert response.status_code == 200
+        assert "USDT" in response.content.decode()
+
+        # POST deactivation
+        response = client.post(
+            reverse(
+                "journal:wallet_asset_edit", args=(venue.pk, wallet_asset.pk)
+            ),
+            {},
+        )
+        assert response.status_code == 200
+        wallet_asset.refresh_from_db()
+        assert wallet_asset.is_active is False
+
+        # POST re-activation
+        response = client.post(
+            reverse(
+                "journal:wallet_asset_edit", args=(venue.pk, wallet_asset.pk)
+            ),
+            {"is_active": "on"},
+        )
+        assert response.status_code == 200
+        wallet_asset.refresh_from_db()
+        assert wallet_asset.is_active is True
 
 
 @mark.django_db
@@ -994,9 +1148,7 @@ def test_venues_page_renders_in_russian() -> None:
 @mark.django_db
 def test_venue_detail_filters_wallet_assets() -> None:
     venue = _venue(name="Bybit")
-    crypto = _wallet_asset(
-        venue, _asset(symbol="USDT", asset_type="crypto")
-    )
+    crypto = _wallet_asset(venue, _asset(symbol="USDT", asset_type="crypto"))
     fiat = _wallet_asset(venue, _asset(symbol="USD", asset_type="fiat"))
     client = _login_as()
     with override("en"):
@@ -1058,7 +1210,9 @@ def test_wallet_asset_pagination_splits_pages() -> None:
 @mark.django_db
 def test_venue_cards_render_plural_counts_in_russian() -> None:
     venue = _venue(name="Bybit")
-    pair = _pair(base="BTC", quote="USDT", base_type="crypto", quote_type="crypto")
+    pair = _pair(
+        base="BTC", quote="USDT", base_type="crypto", quote_type="crypto"
+    )
     _instrument(venue, pair)
     _wallet_asset(venue, _asset(symbol="ETH", asset_type="crypto"))
     _wallet_asset(venue, _asset(symbol="SOL", asset_type="crypto"))
@@ -1073,7 +1227,7 @@ def test_venue_cards_render_plural_counts_in_russian() -> None:
 
 
 @mark.django_db
-def test_instrument_row_shows_eye_details_button_for_all_users() -> None:
+def test_instrument_row_shows_details_trigger_on_pair_for_all_users() -> None:
     venue = _venue(name="Bybit")
     _instrument(venue, _pair(base="BTC"), exec_symbol="BTCUSD")
     client = _login_as()
@@ -1085,8 +1239,7 @@ def test_instrument_row_shows_eye_details_button_for_all_users() -> None:
         )
 
     content = response.content.decode()
-    assert '#tabler-eye"' in content
-    assert '#tabler-eye-off"' not in content
+    assert '#tabler-eye"' not in content
     assert 'data-bs-target="#instrument-detail-modal"' in content
 
 
@@ -1117,7 +1270,7 @@ def test_instrument_edit_form_uses_switch_for_active_field() -> None:
 
     content = response.content.decode()
     assert 'role="switch"' in content
-    assert "name=\"active\"" in content
+    assert 'name="is_active"' in content
     assert "checked" in content
 
 
@@ -1128,7 +1281,9 @@ def test_regular_user_can_view_instrument_details() -> None:
     client = _login_as()
     with override("en"):
         response = client.get(
-            reverse("journal:instrument_detail", args=(venue.pk, instrument.pk))
+            reverse(
+                "journal:instrument_detail", args=(venue.pk, instrument.pk)
+            )
         )
 
     assert response.status_code == 200
@@ -1146,7 +1301,9 @@ def test_staff_can_view_instrument_details() -> None:
     client = _login_as(is_staff=True)
     with override("en"):
         response = client.get(
-            reverse("journal:instrument_detail", args=(venue.pk, instrument.pk))
+            reverse(
+                "journal:instrument_detail", args=(venue.pk, instrument.pk)
+            )
         )
 
     assert response.status_code == 200
@@ -1156,7 +1313,9 @@ def test_staff_can_view_instrument_details() -> None:
 @mark.django_db
 def test_instrument_detail_shows_explicit_or_derived_settlement() -> None:
     venue = _venue(name="Bybit")
-    pair = _pair(base="BTC", quote="USDT", base_type="crypto", quote_type="crypto")
+    pair = _pair(
+        base="BTC", quote="USDT", base_type="crypto", quote_type="crypto"
+    )
     explicit = _instrument(
         venue, pair, product="perpetual_future", exec_symbol="BTCPERP"
     )
@@ -1192,3 +1351,216 @@ def test_instrument_table_shows_settlement_column() -> None:
     assert "Settlement" in content
     assert "Status" in content
     assert content.count("Settlement") == 1
+
+
+@mark.django_db
+def test_venue_cards_display_url_and_asset_types() -> None:
+    venue = Venue.objects.create(name="Bybit", website="https://bybit.com/")
+    _wallet_asset(venue, _asset(symbol="USDT", asset_type="crypto"))
+    _wallet_asset(venue, _asset(symbol="USD", asset_type="fiat"))
+    client = _login_as()
+    with override("en"):
+        response = client.get(reverse("journal:venue_overview"))
+
+    content = response.content.decode()
+    assert "bybit.com" in content
+    assert "https://bybit.com/" in content
+    assert "Crypto" in content
+    assert "Fiat" in content
+
+
+@mark.django_db
+def test_instrument_table_clickable_pair_and_detail_compact_steps() -> None:
+    venue = _venue(name="Bybit")
+    pair = _pair(base="BTC", quote="USDT")
+    inst = _instrument(
+        venue,
+        pair,
+        price_step=Decimal("0.010000000000000000"),
+        qty_step=Decimal("0.000000100000000000"),
+        min_qty=Decimal("0.001000000000000000"),
+        min_notional=Decimal("10.000000000000000000"),
+    )
+    # Regular user: no eye icon and pair text is modal trigger
+    client = _login_as()
+    with override("en"):
+        list_resp = client.get(
+            reverse("journal:venue_detail", args=(venue.pk,)),
+            {"section": "instruments"},
+            HTTP_HX_REQUEST="true",
+        )
+        detail_resp = client.get(
+            reverse("journal:instrument_detail", args=(venue.pk, inst.pk))
+        )
+
+    list_content = list_resp.content.decode()
+    assert "tabler-eye" not in list_content
+    assert (
+        f'hx-get="{reverse("journal:instrument_detail", args=(venue.pk, inst.pk))}"'
+        in list_content
+    )
+
+    detail_content = detail_resp.content.decode()
+    assert "0.01" in detail_content
+    assert "0.010000" not in detail_content
+    assert "0.0000001" in detail_content
+    assert "0.000000100" not in detail_content
+    assert "0.001" in detail_content
+    assert "10" in detail_content
+
+
+@mark.django_db
+def test_venue_detail_settings_tab_alignment() -> None:
+    venue = _venue(name="Bybit")
+    client = _login_as(is_staff=True)
+    with override("en"):
+        response = client.get(
+            reverse("journal:venue_detail", args=(venue.pk,))
+        )
+
+    content = response.content.decode()
+    assert 'class="nav-item ms-auto"' in content
+    assert 'href="#venue-settings-tab"' in content
+    assert (
+        "Active venues are available for creating new trading profiles."
+        in content
+    )
+    assert 'name="is_active"' in content
+    assert "checked" in content
+
+
+@mark.django_db
+def test_venue_description_and_archiving_in_overview() -> None:
+    _active_venue = Venue.objects.create(
+        name="Bybit Active",
+        description="A major crypto derivatives exchange.",
+        website="https://bybit.com",
+        is_active=True,
+    )
+    _archived_venue = Venue.objects.create(
+        name="FTX Closed",
+        description="Defunct exchange preserved for historical records.",
+        is_active=False,
+    )
+    client = _login_as()
+    with override("en"):
+        response = client.get(reverse("journal:venue_overview"))
+
+    content = response.content.decode()
+    assert "Bybit Active" in content
+    assert "A major crypto derivatives exchange." in content
+    assert "tf-card-description" in content
+    assert "Archives" in content
+    assert "1 archived venue" in content
+    assert "FTX Closed" in content
+    assert "Archived" in content
+
+
+@mark.django_db
+def test_venue_settings_edit_description_and_is_active() -> None:
+    venue = Venue.objects.create(name="Binance", is_active=True)
+    client = _login_as(is_staff=True)
+    with override("en"):
+        response = client.post(
+            reverse("journal:venue_edit", args=(venue.pk,)),
+            {
+                "name": "Binance Global",
+                "description": "Global spot and futures platform.",
+                "website": "https://binance.com",
+                "is_active": "false",  # unchecked in html form
+            },
+        )
+
+    assert response.status_code == 200
+    venue.refresh_from_db()
+    assert venue.name == "Binance Global"
+    assert venue.description == "Global spot and futures platform."
+    assert venue.website == "https://binance.com"
+    assert venue.is_active is False
+
+
+@mark.django_db
+def test_profile_create_only_offers_active_venues() -> None:
+    _active = Venue.objects.create(name="Active Venue", is_active=True)
+    _inactive = Venue.objects.create(name="Inactive Venue", is_active=False)
+    client = _login_as()
+
+    with override("en"):
+        form_resp = client.get(reverse("journal:profile_create"))
+        form_content = form_resp.content.decode()
+        assert "Active Venue" in form_content
+        assert "Inactive Venue" not in form_content
+
+
+@mark.django_db
+def test_venue_create_is_active_by_default() -> None:
+    _pair(base="BTC", quote="USDT")
+    client = _login_as(is_staff=True)
+
+    with override("en"):
+        response = client.post(
+            reverse("journal:venue_create"),
+            {
+                "name": "OKX",
+                "description": "OKX crypto exchange",
+                "website": "https://okx.com",
+            },
+        )
+
+    assert response.status_code == 200
+    venue = Venue.objects.get(name="OKX")
+    assert venue.is_active is True
+    assert venue.description == "OKX crypto exchange"
+    assert venue.website == "https://okx.com"
+    content = response.content.decode()
+    assert "OKX" in content
+    assert "Archives" not in content
+
+
+@mark.django_db
+def test_venue_archive_action() -> None:
+    venue = _venue(name="Bybit", is_active=True)
+    client = _login_as(is_staff=True)
+
+    with override("en"):
+        modal_resp = client.get(
+            reverse("journal:venue_archive", args=(venue.pk,))
+        )
+        assert modal_resp.status_code == 200
+        assert "Archive the venue Bybit?" in modal_resp.content.decode()
+
+        response = client.post(
+            reverse("journal:venue_archive", args=(venue.pk,))
+        )
+
+    assert response.status_code == 200
+    venue.refresh_from_db()
+    assert venue.is_active is False
+    trigger = response.headers["HX-Trigger"]
+    assert "Venue archived." in trigger
+    assert '"kind": "success"' in trigger
+    assert "venue-archive-modal" in trigger
+
+
+@mark.django_db
+def test_venue_restore_action() -> None:
+    venue = Venue.objects.create(name="Archived Venue", is_active=False)
+    client = _login_as(is_staff=True)
+
+    with override("en"):
+        # Check restore button is present on overview
+        overview_resp = client.get(reverse("journal:venue_overview"))
+        overview_content = overview_resp.content.decode()
+        assert (
+            reverse("journal:venue_restore", args=(venue.pk,))
+            in overview_content
+        )
+
+        # Restore venue
+        restore_resp = client.post(
+            reverse("journal:venue_restore", args=(venue.pk,))
+        )
+
+    assert restore_resp.status_code == 200
+    venue.refresh_from_db()
+    assert venue.is_active is True

@@ -1,0 +1,32 @@
+{% load i18n formats %}
+<form hx-post="{% url 'journal:wallet_operation_edit' profile.pk operation.pk %}"
+      hx-target="#wallet-operation-edit-body"
+      hx-swap="innerHTML"
+      novalidate>
+  {% csrf_token %}
+  <div class="mb-3">
+    <div class="d-flex align-items-center justify-content-between text-secondary small mb-1">
+      <span>{{ operation.created_at|date:"SHORT_DATETIME_FORMAT" }}</span>
+      <span class="tf-ticker">{{ operation.wallet_asset.venue_wallet_asset.asset.symbol }}</span>
+    </div>
+    <div class="d-flex align-items-center justify-content-between">
+      <div>
+        {% if operation.kind == "deposit" %}
+          <span class="badge bg-green-lt">{% translate "Deposit" %}</span>
+        {% else %}
+          <span class="badge bg-red-lt">{% translate "Withdrawal" %}</span>
+        {% endif %}
+      </div>
+      <div class="font-monospace fw-bold">{{ operation.amount|compact }}</div>
+    </div>
+  </div>
+  {% include "tradefog/components/form_field.html" with field=form.note %}
+  <div class="modal-footer px-0 pb-0">
+    <button class="btn" type="button" data-bs-dismiss="modal">
+      {% translate "Cancel" %}
+    </button>
+    <button class="btn btn-outline-primary" type="submit">
+      {% translate "Save" %}
+    </button>
+  </div>
+</form>

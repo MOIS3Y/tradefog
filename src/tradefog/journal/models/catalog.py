@@ -40,9 +40,7 @@ class Asset(models.Model):
     symbol = models.CharField(
         max_length=32, unique=True, verbose_name=_("Symbol")
     )
-    name = models.CharField(
-        max_length=255, blank=True, verbose_name=_("Name")
-    )
+    name = models.CharField(max_length=255, blank=True, verbose_name=_("Name"))
     asset_type = models.CharField(
         max_length=16,
         choices=AssetType.choices,
@@ -127,7 +125,13 @@ class Venue(models.Model):
     name = models.CharField(
         max_length=128, unique=True, verbose_name=_("Name")
     )
+    description = models.TextField(blank=True, verbose_name=_("Description"))
     website = models.URLField(blank=True, verbose_name=_("Website"))
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name=_("Active"),
+    )
 
     @final
     class Meta:
@@ -208,9 +212,7 @@ class VenueInstrument(models.Model):
         blank=True,
         verbose_name=_("Settlement asset"),
     )
-    active = models.BooleanField(
-        default=True, verbose_name=_("Active")
-    )
+    is_active = models.BooleanField(default=True, verbose_name=_("Active"))
 
     @final
     class Meta:
@@ -258,6 +260,7 @@ class VenueWalletAsset(models.Model):
         related_name="wallet_venues",
         verbose_name=_("Asset"),
     )
+    is_active = models.BooleanField(default=True, verbose_name=_("Active"))
 
     @final
     class Meta:

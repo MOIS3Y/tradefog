@@ -52,8 +52,8 @@
                 </td>
                 {% if can_manage %}
                   <td class="text-end">
-                    <div class="btn-list flex-nowrap justify-content-end">
-                      <button class="btn btn-icon"
+                    <div class="btn-actions justify-content-end">
+                      <button class="btn btn-action"
                               type="button"
                               data-bs-toggle="modal"
                               data-bs-target="#pair-delete-modal"
@@ -75,7 +75,7 @@
     {% else %}
       <section class="empty">
         <div class="empty-icon">
-          {% include "tradefog/components/icon.html" with name="archive" %}
+          {% include "tradefog/components/icon.html" with name="arrows-exchange" %}
         </div>
         {% if filters_active %}
           <h2 class="empty-title">

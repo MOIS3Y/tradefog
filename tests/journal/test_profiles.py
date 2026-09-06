@@ -1,8 +1,7 @@
-"""Tests for the owner-scoped trading profile card grid and modals."""
-
 import json
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 from django.test import Client
 from django.urls import reverse
@@ -23,10 +22,11 @@ from tradefog.journal.models import (
 PASSWORD = "correct-horse-battery-staple"
 
 
-def _login_as(**user_fields: object) -> Client:
+def _login_as(**user_fields: Any) -> Client:
     client = Client()
+    username = user_fields.pop("username", "trader")
     user = User.objects.create_user(
-        username=user_fields.pop("username", "trader"),
+        username=username,
         password=PASSWORD,
         **user_fields,
     )
@@ -66,9 +66,7 @@ def _wallet_asset(venue: Venue, symbol: str = "USDT") -> VenueWalletAsset:
     return VenueWalletAsset.objects.create(venue=venue, asset=asset)
 
 
-def _strategy(
-    profile: TradingProfile, name: str = "S1"
-) -> TradingStrategy:
+def _strategy(profile: TradingProfile, name: str = "S1") -> TradingStrategy:
     return TradingStrategy.objects.create(
         profile=profile,
         name=name,
@@ -147,7 +145,7 @@ def test_profile_card_shows_venue_counts_and_archived_badge() -> None:
 @mark.django_db
 def test_archived_profile_shows_badge_and_archive_section() -> None:
     client, owner = _owner_client()
-    _profile(owner, _venue(), name="Main", archived=True)
+    _profile(owner, _venue(), name="Main", is_archived=True)
     with override("en"):
         response = client.get(reverse("journal:profile_overview"))
 
@@ -247,7 +245,7 @@ def test_active_profile_cannot_be_deleted() -> None:
 def test_delete_archived_profile_cascades_wallet() -> None:
     client, owner = _owner_client()
     venue = _venue()
-    profile = _profile(owner, venue, name="Main", archived=True)
+    profile = _profile(owner, venue, name="Main", is_archived=True)
     wallet = Wallet.objects.create(profile=profile)
     with override("en"):
         response = client.post(
@@ -269,7 +267,7 @@ def test_delete_archived_profile_cascades_wallet() -> None:
 @mark.django_db
 def test_user_cannot_delete_another_users_profile() -> None:
     _client, owner = _owner_client()
-    profile = _profile(owner, _venue(), name="Main", archived=True)
+    profile = _profile(owner, _venue(), name="Main", is_archived=True)
     intruder = _login_as(username="intruder")
     with override("en"):
         response = intruder.post(
@@ -283,7 +281,7 @@ def test_user_cannot_delete_another_users_profile() -> None:
 @mark.django_db
 def test_profile_delete_confirm_renders_for_get() -> None:
     client, owner = _owner_client()
-    profile = _profile(owner, _venue(), name="Main", archived=True)
+    profile = _profile(owner, _venue(), name="Main", is_archived=True)
     with override("en"):
         response = client.get(
             reverse("journal:profile_delete", args=(profile.pk,))
@@ -312,10 +310,10 @@ def test_archive_profile_keeps_history_and_shows_archive() -> None:
         )
 
     profile.refresh_from_db()
-    assert profile.archived is True
+    assert profile.is_archived is True
     assert Wallet.objects.filter(pk=wallet.pk).exists()
-    assert wallet.assets.count() == 1
-    assert profile.strategies.count() == 1
+    assert WalletAsset.objects.filter(wallet=wallet).count() == 1
+    assert TradingStrategy.objects.filter(profile=profile).count() == 1
     content = response.content.decode()
     assert 'id="profile-grid"' in content
     assert 'hx-swap-oob="outerHTML"' in content
@@ -345,14 +343,14 @@ def test_archive_confirm_renders_for_get() -> None:
 def test_restore_profile_moves_it_out_of_archive() -> None:
     client, owner = _owner_client()
     venue = _venue()
-    profile = _profile(owner, venue, name="Main", archived=True)
+    profile = _profile(owner, venue, name="Main", is_archived=True)
     with override("en"):
         response = client.post(
             reverse("journal:profile_restore", args=(profile.pk,))
         )
 
     profile.refresh_from_db()
-    assert profile.archived is False
+    assert profile.is_archived is False
     content = response.content.decode()
     assert "Archives" not in content
     trigger = response.headers["HX-Trigger"]
@@ -372,13 +370,13 @@ def test_user_cannot_archive_another_users_profile() -> None:
 
     assert response.status_code == 404
     profile.refresh_from_db()
-    assert profile.archived is False
+    assert profile.is_archived is False
 
 
 @mark.django_db
 def test_user_cannot_restore_another_users_profile() -> None:
     _client, owner = _owner_client()
-    profile = _profile(owner, _venue(), name="Main", archived=True)
+    profile = _profile(owner, _venue(), name="Main", is_archived=True)
     intruder = _login_as(username="intruder")
     with override("en"):
         response = intruder.post(
@@ -387,7 +385,7 @@ def test_user_cannot_restore_another_users_profile() -> None:
 
     assert response.status_code == 404
     profile.refresh_from_db()
-    assert profile.archived is True
+    assert profile.is_archived is True
 
 
 @mark.django_db
@@ -440,7 +438,7 @@ def test_active_card_has_archive_button_but_no_delete() -> None:
 @mark.django_db
 def test_archived_card_has_restore_and_delete_but_no_archive() -> None:
     client, owner = _owner_client()
-    _profile(owner, _venue(), name="Main", archived=True)
+    _profile(owner, _venue(), name="Main", is_archived=True)
     with override("en"):
         response = client.get(reverse("journal:profile_overview"))
 
@@ -453,7 +451,7 @@ def test_archived_card_has_restore_and_delete_but_no_archive() -> None:
 @mark.django_db
 def test_archive_section_renders_in_russian() -> None:
     client, owner = _owner_client()
-    _profile(owner, _venue(), name="Main", archived=True)
+    _profile(owner, _venue(), name="Main", is_archived=True)
     with override("ru"):
         response = client.get(reverse("journal:profile_overview"))
 
@@ -515,9 +513,7 @@ def test_profile_detail_shows_summary_and_counts() -> None:
     profile = _profile(owner, venue, name="Main")
     wallet = Wallet.objects.create(profile=profile)
     wallet_asset = _wallet_asset(venue)
-    WalletAsset.objects.create(
-        wallet=wallet, venue_wallet_asset=wallet_asset
-    )
+    WalletAsset.objects.create(wallet=wallet, venue_wallet_asset=wallet_asset)
     _strategy(profile)
     with override("en"):
         response = client.get(
@@ -530,13 +526,13 @@ def test_profile_detail_shows_summary_and_counts() -> None:
     assert "Wallet assets" in content
     assert "Strategies" in content
     assert "Trades" in content
-    assert '>1</span>' in content
+    assert ">1</span>" in content
 
 
 @mark.django_db
 def test_profile_detail_shows_archived_status() -> None:
     client, owner = _owner_client()
-    profile = _profile(owner, _venue(), name="Main", archived=True)
+    profile = _profile(owner, _venue(), name="Main", is_archived=True)
     with override("en"):
         response = client.get(
             reverse("journal:profile_detail", args=(profile.pk,))
@@ -586,3 +582,205 @@ def test_profile_card_links_to_detail() -> None:
 
     detail_url = reverse("journal:profile_detail", args=(profile.pk,))
     assert f'href="{detail_url}"' in response.content.decode()
+
+
+@mark.django_db
+def test_profile_create_modal_without_venues_staff_en() -> None:
+    client = _login_as(username="admin", is_staff=True)
+    with override("en"):
+        response = client.get(reverse("journal:profile_create"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "No venues available" in content
+    assert "Add at least one venue in the catalog first" in content
+    assert "Go to venues" in content
+    assert reverse("journal:venue_overview") in content
+    assert '<select name="venue"' not in content
+
+
+@mark.django_db
+def test_profile_create_modal_without_venues_staff_ru() -> None:
+    client = _login_as(username="admin", is_staff=True)
+    with override("ru"):
+        response = client.get(reverse("journal:profile_create"))
+        venue_url = reverse("journal:venue_overview")
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Нет доступных площадок" in content
+    assert "Сначала добавьте хотя бы одну площадку в каталог" in content
+    assert "Перейти к площадкам" in content
+    assert venue_url in content
+
+
+@mark.django_db
+def test_profile_create_modal_without_venues_regular_user_en() -> None:
+    client = _login_as(username="regular", is_staff=False)
+    with override("en"):
+        response = client.get(reverse("journal:profile_create"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "No venues available" in content
+    assert "Ask a staff member to add venues to the catalog" in content
+    assert "Go to venues" not in content
+    assert "Close" in content
+
+
+@mark.django_db
+def test_profile_create_post_without_venues_returns_conflict() -> None:
+    client = _login_as(username="admin", is_staff=True)
+    with override("en"):
+        response = client.post(
+            reverse("journal:profile_create"),
+            {"name": "Main", "venue": 999},
+        )
+
+    assert response.status_code == 409
+
+
+@mark.django_db
+def test_profile_card_shows_venue_website_link() -> None:
+    client, user = _owner_client()
+    venue = Venue.objects.create(
+        name="Bybit", website="https://www.bybit.com/"
+    )
+    profile = _profile(user, venue, name="Scalping")
+
+    response = client.get(reverse("journal:profile_overview"))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "www.bybit.com" in content
+    assert "https://www.bybit.com/" in content
+    assert "tabler-building-bank" in content
+
+    # Detail overview tab
+    detail_resp = client.get(
+        reverse("journal:profile_detail", args=(profile.pk,))
+    )
+    assert detail_resp.status_code == 200
+    detail_content = detail_resp.content.decode()
+    assert "www.bybit.com" in detail_content
+
+
+@mark.django_db
+def test_profile_create_with_description() -> None:
+    venue = _venue(name="Bybit")
+    client = _login_as()
+    with override("en"):
+        response = client.post(
+            reverse("journal:profile_create"),
+            {
+                "name": "Main Account",
+                "description": "Primary high-conviction swing portfolio.",
+                "venue": venue.pk,
+            },
+        )
+
+    assert response.status_code == 200
+    profile = TradingProfile.objects.get(name="Main Account")
+    assert profile.description == "Primary high-conviction swing portfolio."
+
+
+@mark.django_db
+def test_profile_card_shows_profile_description_not_venue() -> None:
+    client, user = _owner_client()
+    venue = Venue.objects.create(
+        name="Bybit", description="Venue exchange description."
+    )
+    _profile(
+        user,
+        venue,
+        name="Scalping",
+        description="My personal scalping profile description.",
+    )
+
+    response = client.get(reverse("journal:profile_overview"))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "My personal scalping profile description." in content
+    assert "Venue exchange description." not in content
+
+
+@mark.django_db
+def test_profile_settings_edit_and_oob_heading() -> None:
+    client, user = _owner_client()
+    venue = Venue.objects.create(
+        name="Bybit", website="https://www.bybit.com/"
+    )
+    profile = _profile(user, venue, name="Initial Name")
+
+    with override("en"):
+        # GET profile detail: settings tab contains form
+        detail_resp = client.get(
+            reverse("journal:profile_detail", args=(profile.pk,))
+        )
+        assert detail_resp.status_code == 200
+        detail_content = detail_resp.content.decode()
+        assert 'id="profile-settings-tab"' in detail_content
+        assert 'id="profile-settings-body"' in detail_content
+        assert "Initial Name" in detail_content
+
+        # POST profile_edit
+        edit_resp = client.post(
+            reverse("journal:profile_edit", args=(profile.pk,)),
+            {
+                "name": "Updated Swing",
+                "description": "Updated swing profile description.",
+            },
+        )
+
+    assert edit_resp.status_code == 200
+    profile.refresh_from_db()
+    assert profile.name == "Updated Swing"
+    assert profile.description == "Updated swing profile description."
+
+    edit_content = edit_resp.content.decode()
+    assert 'id="profile-heading"' in edit_content
+    assert 'id="profile-overview-content"' in edit_content
+    assert 'hx-swap-oob="outerHTML"' in edit_content
+    assert "Updated Swing" in edit_content
+    assert "Updated swing profile description." in edit_content
+
+    trigger = edit_resp.headers["HX-Trigger"]
+    assert "Profile updated." in trigger
+    assert '"kind": "success"' in trigger
+
+
+@mark.django_db
+def test_profile_settings_duplicate_name_error() -> None:
+    client, user = _owner_client()
+    venue = _venue()
+    _profile(user, venue, name="Existing Name")
+    profile = _profile(user, venue, name="Second Profile")
+
+    with override("en"):
+        edit_resp = client.post(
+            reverse("journal:profile_edit", args=(profile.pk,)),
+            {"name": "Existing Name", "description": ""},
+        )
+
+    assert edit_resp.status_code == 422
+    assert (
+        "A profile with this name already exists."
+        in edit_resp.content.decode()
+    )
+
+
+@mark.django_db
+def test_profile_settings_cannot_be_edited_by_other_user() -> None:
+    _client1, user1 = _owner_client(username="user1")
+    client2, _user2 = _owner_client(username="user2")
+    venue = _venue()
+    profile1 = _profile(user1, venue, name="User1 Profile")
+
+    with override("en"):
+        response = client2.post(
+            reverse("journal:profile_edit", args=(profile1.pk,)),
+            {"name": "Hacked", "description": ""},
+        )
+
+    assert response.status_code == 404
+    profile1.refresh_from_db()
+    assert profile1.name == "User1 Profile"

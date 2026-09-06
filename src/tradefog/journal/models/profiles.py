@@ -55,7 +55,8 @@ class TradingProfile(models.Model):
         verbose_name=_("Venue"),
     )
     name = models.CharField(max_length=128, verbose_name=_("Name"))
-    archived = models.BooleanField(
+    description = models.TextField(blank=True, verbose_name=_("Description"))
+    is_archived = models.BooleanField(
         default=False, verbose_name=_("Archived")
     )
 
@@ -139,13 +140,18 @@ class WalletAsset(models.Model):
         null=True,
         blank=True,
         verbose_name=_("Risk stop capital"),
-        help_text=_("Advisory deposit floor that highlights a bleeding deposit."),
+        help_text=_(
+            "Advisory deposit floor that highlights a bleeding deposit."
+        ),
     )
     status = models.CharField(
         max_length=32,
         choices=WalletAssetStatus.choices,
         default=WalletAssetStatus.ACTIVE,
         verbose_name=_("Status"),
+    )
+    is_archived = models.BooleanField(
+        default=False, verbose_name=_("Archived")
     )
 
     @final
@@ -190,9 +196,7 @@ class WalletOperation(models.Model):
     amount = models.DecimalField(
         max_digits=30, decimal_places=18, verbose_name=_("Amount")
     )
-    note = models.CharField(
-        max_length=255, blank=True, verbose_name=_("Note")
-    )
+    note = models.CharField(max_length=255, blank=True, verbose_name=_("Note"))
     created_at = models.DateTimeField(
         auto_now_add=True, verbose_name=_("Created at")
     )

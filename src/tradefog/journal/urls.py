@@ -8,7 +8,6 @@ app_name = "journal"
 
 urlpatterns = [
     path("", views.home, name="home"),
-
     # Profiles:
     path(
         "profiles/",
@@ -41,6 +40,11 @@ urlpatterns = [
         name="profile_detail",
     ),
     path(
+        "profiles/<int:pk>/edit/",
+        views.profile_edit,
+        name="profile_edit",
+    ),
+    path(
         "profiles/<int:pk>/wallet/assets/add/",
         views.wallet_add,
         name="wallet_add",
@@ -59,6 +63,21 @@ urlpatterns = [
         "profiles/<int:pk>/wallet/assets/<int:asset_pk>/edit/",
         views.wallet_edit,
         name="wallet_edit",
+    ),
+    path(
+        "profiles/<int:pk>/wallet/assets/<int:asset_pk>/remove/",
+        views.wallet_remove,
+        name="wallet_remove",
+    ),
+    path(
+        "profiles/<int:pk>/wallet/assets/<int:asset_pk>/restore/",
+        views.wallet_restore,
+        name="wallet_restore",
+    ),
+    path(
+        "profiles/<int:pk>/wallet/operations/<int:operation_pk>/edit/",
+        views.wallet_operation_edit,
+        name="wallet_operation_edit",
     ),
     path(
         "profiles/<int:pk>/strategies/create/",
@@ -102,11 +121,9 @@ urlpatterns = [
         views.strategy_capital_restore,
         name="strategy_capital_restore",
     ),
-
     path("trades/", views.trades, name="trades"),
     path("trades/new/", views.trade_new, name="trade_new"),
     path("analytics/", views.analytics, name="analytics"),
-
     # Catalog:
     path(
         "catalog/assets/",
@@ -159,14 +176,29 @@ urlpatterns = [
         name="venue_edit",
     ),
     path(
+        "catalog/venues/<int:pk>/archive/",
+        views.venue_archive,
+        name="venue_archive",
+    ),
+    path(
         "catalog/venues/<int:pk>/delete/",
         views.venue_delete,
         name="venue_delete",
     ),
     path(
+        "catalog/venues/<int:pk>/restore/",
+        views.venue_restore,
+        name="venue_restore",
+    ),
+    path(
         "catalog/venues/<int:pk>/wallet-assets/add/",
         views.wallet_asset_add,
         name="wallet_asset_add",
+    ),
+    path(
+        "catalog/venues/<int:pk>/wallet-assets/<int:asset_pk>/edit/",
+        views.wallet_asset_edit,
+        name="wallet_asset_edit",
     ),
     path(
         "catalog/venues/<int:pk>/wallet-assets/<int:asset_pk>/remove/",

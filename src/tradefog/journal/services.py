@@ -54,7 +54,7 @@ def settlement_asset_ids(venue: Venue) -> set[int]:
     Settlement is the instrument's explicit settlement asset (Perpetual
     Future) or its pair quote (Spot and Cash Equity).
     """
-    instruments = venue.instruments.filter(active=True).select_related(
+    instruments = venue.instruments.filter(is_active=True).select_related(
         "pair__quote"
     )
     return {
@@ -65,9 +65,7 @@ def settlement_asset_ids(venue: Venue) -> set[int]:
     }
 
 
-def reserved_notional(
-    profile: TradingProfile, asset_id: int
-) -> Decimal:
+def reserved_notional(profile: TradingProfile, asset_id: int) -> Decimal:
     """Return the capital reserved on one asset by active trades.
 
     Sums the frozen ``planned_notional`` of every pending or open trade of
@@ -85,7 +83,6 @@ def reserved_notional(
             venue_instrument__pair__quote_id=asset_id,
         )
     )
-    return (
-        trades.aggregate(total=Sum("snapshot__planned_notional"))["total"]
-        or Decimal(0)
-    )
+    return trades.aggregate(total=Sum("snapshot__planned_notional"))[
+        "total"
+    ] or Decimal(0)

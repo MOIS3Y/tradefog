@@ -5,7 +5,9 @@
       novalidate>
   {% csrf_token %}
   {% include "tradefog/components/form_field.html" with field=form.name %}
+  {% include "tradefog/components/form_field.html" with field=form.description %}
   {% include "tradefog/components/form_field.html" with field=form.website %}
+  {% include "tradefog/components/form_switch.html" with field=form.is_active %}
   <div class="mt-3">
     <button class="btn btn-primary" type="submit">
       {% include "tradefog/components/icon.html" with name="circle-check" class="icon" %}

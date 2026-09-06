@@ -122,9 +122,7 @@ def calculate_checklist_assessment(
     with localcontext() as context:
         context.prec = 28
         score = Decimal(weighted_sum) / Decimal(TOTAL_WEIGHT)
-        completeness = Decimal(answered_count) / Decimal(
-            len(QUESTION_WEIGHTS)
-        )
+        completeness = Decimal(answered_count) / Decimal(len(QUESTION_WEIGHTS))
         gauge_position = int(
             ((score + Decimal(1)) * Decimal(50)).quantize(
                 Decimal(1), rounding=ROUND_HALF_UP

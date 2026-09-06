@@ -25,12 +25,15 @@ from tradefog.journal.views.catalog.pairs import (
     pair_overview,
 )
 from tradefog.journal.views.catalog.venues import (
+    venue_archive,
     venue_create,
     venue_delete,
     venue_detail,
     venue_edit,
     venue_overview,
+    venue_restore,
     wallet_asset_add,
+    wallet_asset_edit,
     wallet_asset_remove,
 )
 
@@ -45,11 +48,14 @@ __all__ = [
     "pair_create",
     "pair_delete",
     "pair_overview",
+    "venue_archive",
     "venue_create",
     "venue_delete",
     "venue_detail",
     "venue_edit",
     "venue_overview",
+    "venue_restore",
     "wallet_asset_add",
+    "wallet_asset_edit",
     "wallet_asset_remove",
 ]

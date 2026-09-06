@@ -12,6 +12,7 @@ from pytest import mark
 from tradefog.accounts.models import User
 from tradefog.journal.models import (
     Asset,
+    StrategyCapital,
     Trade,
     TradeSnapshot,
     TradingPair,
@@ -64,7 +65,9 @@ def _wallet(profile: TradingProfile) -> Wallet:
     return Wallet.objects.create(profile=profile)
 
 
-def _wallet_asset(wallet: Wallet, venue_asset: VenueWalletAsset) -> WalletAsset:
+def _wallet_asset(
+    wallet: Wallet, venue_asset: VenueWalletAsset
+) -> WalletAsset:
     return WalletAsset.objects.create(
         wallet=wallet, venue_wallet_asset=venue_asset
     )
@@ -74,11 +77,13 @@ def _operation(
     wallet_asset: WalletAsset,
     kind: str = WalletOperationKind.DEPOSIT,
     amount: Decimal = Decimal(100),
+    note: str = "",
 ) -> WalletOperation:
     return WalletOperation.objects.create(
         wallet_asset=wallet_asset,
         kind=kind,
         amount=amount,
+        note=note,
     )
 
 
@@ -175,6 +180,8 @@ def test_wallet_add_form_offers_only_venue_assets() -> None:
 
     content = response.content.decode()
     assert "ETH" in content
+    assert ">ETH</option>" in content
+    assert "Bybit / ETH" not in content
     assert "USDT" not in content
     assert "BTC" not in content
 
@@ -380,7 +387,7 @@ def test_htmx_wallet_sort_returns_partial_only() -> None:
 def test_archived_profile_cannot_be_mutated() -> None:
     client, owner = _owner_client()
     venue = _venue()
-    profile = _profile(owner, venue, archived=True)
+    profile = _profile(owner, venue, is_archived=True)
     wallet = _wallet(profile)
     venue_asset = _venue_wallet_asset(venue, "USDT")
     _wallet_asset(wallet, venue_asset)
@@ -391,8 +398,9 @@ def test_archived_profile_cannot_be_mutated() -> None:
         )
 
     assert response.status_code == 409
-    assert "Restore the profile to manage its wallet." in (
-        response.headers["HX-Trigger"]
+    assert (
+        "Restore the profile to manage its wallet."
+        in (response.headers["HX-Trigger"])
     )
     assert WalletAsset.objects.count() == 1
 
@@ -401,7 +409,7 @@ def test_archived_profile_cannot_be_mutated() -> None:
 def test_archived_profile_wallet_is_readonly() -> None:
     client, owner = _owner_client()
     venue = _venue()
-    profile = _profile(owner, venue, archived=True)
+    profile = _profile(owner, venue, is_archived=True)
     wallet = _wallet(profile)
     _wallet_asset(wallet, _venue_wallet_asset(venue, "USDT"))
     with override("en"):
@@ -600,3 +608,361 @@ def test_withdrawal_respects_reservation() -> None:
 
     assert over.status_code == 422
     assert allowed.status_code == 200
+
+
+@mark.django_db
+def test_wallet_remove_hard_deletes_when_unreferenced_and_zero_balance() -> (
+    None
+):
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue)
+    wallet = _wallet(profile)
+    wallet_asset = _wallet_asset(wallet, _venue_wallet_asset(venue, "USDT"))
+    with override("en"):
+        # GET confirm modal
+        confirm = client.get(
+            reverse(
+                "journal:wallet_remove", args=(profile.pk, wallet_asset.pk)
+            )
+        )
+        assert confirm.status_code == 200
+        assert "Remove" in confirm.content.decode()
+
+        # POST remove
+        response = client.post(
+            reverse(
+                "journal:wallet_remove", args=(profile.pk, wallet_asset.pk)
+            )
+        )
+    assert response.status_code == 200
+    assert not WalletAsset.objects.filter(pk=wallet_asset.pk).exists()
+    assert "Asset removed from wallet." in response.headers["HX-Trigger"]
+
+
+@mark.django_db
+def test_wallet_remove_refuses_when_balance_positive() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue)
+    wallet = _wallet(profile)
+    wallet_asset = _wallet_asset(wallet, _venue_wallet_asset(venue, "USDT"))
+    _operation(wallet_asset, amount=Decimal(100))
+    with override("en"):
+        response = client.post(
+            reverse(
+                "journal:wallet_remove", args=(profile.pk, wallet_asset.pk)
+            )
+        )
+    assert response.status_code == 409
+    assert WalletAsset.objects.filter(pk=wallet_asset.pk).exists()
+    assert "Withdraw or convert all funds" in response.headers["HX-Trigger"]
+
+
+@mark.django_db
+def test_wallet_remove_archives_when_referenced() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue)
+    wallet = _wallet(profile)
+    wallet_asset = _wallet_asset(wallet, _venue_wallet_asset(venue, "USDT"))
+    strategy = TradingStrategy.objects.create(
+        profile=profile,
+        name="S",
+        risk_percent=Decimal(1),
+        reward_multiple=Decimal(3),
+    )
+    # create archived strategy capital
+    StrategyCapital.objects.create(
+        strategy=strategy,
+        wallet_asset=wallet_asset,
+        capital=Decimal(100),
+        is_archived=True,
+    )
+    with override("en"):
+        response = client.post(
+            reverse(
+                "journal:wallet_remove", args=(profile.pk, wallet_asset.pk)
+            )
+        )
+    assert response.status_code == 200
+    wallet_asset.refresh_from_db()
+    assert wallet_asset.is_archived is True
+    assert "Asset archived." in response.headers["HX-Trigger"]
+
+
+@mark.django_db
+def test_wallet_restore_and_delisted_refusal() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue)
+    wallet = _wallet(profile)
+    venue_asset = _venue_wallet_asset(venue, "USDT")
+    wallet_asset = _wallet_asset(wallet, venue_asset)
+    wallet_asset.is_archived = True
+    wallet_asset.save()
+
+    # When venue asset is active, restore succeeds
+    with override("en"):
+        response = client.post(
+            reverse(
+                "journal:wallet_restore", args=(profile.pk, wallet_asset.pk)
+            )
+        )
+    assert response.status_code == 200
+    wallet_asset.refresh_from_db()
+    assert wallet_asset.is_archived is False
+    assert "Asset restored." in response.headers["HX-Trigger"]
+
+    # When venue asset is delisted, restore is refused
+    wallet_asset.is_archived = True
+    wallet_asset.save()
+    venue_asset.is_active = False
+    venue_asset.save()
+
+    with override("en"):
+        response = client.post(
+            reverse(
+                "journal:wallet_restore", args=(profile.pk, wallet_asset.pk)
+            )
+        )
+    assert response.status_code == 409
+    wallet_asset.refresh_from_db()
+    assert wallet_asset.is_archived is True
+    assert "delisted" in response.headers["HX-Trigger"]
+
+
+@mark.django_db
+def test_wallet_add_modal_when_venue_has_no_wallet_assets() -> None:
+    # 1. Staff user
+    staff_client = Client()
+    staff_user = User.objects.create_user(
+        username="admin", password=PASSWORD, is_staff=True
+    )
+    staff_client.force_login(staff_user)
+    venue = _venue("EmptyVenue")
+    profile = _profile(staff_user, venue)
+    _ = _wallet(profile)
+
+    with override("en"):
+        response = staff_client.get(
+            reverse("journal:wallet_add", args=(profile.pk,))
+        )
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "No assets available on venue" in content
+    assert (
+        "This venue does not have any wallet assets configured yet. Add wallet assets to the venue in the catalog first."
+        in content
+    )
+    assert reverse("journal:venue_detail", args=(venue.pk,)) in content
+
+    # 2. Regular user
+    client, owner = _owner_client()
+    user_profile = _profile(owner, venue)
+    _ = _wallet(user_profile)
+
+    with override("en"):
+        response = client.get(
+            reverse("journal:wallet_add", args=(user_profile.pk,))
+        )
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "No assets available on venue" in content
+    assert (
+        "This venue does not have any wallet assets configured yet. Ask a staff member to add wallet assets to the venue."
+        in content
+    )
+    assert reverse("journal:venue_detail", args=(venue.pk,)) not in content
+
+    # 3. Russian translation
+    with override("ru"):
+        response = staff_client.get(
+            reverse("journal:wallet_add", args=(profile.pk,))
+        )
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "На площадке нет доступных активов" in content
+    assert (
+        "Для этой площадки ещё не настроены активы кошелька. Сначала добавьте активы кошелька для площадки в каталог."
+        in content
+    )
+    assert "Перейти к площадке" in content
+
+    # 4. POST is rejected with 409
+    with override("en"):
+        post_resp = client.post(
+            reverse("journal:wallet_add", args=(user_profile.pk,)),
+            {"venue_wallet_asset": 1},
+        )
+    assert post_resp.status_code == 409
+
+
+@mark.django_db
+def test_wallet_remove_balance_error_translation_ru() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue)
+    wallet = _wallet(profile)
+    wallet_asset = _wallet_asset(wallet, _venue_wallet_asset(venue, "USDT"))
+    _operation(wallet_asset, amount=Decimal(100))
+
+    with override("ru"):
+        response = client.post(
+            reverse(
+                "journal:wallet_remove", args=(profile.pk, wallet_asset.pk)
+            )
+        )
+    assert response.status_code == 409
+    payload = json.loads(response.headers["HX-Trigger"])
+    assert (
+        payload["tradefog:toast"]["message"]
+        == "Выведите или конвертируйте все средства, чтобы баланс стал нулевым, перед архивированием этого актива."
+    )
+
+
+@mark.django_db
+def test_wallet_archived_section_header_format_and_translation() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue)
+    wallet = _wallet(profile)
+    wallet_asset = _wallet_asset(wallet, _venue_wallet_asset(venue, "USDT"))
+    wallet_asset.is_archived = True
+    wallet_asset.save()
+
+    with override("ru"):
+        response = client.get(
+            reverse("journal:profile_detail", args=(profile.pk,)),
+            {"tab": "wallet"},
+        )
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Архив" in content
+    assert "1 архивный актив" in content
+    assert "h4 mb-0" in content
+
+
+@mark.django_db
+def test_wallet_deposit_refused_when_delisted() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue)
+    wallet = _wallet(profile)
+    venue_asset = _venue_wallet_asset(venue, "USDT")
+    wallet_asset = _wallet_asset(wallet, venue_asset)
+
+    # Delist the venue asset
+    venue_asset.is_active = False
+    venue_asset.save()
+
+    # Asset card does not show deposit button when delisted
+    resp_tab = client.get(
+        reverse("journal:profile_detail", args=(profile.pk,)),
+        {"tab": "wallet"},
+    )
+    assert resp_tab.status_code == 200
+    card_content = resp_tab.content.decode()
+    assert "Delisted" in card_content
+    assert (
+        f'hx-get="{reverse("journal:wallet_deposit", args=(profile.pk, wallet_asset.pk))}"'
+        not in card_content
+    )
+
+    # Deposit view refuses with 409 and toast
+    with override("ru"):
+        post_resp = client.post(
+            reverse(
+                "journal:wallet_deposit", args=(profile.pk, wallet_asset.pk)
+            ),
+            {"amount": 100},
+        )
+    assert post_resp.status_code == 409
+    payload = json.loads(post_resp.headers["HX-Trigger"])
+    assert (
+        payload["tradefog:toast"]["message"]
+        == "Пополнение недоступно для активов, исключённых из листинга площадки."
+    )
+
+
+@mark.django_db
+def test_wallet_operation_edit_note_get_and_post() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue)
+    wallet = _wallet(profile)
+    wallet_asset = _wallet_asset(wallet, _venue_wallet_asset(venue, "USDT"))
+    op = _operation(wallet_asset, amount=Decimal(500), note="Initial note")
+
+    with override("en"):
+        # GET form fragment
+        get_resp = client.get(
+            reverse("journal:wallet_operation_edit", args=(profile.pk, op.pk))
+        )
+        assert get_resp.status_code == 200
+        get_content = get_resp.content.decode()
+        assert 'value="Initial note"' in get_content
+        assert 'name="note"' in get_content
+
+        # POST update note
+        post_resp = client.post(
+            reverse("journal:wallet_operation_edit", args=(profile.pk, op.pk)),
+            {"note": "Updated note for deposit"},
+        )
+
+    assert post_resp.status_code == 200
+    op.refresh_from_db()
+    assert op.note == "Updated note for deposit"
+    post_content = post_resp.content.decode()
+    assert "Updated note for deposit" in post_content
+    assert 'id="profile-wallet-content"' in post_content
+    assert 'hx-swap-oob="outerHTML"' in post_content
+
+    trigger = post_resp.headers["HX-Trigger"]
+    assert "Operation note updated." in trigger
+    assert '"id": "wallet-operation-edit-modal"' in trigger
+
+
+@mark.django_db
+def test_wallet_operation_edit_refused_on_archived_profile() -> None:
+    client, owner = _owner_client()
+    venue = _venue()
+    profile = _profile(owner, venue, is_archived=True)
+    wallet = _wallet(profile)
+    wallet_asset = _wallet_asset(wallet, _venue_wallet_asset(venue, "USDT"))
+    op = _operation(wallet_asset, amount=Decimal(100), note="Old")
+
+    with override("en"):
+        response = client.post(
+            reverse("journal:wallet_operation_edit", args=(profile.pk, op.pk)),
+            {"note": "New"},
+        )
+
+    assert response.status_code == 409
+    op.refresh_from_db()
+    assert op.note == "Old"
+    trigger = response.headers["HX-Trigger"]
+    assert "Restore the profile" in trigger
+
+
+@mark.django_db
+def test_wallet_operation_edit_cannot_be_accessed_by_other_user() -> None:
+    _client1, user1 = _owner_client(username="user1")
+    client2, _user2 = _owner_client(username="user2")
+    venue = _venue()
+    profile1 = _profile(user1, venue)
+    wallet1 = _wallet(profile1)
+    wallet_asset1 = _wallet_asset(wallet1, _venue_wallet_asset(venue, "USDT"))
+    op1 = _operation(wallet_asset1, amount=Decimal(100), note="User1 Note")
+
+    with override("en"):
+        response = client2.post(
+            reverse(
+                "journal:wallet_operation_edit", args=(profile1.pk, op1.pk)
+            ),
+            {"note": "Hacked"},
+        )
+
+    assert response.status_code == 404
+    op1.refresh_from_db()
+    assert op1.note == "User1 Note"

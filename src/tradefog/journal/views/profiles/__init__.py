@@ -5,7 +5,10 @@ wallet management, and strategy views. URL configuration imports the
 top-level views package which re-exports from here.
 """
 
-from tradefog.journal.views.profiles.detail import profile_detail
+from tradefog.journal.views.profiles.detail import (
+    profile_detail,
+    profile_edit,
+)
 from tradefog.journal.views.profiles.overview import (
     profile_archive,
     profile_create,
@@ -28,6 +31,9 @@ from tradefog.journal.views.profiles.wallet import (
     wallet_add,
     wallet_deposit,
     wallet_edit,
+    wallet_operation_edit,
+    wallet_remove,
+    wallet_restore,
     wallet_withdraw,
 )
 
@@ -36,6 +42,7 @@ __all__ = [
     "profile_create",
     "profile_delete",
     "profile_detail",
+    "profile_edit",
     "profile_overview",
     "profile_restore",
     "strategies_context",
@@ -50,5 +57,8 @@ __all__ = [
     "wallet_add",
     "wallet_deposit",
     "wallet_edit",
+    "wallet_operation_edit",
+    "wallet_remove",
+    "wallet_restore",
     "wallet_withdraw",
 ]

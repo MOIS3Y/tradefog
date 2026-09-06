@@ -1,6 +1,5 @@
-"""Tests for the shared reference catalog trading pairs collection page."""
-
 from decimal import Decimal
+from typing import Any
 
 from django.test import Client
 from django.urls import reverse
@@ -14,10 +13,11 @@ from tradefog.journal.models import Asset, TradingPair, Venue, VenueInstrument
 PASSWORD = "correct-horse-battery-staple"
 
 
-def _login_as(**user_fields: object) -> Client:
+def _login_as(**user_fields: Any) -> Client:
     client = Client()
+    username = user_fields.pop("username", "trader")
     user = User.objects.create_user(
-        username=user_fields.pop("username", "trader"),
+        username=username,
         password=PASSWORD,
         **user_fields,
     )
@@ -34,7 +34,9 @@ def _asset(**fields: object) -> Asset:
     )
 
 
-def _pair(base: str = "BTC", quote: str = "USD", **fields: object) -> TradingPair:
+def _pair(
+    base: str = "BTC", quote: str = "USD", **fields: object
+) -> TradingPair:
     base_type = fields.pop("base_type", "crypto")
     quote_type = fields.pop("quote_type", "fiat")
     base_asset, _created = Asset.objects.get_or_create(
@@ -201,14 +203,13 @@ def test_canonical_symbol_is_derived_from_halves() -> None:
         )
 
     assert response.status_code == 200
-    assert TradingPair.objects.filter(
-        canonical_symbol="BTC/USDT"
-    ).exists()
+    assert TradingPair.objects.filter(canonical_symbol="BTC/USDT").exists()
 
 
 @mark.django_db
 def test_invalid_create_keeps_modal_open_with_errors() -> None:
     _asset(symbol="BTC")
+    _asset(symbol="USD")
     client = _login_as(is_staff=True)
     with override("en"):
         response = client.post(
@@ -251,9 +252,7 @@ def test_search_and_pair_type_filter() -> None:
     client = _login_as()
 
     with override("en"):
-        by_search = client.get(
-            reverse("journal:pair_overview"), {"q": "EUR"}
-        )
+        by_search = client.get(reverse("journal:pair_overview"), {"q": "EUR"})
         by_type = client.get(
             reverse("journal:pair_overview"), {"pair_type": "crypto/crypto"}
         )
@@ -317,9 +316,7 @@ def test_staff_can_delete_pair_with_success_alert() -> None:
     pair = _pair(base="BTC", quote="USD")
     client = _login_as(is_staff=True)
     with override("en"):
-        response = client.post(
-            reverse("journal:pair_delete", args=(pair.pk,))
-        )
+        response = client.post(reverse("journal:pair_delete", args=(pair.pk,)))
 
     assert response.status_code == 200
     assert not TradingPair.objects.filter(pk=pair.pk).exists()
@@ -345,9 +342,7 @@ def test_protected_pair_delete_is_blocked() -> None:
     )
     client = _login_as(is_staff=True)
     with override("en"):
-        response = client.post(
-            reverse("journal:pair_delete", args=(pair.pk,))
-        )
+        response = client.post(reverse("journal:pair_delete", args=(pair.pk,)))
 
     assert response.status_code == 409
     assert TradingPair.objects.filter(pk=pair.pk).exists()
@@ -362,9 +357,7 @@ def test_regular_user_cannot_delete_pair() -> None:
     pair = _pair(base="BTC", quote="USD")
     client = _login_as()
     with override("en"):
-        response = client.post(
-            reverse("journal:pair_delete", args=(pair.pk,))
-        )
+        response = client.post(reverse("journal:pair_delete", args=(pair.pk,)))
 
     assert response.status_code == 403
     assert TradingPair.objects.filter(pk=pair.pk).exists()
@@ -394,9 +387,7 @@ def test_pagination_split_across_pages() -> None:
 
     with override("en"):
         first = client.get(reverse("journal:pair_overview"))
-        second = client.get(
-            reverse("journal:pair_overview"), {"page": "2"}
-        )
+        second = client.get(reverse("journal:pair_overview"), {"page": "2"})
 
     first_text = first.content.decode()
     assert "Page 1 of 2" in first_text
@@ -404,3 +395,48 @@ def test_pagination_split_across_pages() -> None:
     assert "PAIR11" not in first_text
     assert "Next page" in first_text
     assert "PAIR11" in second.content.decode()
+
+
+@mark.django_db
+def test_pair_create_modal_insufficient_assets_en() -> None:
+    _asset(symbol="BTC")
+    client = _login_as(is_staff=True)
+    with override("en"):
+        response = client.get(reverse("journal:pair_create"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Not enough assets" in content
+    assert "Add at least two assets to the catalog first" in content
+    assert "Go to assets" in content
+    assert reverse("journal:asset_overview") in content
+    assert '<select name="base"' not in content
+
+
+@mark.django_db
+def test_pair_create_modal_insufficient_assets_ru() -> None:
+    _asset(symbol="BTC")
+    client = _login_as(is_staff=True)
+    with override("ru"):
+        response = client.get(reverse("journal:pair_create"))
+        asset_url = reverse("journal:asset_overview")
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Недостаточно активов" in content
+    assert "Сначала добавьте хотя бы два актива в каталог" in content
+    assert "Перейти к активам" in content
+    assert asset_url in content
+
+
+@mark.django_db
+def test_pair_create_post_insufficient_assets_returns_conflict() -> None:
+    _asset(symbol="BTC")
+    client = _login_as(is_staff=True)
+    with override("en"):
+        response = client.post(
+            reverse("journal:pair_create"),
+            {"base": 1, "quote": 2},
+        )
+
+    assert response.status_code == 409

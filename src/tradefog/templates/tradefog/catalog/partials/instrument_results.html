@@ -29,13 +29,23 @@
                 </th>
               {% endfor %}
               <th>{% translate "Status" %}</th>
-              <th class="w-1"></th>
+              {% if section.can_manage %}<th class="w-1"></th>{% endif %}
             </tr>
           </thead>
           <tbody>
             {% for instrument in section.instruments %}
               <tr>
-                <td class="tf-ticker">{{ instrument.pair.canonical_symbol }}</td>
+                <td class="tf-ticker">
+                  <button class="btn-link text-reset p-0 border-0 bg-transparent tf-ticker"
+                          type="button"
+                          data-bs-toggle="modal"
+                          data-bs-target="#instrument-detail-modal"
+                          hx-get="{% url 'journal:instrument_detail' section.venue.pk instrument.pk %}"
+                          hx-target="#instrument-detail-body"
+                          hx-swap="innerHTML">
+                    {{ instrument.pair.canonical_symbol }}
+                  </button>
+                </td>
                 <td>
                   <span class="badge {% if instrument.product == 'perpetual_future' %}bg-purple-lt{% elif instrument.product == 'spot' %}bg-green-lt{% else %}bg-blue-lt{% endif %}">
                     {{ instrument.get_product_display }}
@@ -50,28 +60,18 @@
                   {% endif %}
                 </td>
                 <td>
-                  <span class="badge {% if instrument.active %}bg-green-lt{% else %}bg-secondary-lt{% endif %}">
-                    {% if instrument.active %}
+                  <span class="badge {% if instrument.is_active %}bg-green-lt{% else %}bg-secondary-lt{% endif %}">
+                    {% if instrument.is_active %}
                       {% translate "Active" %}
                     {% else %}
                       {% translate "Delisted" %}
                     {% endif %}
                   </span>
                 </td>
-                <td class="text-end">
-                  <div class="btn-list flex-nowrap justify-content-end">
-                    <button class="btn btn-icon"
-                            type="button"
-                            data-bs-toggle="modal"
-                            data-bs-target="#instrument-detail-modal"
-                            hx-get="{% url 'journal:instrument_detail' section.venue.pk instrument.pk %}"
-                            hx-target="#instrument-detail-body"
-                            hx-swap="innerHTML"
-                            aria-label="{% translate 'View instrument details' %}">
-                      {% include "tradefog/components/icon.html" with name="eye" %}
-                    </button>
-                    {% if section.can_manage %}
-                      <button class="btn btn-icon"
+                {% if section.can_manage %}
+                  <td class="text-end">
+                    <div class="btn-actions justify-content-end">
+                      <button class="btn btn-action"
                               type="button"
                               data-bs-toggle="modal"
                               data-bs-target="#instrument-edit-modal"
@@ -81,7 +81,7 @@
                               aria-label="{% translate 'Edit instrument' %}">
                         {% include "tradefog/components/icon.html" with name="pencil" %}
                       </button>
-                      <button class="btn btn-icon"
+                      <button class="btn btn-action"
                               type="button"
                               data-bs-toggle="modal"
                               data-bs-target="#instrument-delete-modal"
@@ -91,9 +91,9 @@
                               aria-label="{% translate 'Remove instrument' %}">
                         {% include "tradefog/components/icon.html" with name="trash" %}
                       </button>
-                    {% endif %}
-                  </div>
-                </td>
+                    </div>
+                  </td>
+                {% endif %}
               </tr>
             {% endfor %}
           </tbody>

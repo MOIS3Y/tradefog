@@ -13,6 +13,8 @@ remove records; regular user queries never write to the shared catalog.
 from __future__ import annotations
 
 import json
+from collections import defaultdict
+from http import HTTPStatus
 from typing import Any, TypedDict
 
 from django.contrib.auth.decorators import login_required
@@ -25,8 +27,18 @@ from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
-from tradefog.journal.forms import VenueForm, VenueWalletAssetForm
-from tradefog.journal.models import Venue, VenueWalletAsset
+from tradefog.journal.forms import (
+    VenueForm,
+    VenueSettingsForm,
+    VenueWalletAssetEditForm,
+    VenueWalletAssetForm,
+)
+from tradefog.journal.models import (
+    TradingPair,
+    Venue,
+    VenueInstrument,
+    VenueWalletAsset,
+)
 from tradefog.journal.models.enums import AssetType, ProductKind
 from tradefog.journal.views.catalog.common import build_results_context
 
@@ -39,12 +51,15 @@ WALLET_ASSET_SORT_FIELDS = {
     "-name": ("-asset__name", "-asset__symbol", "-id"),
     "asset_type": ("asset__asset_type", "asset__symbol", "id"),
     "-asset_type": ("-asset__asset_type", "-asset__symbol", "-id"),
+    "status": ("is_active", "asset__symbol", "id"),
+    "-status": ("-is_active", "-asset__symbol", "-id"),
 }
 
 WALLET_ASSET_SORT_COLUMNS = (
     ("symbol", _("Asset")),
     ("name", _("Name")),
     ("asset_type", _("Type")),
+    ("status", _("Status")),
 )
 
 
@@ -61,20 +76,10 @@ class _WalletAssetListState(TypedDict):
 @login_required
 def venue_overview(request: HttpRequest) -> HttpResponse:
     """List shared venues as a small responsive card grid."""
-    venues = (
-        Venue.objects.annotate(
-            instrument_count=Count("instruments", distinct=True),
-            wallet_asset_count=Count("wallet_assets", distinct=True),
-        )
-        .order_by("name")
-    )
     return render(
         request,
         "tradefog/catalog/venue_overview.html",
-        {
-            "venues": venues,
-            "can_manage": request.user.is_staff,
-        },
+        _card_context(request),
     )
 
 
@@ -88,8 +93,11 @@ def venue_create(request: HttpRequest) -> HttpResponse:
     """
     if not request.user.is_staff:
         raise PermissionDenied
-    form = VenueForm(request.POST or None)
+    has_trading_pairs = TradingPair.objects.exists()
     if request.method == "POST":
+        if not has_trading_pairs:
+            return HttpResponse(status=HTTPStatus.CONFLICT)
+        form = VenueForm(request.POST)
         if form.is_valid():
             try:
                 form.save()
@@ -100,10 +108,13 @@ def venue_create(request: HttpRequest) -> HttpResponse:
                 return render(
                     request,
                     "tradefog/catalog/partials/venue_create_form.html",
-                    {"form": form},
+                    {
+                        "form": form,
+                        "has_trading_pairs": has_trading_pairs,
+                    },
                     status=422,
                 )
-            context = _card_context(request)
+            context = _card_context(request, swap_oob=True)
             response = render(
                 request,
                 "tradefog/catalog/partials/venue_cards.html",
@@ -122,13 +133,20 @@ def venue_create(request: HttpRequest) -> HttpResponse:
         return render(
             request,
             "tradefog/catalog/partials/venue_create_form.html",
-            {"form": form},
+            {
+                "form": form,
+                "has_trading_pairs": has_trading_pairs,
+            },
             status=422,
         )
+    form = VenueForm()
     return render(
         request,
         "tradefog/catalog/partials/venue_create_form.html",
-        {"form": form},
+        {
+            "form": form,
+            "has_trading_pairs": has_trading_pairs,
+        },
     )
 
 
@@ -145,7 +163,7 @@ def venue_edit(request: HttpRequest, pk: int) -> HttpResponse:
     if not request.user.is_staff:
         raise PermissionDenied
     venue = get_object_or_404(Venue, pk=pk)
-    form = VenueForm(request.POST or None, instance=venue)
+    form = VenueSettingsForm(request.POST or None, instance=venue)
     if request.method == "POST":
         if form.is_valid():
             try:
@@ -192,18 +210,73 @@ def venue_edit(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 @login_required
-def venue_delete(request: HttpRequest, pk: int) -> HttpResponse:
-    """Render a delete confirmation or remove a shared venue.
+def venue_archive(request: HttpRequest, pk: int) -> HttpResponse:
+    """Render an archive confirmation or archive a shared venue.
 
-    A GET request supplies the confirmation form. A POST removes the venue and
-    returns the refreshed card grid out of band. A venue that a profile,
-    instrument, or wallet asset references keeps its row and returns a danger
-    alert with a 409 status so the modal stays open.
+    A GET request supplies the confirmation form. A POST archives
+    the venue (is_active = False) and returns the refreshed card
+    grid out of band.
     """
     if not request.user.is_staff:
         raise PermissionDenied
     venue = get_object_or_404(Venue, pk=pk)
     if request.method == "POST":
+        if venue.is_active:
+            venue.is_active = False
+            venue.save(update_fields=["is_active"])
+        context = _card_context(request, swap_oob=True)
+        response = render(
+            request,
+            "tradefog/catalog/partials/venue_cards.html",
+            context,
+        )
+        response["HX-Trigger"] = json.dumps(
+            {
+                "tradefog:toast": {
+                    "message": str(_("Venue archived.")),
+                    "kind": "success",
+                },
+                "tradefog:close-modal": {"id": "venue-archive-modal"},
+            }
+        )
+        return response
+    return render(
+        request,
+        "tradefog/catalog/partials/venue_archive_confirm.html",
+        {"venue": venue},
+    )
+
+
+@login_required
+def venue_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """Render a delete confirmation or remove an archived venue.
+
+    A GET request supplies the confirmation form. A POST removes the venue and
+    returns the refreshed card grid out of band. Only archived venues can be
+    deleted permanently; active venues must be archived first. A venue that a
+    profile, instrument, or wallet asset references keeps its row and returns
+    a danger alert with a 409 status so the modal stays open.
+    """
+    if not request.user.is_staff:
+        raise PermissionDenied
+    venue = get_object_or_404(Venue, pk=pk)
+    if request.method == "POST":
+        if venue.is_active:
+            response = HttpResponse(status=409)
+            response["HX-Trigger"] = json.dumps(
+                {
+                    "tradefog:toast": {
+                        "message": str(
+                            _(
+                                "Archive the venue before removing it permanently."
+                            )
+                        ),
+                        "kind": "danger",
+                    },
+                    "tradefog:close-modal": {"id": "venue-delete-modal"},
+                }
+            )
+            return response
         try:
             venue.delete()  # pyright: ignore[reportUnusedCallResult]
         except ProtectedError:
@@ -211,16 +284,16 @@ def venue_delete(request: HttpRequest, pk: int) -> HttpResponse:
             response["HX-Trigger"] = json.dumps(
                 {
                     "tradefog:toast": {
-                        "message": str(_(
-                            "This venue is in use and cannot be removed."
-                        )),
+                        "message": str(
+                            _("This venue is in use and cannot be removed.")
+                        ),
                         "kind": "danger",
                     },
                     "tradefog:close-modal": {"id": "venue-delete-modal"},
                 }
             )
             return response
-        context = _card_context(request)
+        context = _card_context(request, swap_oob=True)
         response = render(
             request,
             "tradefog/catalog/partials/venue_cards.html",
@@ -244,6 +317,38 @@ def venue_delete(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 @login_required
+def venue_restore(request: HttpRequest, pk: int) -> HttpResponse:
+    """Restore an archived venue so it is active again.
+
+    A POST-only action for staff: activates the venue and returns
+    the refreshed card grid out of band.
+    """
+    if not request.user.is_staff:
+        raise PermissionDenied
+    if request.method != "POST":
+        return HttpResponse(status=HTTPStatus.METHOD_NOT_ALLOWED)
+    venue = get_object_or_404(Venue, pk=pk)
+    if not venue.is_active:
+        venue.is_active = True
+        venue.save(update_fields=["is_active"])
+    context = _card_context(request, swap_oob=True)
+    response = render(
+        request,
+        "tradefog/catalog/partials/venue_cards.html",
+        context,
+    )
+    response["HX-Trigger"] = json.dumps(
+        {
+            "tradefog:toast": {
+                "message": str(_("Venue restored.")),
+                "kind": "success",
+            }
+        }
+    )
+    return response
+
+
+@login_required
 def venue_detail(request: HttpRequest, pk: int) -> HttpResponse:
     """Render one venue with its wallet assets and instrument sections.
 
@@ -258,12 +363,14 @@ def venue_detail(request: HttpRequest, pk: int) -> HttpResponse:
             return render(
                 request,
                 "tradefog/catalog/partials/wallet_asset_results.html",
-                {"section": _wallet_asset_context(
-                    request,
-                    venue,
-                    _wallet_asset_list_state(request, venue),
-                    can_manage=can_manage,
-                )},
+                {
+                    "section": _wallet_asset_context(
+                        request,
+                        venue,
+                        _wallet_asset_list_state(request, venue),
+                        can_manage=can_manage,
+                    )
+                },
             )
         if section == "instruments":
             from tradefog.journal.views.catalog.instruments import (
@@ -274,12 +381,14 @@ def venue_detail(request: HttpRequest, pk: int) -> HttpResponse:
             return render(
                 request,
                 "tradefog/catalog/partials/instrument_results.html",
-                {"section": instrument_context(
-                    request,
-                    venue,
-                    instrument_list_state(request, venue),
-                    can_manage=can_manage,
-                )},
+                {
+                    "section": instrument_context(
+                        request,
+                        venue,
+                        instrument_list_state(request, venue),
+                        can_manage=can_manage,
+                    )
+                },
             )
     wallet_state = _wallet_asset_list_state(request, venue)
     from tradefog.journal.views.catalog.instruments import (
@@ -291,7 +400,7 @@ def venue_detail(request: HttpRequest, pk: int) -> HttpResponse:
     context = {
         "venue": venue,
         "can_manage": can_manage,
-        "form": VenueForm(instance=venue),
+        "form": VenueSettingsForm(instance=venue),
         "search": wallet_state["search"],
         "asset_type": wallet_state["asset_type"],
         "asset_type_choices": AssetType.choices,
@@ -371,6 +480,57 @@ def wallet_asset_add(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 @login_required
+def wallet_asset_edit(
+    request: HttpRequest, pk: int, asset_pk: int
+) -> HttpResponse:
+    """Render an edit form fragment or update a venue wallet asset."""
+    if not request.user.is_staff:
+        raise PermissionDenied
+    venue = get_object_or_404(Venue, pk=pk)
+    wallet_asset = get_object_or_404(
+        VenueWalletAsset, venue=venue, pk=asset_pk
+    )
+    if request.method == "POST":
+        form = VenueWalletAssetEditForm(request.POST, instance=wallet_asset)
+        if form.is_valid():
+            form.save()
+            context = _wallet_asset_context(
+                request,
+                venue,
+                _wallet_asset_list_state(request, venue),
+                can_manage=True,
+                swap_oob=True,
+            )
+            response = render(
+                request,
+                "tradefog/catalog/partials/wallet_asset_results.html",
+                {"section": context},
+            )
+            response["HX-Trigger"] = json.dumps(
+                {
+                    "tradefog:toast": {
+                        "message": str(_("Wallet asset updated.")),
+                        "kind": "success",
+                    },
+                    "tradefog:close-modal": {"id": "wallet-asset-edit-modal"},
+                }
+            )
+            return response
+        return render(
+            request,
+            "tradefog/catalog/partials/wallet_asset_edit_form.html",
+            {"form": form, "venue": venue, "wallet_asset": wallet_asset},
+            status=422,
+        )
+    form = VenueWalletAssetEditForm(instance=wallet_asset)
+    return render(
+        request,
+        "tradefog/catalog/partials/wallet_asset_edit_form.html",
+        {"form": form, "venue": venue, "wallet_asset": wallet_asset},
+    )
+
+
+@login_required
 def wallet_asset_remove(
     request: HttpRequest, pk: int, asset_pk: int
 ) -> HttpResponse:
@@ -395,12 +555,17 @@ def wallet_asset_remove(
             response["HX-Trigger"] = json.dumps(
                 {
                     "tradefog:toast": {
-                        "message": str(_(
-                            "This wallet asset is in use and cannot be removed."
-                        )),
+                        "message": str(
+                            _(
+                                "This wallet asset is referenced by user wallets and "
+                                + "cannot be removed. Deactivate it instead."
+                            )
+                        ),
                         "kind": "danger",
                     },
-                    "tradefog:close-modal": {"id": "wallet-asset-remove-modal"},
+                    "tradefog:close-modal": {
+                        "id": "wallet-asset-remove-modal"
+                    },
                 }
             )
             return response
@@ -433,19 +598,62 @@ def wallet_asset_remove(
     )
 
 
-def _card_context(request: HttpRequest) -> dict[str, Any]:
+def _card_context(
+    request: HttpRequest, *, swap_oob: bool = False
+) -> dict[str, Any]:
     """Build the card-grid context for the current request state."""
-    venues = (
+    venues = list(
         Venue.objects.annotate(
             instrument_count=Count("instruments", distinct=True),
             wallet_asset_count=Count("wallet_assets", distinct=True),
-        )
-        .order_by("name")
+        ).order_by("name")
     )
+    wallet_types = (
+        VenueWalletAsset.objects.filter(is_active=True)
+        .values_list("venue_id", "asset__asset_type")
+        .distinct()
+    )
+    inst_base_types = (
+        VenueInstrument.objects.filter(is_active=True)
+        .values_list("venue_id", "pair__base__asset_type")
+        .distinct()
+    )
+    inst_quote_types = (
+        VenueInstrument.objects.filter(is_active=True)
+        .values_list("venue_id", "pair__quote__asset_type")
+        .distinct()
+    )
+    types_by_venue: dict[int, set[str]] = defaultdict(set)
+    for vid, atype in wallet_types:
+        if atype:
+            types_by_venue[vid].add(atype)
+    for vid, atype in inst_base_types:
+        if atype:
+            types_by_venue[vid].add(atype)
+    for vid, atype in inst_quote_types:
+        if atype:
+            types_by_venue[vid].add(atype)
+
+    choice_map = {choice.value: choice for choice in AssetType}
+    active_venues: list[Venue] = []
+    archived_venues: list[Venue] = []
+    for venue in venues:
+        venue.asset_types = [  # pyright: ignore[reportAttributeAccessIssue]
+            choice_map[k]
+            for k in sorted(types_by_venue.get(venue.pk, set()))
+            if k in choice_map
+        ]
+        if venue.is_active:
+            active_venues.append(venue)
+        else:
+            archived_venues.append(venue)
+
     return {
-        "venues": venues,
+        "active_venues": active_venues,
+        "archived_venues": archived_venues,
+        "has_archived": bool(archived_venues),
         "can_manage": request.user.is_staff,
-        "swap_oob": True,
+        "swap_oob": swap_oob,
     }
 
 
@@ -467,7 +675,9 @@ def _wallet_asset_list_state(
         queryset = queryset.filter(asset__asset_type=asset_type)
     requested_sort = request.GET.get("wa_sort", "symbol")
     current_sort = (
-        requested_sort if requested_sort in WALLET_ASSET_SORT_FIELDS else "symbol"
+        requested_sort
+        if requested_sort in WALLET_ASSET_SORT_FIELDS
+        else "symbol"
     )
     return {
         "queryset": queryset.order_by(*WALLET_ASSET_SORT_FIELDS[current_sort]),

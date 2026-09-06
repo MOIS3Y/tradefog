@@ -98,9 +98,7 @@ def _pagination_urls(
     next_url = None
     if page_obj.has_previous():
         previous_query = request.GET.copy()
-        previous_query[page_parameter] = str(
-            page_obj.previous_page_number()
-        )
+        previous_query[page_parameter] = str(page_obj.previous_page_number())
         previous_url = f"?{previous_query.urlencode()}"
     if page_obj.has_next():
         next_query = request.GET.copy()

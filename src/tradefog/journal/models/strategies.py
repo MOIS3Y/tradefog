@@ -16,10 +16,7 @@ from typing import TYPE_CHECKING, final, override
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from tradefog.journal.models.enums import (
-    StrategyCapitalStatus,
-    StrategyStatus,
-)
+from tradefog.journal.models.enums import StrategyStatus
 from tradefog.journal.models.profiles import TradingProfile, WalletAsset
 
 if TYPE_CHECKING:
@@ -48,9 +45,7 @@ class TradingStrategy(models.Model):
         verbose_name=_("Profile"),
     )
     name = models.CharField(max_length=128, verbose_name=_("Name"))
-    description = models.TextField(
-        blank=True, verbose_name=_("Description")
-    )
+    description = models.TextField(blank=True, verbose_name=_("Description"))
     risk_percent = models.DecimalField(
         max_digits=10,
         decimal_places=6,
@@ -67,6 +62,9 @@ class TradingStrategy(models.Model):
         choices=StrategyStatus.choices,
         default=StrategyStatus.ACTIVE,
         verbose_name=_("Status"),
+    )
+    is_archived = models.BooleanField(
+        default=False, verbose_name=_("Archived")
     )
 
     @final
@@ -114,11 +112,8 @@ class StrategyCapital(models.Model):
         decimal_places=18,
         verbose_name=_("Capital"),
     )
-    status = models.CharField(
-        max_length=32,
-        choices=StrategyCapitalStatus.choices,
-        default=StrategyCapitalStatus.ACTIVE,
-        verbose_name=_("Status"),
+    is_archived = models.BooleanField(
+        default=False, verbose_name=_("Archived")
     )
 
     @final

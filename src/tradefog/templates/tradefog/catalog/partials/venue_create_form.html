@@ -1,17 +1,36 @@
 {% load i18n %}
-<form hx-post="{% url 'journal:venue_create' %}"
-      hx-target="#venue-form-body"
-      hx-swap="innerHTML"
-      novalidate>
-  {% csrf_token %}
-  {% include "tradefog/components/form_field.html" with field=form.name %}
-  {% include "tradefog/components/form_field.html" with field=form.website %}
-  <div class="modal-footer px-0 pb-0">
-    <button class="btn" type="button" data-bs-dismiss="modal">
-      {% translate "Cancel" %}
-    </button>
-    <button class="btn btn-primary" type="submit">
-      {% translate "Add venue" %}
-    </button>
-  </div>
-</form>
+{% if has_trading_pairs %}
+  <form hx-post="{% url 'journal:venue_create' %}"
+        hx-target="#venue-form-body"
+        hx-swap="innerHTML"
+        novalidate>
+    {% csrf_token %}
+    {% include "tradefog/components/form_field.html" with field=form.name %}
+    {% include "tradefog/components/form_field.html" with field=form.description %}
+    {% include "tradefog/components/form_field.html" with field=form.website %}
+    <div class="modal-footer px-0 pb-0">
+      <button class="btn" type="button" data-bs-dismiss="modal">
+        {% translate "Cancel" %}
+      </button>
+      <button class="btn btn-primary" type="submit">
+        {% translate "Add venue" %}
+      </button>
+    </div>
+  </form>
+{% else %}
+  <section class="empty">
+    <div class="empty-icon">
+      {% include "tradefog/components/icon.html" with name="arrows-exchange" %}
+    </div>
+    <h2 class="empty-title">{% translate "No trading pairs available" %}</h2>
+    <p class="empty-subtitle text-secondary">
+      {% translate "A venue requires trading pairs to configure its instruments and wallet assets. Add at least one trading pair to the catalog first." %}
+    </p>
+    <div class="empty-action">
+      <a class="btn btn-primary" href="{% url 'journal:pair_overview' %}">
+        {% include "tradefog/components/icon.html" with name="plus" class="icon" %}
+        {% translate "Go to trading pairs" %}
+      </a>
+    </div>
+  </section>
+{% endif %}

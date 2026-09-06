@@ -41,9 +41,9 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     assert "tradefog/vendor/apexcharts/apexcharts.min.js" in analytics_template
 
     template_root = settings.static.source_dirs()[0].parent / "templates"
-    login_source = (
-        template_root / "registration/login.html"
-    ).read_text(encoding="utf-8")
+    login_source = (template_root / "registration/login.html").read_text(
+        encoding="utf-8"
+    )
     assert "Login to your account" in login_source
     assert "brand-oauth" in login_source
     assert "data-password-toggle" in login_source
@@ -79,9 +79,9 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     assert "catalog/partials/asset_filters.html" in catalog_source
     assert "catalog/partials/asset_results.html" in catalog_source
 
-    trade_source = (
-        template_root / "tradefog/trade.html"
-    ).read_text(encoding="utf-8")
+    trade_source = (template_root / "tradefog/trade.html").read_text(
+        encoding="utf-8"
+    )
     assert "{% block page_header %}" in trade_source
 
     for action_template in (
@@ -106,15 +106,21 @@ def test_shared_template_and_static_directories_are_configured() -> None:
         assert "empty-icon" in empty_source
         assert "empty-subtitle" in empty_source
 
-    template_source = (
-        template_root / "tradefog/base.html"
-    ).read_text(encoding="utf-8")
-    for url_name in ("home", "profile_overview", "trades", "analytics", "asset_overview"):
+    template_source = (template_root / "tradefog/base.html").read_text(
+        encoding="utf-8"
+    )
+    for url_name in (
+        "home",
+        "profile_overview",
+        "trades",
+        "analytics",
+        "asset_overview",
+    ):
         assert f"{{% url 'journal:{url_name}' %}}" in template_source
     assert "Catalog" in template_source
     assert "Trading pairs" in template_source
     assert "Venues" in template_source
-    assert "name=\"settings\" class=\"icon\"" in template_source
+    assert 'name="user-cog" class="icon"' in template_source
     assert "Account settings" in template_source
     assert "Coming soon" in template_source
     assert "tf-auth-shell" in template_source
@@ -123,9 +129,9 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     assert 'id="toast-region"' in template_source
     assert 'id="toast-template"' in template_source
     assert "components/toast.html" in template_source
-    toast_source = (template_root / "tradefog/components/toast.html").read_text(
-        encoding="utf-8"
-    )
+    toast_source = (
+        template_root / "tradefog/components/toast.html"
+    ).read_text(encoding="utf-8")
     assert "toast-header" in toast_source
     assert "status-dot" in toast_source
     assert "data-toast-body" in toast_source

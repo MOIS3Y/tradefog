@@ -85,7 +85,7 @@
                 <span class="dropdown-item disabled"
                       aria-disabled="true"
                       title="{% translate 'Coming soon' %}">
-                  {% include "tradefog/components/icon.html" with name="settings" class="icon" %}
+                  {% include "tradefog/components/icon.html" with name="user-cog" class="icon" %}
                   {% translate "Account settings" %}
                 </span>
                 <button class="dropdown-item w-100 text-start"
@@ -147,20 +147,23 @@
                      aria-haspopup="true"
                      aria-expanded="false"
                      {% if catalog_active == 'asset_overview' or catalog_active == 'pair_overview' or catalog_active == 'venue_overview' or catalog_active == 'venue_detail' %}aria-current="page"{% endif %}>
-                    <span class="nav-link-icon">{% include "tradefog/components/icon.html" with name="archive" %}</span>
+                    <span class="nav-link-icon">{% include "tradefog/components/icon.html" with name="library" %}</span>
                     <span class="nav-link-title">{% translate "Catalog" %}</span>
                   </a>
                   <div class="dropdown-menu">
                     <a class="dropdown-item{% if catalog_active == 'asset_overview' %} active{% endif %}"
                        href="{% url 'journal:asset_overview' %}">
+                      {% include "tradefog/components/icon.html" with name="coin" class="icon dropdown-item-icon" %}
                       {% translate "Assets" %}
                     </a>
                     <a class="dropdown-item{% if catalog_active == 'pair_overview' %} active{% endif %}"
                        href="{% url 'journal:pair_overview' %}">
+                      {% include "tradefog/components/icon.html" with name="arrows-exchange" class="icon dropdown-item-icon" %}
                       {% translate "Trading pairs" %}
                     </a>
                     <a class="dropdown-item{% if catalog_active == 'venue_overview' or catalog_active == 'venue_detail' %} active{% endif %}"
                        href="{% url 'journal:venue_overview' %}">
+                      {% include "tradefog/components/icon.html" with name="building-bank" class="icon dropdown-item-icon" %}
                       {% translate "Venues" %}
                     </a>
                   </div>

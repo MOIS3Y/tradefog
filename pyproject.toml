@@ -48,8 +48,14 @@ target-version = "py313"
 "*/migrations/*" = ["I001", "RUF012", "FURB157"]
 
 [tool.basedpyright]
+include = ["src", "tests"]
+exclude = ["**/migrations/*", "hatch_build.py"]
 reportAny = "none"
 reportExplicitAny = "none"
+reportUnannotatedClassAttribute = "none"
+reportUnusedCallResult = "none"
+reportCallInDefaultInitializer = "none"
+reportUnnecessaryTypeIgnoreComment = "none"
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tradefog.settings"

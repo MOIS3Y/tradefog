@@ -61,3 +61,27 @@
   opacity: 1;
   transform: translateY(0);
 }
+
+/* Multi-line text truncation with ellipsis. */
+.line-clamp-3,
+.tf-line-clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* Card description with reserved 3-line height and truncation. */
+.tf-card-description {
+  min-height: 4.2em;
+  max-height: 4.2em;
+  line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}

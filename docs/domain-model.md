@@ -72,16 +72,13 @@ venue, or venue instrument asks a staff member to create it. Regular users
 read and reuse the shared catalog but cannot create or edit its records.
 
 `TradingProfile` is the user's top-level trading context, such as "Bybit Main"
- or "Equities". It is bound to exactly one `Venue`, owns the user's virtual
- wallet, strategies, and trades, and reuses that venue's shared instruments
- without copying catalog facts. Profiles share catalog identity while retaining
- independent balances, risk, configuration, and journal history.
-
- An archived profile keeps its wallet, strategies, and trades intact but is
- excluded from new trades and analytics until restored. Only an archived
- profile can be deleted permanently; an active profile must be archived first.
- `archived` is the single flag that owner-scoped trade and analytics queries
- filter on.
+or "Equities". It carries an optional description, is bound to exactly one `Venue`,
+owns the user's virtual wallet, strategies, and trades, and reuses that venue's
+shared instruments without copying catalog facts. An archived profile keeps its
+wallet, strategies, and trades intact but is excluded from new trades and
+analytics until restored. Only an archived profile can be deleted permanently;
+an active profile must be archived first. `is_archived` is the single flag that
+owner-scoped trade and analytics queries filter on.
 
 ## Assets, trading pairs, and venue instruments
 
@@ -96,19 +93,25 @@ assets.
 and one quote `Asset`. The canonical display is `BASE/QUOTE`. It carries no
 execution parameters and is entered once for the whole installation.
 
+`Venue` is a shared execution destination (exchange or broker). It stores its
+unique name, optional short description, optional website, and its availability
+via `is_active`. Deactivating a venue moves it to the catalog archives and
+excludes it from new trading profile creation, while preserving existing profiles
+and trade history.
+
 `VenueInstrument` is the executable market on one venue for one product. It
 links a `TradingPair` to a `Venue` and stores the venue execution symbol,
-price and quantity steps, minimum order rules, availability, and archive or
-delisting state. Because execution parameters differ per venue and product,
+price and quantity steps, minimum order rules, and availability via `is_active`.
+Because execution parameters differ per venue and product,
 `VenueInstrument` is the only record that holds the per-market symbols and
 steps; the underlying asset and pair remain shared and are never duplicated.
 Product kind is Spot, Perpetual Future, or Cash Equity and implies the market
 class: Spot and Perpetual Future are Crypto, Cash Equity is Equity.
 
 `VenueWalletAsset` links a venue to the shared assets that can be held in a
-wallet on that venue. It is a deliberate subset rather than a derivation: not
-every available asset is wallet-capable there, and a profile wallet may only
-reference these assets.
+wallet on that venue. It has its own `is_active` flag representing catalog
+availability. When an exchange delists an asset, staff marks `is_active = False`.
+Delisting never deletes historical data or breaks existing user wallets.
 
 Asset symbol is unique installation-wide without regard to letter case. A base
 and quote combination is unique per `TradingPair`, and an active base, quote,
@@ -138,15 +141,15 @@ curated rather than bulk-imported, there is no separate "working subset"
 selection layer; the catalog already contains only instruments the user
 trades. A trade therefore points straight at the venue instrument it concerns.
 
-## Virtual wallet
+## Virtual wallet and delisting lifecycle
 
 `Wallet` is the profile's wallet and is strictly one-to-one with its
 `TradingProfile`. It holds no money itself; it groups the wallet assets that
 carry balances. Because a profile is bound to one venue, the wallet only
-offers the assets that the venue exposes as wallet-capable through
-`VenueWalletAsset`. A "global wallet" in the interface is a UI-only aggregation
-over the user's profile wallets; it is not a separate stored entity and does
-not create a second ownership root.
+offers active assets that the venue exposes as wallet-capable through
+`VenueWalletAsset` (`is_active = True`). A "global wallet" in the interface is
+a UI-only aggregation over the user's profile wallets; it is not a separate
+stored entity and does not create a second ownership root.
 
 `WalletAsset` belongs to one wallet and references a `VenueWalletAsset` (rather
 than a bare `Asset`), so its asset is structurally guaranteed to be
@@ -156,13 +159,31 @@ independent wallet balances in several profiles.
 A wallet asset carries an optional advisory `risk_stop_capital`: a deposit
 floor the user can set and edit freely. Its purpose is to highlight a bleeding
 deposit, not to block trading. Only wallet assets that are also used as
-settlement by a traded instrument can be allocated by a strategy.
+settlement by an active traded instrument can be allocated by a strategy.
 
 Wallet funds are introduced and removed only through explicit `DEPOSIT` and
 `WITHDRAWAL` operations on a selected wallet asset. An operation stores its
 wallet asset, amount, optional note, and creation time. It is a journal fact,
-not an exchange action. A wallet asset with activity or a strategy or trade
-settled in it cannot be removed.
+not an exchange action.
+
+### Delisting and wallet asset lifecycle
+
+1. **Venue delisting**: When a venue delists an instrument or wallet asset,
+   staff deactivates it (`VenueInstrument.is_active = False` or
+   `VenueWalletAsset.is_active = False`). If a `VenueWalletAsset` is referenced
+   by existing user wallets, it cannot be hard-deleted from the database; staff
+   deactivates it instead.
+2. **User impact of delisting**: Delisted venue wallet assets surface with a
+   "Delisted" badge in user wallets. Users cannot make new deposits into a
+   delisted asset, allocate it to new strategies, or restore it if archived.
+   Users can withdraw or convert remaining funds.
+3. **Removing wallet assets**: A user can remove a wallet asset from their
+   wallet once its balance is zero and it has no active allocations. If it has
+   no historical operations or allocations, it is cleanly deleted. If it has
+   historical activity, it is soft-archived (`WalletAsset.is_archived = True`),
+   hiding it from active wallet views while preserving trade history.
+4. **Restoring wallet assets**: An archived wallet asset can be restored if the
+   underlying venue wallet asset is still active.
 
 ```text
 wallet_balance    = deposits - withdrawals + closed_trade_realized_pnl
@@ -190,7 +211,7 @@ virtual balance negative.
 
 `TradingStrategy` is a fixed strategic risk cohort inside a profile. It is the
 edge layer: it stores its name, description, the risk percent, the fixed
-reward multiple, and its operational status. Strategies are a tool of the
+reward multiple, and its operational risk status. Strategies are a tool of the
 profile, not a shared catalog record: each user creates their own cohort,
 because a strategy definition (risk and reward) is tied to the user's own
 capital scale.
@@ -204,15 +225,15 @@ strategies may share the same profile wallet.
 
 A `StrategyCapital.capital` is fixed from creation and can never be resized or
 replaced, because resizing a fixed risk base would silently deepen later
-drawdowns. An allocation is archived rather than deleted; archiving is refused
-while any unfinished trade (draft, pending, or open) settles in the asset, so a
-trade cannot inherit a frozen-then-removed risk base. A closed or cancelled
-trade never blocks archiving. Restoring an archived allocation brings its asset
-back into trade eligibility with its original fixed capital. New allocations
-may be added when another wallet asset becomes available in the wallet; an
-archived allocation keeps its slot, so it can never be recreated with a larger
-value. A user who wants to trade larger sums creates a new strategy rather than
-resizing an existing one.
+drawdowns. An allocation is archived (`is_archived = True`) rather than deleted;
+archiving is refused while any unfinished trade (draft, pending, or open)
+settles in the asset, so a trade cannot inherit a frozen-then-removed risk base.
+A closed or cancelled trade never blocks archiving. Restoring an archived
+allocation brings its asset back into trade eligibility with its original fixed
+capital. New allocations may be added when another active wallet asset becomes
+available in the wallet; an archived allocation keeps its slot, so it can never
+be recreated with a larger value. A user who wants to trade larger sums creates
+a new strategy rather than resizing an existing one.
 
 Risk percent, reward multiple, and allocation capital are set once at strategy
 creation and are never editable afterwards, so a draft cannot inherit changed
@@ -240,14 +261,16 @@ old one.
 
 Profits, losses, and wallet operations never resize the fixed allocations.
 
-## Strategy status
+## Strategy and wallet risk status
 
-Strategy status has four values:
+Risk status has three values:
 
 - `ACTIVE`;
 - `AT_RISK`;
-- `RISK_STOPPED`;
-- `ARCHIVED`.
+- `RISK_STOPPED`.
+
+Archiving is modeled with the orthogonal `is_archived` boolean flag across
+entities (`TradingProfile`, `TradingStrategy`, `StrategyCapital`, `WalletAsset`).
 
 Money health lives on the wallet asset, not on the strategy. Each wallet asset
 with an allocation is compared against its own advisory `risk_stop_capital`:
@@ -265,10 +288,9 @@ A wallet asset is `RISK_STOPPED` when its balance is at or below its floor,
 or below it, and `ACTIVE` otherwise. The floor is advisory: it never blocks a
 trade, it only highlights that the deposit is being drained.
 
-A strategy aggregates the statuses of the wallet assets it allocates: an
-archived strategy always reports `ARCHIVED`; otherwise it reports the worst
-status among its allocations. Restoring an archived strategy recalculates its
-financial status.
+A strategy aggregates the statuses of its active allocated wallet assets: it
+reports the worst status among its active allocations. If all allocations are
+healthy, the strategy is `ACTIVE`.
 
 Financial facts are the source of truth. Focused domain services update the
 persisted operational status after relevant capital and trade transitions.

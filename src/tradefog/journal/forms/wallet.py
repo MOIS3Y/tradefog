@@ -1,7 +1,7 @@
 """Forms for owner-scoped profile wallet management."""
 
 from decimal import Decimal
-from typing import Any, ClassVar, final, override
+from typing import Any, ClassVar, cast, final, override
 
 from django import forms
 from django.db.models import Sum
@@ -38,28 +38,28 @@ class WalletAssetAddForm(forms.ModelForm):
         model: type[WalletAsset] = WalletAsset
         fields: tuple[str, ...] = ("venue_wallet_asset",)
         widgets: ClassVar[dict[str, forms.Widget]] = {
-            "venue_wallet_asset": forms.Select(
-                attrs={"class": "form-select"}
-            ),
+            "venue_wallet_asset": forms.Select(attrs={"class": "form-select"}),
         }
 
     def __init__(self, *args: Any, wallet: Wallet, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.wallet = wallet
-        linked = wallet.assets.values_list(
-            "venue_wallet_asset_id", flat=True
-        )
+        linked = wallet.assets.values_list("venue_wallet_asset_id", flat=True)
         venue_asset = self.fields["venue_wallet_asset"]
         assert isinstance(venue_asset, ModelChoiceField)
         venue_asset.queryset = (
             VenueWalletAsset.objects.filter(
-                venue=wallet.profile.venue
+                venue=wallet.profile.venue,
+                is_active=True,
             )
             .exclude(pk__in=linked)
             .select_related("asset")
             .order_by("asset__symbol")
         )
         venue_asset.empty_label = _("Choose an asset")
+        venue_asset.label_from_instance = lambda obj: (
+            cast(VenueWalletAsset, obj).asset.symbol
+        )
         venue_asset.error_messages["invalid_choice"] = _(
             "This asset is already in the wallet."
         )
@@ -117,27 +117,30 @@ class WalletOperationForm(forms.ModelForm):
         self.wallet_asset = wallet_asset
         self.kind = kind
         self.fields["amount"].label = _("Amount")
-        self.fields["amount"].help_text = _(
-            "A positive amount to record."
-        )
-        self.fields["note"].help_text = _(
-            "Optional note for this operation."
-        )
+        self.fields["amount"].help_text = _("A positive amount to record.")
+        self.fields["note"].help_text = _("Optional note for this operation.")
 
     def clean_amount(self) -> Decimal:
         """Reject a zero or negative amount."""
         amount = self.cleaned_data["amount"]
         if amount <= Decimal(0):
-            raise forms.ValidationError(
-                _("The amount must be positive.")
-            )
+            raise forms.ValidationError(_("The amount must be positive."))
         return amount
 
     @override
     def clean(self) -> dict[str, Any]:
-        """Reject a withdrawal that exceeds the available balance."""
+        """Reject a withdrawal that exceeds the available balance or deposit on delisted asset."""
         cleaned = super().clean()
         amount = cleaned.get("amount")
+        if (
+            amount
+            and self.kind == WalletOperationKind.DEPOSIT.value
+            and not self.wallet_asset.venue_wallet_asset.is_active
+        ):
+            self.add_error(
+                "amount",
+                _("Deposits are not allowed for delisted venue assets."),
+            )
         if amount and self.kind == WalletOperationKind.WITHDRAWAL.value:
             total_deposits = self.wallet_asset.operations.filter(
                 kind=WalletOperationKind.DEPOSIT
@@ -195,3 +198,28 @@ class WalletAssetEditForm(forms.ModelForm):
         )
         self.fields["risk_stop_capital"].help_text = help_text
         self.fields["risk_stop_capital"].required = False
+
+
+@final
+class WalletOperationNoteForm(forms.ModelForm):
+    """Edit the note of one recorded wallet operation."""
+
+    class Meta:
+        model: type[WalletOperation] = WalletOperation
+        fields: tuple[str, ...] = ("note",)
+        widgets: ClassVar[dict[str, forms.Widget]] = {
+            "note": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "autocomplete": "off",
+                }
+            ),
+        }
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields["note"].label = _("Note")
+        self.fields["note"].help_text = _(
+            "Optional note to describe this operation."
+        )
+        self.fields["note"].required = False

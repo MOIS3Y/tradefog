@@ -1,14 +1,14 @@
-{% load i18n %}
+{% load i18n formats %}
 <div class="col-12 col-sm-6 col-lg-4">
-  <div class="card">
-    <div class="card-body">
+  <div class="card h-100">
+    <div class="card-body d-flex flex-column">
       <div class="d-flex align-items-start justify-content-between gap-2">
-        <a class="card-title mb-1"
+        <a class="card-title mb-1 text-truncate"
            href="{% url 'journal:profile_detail' profile.pk %}">
           {{ profile.name }}
         </a>
         <div class="btn-list flex-nowrap">
-          {% if profile.archived %}
+          {% if profile.is_archived %}
             <button class="btn btn-icon"
                     type="button"
                     hx-post="{% url 'journal:profile_restore' profile.pk %}"
@@ -40,11 +40,27 @@
           {% endif %}
         </div>
       </div>
-      <span class="text-secondary small">
-        {% include "tradefog/components/icon.html" with name="coin" class="icon-inline" %}
-        {{ profile.venue.name }}
-      </span>
-      <div class="d-flex flex-wrap gap-2 mt-3">
+      <div class="d-flex align-items-center gap-2 text-secondary small text-truncate" style="min-height: 1.25rem;">
+        <span>
+          {% include "tradefog/components/icon.html" with name="building-bank" class="icon-inline" %}
+          {{ profile.venue.name }}
+        </span>
+        {% if profile.venue.website %}
+          <span class="text-secondary">&middot;</span>
+          <a class="text-secondary"
+             href="{{ profile.venue.website }}"
+             target="_blank"
+             rel="noopener noreferrer"
+             title="{{ profile.venue.name }}">
+            {% include "tradefog/components/icon.html" with name="device-desktop" class="icon-inline" %}
+            {{ profile.venue.website|display_url }}
+          </a>
+        {% endif %}
+      </div>
+      <p class="text-secondary small tf-card-description">
+        {{ profile.description }}
+      </p>
+      <div class="d-flex flex-wrap gap-2 mt-auto pt-3">
         <span class="badge bg-secondary-lt">
           {% blocktranslate count count=profile.wallet_asset_count %}
             {{ count }} wallet asset
@@ -59,7 +75,12 @@
             {{ count }} strategies
           {% endblocktranslate %}
         </span>
-        {% if profile.archived %}
+        {% if not profile.venue.is_active %}
+          <span class="badge bg-danger-lt">
+            {% translate "Venue archived" %}
+          </span>
+        {% endif %}
+        {% if profile.is_archived %}
           <span class="badge bg-orange-lt">
             {% translate "Archived" %}
           </span>

@@ -35,7 +35,11 @@ INSTRUMENT_SORT_FIELDS = {
     "exec_symbol": ("exec_symbol", "pair__canonical_symbol", "id"),
     "-exec_symbol": ("-exec_symbol", "-pair__canonical_symbol", "-id"),
     "settlement": ("settlement_asset__symbol", "pair__canonical_symbol", "id"),
-    "-settlement": ("-settlement_asset__symbol", "-pair__canonical_symbol", "-id"),
+    "-settlement": (
+        "-settlement_asset__symbol",
+        "-pair__canonical_symbol",
+        "-id",
+    ),
 }
 
 INSTRUMENT_SORT_COLUMNS = (
@@ -236,9 +240,11 @@ def instrument_delete(
             response["HX-Trigger"] = json.dumps(
                 {
                     "tradefog:toast": {
-                        "message": str(_(
-                            "This instrument is in use and cannot be removed."
-                        )),
+                        "message": str(
+                            _(
+                                "This instrument is in use and cannot be removed."
+                            )
+                        ),
                         "kind": "danger",
                     },
                     "tradefog:close-modal": {"id": "instrument-delete-modal"},

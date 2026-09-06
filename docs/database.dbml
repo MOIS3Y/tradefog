@@ -45,7 +45,6 @@ Enum strategy_status {
   active
   at_risk
   risk_stopped
-  archived
 }
 
 Enum wallet_asset_status {
@@ -97,7 +96,9 @@ Table TradingPair {
 Table Venue {
   id integer [pk, increment, note: 'Primary key']
   name varchar(128) [not null, note: 'Exchange or broker name, unique']
+  description text [note: 'Optional short description or operational context for this venue']
   website varchar(255) [note: 'Optional venue website URL']
+  is_active boolean [default: true, not null, note: 'Availability for creating new profiles; deactivation moves venue to archives']
   Note: 'Shared execution destination. Carries no market class; markets are derived from its instruments.'
   indexes {
     (name) [unique, name: 'venue_name_idx']
@@ -115,7 +116,7 @@ Table VenueInstrument {
   min_qty decimal(30, 18) [note: 'Minimum order quantity']
   min_notional decimal(30, 18) [note: 'Minimum order notional']
   settlement_asset_id integer [note: 'Explicit settlement for linear; spot/cash derive it from quote']
-  active boolean [default: true, not null, note: 'Tradable availability; delisting changes this, never identity']
+  is_active boolean [default: true, not null, note: 'Tradable availability; delisting deactivates this, never deletes historical identity']
   Note: 'The only record holding per-venue, per-product execution parameters. Asset and pair stay shared, never duplicated.'
   indexes {
     (venue_id, pair_id, product) [unique, name: 'venue_instrument_venue_pair_product_idx', note: 'One product per pair per venue']
@@ -127,6 +128,7 @@ Table VenueWalletAsset {
   id integer [pk, increment, note: 'Primary key']
   venue_id integer [not null, note: 'Venue the asset can settle on']
   asset_id integer [not null, note: 'Shared asset usable as wallet/settlement']
+  is_active boolean [default: true, not null, note: 'Venue settlement capability availability; delisting deactivates this']
   Note: 'Deliberate subset of assets that are settlement-capable on a venue.'
   indexes {
     (venue_id, asset_id) [unique, name: 'venue_wallet_asset_venue_asset_idx']
@@ -142,7 +144,8 @@ Table TradingProfile {
   owner_id integer [not null, note: 'Owning user; the single ownership root for all journal data below this profile']
   venue_id integer [not null, note: 'Venue this profile is bound to; the profile trades only this venue instrument and holds only its wallet assets']
   name varchar(128) [not null, note: 'Profile name, e.g. Bybit Main']
-  archived boolean [default: false, not null, note: 'Soft-archived, no longer used for new activity']
+  description text [note: 'Optional trading context description']
+  is_archived boolean [default: false, not null, note: 'Soft-archived, no longer used for new activity']
   Note: 'Owner-scoped journal context owning wallet, strategies, and trades. owner_id is the single source of truth for ownership; all child records scope through this profile. Bound to one venue. Reuses shared catalog without copying it.'
 }
 
@@ -158,6 +161,7 @@ Table WalletAsset {
   venue_wallet_asset_id integer [not null, note: 'Venue-capable asset this balance holds; its venue equals the profile venue']
   risk_stop_capital decimal(30, 18) [note: 'Advisory deposit floor; editable; global per asset. Highlights a bleeding deposit but never blocks a trade.']
   status wallet_asset_status [not null, note: 'Derived from balance against the floor; persisted and recomputed by a domain service']
+  is_archived boolean [default: false, not null, note: 'Soft-archived asset; hidden from active wallet views when balance is zero']
   Note: 'A balance for one asset available on the profile venue, plus the money-layer deposit floor. References VenueWalletAsset so the asset is structurally venue-capable for the profile. Ownership is scoped transitively through the wallet and profile.'
   indexes {
     (wallet_id, venue_wallet_asset_id) [unique, name: 'wallet_asset_wallet_venue_asset_idx']
@@ -181,7 +185,8 @@ Table TradingStrategy {
   description text [note: 'Strategy description']
   risk_percent decimal(10, 6) [not null, note: 'Risk percent of the per-asset allocation capital per trade']
   reward_multiple decimal(10, 6) [not null, default: 3, note: 'Fixed reward ratio (R:R), e.g. 3 means take profit = risk * 3']
-  status strategy_status [not null, note: 'ARCHIVED if the user archived it; otherwise the worst status among its StrategyCapital wallet assets']
+  status strategy_status [not null, note: 'The worst status among its active StrategyCapital wallet assets']
+  is_archived boolean [default: false, not null, note: 'Soft-archived strategy; hidden from active strategy views']
   Note: 'Edge layer: the fixed risk and reward coefficients of a strategy cohort. Ownership is scoped transitively through TradingProfile.owner. Capital lives per asset in StrategyCapital, so one strategy is reused across every wallet asset it allocates.'
 }
 
@@ -190,6 +195,7 @@ Table StrategyCapital {
   strategy_id integer [not null, note: 'Owning strategy']
   wallet_asset_id integer [not null, note: 'Wallet asset this allocation commits to; must belong to the same profile wallet as the strategy']
   capital decimal(30, 18) [not null, note: 'Fixed risk base for this asset; locked after the first submitted trade settling in it. New rows may be added when another asset becomes available.']
+  is_archived boolean [default: false, not null, note: 'Soft-archived allocation; preserves historical trades while preventing new trades in this asset']
   Note: 'Allocation layer: fixed capital per wallet asset that a strategy commits. risk_amount = capital * risk_percent / 100. Ownership is scoped transitively through the strategy and profile.'
   indexes {
     (strategy_id, wallet_asset_id) [unique, name: 'strategy_capital_strategy_wallet_asset_idx', note: 'One allocation per strategy and wallet asset']

@@ -64,8 +64,12 @@
               <td class="text-secondary">{{ strategy.risk_percent|compact }}%</td>
               <td class="text-secondary">{{ strategy.reward_multiple|compact }}R</td>
               <td>
-                {% if strategy.status == "archived" %}
-                  <span class="badge bg-orange-lt">{{ strategy.get_status_display }}</span>
+                {% if strategy.is_archived %}
+                  <span class="badge bg-orange-lt">{% translate "Archived" %}</span>
+                {% elif strategy.status == "at_risk" %}
+                  <span class="badge bg-yellow-lt">{{ strategy.get_status_display }}</span>
+                {% elif strategy.status == "risk_stopped" %}
+                  <span class="badge bg-red-lt">{{ strategy.get_status_display }}</span>
                 {% else %}
                   <span class="badge bg-green-lt">{{ strategy.get_status_display }}</span>
                 {% endif %}
@@ -75,8 +79,8 @@
               </td>
               {% if section.can_manage %}
                 <td class="text-end">
-                  <div class="btn-list flex-nowrap justify-content-end">
-                    <button class="btn btn-icon"
+                  <div class="btn-actions justify-content-end">
+                    <button class="btn btn-action"
                             type="button"
                             data-bs-toggle="modal"
                             data-bs-target="#strategy-edit-modal"
@@ -86,8 +90,8 @@
                             aria-label="{% translate 'Edit strategy' %}">
                       {% include "tradefog/components/icon.html" with name="pencil" %}
                     </button>
-                    {% if strategy.status == "archived" %}
-                      <button class="btn btn-icon"
+                    {% if strategy.is_archived %}
+                      <button class="btn btn-action"
                               type="button"
                               hx-post="{% url 'journal:strategy_restore' section.profile.pk strategy.pk %}"
                               hx-swap="none"
@@ -95,7 +99,7 @@
                         {% include "tradefog/components/icon.html" with name="restore" %}
                       </button>
                     {% else %}
-                      <button class="btn btn-icon"
+                      <button class="btn btn-action"
                               type="button"
                               data-bs-toggle="modal"
                               data-bs-target="#strategy-archive-modal"

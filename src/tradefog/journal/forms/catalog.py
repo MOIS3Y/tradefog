@@ -108,9 +108,7 @@ class TradingPairForm(forms.ModelForm):
                 .exclude(pk=self.instance.pk)
                 .exists()
             ):
-                self.add_error(
-                    "base", _("This trading pair already exists.")
-                )
+                self.add_error("base", _("This trading pair already exists."))
         return cleaned
 
     @override
@@ -127,17 +125,26 @@ class TradingPairForm(forms.ModelForm):
 
 @final
 class VenueForm(forms.ModelForm):
-    """Create or edit a shared catalog venue."""
+    """Create a shared catalog venue."""
 
     class Meta:
         model: type[Venue] = Venue
-        fields: tuple[str, ...] = ("name", "website")
+        fields: tuple[str, ...] = ("name", "description", "website")
         widgets: ClassVar[dict[str, forms.Widget]] = {
             "name": forms.TextInput(
                 attrs={
                     "class": "form-control",
                     "placeholder": _("Bybit"),
                     "autocomplete": "off",
+                }
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": _(
+                        "Brief description of this venue, supported markets, or notes."
+                    ),
+                    "rows": 3,
                 }
             ),
             "website": forms.URLInput(
@@ -154,8 +161,81 @@ class VenueForm(forms.ModelForm):
         self.fields["name"].help_text = _(
             "Display name, unique across the catalog."
         )
+        self.fields["description"].help_text = _(
+            "Short description or operational context for this venue."
+        )
         self.fields["website"].help_text = _(
             "Optional official website for this venue."
+        )
+
+    def clean_name(self) -> str:
+        """Reject a case-insensitive duplicate venue name."""
+        name = self.cleaned_data["name"].strip()
+        if (
+            Venue.objects.filter(name__iexact=name)
+            .exclude(pk=self.instance.pk)
+            .exists()
+        ):
+            raise forms.ValidationError(
+                _("A venue with this name already exists.")
+            )
+        return name
+
+
+@final
+class VenueSettingsForm(forms.ModelForm):
+    """Edit an existing shared catalog venue."""
+
+    class Meta:
+        model: type[Venue] = Venue
+        fields: tuple[str, ...] = (
+            "name",
+            "description",
+            "website",
+            "is_active",
+        )
+        widgets: ClassVar[dict[str, forms.Widget]] = {
+            "name": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": _("Bybit"),
+                    "autocomplete": "off",
+                }
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": _(
+                        "Brief description of this venue, supported markets, or notes."
+                    ),
+                    "rows": 3,
+                }
+            ),
+            "website": forms.URLInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": _("https://"),
+                    "autocomplete": "off",
+                }
+            ),
+            "is_active": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
+        }
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields["name"].help_text = _(
+            "Display name, unique across the catalog."
+        )
+        self.fields["description"].help_text = _(
+            "Short description or operational context for this venue."
+        )
+        self.fields["website"].help_text = _(
+            "Optional official website for this venue."
+        )
+        self.fields["is_active"].help_text = _(
+            "Active venues are available for creating new trading profiles."
         )
 
     def clean_name(self) -> str:
@@ -217,6 +297,20 @@ class VenueWalletAssetForm(forms.ModelForm):
 
 
 @final
+class VenueWalletAssetEditForm(forms.ModelForm):
+    """Edit an existing venue wallet asset (e.g. toggle active/delisted)."""
+
+    class Meta:
+        model: type[VenueWalletAsset] = VenueWalletAsset
+        fields: tuple[str, ...] = ("is_active",)
+        widgets: ClassVar[dict[str, forms.Widget]] = {
+            "is_active": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
+        }
+
+
+@final
 class VenueInstrumentForm(forms.ModelForm):
     """Create or edit an executable venue instrument.
 
@@ -238,43 +332,41 @@ class VenueInstrumentForm(forms.ModelForm):
             "min_qty",
             "min_notional",
             "settlement_asset",
-            "active",
+            "is_active",
         )
         widgets: ClassVar[dict[str, forms.Widget]] = {
             "pair": forms.Select(attrs={"class": "form-select"}),
             "product": forms.Select(attrs={"class": "form-select"}),
             "exec_symbol": forms.TextInput(attrs={"class": "form-control"}),
-            "price_step": CompactNumberInput(
-                attrs={"class": "form-control"}
-            ),
-            "qty_step": CompactNumberInput(
-                attrs={"class": "form-control"}
-            ),
-            "min_qty": CompactNumberInput(
-                attrs={"class": "form-control"}
-            ),
+            "price_step": CompactNumberInput(attrs={"class": "form-control"}),
+            "qty_step": CompactNumberInput(attrs={"class": "form-control"}),
+            "min_qty": CompactNumberInput(attrs={"class": "form-control"}),
             "min_notional": CompactNumberInput(
                 attrs={"class": "form-control"}
             ),
             "settlement_asset": forms.Select(attrs={"class": "form-select"}),
-            "active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "is_active": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
         }
 
     def __init__(self, *args: Any, venue: Venue, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.venue = venue
-        cast(ModelChoiceField, self.fields["pair"]).queryset = (
-            TradingPair.objects.select_related("base", "quote").order_by(
-                "base", "quote"
-            )
-        )
-        cast(ModelChoiceField, self.fields["settlement_asset"]).queryset = (
-            Asset.objects.order_by("symbol")
-        )
+        cast(
+            ModelChoiceField, self.fields["pair"]
+        ).queryset = TradingPair.objects.select_related(
+            "base", "quote"
+        ).order_by("base", "quote")
+        cast(
+            ModelChoiceField, self.fields["settlement_asset"]
+        ).queryset = Asset.objects.order_by("symbol")
         settlement = cast(ModelChoiceField, self.fields["settlement_asset"])
         settlement.empty_label = _("Settles in quote asset")
         pair = cast(ModelChoiceField, self.fields["pair"])
-        pair.help_text = _("The logical BASE/QUOTE market traded on the venue.")
+        pair.help_text = _(
+            "The logical BASE/QUOTE market traded on the venue."
+        )
         self.fields["product"].help_text = _(
             "Settlement derives from the quote asset for Spot and Cash Equity."
         )
@@ -296,7 +388,7 @@ class VenueInstrumentForm(forms.ModelForm):
         self.fields["settlement_asset"].help_text = _(
             "Optional explicit settlement for a Perpetual Future."
         )
-        self.fields["active"].help_text = _(
+        self.fields["is_active"].help_text = _(
             "Delisted instruments stop appearing in trade selection."
         )
 

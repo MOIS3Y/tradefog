@@ -8,6 +8,14 @@
   {% include "tradefog/components/form_field.html" with field=form.description %}
   {% include "tradefog/components/form_field.html" with field=form.risk_percent %}
   {% include "tradefog/components/form_field.html" with field=form.reward_multiple %}
+  <div class="alert alert-info d-flex align-items-center mb-3" role="status">
+    <div class="me-2">
+      {% include "tradefog/components/icon.html" with name="alert-triangle" class="icon alert-icon" %}
+    </div>
+    <div class="text-secondary small">
+      {% translate "Risk per trade and reward multiple are fixed parameters for strategy discipline and cannot be changed after creation." %}
+    </div>
+  </div>
   <div class="modal-footer px-0 pb-0">
     <button class="btn" type="button" data-bs-dismiss="modal">
       {% translate "Cancel" %}

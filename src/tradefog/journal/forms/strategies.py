@@ -85,17 +85,13 @@ class TradingStrategyForm(forms.ModelForm):
     def clean_risk_percent(self) -> Decimal:
         risk = self.cleaned_data["risk_percent"]
         if risk <= Decimal(0):
-            raise forms.ValidationError(
-                _("Risk percent must be positive.")
-            )
+            raise forms.ValidationError(_("Risk percent must be positive."))
         return risk
 
     def clean_reward_multiple(self) -> Decimal:
         reward = self.cleaned_data["reward_multiple"]
         if reward <= Decimal(0):
-            raise forms.ValidationError(
-                _("Reward multiple must be positive.")
-            )
+            raise forms.ValidationError(_("Reward multiple must be positive."))
         return reward
 
 
@@ -128,19 +124,20 @@ class StrategyCapitalForm(forms.Form):
         ),
     )
 
-    def __init__(self, *args: Any, strategy: TradingStrategy, **kwargs: Any) -> None:
+    def __init__(
+        self, *args: Any, strategy: TradingStrategy, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.strategy = strategy
         profile = strategy.profile
         settlement_ids = settlement_asset_ids(profile.venue)
-        allocated = strategy.capitals.values_list(
-            "wallet_asset_id", flat=True
-        )
+        allocated = strategy.capitals.values_list("wallet_asset_id", flat=True)
         field = self.fields["wallet_asset"]
         assert isinstance(field, ModelChoiceField)
         field.queryset = (
             WalletAsset.objects.filter(
                 wallet=profile.wallet,
+                is_archived=False,
                 venue_wallet_asset__asset_id__in=settlement_ids,
             )
             .exclude(pk__in=allocated)

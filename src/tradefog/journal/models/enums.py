@@ -60,19 +60,6 @@ class StrategyStatus(models.TextChoices):
     ACTIVE = "active", _("Active")
     AT_RISK = "at_risk", _("At risk")
     RISK_STOPPED = "risk_stopped", _("Below floor")
-    ARCHIVED = "archived", _("Archived")
-
-
-class StrategyCapitalStatus(models.TextChoices):
-    """Lifecycle state of a fixed per-asset allocation.
-
-    An allocation is archived rather than deleted so its fixed capital can
-    never be replaced by a larger value. It stops participating in trades
-    while archived and is restored when its asset returns to the venue.
-    """
-
-    ACTIVE = "active", _("Active")
-    ARCHIVED = "archived", _("Archived")
 
 
 class WalletAssetStatus(models.TextChoices):

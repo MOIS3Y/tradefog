@@ -1,17 +1,35 @@
 {% load i18n %}
-<form hx-post="{% url 'journal:pair_create' %}"
-      hx-target="#pair-form-body"
-      hx-swap="innerHTML"
-      novalidate>
-  {% csrf_token %}
-  {% include "tradefog/components/form_field.html" with field=form.base %}
-  {% include "tradefog/components/form_field.html" with field=form.quote %}
-  <div class="modal-footer px-0 pb-0">
-    <button class="btn" type="button" data-bs-dismiss="modal">
-      {% translate "Cancel" %}
-    </button>
-    <button class="btn btn-primary" type="submit">
-      {% translate "Add pair" %}
-    </button>
-  </div>
-</form>
+{% if has_sufficient_assets %}
+  <form hx-post="{% url 'journal:pair_create' %}"
+        hx-target="#pair-form-body"
+        hx-swap="innerHTML"
+        novalidate>
+    {% csrf_token %}
+    {% include "tradefog/components/form_field.html" with field=form.base %}
+    {% include "tradefog/components/form_field.html" with field=form.quote %}
+    <div class="modal-footer px-0 pb-0">
+      <button class="btn" type="button" data-bs-dismiss="modal">
+        {% translate "Cancel" %}
+      </button>
+      <button class="btn btn-primary" type="submit">
+        {% translate "Add pair" %}
+      </button>
+    </div>
+  </form>
+{% else %}
+  <section class="empty">
+    <div class="empty-icon">
+      {% include "tradefog/components/icon.html" with name="coins" %}
+    </div>
+    <h2 class="empty-title">{% translate "Not enough assets" %}</h2>
+    <p class="empty-subtitle text-secondary">
+      {% translate "A trading pair requires at least two distinct assets (base and quote). Add at least two assets to the catalog first." %}
+    </p>
+    <div class="empty-action">
+      <a class="btn btn-primary" href="{% url 'journal:asset_overview' %}">
+        {% include "tradefog/components/icon.html" with name="plus" class="icon" %}
+        {% translate "Go to assets" %}
+      </a>
+    </div>
+  </section>
+{% endif %}

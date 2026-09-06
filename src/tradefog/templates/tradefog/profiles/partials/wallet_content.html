@@ -47,5 +47,23 @@
     </section>
   {% endif %}
 
+  {% if section.has_archived_assets %}
+    <div class="d-flex align-items-center gap-2 mt-4 mb-2">
+      <h2 class="h4 mb-0">{% translate "Archives" %}</h2>
+      <span class="text-secondary small">
+        {% blocktranslate count count=section.archived_asset_rows|length %}
+          {{ count }} archived asset
+        {% plural %}
+          {{ count }} archived assets
+        {% endblocktranslate %}
+      </span>
+    </div>
+    <div class="row g-3 mb-4">
+      {% for row in section.archived_asset_rows %}
+        {% include "tradefog/profiles/partials/wallet_asset_card.html" with row=row %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
   {% include "tradefog/profiles/partials/wallet_operations.html" %}
 </div>

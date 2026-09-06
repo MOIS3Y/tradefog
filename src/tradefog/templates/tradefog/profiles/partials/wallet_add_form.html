@@ -15,6 +15,32 @@
       </button>
     </div>
   </form>
+{% elif not venue_has_wallet_assets %}
+  <section class="empty">
+    <div class="empty-icon">
+      {% include "tradefog/components/icon.html" with name="coin" %}
+    </div>
+    <h2 class="empty-title">{% translate "No assets available on venue" %}</h2>
+    <p class="empty-subtitle text-secondary">
+      {% if can_manage %}
+        {% translate "This venue does not have any wallet assets configured yet. Add wallet assets to the venue in the catalog first." %}
+      {% else %}
+        {% translate "This venue does not have any wallet assets configured yet. Ask a staff member to add wallet assets to the venue." %}
+      {% endif %}
+    </p>
+    <div class="empty-action">
+      {% if can_manage %}
+        <a class="btn btn-primary" href="{% url 'journal:venue_detail' profile.venue.pk %}">
+          {% include "tradefog/components/icon.html" with name="plus" class="icon" %}
+          {% translate "Go to venue" %}
+        </a>
+      {% else %}
+        <button class="btn" type="button" data-bs-dismiss="modal">
+          {% translate "Close" %}
+        </button>
+      {% endif %}
+    </div>
+  </section>
 {% else %}
   <section class="empty">
     <div class="empty-icon">

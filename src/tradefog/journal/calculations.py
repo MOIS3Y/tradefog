@@ -161,9 +161,7 @@ def wallet_balance(
     return total_deposits - total_withdrawals
 
 
-def available_balance(
-    balance: Decimal, reserved_notional: Decimal
-) -> Decimal:
+def available_balance(balance: Decimal, reserved_notional: Decimal) -> Decimal:
     """Return the spendable balance after active trade reservations."""
     return balance - reserved_notional
 

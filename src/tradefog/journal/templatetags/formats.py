@@ -16,3 +16,16 @@ def compact(value: object) -> str:
     shows as ``0.0001`` while ``0.000001`` is kept intact.
     """
     return compact_decimal(value)
+
+
+@register.filter
+def display_url(url: str | None) -> str:
+    """Format a URL for display by stripping scheme and trailing slash."""
+    if not url:
+        return ""
+    cleaned = url.strip()
+    for prefix in ("https://", "http://"):
+        if cleaned.lower().startswith(prefix):
+            cleaned = cleaned[len(prefix) :]
+            break
+    return cleaned.rstrip("/")

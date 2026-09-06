@@ -9,6 +9,7 @@ assets collection.
 from __future__ import annotations
 
 import json
+from http import HTTPStatus
 from typing import Any, TypedDict
 
 from django.contrib.auth.decorators import login_required
@@ -21,7 +22,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext_lazy as _
 
 from tradefog.journal.forms import TradingPairForm
-from tradefog.journal.models import TradingPair
+from tradefog.journal.models import Asset, TradingPair
 from tradefog.journal.models.enums import AssetType
 from tradefog.journal.views.catalog.common import build_results_context
 
@@ -77,19 +78,23 @@ def pair_create(request: HttpRequest) -> HttpResponse:
     """
     if not request.user.is_staff:
         raise PermissionDenied
-    form = TradingPairForm(request.POST or None)
+    has_sufficient_assets = Asset.objects.count() >= 2
     if request.method == "POST":
+        if not has_sufficient_assets:
+            return HttpResponse(status=HTTPStatus.CONFLICT)
+        form = TradingPairForm(request.POST)
         if form.is_valid():
             try:
                 form.save()  # pyright: ignore[reportUnusedCallResult]
             except IntegrityError:
-                form.add_error(
-                    "base", _("This trading pair already exists.")
-                )
+                form.add_error("base", _("This trading pair already exists."))
                 return render(
                     request,
                     "tradefog/catalog/partials/pair_create_form.html",
-                    {"form": form},
+                    {
+                        "form": form,
+                        "has_sufficient_assets": has_sufficient_assets,
+                    },
                     status=422,
                 )
             context = _results_context(
@@ -113,13 +118,14 @@ def pair_create(request: HttpRequest) -> HttpResponse:
         return render(
             request,
             "tradefog/catalog/partials/pair_create_form.html",
-            {"form": form},
+            {"form": form, "has_sufficient_assets": has_sufficient_assets},
             status=422,
         )
+    form = TradingPairForm()
     return render(
         request,
         "tradefog/catalog/partials/pair_create_form.html",
-        {"form": form},
+        {"form": form, "has_sufficient_assets": has_sufficient_assets},
     )
 
 
@@ -139,9 +145,9 @@ def pair_delete(request: HttpRequest, pk: int) -> HttpResponse:
         try:
             pair.delete()  # pyright: ignore[reportUnusedCallResult]
         except ProtectedError:
-            message = str(_(
-                "This trading pair is in use and cannot be removed."
-            ))
+            message = str(
+                _("This trading pair is in use and cannot be removed.")
+            )
             response = HttpResponse(status=409)
             response["HX-Trigger"] = json.dumps(
                 {

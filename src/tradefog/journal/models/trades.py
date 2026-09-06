@@ -243,9 +243,7 @@ class TradeSnapshot(models.Model):
     atr_observation_time = models.DateTimeField(
         null=True, blank=True, verbose_name=_("ATR observation time")
     )
-    atr_stale = models.BooleanField(
-        default=False, verbose_name=_("ATR stale")
-    )
+    atr_stale = models.BooleanField(default=False, verbose_name=_("ATR stale"))
     created_at = models.DateTimeField(
         auto_now_add=True, verbose_name=_("Created at")
     )

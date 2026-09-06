@@ -3,7 +3,9 @@
 import json
 from decimal import Decimal
 from pathlib import Path
+from typing import cast
 
+from django.forms import ModelChoiceField
 from django.test import Client
 from django.urls import reverse
 from django.utils.translation import override
@@ -56,7 +58,9 @@ def _login_as(username: str) -> Client:
     return client
 
 
-def _submitted_trade(strategy: TradingStrategy, status: str = "closed") -> Trade:
+def _submitted_trade(
+    strategy: TradingStrategy, status: str = "closed"
+) -> Trade:
     """Create a trade against the strategy's venue instrument."""
     profile = strategy.profile
     instrument = profile.venue.instruments.first()
@@ -143,7 +147,9 @@ def test_locked_strategy_allows_allocations() -> None:
     _submitted_trade(strategy)
     with override("en"):
         response = client.post(
-            reverse("journal:strategy_capital_add", args=(profile.pk, strategy.pk)),
+            reverse(
+                "journal:strategy_capital_add", args=(profile.pk, strategy.pk)
+            ),
             {"wallet_asset": eligible.pk, "capital": "1000"},
         )
 
@@ -152,12 +158,16 @@ def test_locked_strategy_allows_allocations() -> None:
 
 
 def _asset(symbol: str) -> Asset:
-    return Asset.objects.create(symbol=symbol, name=symbol, asset_type="crypto")
+    return Asset.objects.create(
+        symbol=symbol, name=symbol, asset_type="crypto"
+    )
 
 
 def _pair(base: str, quote: str) -> TradingPair:
     return TradingPair.objects.create(
-        base=_asset(base), quote=_asset(quote), canonical_symbol=f"{base}/{quote}"
+        base=_asset(base),
+        quote=_asset(quote),
+        canonical_symbol=f"{base}/{quote}",
     )
 
 
@@ -165,7 +175,9 @@ def _venue(name: str = "Bybit") -> Venue:
     return Venue.objects.create(name=name)
 
 
-def _instrument(venue: Venue, pair: TradingPair, product: str = "spot") -> VenueInstrument:
+def _instrument(
+    venue: Venue, pair: TradingPair, product: str = "spot"
+) -> VenueInstrument:
     return VenueInstrument.objects.create(
         venue=venue,
         pair=pair,
@@ -190,7 +202,9 @@ def _wallet(profile: TradingProfile) -> Wallet:
     return Wallet.objects.create(profile=profile)
 
 
-def _wallet_asset(wallet: Wallet, venue_asset: VenueWalletAsset) -> WalletAsset:
+def _wallet_asset(
+    wallet: Wallet, venue_asset: VenueWalletAsset
+) -> WalletAsset:
     return WalletAsset.objects.create(
         wallet=wallet, venue_wallet_asset=venue_asset
     )
@@ -208,7 +222,9 @@ def _strategy(
     )
 
 
-def _journal_chain() -> tuple[Client, User, TradingProfile, Wallet, WalletAsset]:
+def _journal_chain() -> tuple[
+    Client, User, TradingProfile, Wallet, WalletAsset
+]:
     """Build a venue, an instrument, a wallet, and an eligible wallet asset."""
     client, owner = _owner_client()
     venue = _venue()
@@ -330,7 +346,10 @@ def test_archive_get_returns_confirm_without_archiving() -> None:
     assert strategy.status == "active"
     content = response.content.decode()
     assert "Archive the strategy" in content
-    assert f'hx-post="{reverse("journal:strategy_archive", args=(profile.pk, strategy.pk))}"' in content
+    assert (
+        f'hx-post="{reverse("journal:strategy_archive", args=(profile.pk, strategy.pk))}"'
+        in content
+    )
 
 
 @mark.django_db
@@ -342,13 +361,13 @@ def test_archive_and_restore_strategy() -> None:
             reverse("journal:strategy_archive", args=(profile.pk, strategy.pk))
         )
         strategy.refresh_from_db()
-        assert strategy.status == "archived"
+        assert strategy.is_archived is True
         restore = client.post(
             reverse("journal:strategy_restore", args=(profile.pk, strategy.pk))
         )
 
     strategy.refresh_from_db()
-    assert strategy.status == "active"
+    assert strategy.is_archived is False
     assert "Strategy archived." in archive.headers["HX-Trigger"]
     assert "Strategy restored." in restore.headers["HX-Trigger"]
 
@@ -362,7 +381,8 @@ def test_allocation_form_offers_only_settlement_assets() -> None:
     strategy = _strategy(profile)
     form = StrategyCapitalForm(strategy=strategy)
 
-    offered = list(form.fields["wallet_asset"].queryset.values_list("id", flat=True))
+    field = cast(ModelChoiceField, form.fields["wallet_asset"])
+    offered = list(field.queryset.values_list("id", flat=True))
     assert eligible.pk in offered
     assert ineligible.pk not in offered
 
@@ -373,7 +393,9 @@ def test_add_allocation_creates_capital() -> None:
     strategy = _strategy(profile)
     with override("en"):
         response = client.post(
-            reverse("journal:strategy_capital_add", args=(profile.pk, strategy.pk)),
+            reverse(
+                "journal:strategy_capital_add", args=(profile.pk, strategy.pk)
+            ),
             {"wallet_asset": eligible.pk, "capital": "1000"},
         )
 
@@ -383,6 +405,9 @@ def test_add_allocation_creates_capital() -> None:
     assert allocation.capital == Decimal(1000)
     content = response.content.decode()
     assert "USDT" in content
+    assert 'id="profile-strategies-content"' in content
+    assert 'id="profile-overview-content"' in content
+    assert 'hx-swap-oob="outerHTML"' in content
     trigger = response.headers["HX-Trigger"]
     assert "Allocation added." in trigger
 
@@ -396,7 +421,9 @@ def test_add_duplicate_allocation_returns_422() -> None:
     )
     with override("en"):
         response = client.post(
-            reverse("journal:strategy_capital_add", args=(profile.pk, strategy.pk)),
+            reverse(
+                "journal:strategy_capital_add", args=(profile.pk, strategy.pk)
+            ),
             {"wallet_asset": eligible.pk, "capital": "200"},
         )
 
@@ -419,7 +446,12 @@ def test_archive_and_restore_allocation() -> None:
             )
         )
         allocation.refresh_from_db()
-        assert allocation.status == "archived"
+        assert allocation.is_archived is True
+        archive_content = archive.content.decode()
+        assert 'id="profile-strategies-content"' in archive_content
+        assert 'id="profile-overview-content"' in archive_content
+        assert 'hx-swap-oob="outerHTML"' in archive_content
+
         restore = client.post(
             reverse(
                 "journal:strategy_capital_restore",
@@ -428,8 +460,12 @@ def test_archive_and_restore_allocation() -> None:
         )
 
     allocation.refresh_from_db()
-    assert allocation.status == "active"
+    assert allocation.is_archived is False
     assert StrategyCapital.objects.filter(pk=allocation.pk).exists()
+    restore_content = restore.content.decode()
+    assert 'id="profile-strategies-content"' in restore_content
+    assert 'id="profile-overview-content"' in restore_content
+    assert 'hx-swap-oob="outerHTML"' in restore_content
     assert "Allocation archived." in archive.headers["HX-Trigger"]
     assert "Allocation restored." in restore.headers["HX-Trigger"]
 
@@ -452,7 +488,7 @@ def test_archive_allocation_refused_with_unfinished_trade() -> None:
 
     assert response.status_code == 409
     allocation.refresh_from_db()
-    assert allocation.status == "active"
+    assert allocation.is_archived is False
     assert "Cancel or wait" in response.headers["HX-Trigger"]
 
 
@@ -474,7 +510,7 @@ def test_archive_allocation_allowed_with_closed_trade() -> None:
 
     assert response.status_code == 200
     allocation.refresh_from_db()
-    assert allocation.status == "archived"
+    assert allocation.is_archived is True
 
 
 @mark.django_db
@@ -485,7 +521,8 @@ def test_archived_allocation_keeps_its_slot() -> None:
         strategy=strategy, wallet_asset=eligible, capital=Decimal(100)
     )
     form = StrategyCapitalForm(strategy=strategy)
-    offered = list(form.fields["wallet_asset"].queryset.values_list("id", flat=True))
+    field = cast(ModelChoiceField, form.fields["wallet_asset"])
+    offered = list(field.queryset.values_list("id", flat=True))
     assert eligible.pk not in offered
 
 
@@ -564,7 +601,7 @@ def test_strategy_actions_are_owner_scoped() -> None:
 @mark.django_db
 def test_archived_profile_strategies_are_readonly() -> None:
     client, owner = _owner_client()
-    profile = _profile(owner, _venue(), archived=True)
+    profile = _profile(owner, _venue(), is_archived=True)
     strategy = _strategy(profile)
     with override("en"):
         response = client.post(
@@ -573,9 +610,10 @@ def test_archived_profile_strategies_are_readonly() -> None:
 
     assert response.status_code == 409
     strategy.refresh_from_db()
-    assert strategy.status == "active"
-    assert "Restore the profile to manage its strategies." in (
-        response.headers["HX-Trigger"]
+    assert strategy.is_archived is False
+    assert (
+        "Restore the profile to manage its strategies."
+        in (response.headers["HX-Trigger"])
     )
 
 
@@ -605,3 +643,73 @@ def test_strategy_create_toast_renders_in_russian() -> None:
     assert response.status_code == 200
     trigger = json.loads(response.headers["HX-Trigger"])
     assert trigger["tradefog:toast"]["message"] == "Стратегия создана."
+
+
+@mark.django_db
+def test_strategy_create_modal_notice_in_en_and_ru() -> None:
+    client, owner = _owner_client()
+    profile = _profile(owner, _venue())
+
+    with override("en"):
+        response = client.get(
+            reverse("journal:strategy_create", args=(profile.pk,))
+        )
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert (
+        "Risk per trade and reward multiple are fixed parameters for strategy discipline and cannot be changed after creation."
+        in content
+    )
+
+    with override("ru"):
+        response = client.get(
+            reverse("journal:strategy_create", args=(profile.pk,))
+        )
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert (
+        "Риск на сделку и целевой множитель прибыли являются фиксированными параметрами стратегии и не могут быть изменены после её создания."
+        in content
+    )
+
+
+@mark.django_db
+def test_strategy_detail_empty_wallet_translations_in_ru() -> None:
+    client, owner = _owner_client()
+    profile = _profile(owner, _venue())
+    _ = _wallet(profile)
+    strategy = _strategy(profile)
+
+    with override("ru"):
+        response = client.get(
+            reverse(
+                "journal:strategy_detail",
+                args=(profile.pk, strategy.pk),
+            )
+        )
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Аллокации капитала" in content
+    assert "Нет доступных активов в кошельке" in content
+    assert (
+        "Добавьте расчётные активы в кошелёк профиля перед аллокацией капитала для этой стратегии."
+        in content
+    )
+
+
+@mark.django_db
+def test_strategy_list_table_headers_translation_ru() -> None:
+    client, owner = _owner_client()
+    profile = _profile(owner, _venue())
+    _wallet(profile)
+    _strategy(profile, name="Breakout")
+
+    with override("ru"):
+        response = client.get(
+            reverse("journal:profile_detail", args=(profile.pk,)),
+            {"tab": "strategies"},
+        )
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Риск %" in content
+    assert "Вознаграждение" in content

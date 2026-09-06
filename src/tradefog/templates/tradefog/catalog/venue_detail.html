@@ -1,5 +1,5 @@
 {% extends "tradefog/base.html" %}
-{% load i18n %}
+{% load i18n formats %}
 
 {% block title %}{{ venue.name }} · Tradefog{% endblock %}
 
@@ -36,10 +36,9 @@
             {% translate "Wallet assets" %}
           </a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#venue-settings-tab" data-bs-toggle="tab">
-            {% include "tradefog/components/icon.html" with name="settings" class="icon-1" %}
-            {% translate "Settings" %}
+        <li class="nav-item ms-auto">
+          <a class="nav-link" href="#venue-settings-tab" data-bs-toggle="tab" title="{% translate 'Settings' %}" aria-label="{% translate 'Settings' %}">
+            {% include "tradefog/components/icon.html" with name="settings" %}
           </a>
         </li>
       </ul>
@@ -97,28 +96,57 @@
           {% endwith %}
         </div>
         <div class="tab-pane" id="venue-settings-tab">
-          <div id="venue-settings-body">
-            {% if can_manage %}
-              {% include "tradefog/catalog/partials/venue_settings_form.html" %}
-            {% else %}
-              <div>
-                <div class="text-secondary text-uppercase small mb-1">
-                  {% translate "Venue" %}
+          <div class="row">
+            <div class="col-12 col-lg-8 col-xl-6">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title mb-0">{% translate "Venue settings" %}</h3>
                 </div>
-                <h2 class="mb-1">{{ venue.name }}</h2>
-                {% if venue.website %}
-                  <a class="text-secondary"
-                     href="{{ venue.website }}"
-                     target="_blank"
-                     rel="noopener noreferrer">
-                    {% include "tradefog/components/icon.html" with name="device-desktop" class="icon-inline" %}
-                    {{ venue.website }}
-                  </a>
-                {% else %}
-                  <span class="text-secondary">&mdash;</span>
-                {% endif %}
+                <div class="card-body" id="venue-settings-body">
+                  {% if can_manage %}
+                    {% include "tradefog/catalog/partials/venue_settings_form.html" %}
+                  {% else %}
+                    <dl class="row mb-0">
+                      <dt class="col-sm-3 text-secondary">{% translate "Name" %}</dt>
+                      <dd class="col-sm-9 font-weight-medium">{{ venue.name }}</dd>
+
+                      <dt class="col-sm-3 text-secondary mt-2">{% translate "Website" %}</dt>
+                      <dd class="col-sm-9 mt-2">
+                        {% if venue.website %}
+                          <a class="text-secondary"
+                             href="{{ venue.website }}"
+                             target="_blank"
+                             rel="noopener noreferrer">
+                            {% include "tradefog/components/icon.html" with name="device-desktop" class="icon-inline" %}
+                            {{ venue.website|display_url }}
+                          </a>
+                        {% else %}
+                          <span class="text-secondary">&mdash;</span>
+                        {% endif %}
+                      </dd>
+
+                      <dt class="col-sm-3 text-secondary mt-2">{% translate "Description" %}</dt>
+                      <dd class="col-sm-9 mt-2">
+                        {% if venue.description %}
+                          {{ venue.description|linebreaksbr }}
+                        {% else %}
+                          <span class="text-secondary">&mdash;</span>
+                        {% endif %}
+                      </dd>
+
+                      <dt class="col-sm-3 text-secondary mt-2">{% translate "Status" %}</dt>
+                      <dd class="col-sm-9 mt-2 mb-0">
+                        {% if venue.is_active %}
+                          <span class="badge bg-green-lt">{% translate "Active" %}</span>
+                        {% else %}
+                          <span class="badge bg-orange-lt">{% translate "Archived" %}</span>
+                        {% endif %}
+                      </dd>
+                    </dl>
+                  {% endif %}
+                </div>
               </div>
-            {% endif %}
+            </div>
           </div>
         </div>
       </div>
@@ -128,6 +156,7 @@
   {% include "tradefog/catalog/partials/instrument_detail_modal.html" %}
   {% if can_manage %}
     {% include "tradefog/catalog/partials/wallet_asset_add_modal.html" %}
+    {% include "tradefog/catalog/partials/wallet_asset_edit_modal.html" %}
     {% include "tradefog/catalog/partials/wallet_asset_remove_modal.html" %}
     {% include "tradefog/catalog/partials/instrument_add_modal.html" %}
     {% include "tradefog/catalog/partials/instrument_edit_modal.html" %}

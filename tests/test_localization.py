@@ -46,9 +46,12 @@ def test_russian_catalog_translates_application_strings() -> None:
         assert gettext("Russian") == "Русский"
         assert gettext("Market data") == "Рыночные данные"
         assert gettext("Market data source") == "Источник рыночных данных"
-        assert gettext(
-            "Tradefog always calculates ATR from the stored daily candles."
-        ) == "Tradefog всегда рассчитывает ATR по сохранённым дневным свечам."
+        assert (
+            gettext(
+                "Tradefog always calculates ATR from the stored daily candles."
+            )
+            == "Tradefog всегда рассчитывает ATR по сохранённым дневным свечам."
+        )
         assert gettext("Daily range context") == "Контекст дневного диапазона"
         assert gettext("Pairs") == "Пары"
         assert gettext("Back to top") == "Наверх"

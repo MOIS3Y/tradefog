@@ -1,0 +1,27 @@
+{% load i18n %}
+<form hx-post="{% url 'journal:wallet_asset_edit' venue.pk wallet_asset.pk %}"
+      hx-target="#wallet-asset-edit-body"
+      hx-swap="innerHTML"
+      novalidate>
+  {% csrf_token %}
+  <div class="mb-3">
+    <label class="form-label">{% translate "Asset" %}</label>
+    <div class="form-control-plaintext">
+      <span class="tf-ticker">{{ wallet_asset.asset.symbol }}</span>
+      {% if wallet_asset.asset.name %}
+        <span class="text-secondary">&mdash; {{ wallet_asset.asset.name }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="mb-3">
+    {% include "tradefog/components/form_switch.html" with field=form.is_active %}
+  </div>
+  <div class="modal-footer px-0 pb-0">
+    <button class="btn" type="button" data-bs-dismiss="modal">
+      {% translate "Cancel" %}
+    </button>
+    <button class="btn btn-primary" type="submit">
+      {% translate "Save changes" %}
+    </button>
+  </div>
+</form>

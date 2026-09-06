@@ -15,6 +15,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
 from tradefog.journal.forms import (
@@ -26,12 +27,12 @@ from tradefog.journal.models import (
     TradingProfile,
     TradingStrategy,
 )
-from tradefog.journal.models.enums import (
-    StrategyCapitalStatus,
-    StrategyStatus,
+from tradefog.journal.services import (
+    settlement_asset_ids,
+    strategy_has_active_trades_in_asset,
 )
-from tradefog.journal.services import strategy_has_active_trades_in_asset
 from tradefog.journal.views.catalog.common import build_results_context
+from tradefog.journal.views.profiles.common import profile_overview_html
 
 STRATEGY_PAGE_SIZE = 10
 
@@ -42,8 +43,8 @@ STRATEGY_SORT_FIELDS = {
     "-risk_percent": ("-risk_percent", "-id"),
     "reward_multiple": ("reward_multiple", "id"),
     "-reward_multiple": ("-reward_multiple", "-id"),
-    "status": ("status", "name", "id"),
-    "-status": ("-status", "-name", "-id"),
+    "status": ("is_archived", "name", "id"),
+    "-status": ("-is_archived", "-name", "-id"),
     "allocations": ("allocation_count", "name", "id"),
     "-allocations": ("-allocation_count", "-name", "-id"),
 }
@@ -58,12 +59,10 @@ STRATEGY_SORT_COLUMNS = (
 
 
 @login_required
-def strategy_create(
-    request: HttpRequest, pk: int
-) -> HttpResponse:
+def strategy_create(request: HttpRequest, pk: int) -> HttpResponse:
     """Render a create form fragment or accept a new strategy."""
     profile = _get_profile(request, pk)
-    if profile.archived:
+    if profile.is_archived:
         return _archived_response("strategy-create-modal")
     form = TradingStrategyForm(request.POST or None)
     if request.method == "POST":
@@ -96,7 +95,7 @@ def strategy_edit(
 ) -> HttpResponse:
     """Render an edit form fragment or update a strategy."""
     profile = _get_profile(request, pk)
-    if profile.archived:
+    if profile.is_archived:
         return _archived_response("strategy-edit-modal")
     strategy = _strategy(request, pk, strategy_pk)
     form = TradingStrategyForm(request.POST or None, instance=strategy)
@@ -130,7 +129,7 @@ def strategy_archive(
 ) -> HttpResponse:
     """Archive a strategy so it stops appearing in trade selection."""
     profile = _get_profile(request, pk)
-    if profile.archived:
+    if profile.is_archived:
         return _archived_response("strategy-archive-modal")
     strategy = _strategy(request, pk, strategy_pk)
     if request.method == "GET":
@@ -139,9 +138,9 @@ def strategy_archive(
             "tradefog/profiles/partials/strategy_archive_confirm.html",
             {"profile": profile, "strategy": strategy},
         )
-    if strategy.status != StrategyStatus.ARCHIVED.value:
-        strategy.status = StrategyStatus.ARCHIVED.value
-        strategy.save(update_fields=["status"])
+    if not strategy.is_archived:
+        strategy.is_archived = True
+        strategy.save(update_fields=["is_archived"])
         return _strategies_response(
             request,
             profile,
@@ -157,12 +156,12 @@ def strategy_restore(
 ) -> HttpResponse:
     """Restore an archived strategy to active status."""
     profile = _get_profile(request, pk)
-    if profile.archived:
+    if profile.is_archived:
         return _archived_response("strategy-restore")
     strategy = _strategy(request, pk, strategy_pk)
-    if strategy.status == StrategyStatus.ARCHIVED.value:
-        strategy.status = StrategyStatus.ACTIVE.value
-        strategy.save(update_fields=["status"])
+    if strategy.is_archived:
+        strategy.is_archived = False
+        strategy.save(update_fields=["is_archived"])
         return _strategies_response(
             request,
             profile,
@@ -191,7 +190,7 @@ def strategy_capital_add(
 ) -> HttpResponse:
     """Add a capital allocation to a strategy."""
     profile = _get_profile(request, pk)
-    if profile.archived:
+    if profile.is_archived:
         return _archived_response("strategy-detail-body")
     strategy = _strategy(request, pk, strategy_pk)
     form = StrategyCapitalForm(request.POST or None, strategy=strategy)
@@ -234,17 +233,17 @@ def strategy_capital_archive(
     allocation keeps its slot; its fixed capital can never be replaced.
     """
     profile = _get_profile(request, pk)
-    if profile.archived:
+    if profile.is_archived:
         return _archived_response("strategy-detail-body")
     strategy = _strategy(request, pk, strategy_pk)
     capital = _capital(request, pk, strategy_pk, capital_pk)
-    if capital.status == StrategyCapitalStatus.ARCHIVED.value:
+    if capital.is_archived:
         return _inactive_action_response("strategy-detail-body")
     asset_id = capital.wallet_asset.venue_wallet_asset.asset_id
     if strategy_has_active_trades_in_asset(strategy, asset_id):
         return _active_trades_response()
-    capital.status = StrategyCapitalStatus.ARCHIVED.value
-    capital.save(update_fields=["status"])
+    capital.is_archived = True
+    capital.save(update_fields=["is_archived"])
     return _detail_response(
         request,
         profile,
@@ -259,14 +258,14 @@ def strategy_capital_restore(
 ) -> HttpResponse:
     """Restore an archived capital allocation to active participation."""
     profile = _get_profile(request, pk)
-    if profile.archived:
+    if profile.is_archived:
         return _archived_response("strategy-detail-body")
     strategy = _strategy(request, pk, strategy_pk)
     capital = _capital(request, pk, strategy_pk, capital_pk)
-    if capital.status != StrategyCapitalStatus.ARCHIVED.value:
+    if not capital.is_archived:
         return _inactive_action_response("strategy-detail-body")
-    capital.status = StrategyCapitalStatus.ACTIVE.value
-    capital.save(update_fields=["status"])
+    capital.is_archived = False
+    capital.save(update_fields=["is_archived"])
     return _detail_response(
         request,
         profile,
@@ -282,15 +281,12 @@ def strategies_context(
     swap_oob: bool = False,
 ) -> dict[str, Any]:
     """Build the Strategies tab context for one profile."""
-    queryset = (
-        TradingStrategy.objects.filter(profile=profile)
-        .annotate(allocation_count=Count("capitals", distinct=True))
+    queryset = TradingStrategy.objects.filter(profile=profile).annotate(
+        allocation_count=Count("capitals", distinct=True)
     )
     requested_sort = request.GET.get("st_sort", "name")
     current_sort = (
-        requested_sort
-        if requested_sort in STRATEGY_SORT_FIELDS
-        else "name"
+        requested_sort if requested_sort in STRATEGY_SORT_FIELDS else "name"
     )
     section = build_results_context(
         request,
@@ -299,7 +295,7 @@ def strategies_context(
         current_sort=current_sort,
         columns=STRATEGY_SORT_COLUMNS,
         filters_active=False,
-        can_manage=not profile.archived,
+        can_manage=not profile.is_archived,
         results_key="strategies",
         swap_oob=False,
         sort_parameter="st_sort",
@@ -321,11 +317,27 @@ def _detail_context(
     allocations = strategy.capitals.select_related(
         "wallet_asset__venue_wallet_asset__asset"
     ).order_by("wallet_asset__venue_wallet_asset__asset__symbol")
+    capital_form = StrategyCapitalForm(strategy=strategy)
+
+    settlement_ids = settlement_asset_ids(profile.venue)
+    wallet_assets = profile.wallet.assets.filter(
+        is_archived=False
+    ).select_related("venue_wallet_asset__asset")
+
+    unsettled_assets = [
+        wa.venue_wallet_asset.asset.symbol
+        for wa in wallet_assets
+        if wa.venue_wallet_asset.asset_id not in settlement_ids
+    ]
+    has_wallet_assets = wallet_assets.exists()
+
     return {
         "profile": profile,
         "strategy": strategy,
         "allocations": allocations,
-        "capital_form": StrategyCapitalForm(strategy=strategy),
+        "capital_form": capital_form,
+        "has_wallet_assets": has_wallet_assets,
+        "unsettled_assets": unsettled_assets,
     }
 
 
@@ -336,12 +348,19 @@ def _detail_response(
     *,
     message: str,
 ) -> HttpResponse:
-    """Render the refreshed detail content with a toast."""
-    response = render(
-        request,
+    """Render refreshed modal detail, strategies table, and overview tab."""
+    detail_html = render_to_string(
         "tradefog/profiles/partials/strategy_detail.html",
         _detail_context(profile, strategy),
+        request=request,
     )
+    content_html = render_to_string(
+        "tradefog/profiles/partials/strategies_content.html",
+        {"section": strategies_context(request, profile, swap_oob=True)},
+        request=request,
+    )
+    overview_html = profile_overview_html(request, profile)
+    response = HttpResponse(detail_html + content_html + overview_html)
     response["HX-Trigger"] = json.dumps(
         {
             "tradefog:toast": {
@@ -360,12 +379,14 @@ def _strategies_response(
     message: str,
     close_modal: str | None = None,
 ) -> HttpResponse:
-    """Render the refreshed Strategies tab out of band with a toast."""
-    response = render(
-        request,
+    """Render refreshed Strategies and Overview tabs out of band with a toast."""
+    content_html = render_to_string(
         "tradefog/profiles/partials/strategies_content.html",
         {"section": strategies_context(request, profile, swap_oob=True)},
+        request=request,
     )
+    overview_html = profile_overview_html(request, profile)
+    response = HttpResponse(content_html + overview_html)
     trigger: dict[str, object] = {
         "tradefog:toast": {
             "message": str(message),
@@ -378,13 +399,9 @@ def _strategies_response(
     return response
 
 
-def _get_profile(
-    request: HttpRequest, pk: int
-) -> TradingProfile:
+def _get_profile(request: HttpRequest, pk: int) -> TradingProfile:
     """Return the current user's profile or raise a 404."""
-    return get_object_or_404(
-        TradingProfile, pk=pk, owner=request.user
-    )
+    return get_object_or_404(TradingProfile, pk=pk, owner=request.user)
 
 
 def _strategy(
@@ -416,9 +433,9 @@ def _archived_response(close_modal: str) -> HttpResponse:
     response["HX-Trigger"] = json.dumps(
         {
             "tradefog:toast": {
-                "message": str(_(
-                    "Restore the profile to manage its strategies."
-                )),
+                "message": str(
+                    _("Restore the profile to manage its strategies.")
+                ),
                 "kind": "danger",
             },
             "tradefog:close-modal": {"id": close_modal},
@@ -448,10 +465,12 @@ def _active_trades_response() -> HttpResponse:
     response["HX-Trigger"] = json.dumps(
         {
             "tradefog:toast": {
-                "message": str(_(
-                    "Cancel or wait for open trades to close before "
-                    + "archiving this allocation."
-                )),
+                "message": str(
+                    _(
+                        "Cancel or wait for open trades to close before "
+                        + "archiving this allocation."
+                    )
+                ),
                 "kind": "danger",
             },
         }

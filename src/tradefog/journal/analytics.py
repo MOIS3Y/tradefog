@@ -112,7 +112,9 @@ def calculate_trade_analytics(
 
     for sequence, trade in enumerate(trades, start=1):
         if trade.reward_multiple <= 0:
-            raise ValueError("A closed trade reward multiple must be positive.")
+            raise ValueError(
+                "A closed trade reward multiple must be positive."
+            )
 
         outcome = _outcome(trade.result_r)
         net_result_r += trade.result_r

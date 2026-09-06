@@ -150,9 +150,9 @@ def asset_delete(request: HttpRequest, pk: int) -> HttpResponse:
             response["HX-Trigger"] = json.dumps(
                 {
                     "tradefog:toast": {
-                        "message": str(_(
-                            "This asset is in use and cannot be removed."
-                        )),
+                        "message": str(
+                            _("This asset is in use and cannot be removed.")
+                        ),
                         "kind": "danger",
                     },
                     "tradefog:close-modal": {"id": "asset-delete-modal"},

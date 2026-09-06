@@ -11,8 +11,12 @@
     <span class="badge bg-secondary-lt">
       {% translate "Reward" %}: {{ strategy.reward_multiple|compact }}R
     </span>
-    {% if strategy.status == "archived" %}
-      <span class="badge bg-orange-lt">{{ strategy.get_status_display }}</span>
+    {% if strategy.is_archived %}
+      <span class="badge bg-orange-lt">{% translate "Archived" %}</span>
+    {% elif strategy.status == "at_risk" %}
+      <span class="badge bg-yellow-lt">{{ strategy.get_status_display }}</span>
+    {% elif strategy.status == "risk_stopped" %}
+      <span class="badge bg-red-lt">{{ strategy.get_status_display }}</span>
     {% else %}
       <span class="badge bg-green-lt">{{ strategy.get_status_display }}</span>
     {% endif %}
@@ -27,30 +31,32 @@
         <div>
           <span class="tf-ticker">{{ allocation.wallet_asset.venue_wallet_asset.asset.symbol }}</span>
           <span class="text-secondary ms-2">{{ allocation.capital|compact }}</span>
-          {% if allocation.status == "archived" %}
-            <span class="badge bg-orange-lt ms-2">{{ allocation.get_status_display }}</span>
+          {% if allocation.is_archived %}
+            <span class="badge bg-orange-lt ms-2">{% translate "Archived" %}</span>
           {% endif %}
         </div>
-        {% if not profile.archived %}
-          {% if allocation.status == "archived" %}
-            <button class="btn btn-icon"
-                    type="button"
-                    hx-post="{% url 'journal:strategy_capital_restore' profile.pk strategy.pk allocation.pk %}"
-                    hx-target="#strategy-detail-body"
-                    hx-swap="innerHTML"
-                    aria-label="{% translate 'Restore allocation' %}">
-              {% include "tradefog/components/icon.html" with name="restore" %}
-            </button>
-          {% else %}
-            <button class="btn btn-icon"
-                    type="button"
-                    hx-post="{% url 'journal:strategy_capital_archive' profile.pk strategy.pk allocation.pk %}"
-                    hx-target="#strategy-detail-body"
-                    hx-swap="innerHTML"
-                    aria-label="{% translate 'Archive allocation' %}">
-              {% include "tradefog/components/icon.html" with name="archive" %}
-            </button>
-          {% endif %}
+        {% if not profile.is_archived %}
+          <div class="btn-actions">
+            {% if allocation.is_archived %}
+              <button class="btn btn-action"
+                      type="button"
+                      hx-post="{% url 'journal:strategy_capital_restore' profile.pk strategy.pk allocation.pk %}"
+                      hx-target="#strategy-detail-body"
+                      hx-swap="innerHTML"
+                      aria-label="{% translate 'Restore allocation' %}">
+                {% include "tradefog/components/icon.html" with name="restore" %}
+              </button>
+            {% else %}
+              <button class="btn btn-action"
+                      type="button"
+                      hx-post="{% url 'journal:strategy_capital_archive' profile.pk strategy.pk allocation.pk %}"
+                      hx-target="#strategy-detail-body"
+                      hx-swap="innerHTML"
+                      aria-label="{% translate 'Archive allocation' %}">
+                {% include "tradefog/components/icon.html" with name="archive" %}
+              </button>
+            {% endif %}
+          </div>
         {% endif %}
       </div>
     {% endfor %}
@@ -59,7 +65,7 @@
   <p class="text-secondary mb-3">{% translate "No allocations yet." %}</p>
 {% endif %}
 
-{% if not profile.archived %}
+{% if not profile.is_archived %}
   <h4 class="h5 mb-2">{% translate "Add allocation" %}</h4>
   {% if capital_form.fields.wallet_asset.queryset %}
     <form hx-post="{% url 'journal:strategy_capital_add' profile.pk strategy.pk %}"
@@ -75,6 +81,28 @@
         </button>
       </div>
     </form>
+  {% elif not has_wallet_assets %}
+    <section class="empty">
+      <div class="empty-icon">
+        {% include "tradefog/components/icon.html" with name="wallet" %}
+      </div>
+      <h2 class="empty-title">{% translate "No wallet assets available" %}</h2>
+      <p class="empty-subtitle text-secondary">
+        {% translate "Add settlement assets to the profile wallet before allocating capital to this strategy." %}
+      </p>
+    </section>
+  {% elif unsettled_assets and not allocations %}
+    <section class="empty">
+      <div class="empty-icon">
+        {% include "tradefog/components/icon.html" with name="chart-candle" %}
+      </div>
+      <h2 class="empty-title">{% translate "No active markets in wallet assets" %}</h2>
+      <p class="empty-subtitle text-secondary">
+        {% blocktranslate with venue=profile.venue.name assets=unsettled_assets|join:", " %}
+          The wallet holds {{ assets }}, but {{ venue }} has no active instruments settling in these assets.
+        {% endblocktranslate %}
+      </p>
+    </section>
   {% else %}
     <section class="empty">
       <div class="empty-icon">

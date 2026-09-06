@@ -19,7 +19,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext_lazy as _
 
 from tradefog.journal.forms import TradingProfileForm
-from tradefog.journal.models import TradingProfile, Wallet
+from tradefog.journal.models import TradingProfile, Venue, Wallet
 
 
 @login_required
@@ -42,8 +42,12 @@ def profile_create(request: HttpRequest) -> HttpResponse:
     returns the form with field errors and a 422 status so the modal
     stays open.
     """
+    has_venues = Venue.objects.filter(is_active=True).exists()
+    can_manage = request.user.is_staff
     form = TradingProfileForm(request.POST or None)
     if request.method == "POST":
+        if not has_venues:
+            return HttpResponse(status=409)
         if form.is_valid():
             try:
                 with transaction.atomic():
@@ -61,7 +65,11 @@ def profile_create(request: HttpRequest) -> HttpResponse:
                 return render(
                     request,
                     "tradefog/profiles/partials/profile_create_form.html",
-                    {"form": form},
+                    {
+                        "form": form,
+                        "has_venues": has_venues,
+                        "can_manage": can_manage,
+                    },
                     status=422,
                 )
             context = _card_context(request, swap_oob=True)
@@ -85,34 +93,38 @@ def profile_create(request: HttpRequest) -> HttpResponse:
         return render(
             request,
             "tradefog/profiles/partials/profile_create_form.html",
-            {"form": form},
+            {
+                "form": form,
+                "has_venues": has_venues,
+                "can_manage": can_manage,
+            },
             status=422,
         )
     return render(
         request,
         "tradefog/profiles/partials/profile_create_form.html",
-        {"form": form},
+        {
+            "form": form,
+            "has_venues": has_venues,
+            "can_manage": can_manage,
+        },
     )
 
 
 @login_required
-def profile_archive(
-    request: HttpRequest, pk: int
-) -> HttpResponse:
+def profile_archive(request: HttpRequest, pk: int) -> HttpResponse:
     """Render an archive confirmation or archive a profile.
 
     A GET request supplies the confirmation form. A POST archives
     the profile without touching its wallet, strategies, or trades
     and returns the refreshed card grid out of band.
     """
-    profile = get_object_or_404(
-        TradingProfile, pk=pk, owner=request.user
-    )
+    profile = get_object_or_404(TradingProfile, pk=pk, owner=request.user)
     if request.method == "POST":
-        if profile.archived:
+        if profile.is_archived:
             return _inactive_action_response("profile-archive-modal")
-        profile.archived = True
-        profile.save(update_fields=["archived"])
+        profile.is_archived = True
+        profile.save(update_fields=["is_archived"])
         return _cards_response(
             request,
             message=_("Profile archived."),
@@ -126,9 +138,7 @@ def profile_archive(
 
 
 @login_required
-def profile_restore(
-    request: HttpRequest, pk: int
-) -> HttpResponse:
+def profile_restore(request: HttpRequest, pk: int) -> HttpResponse:
     """Restore an archived profile so it is active again.
 
     A POST-only action: restores the profile without confirmation
@@ -140,13 +150,11 @@ def profile_restore(
             message=_("Profile not found."),
             kind="danger",
         )
-    profile = get_object_or_404(
-        TradingProfile, pk=pk, owner=request.user
-    )
-    if not profile.archived:
+    profile = get_object_or_404(TradingProfile, pk=pk, owner=request.user)
+    if not profile.is_archived:
         return _inactive_action_response("profile-restore")
-    profile.archived = False
-    profile.save(update_fields=["archived"])
+    profile.is_archived = False
+    profile.save(update_fields=["is_archived"])
     return _cards_response(
         request,
         message=_("Profile restored."),
@@ -154,9 +162,7 @@ def profile_restore(
 
 
 @login_required
-def profile_delete(
-    request: HttpRequest, pk: int
-) -> HttpResponse:
+def profile_delete(request: HttpRequest, pk: int) -> HttpResponse:
     """Render a delete confirmation or permanently remove a profile.
 
     A GET request supplies the confirmation form. A POST removes the
@@ -164,14 +170,10 @@ def profile_delete(
     refreshed card grid out of band. Only archived profiles can be
     deleted permanently; active profiles must be archived first.
     """
-    profile = get_object_or_404(
-        TradingProfile, pk=pk, owner=request.user
-    )
+    profile = get_object_or_404(TradingProfile, pk=pk, owner=request.user)
     if request.method == "POST":
-        if not profile.archived:
-            message = _(
-                "Archive the profile before deleting it permanently."
-            )
+        if not profile.is_archived:
+            message = _("Archive the profile before deleting it permanently.")
             response = HttpResponse(status=409)
             response["HX-Trigger"] = json.dumps(
                 {
@@ -254,13 +256,11 @@ def _card_context(
         .select_related("venue")
         .annotate(
             strategy_count=Count("strategies", distinct=True),
-            wallet_asset_count=Count(
-                "wallet__assets", distinct=True
-            ),
+            wallet_asset_count=Count("wallet__assets", distinct=True),
         )
     )
-    active_profiles = profiles.filter(archived=False).order_by("name")
-    archived_profiles = profiles.filter(archived=True).order_by("name")
+    active_profiles = profiles.filter(is_archived=False).order_by("name")
+    archived_profiles = profiles.filter(is_archived=True).order_by("name")
     return {
         "active_profiles": active_profiles,
         "archived_profiles": archived_profiles,

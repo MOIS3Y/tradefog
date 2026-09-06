@@ -1,4 +1,4 @@
-"""Tests for the shared reference catalog assets collection page."""
+from typing import Any
 
 from django.test import Client
 from django.urls import reverse
@@ -12,10 +12,11 @@ from tradefog.journal.models import Asset, TradingPair
 PASSWORD = "correct-horse-battery-staple"
 
 
-def _login_as(**user_fields: object) -> Client:
+def _login_as(**user_fields: Any) -> Client:
     client = Client()
+    username = user_fields.pop("username", "trader")
     user = User.objects.create_user(
-        username=user_fields.pop("username", "trader"),
+        username=username,
         password=PASSWORD,
         **user_fields,
     )
@@ -60,7 +61,9 @@ def test_anonymous_user_is_redirected_to_login() -> None:
         response = Client().get(reverse("journal:asset_overview"))
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/en/login/?next=/en/catalog/assets/"
+    assert (
+        response.headers["Location"] == "/en/login/?next=/en/catalog/assets/"
+    )
 
 
 @mark.django_db
@@ -200,9 +203,7 @@ def test_search_filter_and_type_filter() -> None:
     client = _login_as()
 
     with override("en"):
-        by_name = client.get(
-            reverse("journal:asset_overview"), {"q": "Apple"}
-        )
+        by_name = client.get(reverse("journal:asset_overview"), {"q": "Apple"})
         by_type = client.get(
             reverse("journal:asset_overview"), {"asset_type": "fiat"}
         )
@@ -220,10 +221,14 @@ def test_asset_filters_collapsed_by_default_and_open_when_active() -> None:
 
     with override("en"):
         default = client.get(reverse("journal:asset_overview"))
-        active = client.get(reverse("journal:asset_overview"), {"q": "Bitcoin"})
+        active = client.get(
+            reverse("journal:asset_overview"), {"q": "Bitcoin"}
+        )
 
     assert 'class="collapse" id="asset-filters"' in default.content.decode()
-    assert 'class="collapse show" id="asset-filters"' in active.content.decode()
+    assert (
+        'class="collapse show" id="asset-filters"' in active.content.decode()
+    )
     assert "Filters" in default.content.decode()
 
 
@@ -344,9 +349,7 @@ def test_pagination_split_across_pages() -> None:
 
     with override("en"):
         first = client.get(reverse("journal:asset_overview"))
-        second = client.get(
-            reverse("journal:asset_overview"), {"page": "2"}
-        )
+        second = client.get(reverse("journal:asset_overview"), {"page": "2"})
 
     first_text = first.content.decode()
     assert "Page 1 of 2" in first_text
