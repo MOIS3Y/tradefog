@@ -114,6 +114,13 @@ def trade_create(request: HttpRequest) -> HttpResponse:
             owner=request.user, is_archived=False
         ).first()
 
+    if not profile:
+        messages.warning(
+            request,
+            _("Create a trading profile before starting a new trade."),
+        )
+        return redirect("journal:profile_overview")
+
     strategy: TradingStrategy | None = None
     if profile and strategy_id:
         strategy = TradingStrategy.objects.filter(
@@ -238,6 +245,7 @@ def trade_options(request: HttpRequest) -> HttpResponse:
     instruments: list[VenueInstrument] = []
     product_kinds: list[tuple[str, str]] = []
     selected_product_kind: str | None = None
+    selected_strategy: TradingStrategy | None = None
 
     if profile:
         strategies = list(
@@ -246,7 +254,6 @@ def trade_options(request: HttpRequest) -> HttpResponse:
             ).order_by("name")
         )
 
-        selected_strategy = None
         if strategy_id:
             selected_strategy = next(
                 (s for s in strategies if str(s.pk) == str(strategy_id)), None
@@ -297,11 +304,17 @@ def trade_options(request: HttpRequest) -> HttpResponse:
             else:
                 instruments = all_instruments
 
+    selected_instrument = instruments[0] if instruments else None
+    context_bar = _get_context_bar_data(
+        profile, selected_strategy, selected_instrument
+    )
+
     context = {
         "strategies": strategies,
         "instruments": instruments,
         "product_kinds": product_kinds,
         "selected_strategy_id": strategy_id,
         "selected_product_kind": selected_product_kind,
+        "context_bar": context_bar,
     }
     return render(request, "tradefog/trades/partials/options.html", context)

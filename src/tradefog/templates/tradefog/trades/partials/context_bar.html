@@ -1,7 +1,11 @@
 {% load formats i18n %}
-<div class="card tf-trade-context mb-3" id="trade-context-bar">
+<div class="card tf-trade-context mb-3" id="trade-context-bar"{% if hx_swap_oob %} hx-swap-oob="true"{% endif %}>
   <div class="card-body py-2">
     <div class="d-flex flex-wrap gap-3 gap-lg-4 align-items-center">
+      <div>
+        <div class="text-secondary small">{% translate "Venue" %}</div>
+        <strong>{{ context_bar.profile.venue.name|default:"—" }}</strong>
+      </div>
       <div>
         <div class="text-secondary small">{% translate "Profile" %}</div>
         <strong>{{ context_bar.profile.name|default:"—" }}</strong>

@@ -3184,3 +3184,99 @@ msgstr "Соотношение 1:%(r)s R"
 #, python-format
 msgid "Quantity is rounded down from a target risk of %(target)s %(symbol)s."
 msgstr "Объём округлён вниз от целевого риска %(target)s %(symbol)s."
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Manual ATR context"
+msgstr "Контекст ATR вручную"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Enter observable volatility when provider candles are unavailable."
+msgstr "Укажите наблюдаемую волатильность, если свечи провайдера недоступны."
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Data source"
+msgstr "Источник данных"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "ATR(14) value"
+msgstr "Значение ATR(14)"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Average True Range for volatility reference."
+msgstr "Average True Range для ориентира волатильности."
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Current day move (High — Low), optional."
+msgstr "Движение за текущий день (High — Low), опционально."
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Manual volatility context"
+msgstr "Контекст волатильности вручную"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Enter the ATR(14) value to calculate volatility and target metrics."
+msgstr "Укажите значение ATR(14) для расчёта волатильности и целевых метрик."
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "How to obtain ATR values"
+msgstr "Как получить значения ATR"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Chart indicator"
+msgstr "Индикатор на графике"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "On TradingView or exchange charts, open the Daily (D1) timeframe, add the standard «ATR» indicator with period 14 (RMA/Wilder), and take the value of the last closed candle."
+msgstr "На TradingView или графике биржи откройте дневной таймфрейм (D1), добавьте стандартный индикатор «ATR» с периодом 14 (RMA/Wilder) и возьмите значение последней закрытой свечи."
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Session range"
+msgstr "Диапазон сессии"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Calculate the difference between today's maximum and minimum price (High — Low)."
+msgstr "Рассчитайте разницу между максимумом и минимумом сегодняшней свечи (High — Low)."
+
+#: src/tradefog/journal/views/trades/workspace.py
+msgid "Trade draft created successfully."
+msgstr "Черновик сделки успешно создан."
+
+#: src/tradefog/journal/views/trades/workspace.py
+msgid "Trade draft updated."
+msgstr "Черновик сделки обновлён."
+
+#: src/tradefog/templates/tradefog/trades/partials/position_plan.html
+msgid "Position value exceeds available wallet funds."
+msgstr "Объём позиции превышает доступные средства кошелька."
+
+#: src/tradefog/templates/tradefog/trades/partials/checklist_assessment.html
+msgid "Global and local D1 observations are divergent."
+msgstr "Глобальные и локальные наблюдения D1 расходятся."
+
+#: src/tradefog/templates/tradefog/trades/partials/checklist_assessment.html
+msgid "Global and local D1 observations are mixed."
+msgstr "Глобальные и локальные наблюдения D1 смешанные."
+
+#: src/tradefog/templates/tradefog/trades/partials/context_bar.html
+msgid "Ratio"
+msgstr "Соотношение"
+
+#: src/tradefog/templates/tradefog/trades/partials/no_profile_modal.html
+msgid "Trading profile required"
+msgstr "Требуется торговый профиль"
+
+#: src/tradefog/templates/tradefog/trades/partials/no_profile_modal.html
+msgid ""
+"A trade belongs to a trading profile. Create your first profile with a venue "
+"and wallet to start journaling trades."
+msgstr ""
+"Сделка привязана к торговому профилю. Создайте первый профиль с площадкой и "
+"кошельком, чтобы начать вести журнал сделок."
+
+#: src/tradefog/templates/tradefog/trades/partials/no_profile_modal.html
+msgid "Go to profiles"
+msgstr "Перейти к профилям"
+
+#: src/tradefog/journal/views/trades/workspace.py
+msgid "Create a trading profile before starting a new trade."
+msgstr "Создайте торговый профиль перед добавлением сделки."

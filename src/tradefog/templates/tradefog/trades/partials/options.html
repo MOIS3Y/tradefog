@@ -34,4 +34,8 @@
       <option value="">{% translate "No compatible instruments" %}</option>
     {% endfor %}
   </select>
+
+  {% if context_bar %}
+    {% include "tradefog/trades/partials/context_bar.html" with context_bar=context_bar hx_swap_oob="true" %}
+  {% endif %}
 </div>

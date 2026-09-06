@@ -19,7 +19,7 @@ from tradefog.journal.models import (
     TradingStrategy,
     VenueInstrument,
 )
-from tradefog.journal.models.enums import Direction, ProductKind
+from tradefog.journal.models.enums import ATRSource, Direction, ProductKind
 from tradefog.journal.widgets import CompactNumberInput
 
 
@@ -59,6 +59,38 @@ class TradeDecisionForm(forms.ModelForm):
             attrs={
                 "class": "form-select",
                 "id": "trade-product-kind",
+            }
+        ),
+    )
+    atr_source = forms.ChoiceField(
+        required=False,
+        choices=ATRSource.choices,
+        initial=ATRSource.AUTO,
+        label=_("ATR source"),
+    )
+    manual_atr_value = forms.DecimalField(
+        required=False,
+        label=_("Manual ATR(14)"),
+        widget=CompactNumberInput(
+            attrs={
+                "class": "form-control",
+                "step": "any",
+                "inputmode": "decimal",
+                "id": "manual-atr-value",
+                "placeholder": "0.00",
+            }
+        ),
+    )
+    manual_session_range = forms.DecimalField(
+        required=False,
+        label=_("Session range (High — Low)"),
+        widget=CompactNumberInput(
+            attrs={
+                "class": "form-control",
+                "step": "any",
+                "inputmode": "decimal",
+                "id": "manual-session-range",
+                "placeholder": "0.00",
             }
         ),
     )

@@ -14,11 +14,21 @@
           {% include "tradefog/components/page_heading.html" with direction=page_direction heading=page_heading help_text=page_help_text %}
         </div>
         <div class="col-auto ms-auto">
-          <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
-             href="{% url 'journal:trade_create' %}">
-            {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
-            {% translate "New trade" %}
-          </a>
+          {% if has_active_profiles %}
+            <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+               href="{% url 'journal:trade_create' %}">
+              {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+              {% translate "New trade" %}
+            </a>
+          {% else %}
+            <button class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+                    type="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#no-profile-modal">
+              {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+              {% translate "New trade" %}
+            </button>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -35,4 +45,8 @@
       {% translate "Record your first manual trade to start building the journal." %}
     </p>
   </section>
+
+  {% if not has_active_profiles %}
+    {% include "tradefog/trades/partials/no_profile_modal.html" %}
+  {% endif %}
 {% endblock %}

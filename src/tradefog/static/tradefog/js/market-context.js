@@ -233,15 +233,82 @@
     }
   }
 
-  /** Dynamically recalculate ATR target comparison when entry/stop change. */
+  /** Dynamically recalculate ATR target and session comparisons when inputs change. */
   function updateAtrComparison() {
     const comparisonContainer = document.getElementById("atr-target-comparison");
-    if (!comparisonContainer) return;
-    const atrRaw = comparisonContainer.dataset.atrValue;
-    const rewardMultipleRaw = comparisonContainer.dataset.rewardMultiple || "3";
-    const atrValue = Number(String(atrRaw).replace(",", "."));
-    const rewardMultiple = Number(String(rewardMultipleRaw).replace(",", "."));
+    const manualAtrInput = document.getElementById("manual-atr-value");
+    const manualSessionInput = document.getElementById("manual-session-range");
 
+    let atrValue = NaN;
+    let rewardMultiple = 3;
+
+    if (manualAtrInput && manualAtrInput.value.trim()) {
+      atrValue = Number(String(manualAtrInput.value).replace(",", "."));
+    } else if (comparisonContainer) {
+      const atrRaw = comparisonContainer.dataset.atrValue;
+      atrValue = Number(String(atrRaw).replace(",", "."));
+    }
+
+    if (comparisonContainer) {
+      const rewardMultipleRaw = comparisonContainer.dataset.rewardMultiple || "3";
+      const parsedReward = Number(String(rewardMultipleRaw).replace(",", "."));
+      if (Number.isFinite(parsedReward) && parsedReward > 0) {
+        rewardMultiple = parsedReward;
+      }
+    }
+
+    // Update ATR display and 75% reference if in manual mode
+    const atrDisplay = document.getElementById("atr-display-value");
+    const atrRef75 = document.getElementById("atr-reference-75");
+    if (atrDisplay) {
+      if (Number.isFinite(atrValue) && atrValue > 0) {
+        atrDisplay.textContent = atrValue.toFixed(2);
+      } else {
+        atrDisplay.textContent = "—";
+      }
+    }
+    if (atrRef75) {
+      if (Number.isFinite(atrValue) && atrValue > 0) {
+        atrRef75.textContent = (atrValue * 0.75).toFixed(2);
+      } else {
+        atrRef75.textContent = "—";
+      }
+    }
+
+    // Update Session Range comparison (if manual session range is provided)
+    const sessionPctEl = document.getElementById("atr-session-pct");
+    const sessionTapeEl = document.getElementById("atr-session-tape");
+    const sessionFillEl = document.getElementById("atr-session-fill");
+    const sessionMoveEl = document.getElementById("atr-session-move");
+
+    if (sessionPctEl && sessionTapeEl && sessionFillEl) {
+      let sessionRange = NaN;
+      if (manualSessionInput && manualSessionInput.value.trim()) {
+        sessionRange = Number(String(manualSessionInput.value).replace(",", "."));
+      }
+      if (Number.isFinite(sessionRange) && sessionRange >= 0 && Number.isFinite(atrValue) && atrValue > 0) {
+        const sessionPct = (sessionRange / atrValue) * 100;
+        const roundedSessionPct = Math.round(sessionPct);
+        sessionPctEl.textContent = `${roundedSessionPct}%`;
+        sessionTapeEl.style.setProperty("--tf-range-percent", `${sessionPct}%`);
+        if (sessionMoveEl) {
+          sessionMoveEl.textContent = sessionRange.toFixed(2);
+        }
+        sessionFillEl.classList.remove("tf-range-tape-fill-warning", "tf-range-tape-fill-danger");
+        if (sessionPct > 100) {
+          sessionFillEl.classList.add("tf-range-tape-fill-danger");
+        } else if (sessionPct > 75) {
+          sessionFillEl.classList.add("tf-range-tape-fill-warning");
+        }
+      } else {
+        sessionPctEl.textContent = "0%";
+        sessionTapeEl.style.setProperty("--tf-range-percent", "0%");
+        if (sessionMoveEl) sessionMoveEl.textContent = "—";
+        sessionFillEl.classList.remove("tf-range-tape-fill-warning", "tf-range-tape-fill-danger");
+      }
+    }
+
+    // Update Target / Planned Move comparison
     const entryInput = document.getElementById("planned-entry");
     const stopInput = document.getElementById("planned-stop");
     const pctEl = document.getElementById("atr-planned-pct");
@@ -253,6 +320,11 @@
     if (!pctEl || !tapeEl || !fillEl) return;
 
     if (!Number.isFinite(atrValue) || atrValue <= 0 || !entryInput || !stopInput) {
+      pctEl.textContent = "0%";
+      tapeEl.style.setProperty("--tf-range-percent", "0%");
+      if (moveEl) moveEl.textContent = "—";
+      fillEl.classList.remove("tf-range-tape-fill-warning", "tf-range-tape-fill-danger");
+      if (badgeEl) badgeEl.className = "badge d-none";
       return;
     }
 
@@ -261,7 +333,7 @@
 
     if (Number.isFinite(entry) && Number.isFinite(stop) && entry > 0 && stop > 0 && entry !== stop) {
       const distance = Math.abs(entry - stop);
-      const plannedMove = distance * (Number.isFinite(rewardMultiple) && rewardMultiple > 0 ? rewardMultiple : 3);
+      const plannedMove = distance * rewardMultiple;
       const movePct = (plannedMove / atrValue) * 100;
       const roundedPct = Math.round(movePct);
 
@@ -304,12 +376,23 @@
     updateAtrComparison();
   });
   document.addEventListener("input", (event) => {
-    if (event.target && (event.target.id === "planned-entry" || event.target.id === "planned-stop")) {
+    if (event.target && (
+      event.target.id === "planned-entry" ||
+      event.target.id === "planned-stop" ||
+      event.target.id === "manual-atr-value" ||
+      event.target.id === "manual-session-range"
+    )) {
       updateAtrComparison();
     }
   });
   document.addEventListener("change", (event) => {
-    if (event.target && (event.target.id === "planned-entry" || event.target.id === "planned-stop" || event.target.id === "trade-strategy")) {
+    if (event.target && (
+      event.target.id === "planned-entry" ||
+      event.target.id === "planned-stop" ||
+      event.target.id === "manual-atr-value" ||
+      event.target.id === "manual-session-range" ||
+      event.target.id === "trade-strategy"
+    )) {
       updateAtrComparison();
     }
   });

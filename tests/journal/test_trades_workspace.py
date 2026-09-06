@@ -455,3 +455,60 @@ def test_trade_checklist_preview_initial_neutral_gauge() -> None:
     content = response.content.decode()
     assert "0 of 4" in content
     assert "--tf-gauge-position: 50%" in content
+
+
+@mark.django_db
+def test_trade_market_preview_manual_atr() -> None:
+    client, _user, _profile, strategy, instrument, _w_asset = (
+        _setup_trade_environment()
+    )
+    with override("en"):
+        response = client.post(
+            reverse("journal:trade_market_preview"),
+            {
+                "venue_instrument": instrument.pk,
+                "strategy": strategy.pk,
+                "atr_source": "manual",
+                "manual_atr_value": "4.00",
+                "manual_session_range": "2.00",
+                "planned_entry": "100.00",
+                "planned_stop": "99.00",
+            },
+        )
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "ATR(14)" in content
+    assert "4" in content
+    assert "3" in content  # 75% reference of 4.00 is 3.00
+    assert "50%" in content  # Session 2.00 is 50% of 4.00
+
+
+@mark.django_db
+def test_trade_create_without_profile_redirects_to_profiles(
+    client: Client,
+) -> None:
+    user = User.objects.create_user(username="noprofile", password="password")
+    client.force_login(user)
+
+    with override("en"):
+        response = client.get(reverse("journal:trade_create"))
+
+    assert response.status_code == 302
+    assert reverse("journal:profile_overview") in response.headers["Location"]
+
+
+@mark.django_db
+def test_trades_overview_without_profile_renders_no_profile_modal(
+    client: Client,
+) -> None:
+    user = User.objects.create_user(username="noprofile2", password="password")
+    client.force_login(user)
+
+    with override("en"):
+        response = client.get(reverse("journal:trades"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "no-profile-modal" in content
+    assert "Trading profile required" in content

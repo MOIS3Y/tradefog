@@ -102,4 +102,22 @@
   document.addEventListener("tradefog:toast", (event) => {
     window.showToast(event.detail.message, event.detail.kind);
   });
+
+  const initializeMessages = () => {
+    const messageElements = document.querySelectorAll("[data-django-message]");
+    for (const element of messageElements) {
+      const message = element.textContent?.trim();
+      const kind = element.dataset.messageKind || "info";
+      if (message) {
+        window.showToast(message, kind);
+      }
+      element.remove();
+    }
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeMessages);
+  } else {
+    initializeMessages();
+  }
 })();

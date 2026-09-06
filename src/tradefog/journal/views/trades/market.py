@@ -26,6 +26,10 @@ def trade_market_preview(request: HttpRequest) -> HttpResponse:
     entry_raw = data.get("planned_entry", "").strip()
     stop_raw = data.get("planned_stop", "").strip()
 
+    atr_source = data.get("atr_source", "auto").strip().lower()
+    manual_atr_raw = data.get("manual_atr_value", "").strip()
+    manual_session_raw = data.get("manual_session_range", "").strip()
+
     context: dict[str, Any] = {
         "market_context": None,
         "candles_json": "[]",
@@ -35,6 +39,9 @@ def trade_market_preview(request: HttpRequest) -> HttpResponse:
         "planned_move": None,
         "planned_move_percent": None,
         "exceeds_75_atr": False,
+        "atr_source": atr_source,
+        "manual_atr_value": manual_atr_raw,
+        "manual_session_range": manual_session_raw,
     }
 
     if not instrument_id:
@@ -60,6 +67,70 @@ def trade_market_preview(request: HttpRequest) -> HttpResponse:
 
     if trade_date is None:
         trade_date = datetime.datetime.now(datetime.UTC).date()
+
+    if atr_source == "manual":
+        if manual_atr_raw:
+            try:
+                manual_atr = Decimal(manual_atr_raw)
+                if manual_atr > Decimal(0):
+                    manual_session: Decimal | None = None
+                    session_pct: Decimal | None = None
+                    if manual_session_raw:
+                        try:
+                            manual_session = Decimal(manual_session_raw)
+                            session_pct = (
+                                manual_session / manual_atr
+                            ) * Decimal(100)
+                        except (InvalidOperation, ValueError):
+                            pass
+
+                    from tradefog.market.types import ATRContext
+
+                    atr_ctx = ATRContext(
+                        atr_value=manual_atr,
+                        contributing_date=trade_date,
+                        candles=[],
+                        observed_session_range=manual_session,
+                        session_range_percent=session_pct,
+                        source="manual",
+                        is_stale=False,
+                    )
+                    context["market_context"] = atr_ctx
+                    context["reference_75_atr"] = manual_atr * Decimal("0.75")
+
+                    if entry_raw and stop_raw:
+                        try:
+                            entry = Decimal(entry_raw)
+                            stop = Decimal(stop_raw)
+                            distance = abs(entry - stop)
+
+                            reward_multiple = Decimal(3)
+                            if strategy_id:
+                                strat = TradingStrategy.objects.filter(
+                                    pk=strategy_id,
+                                    profile__owner=request.user,
+                                    is_archived=False,
+                                ).first()
+                                if strat:
+                                    reward_multiple = strat.reward_multiple
+
+                            planned_move = distance * reward_multiple
+                            context["planned_move"] = planned_move
+                            move_pct = (planned_move / manual_atr) * Decimal(
+                                100
+                            )
+                            context["planned_move_percent"] = move_pct
+                            context["exceeds_75_atr"] = move_pct > Decimal(75)
+                        except (InvalidOperation, ValueError):
+                            pass
+            except (InvalidOperation, ValueError):
+                context["error"] = "Invalid manual ATR value."
+
+        return render(
+            request,
+            "tradefog/trades/partials/market_context.html",
+            context,
+        )
 
     try:
         atr_ctx = fetch_bybit_atr_context(

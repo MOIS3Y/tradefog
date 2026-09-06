@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
-from tradefog.journal.models import Trade
+from tradefog.journal.models import Trade, TradingProfile
 
 
 @login_required
@@ -21,8 +21,14 @@ def trade_overview(request: HttpRequest) -> HttpResponse:
         )
         .order_by("-trade_date", "-id")
     )
+    has_active_profiles = TradingProfile.objects.filter(
+        owner=request.user, is_archived=False
+    ).exists()
     return render(
         request,
         "tradefog/trades/overview.html",
-        {"trades": trades},
+        {
+            "trades": trades,
+            "has_active_profiles": has_active_profiles,
+        },
     )

@@ -4,30 +4,125 @@
     <section class="card h-100" aria-labelledby="market-chart-title">
       <div class="card-header">
         <div>
-          <h2 class="card-title" id="market-chart-title">
-            {% translate "Price action before the decision" %}
-          </h2>
-          <p class="card-subtitle">
-            {% translate "Last 14 closed daily candles; the selected trade date is excluded." %}
+          <div class="d-flex align-items-center gap-2">
+            <h2 class="card-title mb-0" id="market-chart-title">
+              {% if atr_source == 'manual' %}
+                {% translate "Manual ATR context" %}
+              {% else %}
+                {% translate "Price action before the decision" %}
+              {% endif %}
+            </h2>
+            {% if instrument %}
+              <span class="badge bg-secondary-lt">{{ instrument.pair.canonical_symbol }}</span>
+            {% endif %}
+          </div>
+          <p class="card-subtitle mt-1 mb-0">
+            {% if atr_source == 'manual' %}
+              {% translate "Enter observable volatility when provider candles are unavailable." %}
+            {% else %}
+              {% translate "Last 14 closed daily candles; the selected trade date is excluded." %}
+            {% endif %}
           </p>
         </div>
         <div class="card-actions d-flex align-items-center gap-2">
-          {% if instrument %}
-            <span class="badge bg-secondary-lt">{{ instrument.pair.canonical_symbol }}</span>
+          {% if atr_source != 'manual' %}
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    hx-post="{% url 'journal:trade_market_preview' %}"
+                    hx-target="#market-context"
+                    hx-include="#trade-form"
+                    title="{% translate 'Fetch recent market candles and ATR context' %}">
+              {% include "tradefog/components/icon.html" with name="refresh" class="icon icon-inline" %}
+              {% translate "Fetch data" %}
+            </button>
           {% endif %}
-          <button type="button"
-                  class="btn btn-sm btn-outline-secondary"
-                  hx-post="{% url 'journal:trade_market_preview' %}"
-                  hx-target="#market-context"
-                  hx-include="#trade-form"
-                  title="{% translate 'Fetch recent market candles and ATR context' %}">
-            {% include "tradefog/components/icon.html" with name="refresh" class="icon icon-inline" %}
-            {% translate "Fetch data" %}
-          </button>
+
+          <div class="btn-group btn-group-sm" role="group" aria-label="{% translate 'Data source' %}">
+            <input type="radio" class="btn-check" name="atr_source" id="atr-source-auto" value="auto"
+                   {% if atr_source != 'manual' %}checked{% endif %}
+                   hx-post="{% url 'journal:trade_market_preview' %}"
+                   hx-target="#market-context"
+                   hx-include="#trade-form"
+                   hx-trigger="change">
+            <label class="btn btn-outline-secondary" for="atr-source-auto">
+              {% translate "Auto" %}
+            </label>
+
+            <input type="radio" class="btn-check" name="atr_source" id="atr-source-manual" value="manual"
+                   {% if atr_source == 'manual' %}checked{% endif %}
+                   hx-post="{% url 'journal:trade_market_preview' %}"
+                   hx-target="#market-context"
+                   hx-include="#trade-form"
+                   hx-trigger="change">
+            <label class="btn btn-outline-secondary" for="atr-source-manual">
+              {% translate "Manual" %}
+            </label>
+          </div>
         </div>
       </div>
       <div class="card-body d-flex flex-column justify-content-center tf-market-card-body">
-        {% if error %}
+        {% if atr_source == 'manual' %}
+          <div class="tf-fade-in my-auto">
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label required" for="manual-atr-value">
+                  {% translate "ATR(14) value" %}
+                </label>
+                <div class="input-group">
+                  <input class="form-control"
+                         id="manual-atr-value"
+                         name="manual_atr_value"
+                         type="text"
+                         inputmode="decimal"
+                         placeholder="0.00"
+                         value="{{ manual_atr_value|default:'' }}">
+                  <span class="input-group-text">{{ instrument.pair.quote.symbol|default:'USD' }}</span>
+                </div>
+                <small class="form-hint">
+                  {% translate "Average True Range for volatility reference." %}
+                </small>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="manual-session-range">
+                  {% translate "Observed session range" %}
+                </label>
+                <div class="input-group">
+                  <input class="form-control"
+                         id="manual-session-range"
+                         name="manual_session_range"
+                         type="text"
+                         inputmode="decimal"
+                         placeholder="0.00"
+                         value="{{ manual_session_range|default:'' }}">
+                  <span class="input-group-text">{{ instrument.pair.quote.symbol|default:'USD' }}</span>
+                </div>
+                <small class="form-hint">
+                  {% translate "Current day move (High — Low), optional." %}
+                </small>
+              </div>
+            </div>
+
+            <div class="card bg-body-tertiary border mt-3 mb-0">
+              <div class="card-body p-3">
+                <div class="d-flex align-items-center gap-2 mb-2 text-secondary fw-semibold small">
+                  {% include "tradefog/components/icon.html" with name="info-circle" class="icon icon-inline" %}
+                  <span>{% translate "How to obtain ATR values" %}</span>
+                </div>
+                <ul class="text-secondary small mb-0 ps-3">
+                  <li class="mb-1">
+                    <strong>{% translate "Chart indicator" %}:</strong>
+                    {% translate "On TradingView or exchange charts, open the Daily (D1) timeframe, add the standard «ATR» indicator with period 14 (RMA/Wilder), and take the value of the last closed candle." %}
+                  </li>
+                  <li>
+                    <strong>{% translate "Session range" %}:</strong>
+                    {% translate "Calculate the difference between today's maximum and minimum price (High — Low)." %}
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        {% elif error %}
           <div class="alert alert-warning mb-0" role="alert">
             {{ error }}
           </div>
@@ -70,42 +165,49 @@
           <p class="card-subtitle">{% translate "ATR is volatility context, not a directional signal." %}</p>
         </div>
         <div class="card-actions d-flex align-items-center gap-2">
-          {% if market_context %}
+          {% if atr_source == 'manual' %}
+            <span class="badge bg-secondary-lt">{% translate "Manual" %}</span>
+          {% elif market_context %}
             <span class="badge bg-primary-lt">Bybit</span>
           {% else %}
-            <span class="badge bg-secondary-lt">Manual</span>
+            <span class="badge bg-secondary-lt">{% translate "Auto" %}</span>
           {% endif %}
         </div>
       </div>
       <div class="card-body d-flex flex-column justify-content-center tf-market-card-body">
-        {% if market_context %}
+        {% if market_context or atr_source == 'manual' %}
           <div class="tf-fade-in">
             <div class="text-secondary text-uppercase small fw-semibold">ATR(14)</div>
-            <div class="display-6 fw-semibold lh-1 mt-1">
-              {{ market_context.atr_value|floatformat:2 }}
+            <div class="display-6 fw-semibold lh-1 mt-1" id="atr-display-value">
+              {% if market_context.atr_value %}{{ market_context.atr_value|floatformat:2 }}{% elif manual_atr_value %}{{ manual_atr_value }}{% else %}—{% endif %}
             </div>
             <div class="text-secondary small mt-2">
-              {% translate "Closed candles through" %} {{ market_context.contributing_date|date:"M j" }}
+              {% if atr_source == 'manual' %}
+                {% translate "Manual volatility context" %}
+              {% else %}
+                {% translate "Closed candles through" %} {{ market_context.contributing_date|date:"M j" }}
+              {% endif %}
             </div>
 
-            <div class="border-top mt-4 pt-4">
+            <div class="border-top mt-4 pt-4" id="atr-session-comparison">
               <div class="d-flex justify-content-between gap-3 mb-2">
                 <div class="fw-semibold">{% translate "Observed session range" %}</div>
                 <div class="text-end">
-                  <strong>{% if market_context.session_range_percent is not None %}{{ market_context.session_range_percent|floatformat:0 }}%{% else %}0%{% endif %}</strong>
+                  <strong id="atr-session-pct">{% if market_context.session_range_percent is not None %}{{ market_context.session_range_percent|floatformat:0 }}%{% else %}0%{% endif %}</strong>
                   <span class="text-secondary">{% translate "of ATR" %}</span>
                 </div>
               </div>
               <div class="tf-range-tape"
+                   id="atr-session-tape"
                    style="--tf-range-percent: {% if market_context.session_range_percent is not None %}{{ market_context.session_range_percent|floatformat:0 }}{% else %}0{% endif %}%;"
                    role="img"
                    aria-label="{% translate 'Observed range as percentage of ATR' %}">
-                <div class="tf-range-tape-fill"></div>
+                <div class="tf-range-tape-fill {% if market_context.session_range_percent and market_context.session_range_percent > 100 %}tf-range-tape-fill-danger{% elif market_context.session_range_percent and market_context.session_range_percent > 75 %}tf-range-tape-fill-warning{% endif %}" id="atr-session-fill"></div>
                 <div class="tf-range-tape-marker"><span>75%</span></div>
               </div>
               <div class="d-flex flex-wrap justify-content-between gap-2 text-secondary small mt-2">
-                <span>{% translate "Observed move" %}: {% if market_context.observed_session_range is not None %}{{ market_context.observed_session_range|floatformat:2 }}{% else %}—{% endif %}</span>
-                <span>{% translate "75% ATR reference" %}: {% if reference_75_atr %}{{ reference_75_atr|floatformat:2 }}{% else %}—{% endif %}</span>
+                <span>{% translate "Observed move" %}: <span id="atr-session-move">{% if market_context.observed_session_range is not None %}{{ market_context.observed_session_range|floatformat:2 }}{% else %}—{% endif %}</span></span>
+                <span>{% translate "75% ATR reference" %}: <span id="atr-reference-75">{% if reference_75_atr %}{{ reference_75_atr|floatformat:2 }}{% else %}—{% endif %}</span></span>
               </div>
             </div>
 
@@ -149,7 +251,11 @@
             </div>
             <p class="empty-title h4 mb-1">{% translate "Daily range context" %}</p>
             <p class="empty-subtitle text-secondary mb-0">
-              {% translate "Volatility metrics will be calculated once market candles are fetched." %}
+              {% if atr_source == 'manual' %}
+                {% translate "Enter the ATR(14) value to calculate volatility and target metrics." %}
+              {% else %}
+                {% translate "Volatility metrics will be calculated once market candles are fetched." %}
+              {% endif %}
             </p>
           </div>
         {% endif %}

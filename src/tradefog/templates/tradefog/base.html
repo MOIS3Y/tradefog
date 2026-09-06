@@ -210,10 +210,12 @@
       {% if user.is_authenticated %}{% block page_header %}{% endblock %}{% endif %}
       <main class="page-body">
         <div class="{% if not user.is_authenticated %}container container-tight py-4{% else %}container-xl{% endif %}">
-          {% for message in messages %}
-            <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}"
-                 role="alert">{{ message }}</div>
-          {% endfor %}
+          {% if not user.is_authenticated %}
+            {% for message in messages %}
+              <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}"
+                   role="alert">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
           {% block content %}{% endblock %}
         </div>
       </main>
@@ -264,7 +266,13 @@
     <div class="toast-container position-fixed bottom-0 end-0 p-3"
          id="toast-region"
          aria-live="polite"
-         aria-atomic="true"></div>
+         aria-atomic="true">
+      {% for message in messages %}
+        <span class="d-none"
+              data-django-message
+              data-message-kind="{% if message.tags == 'error' %}danger{% elif message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}">{{ message }}</span>
+      {% endfor %}
+    </div>
     <template id="toast-template"
               data-title-success="{% translate 'Success' %}"
               data-title-danger="{% translate 'Error' %}"

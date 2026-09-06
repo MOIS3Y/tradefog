@@ -1,0 +1,37 @@
+{% load i18n %}
+<div class="modal modal-blur fade"
+     id="no-profile-modal"
+     tabindex="-1"
+     aria-labelledby="no-profile-modal-title"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="no-profile-modal-title">
+          {% translate "New trade" %}
+        </h2>
+        <button class="btn-close"
+                type="button"
+                data-bs-dismiss="modal"
+                aria-label="{% translate 'Close' %}"></button>
+      </div>
+      <div class="modal-body">
+        <section class="empty">
+          <div class="empty-icon">
+            {% include "tradefog/components/icon.html" with name="user-circle" %}
+          </div>
+          <h2 class="empty-title">{% translate "Trading profile required" %}</h2>
+          <p class="empty-subtitle text-secondary">
+            {% translate "A trade belongs to a trading profile. Create your first profile with a venue and wallet to start journaling trades." %}
+          </p>
+          <div class="empty-action">
+            <a class="btn btn-primary" href="{% url 'journal:profile_overview' %}">
+              {% include "tradefog/components/icon.html" with name="plus" class="icon" %}
+              {% translate "Go to profiles" %}
+            </a>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
