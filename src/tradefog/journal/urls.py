@@ -121,9 +121,52 @@ urlpatterns = [
         views.strategy_capital_restore,
         name="strategy_capital_restore",
     ),
+    # Trades:
     path("trades/", views.trade_overview, name="trades"),
     path("trades/new/", views.trade_create, name="trade_create"),
     path("trades/<int:pk>/", views.trade_workspace, name="trade_workspace"),
+    path("trades/<int:pk>/submit/", views.trade_submit, name="trade_submit"),
+    path("trades/<int:pk>/open/", views.trade_open_action, name="trade_open"),
+    path(
+        "trades/<int:pk>/close/",
+        views.trade_close_action,
+        name="trade_close",
+    ),
+    path(
+        "trades/<int:pk>/cancel/",
+        views.trade_cancel_action,
+        name="trade_cancel",
+    ),
+    path(
+        "trades/<int:pk>/delete/",
+        views.trade_delete,
+        name="trade_delete",
+    ),
+    path(
+        "trades/<int:pk>/description/",
+        views.trade_description_update,
+        name="trade_description_update",
+    ),
+    path(
+        "trades/<int:pk>/review-status/",
+        views.trade_review_toggle,
+        name="trade_review_toggle",
+    ),
+    path(
+        "trades/<int:pk>/attachments/",
+        views.trade_attachment_upload,
+        name="trade_attachment_upload",
+    ),
+    path(
+        "trades/<int:pk>/attachments/<int:attachment_pk>/",
+        views.trade_attachment_serve,
+        name="trade_attachment_serve",
+    ),
+    path(
+        "trades/<int:pk>/attachments/<int:attachment_pk>/delete/",
+        views.trade_attachment_delete,
+        name="trade_attachment_delete",
+    ),
     path("trades/options/", views.trade_options, name="trade_options"),
     path(
         "trades/plan/preview/",

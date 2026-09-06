@@ -17,16 +17,71 @@
           <div class="page-pretitle">
             {{ context_bar.profile.name|default:"Profile" }} · {{ context_bar.profile.venue.name|default:"Venue" }}
           </div>
-          <h1 class="page-title">
+          <h1 class="page-title d-flex align-items-center gap-2">
             {% if is_new %}
               {% translate "New trade draft" %}
             {% else %}
               {{ trade.trade_date }} {{ trade.venue_instrument.pair.canonical_symbol }} {{ trade.get_direction_display }}
+              {% if trade.status == "draft" %}
+                <span class="badge bg-secondary-lt">{% translate "Draft" %}</span>
+              {% elif trade.status == "pending_entry" %}
+                <span class="badge bg-yellow-lt">{% translate "Pending" %}</span>
+              {% elif trade.status == "open" %}
+                <span class="badge bg-blue-lt">{% translate "Open" %}</span>
+              {% elif trade.status == "closed" %}
+                {% if trade.realized_pnl and trade.realized_pnl > 0 %}
+                  <span class="badge bg-green-lt">{% translate "Closed (Win)" %}</span>
+                {% elif trade.realized_pnl and trade.realized_pnl < 0 %}
+                  <span class="badge bg-red-lt">{% translate "Closed (Loss)" %}</span>
+                {% else %}
+                  <span class="badge bg-secondary-lt">{% translate "Closed" %}</span>
+                {% endif %}
+              {% elif trade.status == "cancelled" %}
+                <span class="badge bg-secondary-lt">{% translate "Cancelled" %}</span>
+              {% endif %}
             {% endif %}
           </h1>
         </div>
         <div class="col-auto ms-auto">
-          <a class="btn" href="{% url 'journal:trades' %}">{% translate "Back" %}</a>
+          <div class="btn-list">
+            <a class="btn" href="{% url 'journal:trades' %}">{% translate "Back" %}</a>
+            {% if not is_new %}
+              {% if trade.status == "draft" %}
+                <button class="btn btn-primary"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#trade-submit-modal">
+                  {% translate "Submit trade" %}
+                </button>
+              {% elif trade.status == "pending_entry" %}
+                <button class="btn btn-success"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#trade-open-modal">
+                  {% translate "Mark Open" %}
+                </button>
+                <button class="btn btn-outline-danger"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#trade-cancel-modal">
+                  {% translate "Cancel trade" %}
+                </button>
+              {% elif trade.status == "open" %}
+                <button class="btn btn-primary"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#trade-close-modal">
+                  {% translate "Close trade" %}
+                </button>
+                <button class="btn btn-outline-danger"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#trade-cancel-modal">
+                  {% translate "Cancel trade" %}
+                </button>
+              {% endif %}
+            {% endif %}
+          </div>
         </div>
       </div>
     </div>
@@ -89,7 +144,15 @@
           }
         }
       });
-      document.body.addEventListener("htmx:afterSwap", syncShortAvailability);
+      document.body.addEventListener("htmx:afterSwap", function (evt) {
+        syncShortAvailability();
+        if (evt.detail.target && evt.detail.target.id === "trade-cascading-options") {
+          const instSelect = document.getElementById("trade-instrument");
+          if (instSelect && window.htmx) {
+            window.htmx.trigger(instSelect, "change");
+          }
+        }
+      });
       syncShortAvailability();
 
       // If browser restored form inputs on page refresh, trigger calculation
@@ -147,6 +210,7 @@
                             id="trade-profile"
                             name="profile"
                             hx-get="{% url 'journal:trade_options' %}"
+                            hx-include="#trade-form"
                             hx-target="#trade-cascading-options"
                             hx-trigger="change">
                       {% for p in form.fields.profile.queryset %}
@@ -165,6 +229,7 @@
                             name="strategy"
                             hx-post="{% url 'journal:trade_plan_preview' %}"
                             hx-target="#trade-plan"
+                            hx-swap="outerHTML"
                             hx-include="#trade-form"
                             hx-trigger="change">
                       {% for s in form.fields.strategy.queryset %}
@@ -176,8 +241,8 @@
                   </div>
                 </div>
               {% else %}
-                <input type="hidden" name="profile" value="{{ trade.profile_id }}">
-                <input type="hidden" name="strategy" value="{{ trade.strategy_id }}">
+                <input type="hidden" id="trade-profile" name="profile" value="{{ trade.profile_id }}">
+                <input type="hidden" id="trade-strategy" name="strategy" value="{{ trade.strategy_id }}">
               {% endif %}
 
               <div class="col-12 col-md-4">
@@ -201,8 +266,8 @@
                   <select class="form-select"
                           id="trade-product-kind"
                           name="product_kind"
-                          hx-get="{% url 'journal:trade_options' %}"
-                          hx-include="#trade-profile, #trade-strategy, #trade-product-kind"
+                          hx-get="{% url 'journal:trade_options' %}{% if not is_new %}?is_new=0{% endif %}"
+                          hx-include="#trade-form"
                           hx-target="#trade-cascading-options"
                           hx-trigger="change">
                     {% for pk_val, pk_lbl in form.fields.product_kind.choices %}
@@ -250,6 +315,7 @@
                            {% if form.direction.value == "long" or form.direction.value == "LONG" or not form.direction.value %}checked{% endif %}
                            hx-post="{% url 'journal:trade_plan_preview' %}"
                            hx-target="#trade-plan"
+                           hx-swap="outerHTML"
                            hx-include="#trade-form"
                            hx-trigger="change">
                     <label class="btn btn-outline-success" for="direction-long">LONG</label>
@@ -267,6 +333,7 @@
                              {% if form.direction.value == "short" or form.direction.value == "SHORT" %}checked{% endif %}
                              hx-post="{% url 'journal:trade_plan_preview' %}"
                              hx-target="#trade-plan"
+                             hx-swap="outerHTML"
                              hx-include="#trade-form"
                              hx-trigger="change">
                       <label class="btn btn-outline-danger w-100" for="direction-short">SHORT</label>
@@ -287,6 +354,7 @@
                            placeholder="0.00"
                            hx-post="{% url 'journal:trade_plan_preview' %}"
                            hx-target="#trade-plan"
+                           hx-swap="outerHTML"
                            hx-include="#trade-form"
                            hx-trigger="keyup changed delay:300ms, change">
                     <span class="input-group-text">{{ context_bar.settlement_symbol|default:"USD" }}</span>
@@ -306,6 +374,7 @@
                            placeholder="0.00"
                            hx-post="{% url 'journal:trade_plan_preview' %}"
                            hx-target="#trade-plan"
+                           hx-swap="outerHTML"
                            hx-include="#trade-form"
                            hx-trigger="keyup changed delay:300ms, change">
                     <span class="input-group-text">{{ context_bar.settlement_symbol|default:"USD" }}</span>
@@ -507,21 +576,26 @@
           {% include "tradefog/trades/partials/checklist_assessment.html" %}
         </section>
       </div>
-
-      <div class="col-12">
-        <div class="d-flex justify-content-end gap-2">
-          <a class="btn" href="{% url 'journal:trades' %}">{% translate "Back" %}</a>
-          <button class="btn btn-primary" type="submit">
-            {% if is_new %}
-              {% translate "Save draft" %}
-            {% else %}
-              {% translate "Save changes" %}
-            {% endif %}
-          </button>
-        </div>
-      </div>
     </div>
   </form>
+
+  {% if not is_new %}
+    {% include "tradefog/trades/partials/trade_review.html" %}
+    {% include "tradefog/trades/partials/lifecycle_modals.html" %}
+  {% endif %}
+
+  <div class="d-flex justify-content-end gap-2 mt-4">
+    <a class="btn" href="{% url 'journal:trades' %}">{% translate "Back" %}</a>
+    {% if is_new or trade.status == "draft" %}
+      <button class="btn btn-primary" type="submit" form="trade-form">
+        {% if is_new %}
+          {% translate "Save draft" %}
+        {% else %}
+          {% translate "Save changes" %}
+        {% endif %}
+      </button>
+    {% endif %}
+  </div>
 
   <div id="trade-cascading-options" hidden></div>
 {% endblock %}

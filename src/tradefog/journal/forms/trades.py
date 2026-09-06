@@ -36,6 +36,7 @@ class TradeDecisionForm(forms.ModelForm):
                 "step": "any",
                 "inputmode": "decimal",
                 "id": "planned-entry",
+                "placeholder": "0.00",
             }
         ),
     )
@@ -48,10 +49,10 @@ class TradeDecisionForm(forms.ModelForm):
                 "step": "any",
                 "inputmode": "decimal",
                 "id": "planned-stop",
+                "placeholder": "0.00",
             }
         ),
     )
-
     product_kind = forms.ChoiceField(
         required=False,
         label=_("Product"),
@@ -103,7 +104,6 @@ class TradeDecisionForm(forms.ModelForm):
             "venue_instrument",
             "trade_date",
             "direction",
-            "description_markdown",
         )
         widgets: ClassVar[dict[str, forms.Widget]] = {
             "profile": forms.Select(
@@ -136,11 +136,6 @@ class TradeDecisionForm(forms.ModelForm):
                     "class": "btn-check",
                 }
             ),
-            "description_markdown": forms.Textarea(
-                attrs={
-                    "class": "tf-description-source",
-                }
-            ),
         }
 
     def __init__(
@@ -154,6 +149,20 @@ class TradeDecisionForm(forms.ModelForm):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.user = user
+
+        # Load draft_context for existing draft instance if initial not already populated
+        draft_ctx = getattr(self.instance, "draft_context", None)
+        if isinstance(draft_ctx, dict):
+            for k in (
+                "planned_entry",
+                "planned_stop",
+                "product_kind",
+                "atr_source",
+                "manual_atr_value",
+                "manual_session_range",
+            ):
+                if k in draft_ctx and self.initial.get(k) is None:
+                    self.initial[k] = draft_ctx[k]
 
         # Filter profiles to current user active profiles
         profile_field = self.fields["profile"]

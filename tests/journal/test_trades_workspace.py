@@ -150,6 +150,13 @@ def test_trade_create_post_creates_draft_and_redirects() -> None:
     assert trade.status == TradeStatus.DRAFT
     assert trade.direction == Direction.LONG
 
+    # Verify workspace detail view renders with review and attachments
+    detail_res = client.get(
+        reverse("journal:trade_workspace", kwargs={"pk": trade.pk})
+    )
+    assert detail_res.status_code == 200
+    assert "Trade notes & review" in detail_res.content.decode()
+
 
 @mark.django_db
 def test_trade_options_cascading_endpoint() -> None:
@@ -512,3 +519,155 @@ def test_trades_overview_without_profile_renders_no_profile_modal(
     content = response.content.decode()
     assert "no-profile-modal" in content
     assert "Trading profile required" in content
+
+
+@mark.django_db
+def test_trade_options_for_existing_draft_keeps_strategy_hidden() -> None:
+    client, _user, profile, strategy, instrument, _w_asset = (
+        _setup_trade_environment()
+    )
+    # Create perpetual future instrument on same venue
+    perp_instrument = VenueInstrument.objects.create(
+        venue=profile.venue,
+        pair=instrument.pair,
+        product=ProductKind.PERPETUAL_FUTURE,
+        exec_symbol="BTCUSDT.P",
+        price_step=Decimal("0.01"),
+        qty_step=Decimal("0.001"),
+        min_qty=Decimal("0.001"),
+        min_notional=Decimal("5.00"),
+        is_active=True,
+    )
+
+    _trade = Trade.objects.create(
+        profile=profile,
+        strategy=strategy,
+        venue_instrument=instrument,
+        trade_date=datetime.date(2026, 9, 6),
+        direction=Direction.LONG,
+    )
+
+    with override("en"):
+        # When user changes product_kind on existing trade (is_new=0)
+        response = client.get(
+            reverse("journal:trade_options"),
+            {
+                "profile": profile.pk,
+                "strategy": strategy.pk,
+                "product_kind": ProductKind.PERPETUAL_FUTURE.value,
+                "is_new": "0",
+            },
+        )
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    # Strategy select must NOT be present when is_new=0
+    assert 'id="trade-strategy"' not in content
+    # Product kind select must be present with Perpetual Future
+    assert 'id="trade-product-kind"' in content
+    assert "Perpetual Future" in content
+    # Venue instrument select must contain the perpetual instrument
+    assert 'id="trade-instrument"' in content
+    assert str(perp_instrument.pk) in content
+    assert "Main" in content  # Context bar profile
+
+
+@mark.django_db
+def test_trade_delete_draft_success() -> None:
+    client, _user, profile, strategy, instrument, _w_asset = (
+        _setup_trade_environment()
+    )
+    trade = Trade.objects.create(
+        profile=profile,
+        strategy=strategy,
+        venue_instrument=instrument,
+        trade_date=datetime.date(2026, 9, 6),
+        direction=Direction.LONG,
+    )
+
+    # GET returns confirmation modal form
+    get_res = client.get(
+        reverse("journal:trade_delete", kwargs={"pk": trade.pk})
+    )
+    assert get_res.status_code == 200
+    assert "Delete draft" in get_res.content.decode()
+
+    # POST deletes draft and returns trade results table
+    post_res = client.post(
+        reverse("journal:trade_delete", kwargs={"pk": trade.pk})
+    )
+    assert post_res.status_code == 200
+    assert not Trade.objects.filter(pk=trade.pk).exists()
+    assert "tradefog:toast" in post_res.headers.get("HX-Trigger", "")
+
+
+@mark.django_db
+def test_cannot_delete_non_draft_trade() -> None:
+    client, _user, profile, strategy, instrument, _w_asset = (
+        _setup_trade_environment()
+    )
+    trade = Trade.objects.create(
+        profile=profile,
+        strategy=strategy,
+        venue_instrument=instrument,
+        trade_date=datetime.date(2026, 9, 6),
+        direction=Direction.LONG,
+        status=TradeStatus.OPEN,
+    )
+
+    post_res = client.post(
+        reverse("journal:trade_delete", kwargs={"pk": trade.pk})
+    )
+    assert post_res.status_code == 409
+    assert Trade.objects.filter(pk=trade.pk).exists()
+
+
+@mark.django_db
+def test_save_trade_draft_preserves_notes_and_context() -> None:
+    client, _user, profile, strategy, instrument, _w_asset = (
+        _setup_trade_environment()
+    )
+    trade = Trade.objects.create(
+        profile=profile,
+        strategy=strategy,
+        venue_instrument=instrument,
+        trade_date=datetime.date(2026, 9, 6),
+        direction=Direction.LONG,
+        description_markdown="Important analysis: key resistance level held.",
+    )
+
+    post_res = client.post(
+        reverse("journal:trade_workspace", kwargs={"pk": trade.pk}),
+        {
+            "profile": profile.pk,
+            "strategy": strategy.pk,
+            "trade_date": "2026-09-07",
+            "product_kind": ProductKind.SPOT.value,
+            "venue_instrument": instrument.pk,
+            "direction": "long",
+            "planned_entry": "51000.00",
+            "planned_stop": "49500.00",
+            "market_sentiment": "POSITIVE",
+            "global_daily_direction": "POSITIVE",
+        },
+    )
+    assert post_res.status_code == 302
+    trade.refresh_from_db()
+    assert trade.trade_date == datetime.date(2026, 9, 7)
+    assert trade.direction == Direction.LONG
+    assert trade.draft_context["planned_entry"] == "51000.00"
+    assert trade.draft_context["planned_stop"] == "49500.00"
+    assert trade.draft_context["market_sentiment"] == "POSITIVE"
+    assert (
+        trade.description_markdown
+        == "Important analysis: key resistance level held."
+    )
+
+    # GET response populates form fields and checklist inputs
+    get_res = client.get(
+        reverse("journal:trade_workspace", kwargs={"pk": trade.pk})
+    )
+    assert get_res.status_code == 200
+    content = get_res.content.decode()
+    assert 'value="51000.00"' in content
+    assert 'value="49500.00"' in content

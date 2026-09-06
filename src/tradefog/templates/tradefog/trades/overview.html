@@ -14,21 +14,24 @@
           {% include "tradefog/components/page_heading.html" with direction=page_direction heading=page_heading help_text=page_help_text %}
         </div>
         <div class="col-auto ms-auto">
-          {% if has_active_profiles %}
-            <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
-               href="{% url 'journal:trade_create' %}">
-              {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
-              {% translate "New trade" %}
-            </a>
-          {% else %}
-            <button class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
-                    type="button"
-                    data-bs-toggle="modal"
-                    data-bs-target="#no-profile-modal">
-              {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
-              {% translate "New trade" %}
-            </button>
-          {% endif %}
+          <div class="btn-list flex-nowrap">
+            {% include "tradefog/components/filter_toggle.html" with filter_id="trade-filters" filters_active=filters_active %}
+            {% if has_active_profiles %}
+              <a class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+                 href="{% url 'journal:trade_create' %}">
+                {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+                {% translate "New trade" %}
+              </a>
+            {% else %}
+              <button class="btn btn-primary btn-animate-icon btn-animate-icon-rotate"
+                      type="button"
+                      data-bs-toggle="modal"
+                      data-bs-target="#no-profile-modal">
+                {% include "tradefog/components/icon.html" with name="plus" class="icon-2" %}
+                {% translate "New trade" %}
+              </button>
+            {% endif %}
+          </div>
         </div>
       </div>
     </div>
@@ -36,17 +39,15 @@
 {% endblock %}
 
 {% block content %}
-  <section class="empty empty-bordered">
-    <div class="empty-icon">
-      {% include "tradefog/components/icon.html" with name="chart-candle" %}
-    </div>
-    <h2 class="empty-title">{% translate "No trades yet" %}</h2>
-    <p class="empty-subtitle text-secondary">
-      {% translate "Record your first manual trade to start building the journal." %}
-    </p>
-  </section>
+  <div class="collapse{% if filters_active %} show{% endif %}" id="trade-filters">
+    {% include "tradefog/trades/partials/trade_filters.html" %}
+  </div>
+
+  {% include "tradefog/trades/partials/trade_results.html" %}
 
   {% if not has_active_profiles %}
     {% include "tradefog/trades/partials/no_profile_modal.html" %}
   {% endif %}
+
+  {% include "tradefog/trades/partials/trade_delete_modal.html" %}
 {% endblock %}

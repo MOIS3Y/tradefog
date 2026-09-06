@@ -275,7 +275,8 @@
       }
     }
 
-    // Update Session Range comparison (if manual session range is provided)
+    // Update Session Range comparison (manual input or auto from dataset)
+    const sessionContainer = document.getElementById("atr-session-comparison");
     const sessionPctEl = document.getElementById("atr-session-pct");
     const sessionTapeEl = document.getElementById("atr-session-tape");
     const sessionFillEl = document.getElementById("atr-session-fill");
@@ -283,15 +284,34 @@
 
     if (sessionPctEl && sessionTapeEl && sessionFillEl) {
       let sessionRange = NaN;
-      if (manualSessionInput && manualSessionInput.value.trim()) {
+      let sessionPct = NaN;
+
+      const manualRadio = document.getElementById("atr-source-manual");
+      const isManual = Boolean(manualRadio && manualRadio.checked);
+
+      if (isManual && manualSessionInput && manualSessionInput.value.trim()) {
         sessionRange = Number(String(manualSessionInput.value).replace(",", "."));
+        if (Number.isFinite(sessionRange) && sessionRange >= 0 && Number.isFinite(atrValue) && atrValue > 0) {
+          sessionPct = (sessionRange / atrValue) * 100;
+        }
+      } else if (!isManual && sessionContainer) {
+        const rawRange = sessionContainer.dataset.sessionRange;
+        const rawPct = sessionContainer.dataset.sessionRangePercent;
+        if (rawRange) {
+          sessionRange = Number(String(rawRange).replace(",", "."));
+        }
+        if (rawPct) {
+          sessionPct = Number(String(rawPct).replace(",", "."));
+        } else if (Number.isFinite(sessionRange) && Number.isFinite(atrValue) && atrValue > 0) {
+          sessionPct = (sessionRange / atrValue) * 100;
+        }
       }
-      if (Number.isFinite(sessionRange) && sessionRange >= 0 && Number.isFinite(atrValue) && atrValue > 0) {
-        const sessionPct = (sessionRange / atrValue) * 100;
+
+      if (Number.isFinite(sessionPct) && sessionPct >= 0) {
         const roundedSessionPct = Math.round(sessionPct);
         sessionPctEl.textContent = `${roundedSessionPct}%`;
         sessionTapeEl.style.setProperty("--tf-range-percent", `${sessionPct}%`);
-        if (sessionMoveEl) {
+        if (sessionMoveEl && Number.isFinite(sessionRange)) {
           sessionMoveEl.textContent = sessionRange.toFixed(2);
         }
         sessionFillEl.classList.remove("tf-range-tape-fill-warning", "tf-range-tape-fill-danger");

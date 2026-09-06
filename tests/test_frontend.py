@@ -99,10 +99,17 @@ def test_shared_template_and_static_directories_are_configured() -> None:
         assert "btn-animate-icon-rotate" in action_source
         assert 'name="plus"' in action_source
 
+    trades_source = (
+        template_root / "tradefog/trades/overview.html"
+    ).read_text(encoding="utf-8")
+    assert "components/page_heading.html" in trades_source
+    assert "{% block page_header %}" in trades_source
+    assert "trades/partials/trade_filters.html" in trades_source
+    assert "trades/partials/trade_results.html" in trades_source
+
     for empty_template in (
         "home.html",
         "profiles/partials/profile_cards.html",
-        "trades/overview.html",
     ):
         empty_source = (template_root / "tradefog" / empty_template).read_text(
             encoding="utf-8"
@@ -110,6 +117,12 @@ def test_shared_template_and_static_directories_are_configured() -> None:
         assert "empty-bordered" in empty_source
         assert "empty-icon" in empty_source
         assert "empty-subtitle" in empty_source
+
+    trade_results_source = (
+        template_root / "tradefog/trades/partials/trade_results.html"
+    ).read_text(encoding="utf-8")
+    assert "empty-icon" in trade_results_source
+    assert "empty-subtitle" in trade_results_source
 
     template_source = (template_root / "tradefog/base.html").read_text(
         encoding="utf-8"

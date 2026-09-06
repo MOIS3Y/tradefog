@@ -3280,3 +3280,138 @@ msgstr "Перейти к профилям"
 #: src/tradefog/journal/views/trades/workspace.py
 msgid "Create a trading profile before starting a new trade."
 msgstr "Создайте торговый профиль перед добавлением сделки."
+
+msgid "Trade notes & review"
+msgstr "Заметки и разбор сделки"
+
+msgid "Mark review complete"
+msgstr "Завершить разбор"
+
+msgid "Mark review incomplete"
+msgstr "Отменить завершение разбора"
+
+msgid "Edit notes"
+msgstr "Редактировать заметки"
+
+msgid "Save notes"
+msgstr "Сохранить заметки"
+
+msgid "The notes could not be saved. Try again."
+msgstr "Не удалось сохранить заметки. Попробуйте снова."
+
+msgid "Submit trade?"
+msgstr "Отправить сделку?"
+
+msgid "This will freeze the decision plan, risk parameters, and wallet context into a permanent snapshot."
+msgstr "Это зафиксирует торговый план, параметры риска и контекст кошелька в постоянный снимок."
+
+msgid "Submit trade"
+msgstr "Отправить сделку"
+
+msgid "Mark trade as open?"
+msgstr "Открыть сделку?"
+
+msgid "Confirm that the order has been filled and the position is currently open."
+msgstr "Подтвердите, что ордер был исполнен и позиция открыта."
+
+msgid "Confirm Open"
+msgstr "Подтвердить открытие"
+
+msgid "Close trade"
+msgstr "Закрыть сделку"
+
+msgid "Record closure"
+msgstr "Зафиксировать закрытие"
+
+msgid "Cancel trade?"
+msgstr "Отменить сделку?"
+
+msgid "This will release the wallet capital reservation and mark the trade as cancelled."
+msgstr "Это освободит резервирование средств в кошельке и отметит сделку как отмененную."
+
+msgid "Keep active"
+msgstr "Оставить активной"
+
+msgid "Cancel trade"
+msgstr "Отменить сделку"
+
+msgid "All directions"
+msgstr "Все направления"
+
+msgid "All statuses"
+msgstr "Все статусы"
+
+msgid "All profiles"
+msgstr "Все профили"
+
+msgid "All strategies"
+msgstr "Все стратегии"
+
+msgid "Market, strategy, profile, or notes…"
+msgstr "Рынок, стратегия, профиль или заметки…"
+
+msgid "%(count)s trade"
+msgid_plural "%(count)s trades"
+msgstr[0] "%(count)s сделка"
+msgstr[1] "%(count)s сделки"
+msgstr[2] "%(count)s сделок"
+
+msgid "Has notes"
+msgstr "Есть заметки"
+
+msgid "Closed (Win)"
+msgstr "Закрыта (Прибыль)"
+
+msgid "Closed (Loss)"
+msgstr "Закрыта (Убыток)"
+
+msgid "Trade submitted to pending entry successfully."
+msgstr "Сделка успешно отправлена в ожидание входа."
+
+msgid "Trade position marked as OPEN."
+msgstr "Сделка отмечена как открытая."
+
+msgid "Trade successfully closed."
+msgstr "Сделка успешно закрыта."
+
+msgid "Trade marked as CANCELLED."
+msgstr "Сделка отмечена как отмененная."
+
+msgid "Only trade drafts can be submitted."
+msgstr "Только черновики сделок могут быть отправлены."
+
+msgid "Only pending trades can be opened."
+msgstr "Только ожидающие сделки могут быть открыты."
+
+msgid "Only pending or open trades can be cancelled."
+msgstr "Только ожидающие или открытые сделки могут быть отменены."
+
+msgid "Only open trades can be closed."
+msgstr "Только открытые сделки могут быть закрыты."
+
+msgid "Review can only be completed for closed trades."
+msgstr "Разбор может быть завершён только для закрытых сделок."
+
+msgid "Delete draft?"
+msgstr "Удалить черновик?"
+
+msgid "Are you sure you want to delete the trade draft for <strong>%(symbol)s</strong> on %(date)s?"
+msgstr "Вы уверены, что хотите удалить черновик сделки для <strong>%(symbol)s</strong> от %(date)s?"
+
+msgid "Delete trade draft"
+msgstr "Удалить черновик сделки"
+
+msgid "Delete draft"
+msgstr "Удалить черновик"
+
+msgid "Edit trade"
+msgstr "Редактировать сделку"
+
+msgid "Review trade"
+msgstr "Обзор сделки"
+
+msgid "Trade draft deleted."
+msgstr "Черновик сделки удалён."
+
+msgid "Only trade drafts can be deleted."
+msgstr "Только черновики сделок могут быть удалены."

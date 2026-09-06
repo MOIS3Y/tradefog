@@ -189,7 +189,10 @@
               {% endif %}
             </div>
 
-            <div class="border-top mt-4 pt-4" id="atr-session-comparison">
+            <div class="border-top mt-4 pt-4"
+                 id="atr-session-comparison"
+                 data-session-range="{{ market_context.observed_session_range|unlocalize|default:'' }}"
+                 data-session-range-percent="{{ market_context.session_range_percent|unlocalize|default:'' }}">
               <div class="d-flex justify-content-between gap-3 mb-2">
                 <div class="fw-semibold">{% translate "Observed session range" %}</div>
                 <div class="text-end">

@@ -96,6 +96,30 @@ def _get_context_bar_data(
     }
 
 
+def _extract_draft_context(data: Any) -> dict[str, Any]:
+    """Extract serializable non-model form values for the draft."""
+    keys = (
+        "planned_entry",
+        "planned_stop",
+        "product_kind",
+        "market_sentiment",
+        "information_background",
+        "global_daily_direction",
+        "local_daily_movement",
+        "manual_atr_value",
+        "manual_session_range",
+        "atr_source",
+    )
+    result: dict[str, Any] = {}
+    for k in keys:
+        val = data.get(k)
+        if val is not None:
+            s_val = str(val).strip()
+            if s_val:
+                result[k] = s_val
+    return result
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def trade_create(request: HttpRequest) -> HttpResponse:
@@ -143,6 +167,7 @@ def trade_create(request: HttpRequest) -> HttpResponse:
 
         if form.is_valid():
             trade = form.save(commit=False)
+            trade.draft_context = _extract_draft_context(request.POST)
             trade.save()
             messages.success(
                 request,
@@ -201,7 +226,12 @@ def trade_workspace(request: HttpRequest, pk: int) -> HttpResponse:
             strategy=trade.strategy,
         )
         if form.is_valid():
-            form.save()
+            saved_trade = form.save(commit=False)
+            if saved_trade.status == "draft":
+                saved_trade.draft_context = _extract_draft_context(
+                    request.POST
+                )
+            saved_trade.save()
             messages.success(request, _("Trade draft updated."))
             return redirect("journal:trade_workspace", pk=trade.pk)
     else:
@@ -212,16 +242,23 @@ def trade_workspace(request: HttpRequest, pk: int) -> HttpResponse:
             strategy=trade.strategy,
         )
 
-    checklist_form = ChecklistForm()
+    checklist_initial: dict[str, Any] | None = None
+    if trade.status == "draft" and trade.draft_context:
+        checklist_initial = trade.draft_context
+    checklist_form = ChecklistForm(initial=checklist_initial)
     context_bar = _get_context_bar_data(
         trade.profile, trade.strategy, trade.venue_instrument
     )
+    from tradefog.journal.markdown import render_markdown
+
+    rendered_description = render_markdown(trade.description_markdown)
 
     context = {
         "form": form,
         "checklist_form": checklist_form,
         "context_bar": context_bar,
         "trade": trade,
+        "rendered_description": rendered_description,
         "is_new": False,
     }
     return render(request, "tradefog/trades/workspace.html", context)
@@ -231,14 +268,23 @@ def trade_workspace(request: HttpRequest, pk: int) -> HttpResponse:
 @require_http_methods(["GET"])
 def trade_options(request: HttpRequest) -> HttpResponse:
     """HTMX endpoint returning cascading options for strategies and instruments."""
-    profile_id = request.GET.get("profile")
-    strategy_id = request.GET.get("strategy")
-    product_kind_param = request.GET.get("product_kind")
+    profile_id = request.GET.get("profile") or request.POST.get("profile")
+    strategy_id = request.GET.get("strategy") or request.POST.get("strategy")
+    product_kind_param = request.GET.get("product_kind") or request.POST.get(
+        "product_kind"
+    )
+    is_new_param = request.GET.get("is_new")
+    is_new = is_new_param != "0" and is_new_param != "false"
 
     profile: TradingProfile | None = None
     if profile_id:
         profile = TradingProfile.objects.filter(
             pk=profile_id, owner=request.user, is_archived=False
+        ).first()
+
+    if not profile:
+        profile = TradingProfile.objects.filter(
+            owner=request.user, is_archived=False
         ).first()
 
     strategies: list[TradingStrategy] = []
@@ -313,8 +359,14 @@ def trade_options(request: HttpRequest) -> HttpResponse:
         "strategies": strategies,
         "instruments": instruments,
         "product_kinds": product_kinds,
-        "selected_strategy_id": strategy_id,
+        "selected_strategy_id": (
+            str(selected_strategy.pk) if selected_strategy else None
+        ),
         "selected_product_kind": selected_product_kind,
+        "selected_instrument_id": (
+            str(selected_instrument.pk) if selected_instrument else None
+        ),
         "context_bar": context_bar,
+        "is_new": is_new,
     }
     return render(request, "tradefog/trades/partials/options.html", context)

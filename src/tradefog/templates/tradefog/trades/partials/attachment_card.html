@@ -1,0 +1,39 @@
+{% load i18n static %}
+<article class="tf-attachment-item {% if attachment.is_image %}tf-attachment-image{% else %}tf-attachment-document{% endif %}"
+         id="attachment-{{ attachment.pk }}"
+         data-attachment-item>
+  <a class="tf-attachment-preview"
+     {% if attachment.is_image %}data-fslightbox="trade-images"{% endif %}
+     href="{% url 'journal:trade_attachment_serve' trade.pk attachment.pk %}"
+     target="_blank"
+     aria-label="{{ attachment.original_name }}">
+    {% if attachment.is_image %}
+      <img src="{% url 'journal:trade_attachment_serve' trade.pk attachment.pk %}"
+           alt="{{ attachment.original_name }}"
+           loading="lazy">
+    {% else %}
+      <span>PDF</span>
+    {% endif %}
+  </a>
+  <div class="tf-attachment-meta">
+    <span class="text-truncate tf-attachment-name" title="{{ attachment.original_name }}">{{ attachment.original_name }}</span>
+    <div class="tf-attachment-actions">
+      <a class="btn btn-sm btn-icon"
+         href="{% url 'journal:trade_attachment_serve' trade.pk attachment.pk %}?download=1"
+         aria-label="{% translate 'Download' %}">
+        {% include "tradefog/components/icon.html" with name="download" class="icon" %}
+      </a>
+      <button class="btn btn-sm btn-icon text-danger"
+              type="button"
+              data-bs-toggle="modal"
+              data-bs-target="#attachment-delete-modal"
+              data-attachment-delete
+              data-delete-url="{% url 'journal:trade_attachment_delete' trade.pk attachment.pk %}"
+              data-attachment-name="{{ attachment.original_name }}"
+              data-attachment-target="#attachment-{{ attachment.pk }}"
+              aria-label="{% translate 'Delete attachment' %}">
+        {% include "tradefog/components/icon.html" with name="trash" class="icon" %}
+      </button>
+    </div>
+  </div>
+</article>

@@ -38,11 +38,18 @@ def fetch_bybit_atr_context(
         symbol=symbol, category=category, limit=40, client=client
     )
 
-    closed_candles = [candle for candle in candles if candle.date < trade_date]
-    session_candles = [
-        candle for candle in candles if candle.date == trade_date
-    ]
-    session_candle = session_candles[0] if session_candles else None
+    if candles:
+        latest_candle = candles[-1]
+        if trade_date >= latest_candle.date:
+            closed_candles = candles[:-1]
+            session_candle = latest_candle
+        else:
+            closed_candles = [c for c in candles if c.date < trade_date]
+            session_matches = [c for c in candles if c.date == trade_date]
+            session_candle = session_matches[0] if session_matches else None
+    else:
+        closed_candles = []
+        session_candle = None
 
     if len(closed_candles) < 14:
         raise MarketDataError(

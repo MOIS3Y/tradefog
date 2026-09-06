@@ -1,0 +1,128 @@
+{% load i18n static %}
+<section class="card tf-trade-description mt-4"
+         id="trade-description"
+         aria-labelledby="trade-description-title">
+  <div class="card-status-start bg-primary"></div>
+  <div class="card-header align-items-start">
+    <div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <h2 class="card-title" id="trade-description-title">{% translate "Trade notes & review" %}</h2>
+        {% if trade.status == "closed" %}
+          {% if trade.review_completed_at %}
+            <span class="badge bg-green-lt">{% translate "Review completed" %}</span>
+          {% else %}
+            <span class="badge bg-yellow-lt">{% translate "Review incomplete" %}</span>
+          {% endif %}
+        {% endif %}
+      </div>
+      <p class="card-subtitle">
+        {% translate "Keep observations, execution notes, errors, and conclusions with the trade." %}
+      </p>
+    </div>
+    <div class="card-actions btn-list">
+      {% if trade.status == "closed" %}
+        <form method="post" action="{% url 'journal:trade_review_toggle' trade.pk %}" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="completed" value="{% if trade.review_completed_at %}0{% else %}1{% endif %}">
+          <button class="btn btn-sm {% if trade.review_completed_at %}btn-outline-secondary{% else %}btn-outline-success{% endif %}" type="submit">
+            {% if trade.review_completed_at %}
+              {% translate "Mark review incomplete" %}
+            {% else %}
+              {% include "tradefog/components/icon.html" with name="circle-check" class="icon" %}
+              {% translate "Mark review complete" %}
+            {% endif %}
+          </button>
+        </form>
+      {% endif %}
+      <button class="btn btn-sm" type="button" data-description-edit {% if not trade.description_markdown %}hidden{% endif %}>
+        {% translate "Edit notes" %}
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="tf-description-rendered"
+         data-description-view
+         {% if not trade.description_markdown %}hidden{% endif %}>
+      {{ rendered_description|safe }}
+    </div>
+    <form action="{% url 'journal:trade_description_update' trade.pk %}"
+          method="post"
+          data-description-form
+          {% if trade.description_markdown %}hidden{% endif %}
+          data-description-saving="{% translate 'Saving…' %}"
+          data-description-saved="{% translate 'Saved' %}"
+          data-description-save-error="{% translate 'The notes could not be saved. Try again.' %}"
+          data-editor-placeholder="{% translate 'Record context before, during, or after the trade.' %}"
+          data-editor-bold="{% translate 'Bold' %}"
+          data-editor-italic="{% translate 'Italic' %}"
+          data-editor-heading="{% translate 'Heading' %}"
+          data-editor-quote="{% translate 'Quote' %}"
+          data-editor-unordered-list="{% translate 'Bulleted list' %}"
+          data-editor-ordered-list="{% translate 'Numbered list' %}"
+          data-editor-link="{% translate 'Link' %}"
+          data-editor-horizontal-rule="{% translate 'Horizontal rule' %}"
+          data-editor-preview="{% translate 'Preview' %}"
+          data-editor-undo="{% translate 'Undo' %}"
+          data-editor-redo="{% translate 'Redo' %}">
+      {% csrf_token %}
+      <textarea class="tf-description-source" name="content_markdown">{{ trade.description_markdown }}</textarea>
+      <div class="d-flex align-items-center justify-content-end gap-2 mt-3">
+        <span class="small text-secondary me-auto"
+              aria-live="polite"
+              data-description-save-status></span>
+        <button class="btn btn-sm" type="button" data-description-cancel {% if not trade.description_markdown %}hidden{% endif %}>
+          {% translate "Cancel" %}
+        </button>
+        <button class="btn btn-sm btn-outline-primary" type="submit" data-description-save>
+          {% translate "Save notes" %}
+        </button>
+      </div>
+    </form>
+
+    <div class="border-top mt-4 pt-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+          <h3 class="h4 mb-1">{% translate "Attachments" %}</h3>
+          <div class="text-secondary small">
+            {% translate "PNG, JPEG, WebP, or PDF." %}
+            {% translate "Up to 10 MB per file." %}
+          </div>
+        </div>
+        <form class="m-0"
+              action="{% url 'journal:trade_attachment_upload' trade.pk %}"
+              method="post"
+              enctype="multipart/form-data"
+              data-attachment-upload
+              data-max-size="10485760"
+              data-size-error="{% translate 'The file exceeds the configured attachment size limit.' %}"
+              data-network-error="{% translate 'Upload failed. Check the connection and try again.' %}"
+              data-retry-label="{% translate 'Retry upload' %}"
+              data-remove-label="{% translate 'Remove from list' %}">
+          {% csrf_token %}
+          <label class="btn btn-sm btn-outline-primary btn-animate-icon btn-animate-icon-rotate mb-0">
+            {% include "tradefog/components/icon.html" with name="plus" class="icon" %}
+            {% translate "Add files" %}
+            <input class="visually-hidden"
+                   type="file"
+                   name="file"
+                   accept=".png,.jpg,.jpeg,.webp,.pdf,image/png,image/jpeg,image/webp,application/pdf"
+                   multiple
+                   data-attachment-input>
+          </label>
+        </form>
+      </div>
+      <div class="tf-attachment-grid" data-attachment-grid aria-live="polite">
+        {% for att in trade.attachments.all %}
+          {% include "tradefog/trades/partials/attachment_card.html" with attachment=att %}
+        {% empty %}
+          <div class="text-secondary py-3" data-attachment-empty>{% translate "No attachments yet." %}</div>
+        {% endfor %}
+      </div>
+      <template data-attachment-empty-template>
+        <div class="text-secondary py-3" data-attachment-empty>{% translate "No attachments yet." %}</div>
+      </template>
+    </div>
+  </div>
+</section>
+
+{% include "tradefog/trades/partials/attachment_delete_modal.html" %}

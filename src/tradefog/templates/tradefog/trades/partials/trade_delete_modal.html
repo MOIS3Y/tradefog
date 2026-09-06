@@ -1,0 +1,21 @@
+{% load i18n %}
+<div class="modal modal-blur fade"
+     id="trade-delete-modal"
+     tabindex="-1"
+     aria-labelledby="trade-delete-modal-title"
+     aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="trade-delete-modal-title">
+          {% translate "Delete draft?" %}
+        </h2>
+        <button class="btn-close"
+                type="button"
+                data-bs-dismiss="modal"
+                aria-label="{% translate 'Close' %}"></button>
+      </div>
+      <div class="modal-body" id="trade-delete-body"></div>
+    </div>
+  </div>
+</div>

@@ -9,7 +9,7 @@ that never changes afterwards.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, final, override
+from typing import TYPE_CHECKING, Any, final, override
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -67,6 +67,11 @@ class Trade(models.Model):
         max_length=8,
         choices=Direction.choices,
         verbose_name=_("Direction"),
+    )
+    draft_context: models.JSONField[dict[str, Any]] = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name=_("Draft context"),
     )
     description_markdown = models.TextField(
         blank=True, verbose_name=_("Description")
@@ -256,3 +261,52 @@ class TradeSnapshot(models.Model):
     @override
     def __str__(self) -> str:
         return f"Snapshot of {self.trade}"
+
+
+@final
+class TradeAttachment(models.Model):
+    """A private image or document attachment on one trade."""
+
+    if TYPE_CHECKING:
+        id: int
+        trade_id: int
+
+    trade = models.ForeignKey(
+        Trade,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+        verbose_name=_("Trade"),
+    )
+    file = models.FileField(
+        upload_to="trade_attachments/%Y/%m/%d/",
+        verbose_name=_("File"),
+    )
+    original_name = models.CharField(
+        max_length=255,
+        verbose_name=_("Original name"),
+    )
+    content_type = models.CharField(
+        max_length=128,
+        verbose_name=_("Content type"),
+    )
+    size = models.PositiveIntegerField(
+        verbose_name=_("Size in bytes"),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("Created at"),
+    )
+
+    @final
+    class Meta:
+        ordering = ("created_at",)
+        verbose_name = _("trade attachment")
+        verbose_name_plural = _("trade attachments")
+
+    @property
+    def is_image(self) -> bool:
+        return self.content_type.startswith("image/")
+
+    @override
+    def __str__(self) -> str:
+        return f"{self.original_name} on {self.trade}"

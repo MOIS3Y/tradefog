@@ -1,21 +1,31 @@
 {% load formats i18n %}
 <div id="trade-cascading-options">
-  <select class="form-select" id="trade-strategy" name="strategy" hx-swap-oob="true">
-    {% for strategy in strategies %}
-      <option value="{{ strategy.pk }}" {% if selected_strategy_id and strategy.pk|stringformat:"s" == selected_strategy_id %}selected{% endif %}>
-        {{ strategy.name }} ({{ strategy.risk_percent|compact }}%, 1:{{ strategy.reward_multiple|compact }} R)
-      </option>
-    {% empty %}
-      <option value="">{% translate "No active strategies for this profile" %}</option>
-    {% endfor %}
-  </select>
+  {% if is_new %}
+    <select class="form-select"
+            id="trade-strategy"
+            name="strategy"
+            hx-swap-oob="true"
+            hx-post="{% url 'journal:trade_plan_preview' %}"
+            hx-target="#trade-plan"
+            hx-swap="outerHTML"
+            hx-include="#trade-form"
+            hx-trigger="change">
+      {% for strategy in strategies %}
+        <option value="{{ strategy.pk }}" {% if selected_strategy_id and strategy.pk|stringformat:"s" == selected_strategy_id %}selected{% endif %}>
+          {{ strategy.name }} ({{ strategy.risk_percent|compact }}%, 1:{{ strategy.reward_multiple|compact }} R)
+        </option>
+      {% empty %}
+        <option value="">{% translate "No active strategies for this profile" %}</option>
+      {% endfor %}
+    </select>
+  {% endif %}
 
   <select class="form-select"
           id="trade-product-kind"
           name="product_kind"
           hx-swap-oob="true"
-          hx-get="{% url 'journal:trade_options' %}"
-          hx-include="#trade-profile, #trade-strategy, #trade-product-kind"
+          hx-get="{% url 'journal:trade_options' %}{% if not is_new %}?is_new=0{% endif %}"
+          hx-include="#trade-form"
           hx-target="#trade-cascading-options"
           hx-trigger="change">
     {% for val, lbl in product_kinds %}
@@ -27,9 +37,20 @@
     {% endfor %}
   </select>
 
-  <select class="form-select" id="trade-instrument" name="venue_instrument" hx-swap-oob="true">
+  <select class="form-select"
+          id="trade-instrument"
+          name="venue_instrument"
+          hx-swap-oob="true"
+          hx-post="{% url 'journal:trade_market_preview' %}"
+          hx-target="#market-context"
+          hx-include="#trade-form"
+          hx-trigger="change">
     {% for inst in instruments %}
-      <option value="{{ inst.pk }}" data-product="{{ inst.product }}">{{ inst.pair.canonical_symbol }}</option>
+      <option value="{{ inst.pk }}"
+              data-product="{{ inst.product }}"
+              {% if selected_instrument_id and inst.pk|stringformat:"s" == selected_instrument_id %}selected{% endif %}>
+        {{ inst.pair.canonical_symbol }}
+      </option>
     {% empty %}
       <option value="">{% translate "No compatible instruments" %}</option>
     {% endfor %}
