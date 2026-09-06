@@ -13,6 +13,8 @@ CDN or a JavaScript package manager.
 | DOMPurify | 3.4.14 | Apache-2.0 | https://github.com/cure53/DOMPurify |
 | FsLightbox | 3.7.6 | MIT | https://github.com/banthagroup/fslightbox |
 | Tabler Icons | 3.46.0 | MIT | https://github.com/tabler/tabler-icons |
+| big.js | 7.0.1 | MIT | https://github.com/MikeMcl/big.js |
+| Tom Select | 2.6.2 | Apache-2.0 | https://github.com/orchidjs/tom-select |
 
 Only the selected Tabler SVG sources are stored in the package. The frontend
 build creates a small sprite from them.
