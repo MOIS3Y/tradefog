@@ -44,14 +44,9 @@
   white-space: normal;
 }
 
-.tf-direction-options > :is(.btn, .tf-disabled-direction) {
+.tf-direction-options > :is(.btn, #short-tooltip-wrapper) {
   min-width: 0;
   flex: 1 1 0;
-}
-
-.tf-disabled-direction .btn {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
 }
 
 @media (min-width: 768px) {
@@ -105,6 +100,15 @@
   transform: translateX(-50%);
 }
 
+@keyframes tfGaugeMarker {
+  from {
+    left: 50%;
+  }
+  to {
+    left: var(--tf-gauge-position);
+  }
+}
+
 .tf-direction-gauge-marker {
   position: absolute;
   top: 50%;
@@ -120,6 +124,8 @@
     transparent
   );
   transform: translate(-50%, -50%);
+  animation: tfGaugeMarker 0.85s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: left 0.85s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 /* ATR / range tape used by market context and target comparison. */
@@ -132,12 +138,38 @@
   border-radius: var(--tblr-border-radius-pill);
 }
 
+@keyframes tfRangeTapeFill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: var(--tf-range-percent);
+  }
+}
+
 .tf-range-tape-fill {
   width: var(--tf-range-percent);
+  max-width: 100%;
   height: 100%;
   background: var(--tblr-primary);
   border-radius: inherit;
-  transition: width 180ms ease-out;
+  animation: tfRangeTapeFill 0.85s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: width 0.85s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.4s ease;
+}
+
+.tf-fade-in {
+  animation: tfFadeIn 0.3s ease-out;
+}
+
+@keyframes tfFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .tf-range-tape-fill-success {
@@ -146,6 +178,19 @@
 
 .tf-range-tape-fill-warning {
   background: var(--tblr-warning);
+}
+
+.tf-range-tape-fill-danger {
+  background: var(--tblr-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-range-tape-fill,
+  .tf-direction-gauge-marker,
+  .tf-fade-in {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 .tf-range-tape-marker {
@@ -167,10 +212,21 @@
   transform: translateX(50%);
 }
 
-/* Market candlestick chart surface. */
+/* Market candlestick chart surface and stable context height. */
+.tf-market-card-body {
+  min-height: 22.5rem;
+}
+
 .tf-market-candle-chart {
   width: 100%;
   overflow: hidden;
+}
+
+.tf-assessment-feedback {
+  min-height: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 /* Trade description: rendered copy and EasyMDE editor. */

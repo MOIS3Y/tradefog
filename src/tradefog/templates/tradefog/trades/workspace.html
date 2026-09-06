@@ -1,0 +1,527 @@
+{% extends "tradefog/base.html" %}
+{% load formats i18n static %}
+
+{% block title %}
+  {% if is_new %}
+    {% translate "New trade" %}
+  {% else %}
+    {% translate "Trade" %} #{{ trade.pk }}
+  {% endif %} · Tradefog
+{% endblock %}
+
+{% block page_header %}
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          <div class="page-pretitle">
+            {{ context_bar.profile.name|default:"Profile" }} · {{ context_bar.profile.venue.name|default:"Venue" }}
+          </div>
+          <h1 class="page-title">
+            {% if is_new %}
+              {% translate "New trade draft" %}
+            {% else %}
+              {{ trade.trade_date }} {{ trade.venue_instrument.pair.canonical_symbol }} {{ trade.get_direction_display }}
+            {% endif %}
+          </h1>
+        </div>
+        <div class="col-auto ms-auto">
+          <a class="btn" href="{% url 'journal:trades' %}">{% translate "Back" %}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'tradefog/vendor/easymde/easymde.min.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'tradefog/vendor/apexcharts/apexcharts.min.js' %}"></script>
+  <script src="{% static 'tradefog/js/market-context.js' %}"></script>
+  <script src="{% static 'tradefog/vendor/dompurify/purify.min.js' %}"></script>
+  <script src="{% static 'tradefog/vendor/easymde/easymde.min.js' %}"></script>
+  <script src="{% static 'tradefog/vendor/fslightbox/fslightbox.js' %}"></script>
+  <script src="{% static 'tradefog/js/trade-description.js' %}"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      function syncShortAvailability() {
+        const productSelect = document.getElementById("trade-product-kind");
+        const shortRadio = document.getElementById("direction-short");
+        const shortLabel = document.querySelector("label[for='direction-short']");
+        const longRadio = document.getElementById("direction-long");
+        const tooltipWrap = document.getElementById("short-tooltip-wrapper");
+        if (!productSelect || !shortRadio || !shortLabel) return;
+
+        const val = productSelect.value ? productSelect.value.toLowerCase() : "";
+        const isShortDisabled = val === "spot" || val === "cash_equity";
+
+        shortRadio.disabled = isShortDisabled;
+        if (isShortDisabled) {
+          shortLabel.classList.add("disabled");
+          if (shortRadio.checked) {
+            longRadio.checked = true;
+            longRadio.dispatchEvent(new Event("change"));
+          }
+          if (tooltipWrap && window.bootstrap && window.bootstrap.Tooltip) {
+            const inst = window.bootstrap.Tooltip.getOrCreateInstance(tooltipWrap);
+            inst.enable();
+          }
+        } else {
+          shortLabel.classList.remove("disabled");
+          if (tooltipWrap && window.bootstrap && window.bootstrap.Tooltip) {
+            const inst = window.bootstrap.Tooltip.getOrCreateInstance(tooltipWrap);
+            inst.disable();
+            inst.hide();
+          }
+        }
+      }
+
+      document.body.addEventListener("change", function (e) {
+        if (e.target && (e.target.id === "trade-product-kind" || e.target.id === "trade-profile" || e.target.id === "trade-strategy")) {
+          setTimeout(syncShortAvailability, 50);
+        }
+        if (e.target && e.target.name === "direction") {
+          const checkedChecklist = document.querySelector(".tf-checklist-options input:checked");
+          if (checkedChecklist && window.htmx) {
+            window.htmx.trigger(checkedChecklist, "change");
+          }
+        }
+      });
+      document.body.addEventListener("htmx:afterSwap", syncShortAvailability);
+      syncShortAvailability();
+
+      // If browser restored form inputs on page refresh, trigger calculation
+      const entryInput = document.getElementById("planned-entry");
+      const stopInput = document.getElementById("planned-stop");
+      if (entryInput && stopInput && entryInput.value.trim() && stopInput.value.trim()) {
+        setTimeout(function () {
+          if (window.htmx) {
+            window.htmx.trigger(entryInput, "change");
+          }
+        }, 100);
+      }
+
+      const checkedChecklist = document.querySelector(".tf-checklist-options input:checked");
+      if (checkedChecklist) {
+        setTimeout(function () {
+          if (window.htmx) {
+            window.htmx.trigger(checkedChecklist, "change");
+          }
+        }, 150);
+      }
+    });
+  </script>
+{% endblock %}
+
+{% block content %}
+  {% include "tradefog/trades/partials/context_bar.html" %}
+
+  <form id="trade-form" method="post" autocomplete="off" novalidate>
+    {% csrf_token %}
+    <div class="row row-cards">
+      <div class="col-12 col-lg-7">
+        <section class="card h-100" aria-labelledby="decision-title">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="decision-title">{% translate "Trade decision" %}</h2>
+              <p class="card-subtitle">
+                {% translate "The analytical date, market, direction, entry, and stop remain editable while this is a draft." %}
+              </p>
+            </div>
+          </div>
+          <div class="card-body">
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger mb-3" role="alert">
+                {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+
+            <div class="row g-3">
+              {% if is_new %}
+                <div class="col-12 col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label" for="trade-profile">{{ form.profile.label }}</label>
+                    <select class="form-select"
+                            id="trade-profile"
+                            name="profile"
+                            hx-get="{% url 'journal:trade_options' %}"
+                            hx-target="#trade-cascading-options"
+                            hx-trigger="change">
+                      {% for p in form.fields.profile.queryset %}
+                        <option value="{{ p.pk }}" {% if form.profile.value|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>
+                          {{ p.name }} ({{ p.venue.name }})
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label" for="trade-strategy">{{ form.strategy.label }}</label>
+                    <select class="form-select"
+                            id="trade-strategy"
+                            name="strategy"
+                            hx-post="{% url 'journal:trade_plan_preview' %}"
+                            hx-target="#trade-plan"
+                            hx-include="#trade-form"
+                            hx-trigger="change">
+                      {% for s in form.fields.strategy.queryset %}
+                        <option value="{{ s.pk }}" {% if form.strategy.value|stringformat:"s" == s.pk|stringformat:"s" %}selected{% endif %}>
+                          {{ s.name }} ({{ s.risk_percent|compact }}%, 1:{{ s.reward_multiple|compact }} R)
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              {% else %}
+                <input type="hidden" name="profile" value="{{ trade.profile_id }}">
+                <input type="hidden" name="strategy" value="{{ trade.strategy_id }}">
+              {% endif %}
+
+              <div class="col-12 col-md-4">
+                <div class="mb-3">
+                  <label class="form-label" for="trade-date">{{ form.trade_date.label }}</label>
+                  <input class="form-control"
+                         id="trade-date"
+                         name="trade_date"
+                         type="date"
+                         value="{{ form.trade_date.value|date:'Y-m-d'|default:'' }}"
+                         hx-post="{% url 'journal:trade_market_preview' %}"
+                         hx-target="#market-context"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                </div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <div class="mb-3">
+                  <label class="form-label" for="trade-product-kind">{{ form.product_kind.label }}</label>
+                  <select class="form-select"
+                          id="trade-product-kind"
+                          name="product_kind"
+                          hx-get="{% url 'journal:trade_options' %}"
+                          hx-include="#trade-profile, #trade-strategy, #trade-product-kind"
+                          hx-target="#trade-cascading-options"
+                          hx-trigger="change">
+                    {% for pk_val, pk_lbl in form.fields.product_kind.choices %}
+                      <option value="{{ pk_val }}" {% if form.product_kind.value == pk_val %}selected{% endif %}>
+                        {{ pk_lbl }}
+                      </option>
+                    {% empty %}
+                      <option value="">{% translate "No available markets" %}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <div class="mb-3">
+                  <label class="form-label" for="trade-instrument">{{ form.venue_instrument.label }}</label>
+                  <select class="form-select"
+                          id="trade-instrument"
+                          name="venue_instrument"
+                          hx-post="{% url 'journal:trade_market_preview' %}"
+                          hx-target="#market-context"
+                          hx-include="#trade-form"
+                          hx-trigger="change">
+                    {% for inst in form.fields.venue_instrument.queryset %}
+                      <option value="{{ inst.pk }}" data-product="{{ inst.product }}" {% if form.venue_instrument.value|stringformat:"s" == inst.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ inst.pair.canonical_symbol }}
+                      </option>
+                    {% empty %}
+                      <option value="">{% translate "No compatible instruments" %}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <fieldset class="mb-3">
+                  <legend class="form-label">{% translate "Direction" %}</legend>
+                  <div class="btn-group w-100 tf-direction-options" role="group"
+                       aria-label="{% translate 'Direction' %}">
+                    <input class="btn-check"
+                           id="direction-long"
+                           name="direction"
+                           type="radio"
+                           value="long"
+                           {% if form.direction.value == "long" or form.direction.value == "LONG" or not form.direction.value %}checked{% endif %}
+                           hx-post="{% url 'journal:trade_plan_preview' %}"
+                           hx-target="#trade-plan"
+                           hx-include="#trade-form"
+                           hx-trigger="change">
+                    <label class="btn btn-outline-success" for="direction-long">LONG</label>
+
+                    <span id="short-tooltip-wrapper" class="d-inline-block flex-fill"
+                          tabindex="0"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="top"
+                          data-bs-title="{% translate 'Short positions are not available on spot or cash equity markets.' %}">
+                      <input class="btn-check"
+                             id="direction-short"
+                             name="direction"
+                             type="radio"
+                             value="short"
+                             {% if form.direction.value == "short" or form.direction.value == "SHORT" %}checked{% endif %}
+                             hx-post="{% url 'journal:trade_plan_preview' %}"
+                             hx-target="#trade-plan"
+                             hx-include="#trade-form"
+                             hx-trigger="change">
+                      <label class="btn btn-outline-danger w-100" for="direction-short">SHORT</label>
+                    </span>
+                  </div>
+                </fieldset>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <div class="mb-3">
+                  <label class="form-label" for="planned-entry">{{ form.planned_entry.label }}</label>
+                  <div class="input-group">
+                    <input class="form-control"
+                           id="planned-entry"
+                           name="planned_entry"
+                           type="text"
+                           value="{{ form.planned_entry.value|default:'' }}"
+                           placeholder="0.00"
+                           hx-post="{% url 'journal:trade_plan_preview' %}"
+                           hx-target="#trade-plan"
+                           hx-include="#trade-form"
+                           hx-trigger="keyup changed delay:300ms, change">
+                    <span class="input-group-text">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <div class="mb-3">
+                  <label class="form-label" for="planned-stop">{{ form.planned_stop.label }}</label>
+                  <div class="input-group">
+                    <input class="form-control"
+                           id="planned-stop"
+                           name="planned_stop"
+                           type="text"
+                           value="{{ form.planned_stop.value|default:'' }}"
+                           placeholder="0.00"
+                           hx-post="{% url 'journal:trade_plan_preview' %}"
+                           hx-target="#trade-plan"
+                           hx-include="#trade-form"
+                           hx-trigger="keyup changed delay:300ms, change">
+                    <span class="input-group-text">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-12 col-lg-5">
+        <section class="card h-100" aria-labelledby="plan-title">
+          <div class="card-status-top bg-primary"></div>
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="plan-title">{% translate "Position plan" %}</h2>
+              <p class="card-subtitle">
+                {% blocktranslate with r=context_bar.strategy.reward_multiple|compact|default:'3' %}Reward ratio 1:{{ r }} R{% endblocktranslate %}
+              </p>
+            </div>
+          </div>
+          {% include "tradefog/trades/partials/position_plan.html" %}
+        </section>
+      </div>
+
+      <div class="col-12" id="market-context" aria-live="polite">
+        {% include "tradefog/trades/partials/market_context.html" %}
+      </div>
+
+      <div class="col-12 col-lg-7">
+        <section class="card h-100" aria-labelledby="checklist-title">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="checklist-title">{% translate "Market checklist" %}</h2>
+              <p class="card-subtitle">
+                {% translate "Record observable context. The assessment is guidance, not a prediction." %}
+              </p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="tf-checklist-grid">
+              <fieldset>
+                <legend class="form-label mb-1">{% translate "Broad market sentiment" %}</legend>
+                <p class="form-hint mb-2">
+                  {% translate "Behavior of the relevant broad market, sector, or related assets." %}
+                </p>
+                <div class="btn-group w-100 tf-checklist-options" role="group"
+                     aria-label="{% translate 'Broad market sentiment' %}">
+                  <input class="btn-check" id="sentiment-negative" name="market_sentiment"
+                         type="radio" value="NEGATIVE"
+                         {% if checklist_form.market_sentiment.value == "NEGATIVE" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-danger" for="sentiment-negative">{% translate "Bearish" %}</label>
+                  <input class="btn-check" id="sentiment-neutral" name="market_sentiment"
+                         type="radio" value="NEUTRAL"
+                         {% if checklist_form.market_sentiment.value == "NEUTRAL" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-secondary" for="sentiment-neutral">{% translate "Neutral" %}</label>
+                  <input class="btn-check" id="sentiment-positive" name="market_sentiment"
+                         type="radio" value="POSITIVE"
+                         {% if checklist_form.market_sentiment.value == "POSITIVE" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-success" for="sentiment-positive">{% translate "Bullish" %}</label>
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend class="form-label mb-1">{% translate "Information background" %}</legend>
+                <p class="form-hint mb-2">{% translate "Relevant news, media, regulatory, and legal context." %}</p>
+                <div class="btn-group w-100 tf-checklist-options" role="group"
+                     aria-label="{% translate 'Information background' %}">
+                  <input class="btn-check" id="info-negative" name="information_background"
+                         type="radio" value="NEGATIVE"
+                         {% if checklist_form.information_background.value == "NEGATIVE" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-danger" for="info-negative">{% translate "Negative" %}</label>
+                  <input class="btn-check" id="info-neutral" name="information_background"
+                         type="radio" value="NEUTRAL"
+                         {% if checklist_form.information_background.value == "NEUTRAL" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-secondary" for="info-neutral">{% translate "Neutral" %}</label>
+                  <input class="btn-check" id="info-positive" name="information_background"
+                         type="radio" value="POSITIVE"
+                         {% if checklist_form.information_background.value == "POSITIVE" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-success" for="info-positive">{% translate "Positive" %}</label>
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend class="form-label mb-1">{% translate "Global D1 direction" %}</legend>
+                <p class="form-hint mb-2">
+                  {% translate "The visible structure over approximately 20–30 daily candles." %}
+                </p>
+                <div class="btn-group w-100 tf-checklist-options" role="group"
+                     aria-label="{% translate 'Global D1 direction' %}">
+                  <input class="btn-check" id="global-down" name="global_daily_direction"
+                         type="radio" value="NEGATIVE"
+                         {% if checklist_form.global_daily_direction.value == "NEGATIVE" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-danger" for="global-down">{% translate "Down" %}</label>
+                  <input class="btn-check" id="global-sideways" name="global_daily_direction"
+                         type="radio" value="NEUTRAL"
+                         {% if checklist_form.global_daily_direction.value == "NEUTRAL" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-secondary" for="global-sideways">{% translate "Sideways" %}</label>
+                  <input class="btn-check" id="global-up" name="global_daily_direction"
+                         type="radio" value="POSITIVE"
+                         {% if checklist_form.global_daily_direction.value == "POSITIVE" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-success" for="global-up">{% translate "Up" %}</label>
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend class="form-label mb-1">{% translate "Local D1 movement" %}</legend>
+                <p class="form-hint mb-2">
+                  {% translate "The more recent movement over approximately 5–7 daily candles." %}
+                </p>
+                <div class="btn-group w-100 tf-checklist-options" role="group"
+                     aria-label="{% translate 'Local D1 movement' %}">
+                  <input class="btn-check" id="local-down" name="local_daily_movement"
+                         type="radio" value="NEGATIVE"
+                         {% if checklist_form.local_daily_movement.value == "NEGATIVE" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-danger" for="local-down">{% translate "Down" %}</label>
+                  <input class="btn-check" id="local-sideways" name="local_daily_movement"
+                         type="radio" value="NEUTRAL"
+                         {% if checklist_form.local_daily_movement.value == "NEUTRAL" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-secondary" for="local-sideways">{% translate "Sideways" %}</label>
+                  <input class="btn-check" id="local-up" name="local_daily_movement"
+                         type="radio" value="POSITIVE"
+                         {% if checklist_form.local_daily_movement.value == "POSITIVE" %}checked{% endif %}
+                         hx-post="{% url 'journal:trade_checklist_preview' %}"
+                         hx-target="#checklist-assessment"
+                         hx-swap="outerHTML"
+                         hx-include="#trade-form"
+                         hx-trigger="change">
+                  <label class="btn btn-outline-success" for="local-up">{% translate "Up" %}</label>
+                </div>
+              </fieldset>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-12 col-lg-5">
+        <section class="card h-100 tf-checklist-assessment-card"
+                 aria-labelledby="checklist-assessment-title">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="checklist-assessment-title">{% translate "Directional assessment" %}</h2>
+              <p class="card-subtitle">{% translate "Weighted context from SHORT through neutral to LONG." %}</p>
+            </div>
+          </div>
+          {% include "tradefog/trades/partials/checklist_assessment.html" %}
+        </section>
+      </div>
+
+      <div class="col-12">
+        <div class="d-flex justify-content-end gap-2">
+          <a class="btn" href="{% url 'journal:trades' %}">{% translate "Back" %}</a>
+          <button class="btn btn-primary" type="submit">
+            {% if is_new %}
+              {% translate "Save draft" %}
+            {% else %}
+              {% translate "Save changes" %}
+            {% endif %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div id="trade-cascading-options" hidden></div>
+{% endblock %}

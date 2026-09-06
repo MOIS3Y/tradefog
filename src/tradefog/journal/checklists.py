@@ -138,7 +138,9 @@ def calculate_checklist_assessment(
 
     agrees_with_trade: bool | None = None
     if direction != AssessmentDirection.NEUTRAL and selected_direction:
-        agrees_with_trade = direction.value == selected_direction
+        agrees_with_trade = (
+            direction.value.upper() == selected_direction.strip().upper()
+        )
 
     return ChecklistAssessment(
         score=score,

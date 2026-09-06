@@ -122,10 +122,10 @@
                     <span class="nav-link-title">{% translate "Profiles" %}</span>
                   </a>
                 </li>
-                <li class="nav-item{% if request.resolver_match.url_name == 'trades' or request.resolver_match.url_name == 'trade_new' %} active{% endif %}">
+                <li class="nav-item{% if request.resolver_match.url_name == 'trades' or request.resolver_match.url_name == 'trade_create' or request.resolver_match.url_name == 'trade_workspace' %} active{% endif %}">
                   <a class="nav-link"
                      href="{% url 'journal:trades' %}"
-                     {% if request.resolver_match.url_name == 'trades' or request.resolver_match.url_name == 'trade_new' %}aria-current="page"{% endif %}>
+                     {% if request.resolver_match.url_name == 'trades' or request.resolver_match.url_name == 'trade_create' or request.resolver_match.url_name == 'trade_workspace' %}aria-current="page"{% endif %}>
                     <span class="nav-link-icon">{% include "tradefog/components/icon.html" with name="chart-candle" %}</span>
                     <span class="nav-link-title">{% translate "Trades" %}</span>
                   </a>

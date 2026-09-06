@@ -48,7 +48,7 @@ def test_fetch_bybit_daily_candles_success() -> None:
         return _make_bybit_response(records)
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
-    candles = fetch_bybit_daily_candles("BTCUSDT", client=client)
+    candles = fetch_bybit_daily_candles("BTC/USDT", client=client)
 
     assert len(candles) == 2
     # Ascending order check: earliest first

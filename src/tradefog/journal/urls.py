@@ -121,8 +121,25 @@ urlpatterns = [
         views.strategy_capital_restore,
         name="strategy_capital_restore",
     ),
-    path("trades/", views.trades, name="trades"),
-    path("trades/new/", views.trade_new, name="trade_new"),
+    path("trades/", views.trade_overview, name="trades"),
+    path("trades/new/", views.trade_create, name="trade_create"),
+    path("trades/<int:pk>/", views.trade_workspace, name="trade_workspace"),
+    path("trades/options/", views.trade_options, name="trade_options"),
+    path(
+        "trades/plan/preview/",
+        views.trade_plan_preview,
+        name="trade_plan_preview",
+    ),
+    path(
+        "trades/market/preview/",
+        views.trade_market_preview,
+        name="trade_market_preview",
+    ),
+    path(
+        "trades/checklist/preview/",
+        views.trade_checklist_preview,
+        name="trade_checklist_preview",
+    ),
     path("analytics/", views.analytics, name="analytics"),
     # Catalog:
     path(

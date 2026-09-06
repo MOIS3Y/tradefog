@@ -15,7 +15,9 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     template_dirs = settings.templates.django_templates()[0]["DIRS"]
     with override("en"):
         rendered_template = get_template("tradefog/base.html").render()
-        trade_template = get_template("tradefog/trade.html").render()
+        trade_template = get_template("tradefog/trades/workspace.html").render(
+            {"is_new": True}
+        )
         analytics_template = get_template("tradefog/analytics.html").render()
 
     assert '<html lang="en">' in rendered_template
@@ -35,12 +37,15 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     assert "tradefog/js/market-context.js" in trade_template
     assert "tradefog/js/trade-description.js" in trade_template
     assert "tradefog/vendor/easymde/easymde.min.css" in trade_template
-    assert "data-market-candle-chart" in trade_template
     assert "data-analytics-chart" in analytics_template
     assert "tradefog/js/analytics.js" in analytics_template
     assert "tradefog/vendor/apexcharts/apexcharts.min.js" in analytics_template
 
     template_root = settings.static.source_dirs()[0].parent / "templates"
+    market_context_source = (
+        template_root / "tradefog/trades/partials/market_context.html"
+    ).read_text(encoding="utf-8")
+    assert "data-market-candle-chart" in market_context_source
     login_source = (template_root / "registration/login.html").read_text(
         encoding="utf-8"
     )
@@ -62,7 +67,7 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     for section_template in (
         "home.html",
         "profiles/overview.html",
-        "trades.html",
+        "trades/overview.html",
         "analytics.html",
     ):
         section_source = (
@@ -79,14 +84,14 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     assert "catalog/partials/asset_filters.html" in catalog_source
     assert "catalog/partials/asset_results.html" in catalog_source
 
-    trade_source = (template_root / "tradefog/trade.html").read_text(
-        encoding="utf-8"
-    )
+    trade_source = (
+        template_root / "tradefog/trades/workspace.html"
+    ).read_text(encoding="utf-8")
     assert "{% block page_header %}" in trade_source
 
     for action_template in (
         "profiles/overview.html",
-        "trades.html",
+        "trades/overview.html",
     ):
         action_source = (
             template_root / "tradefog" / action_template
@@ -97,7 +102,7 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     for empty_template in (
         "home.html",
         "profiles/partials/profile_cards.html",
-        "trades.html",
+        "trades/overview.html",
     ):
         empty_source = (template_root / "tradefog" / empty_template).read_text(
             encoding="utf-8"

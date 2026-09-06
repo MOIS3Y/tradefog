@@ -6,8 +6,6 @@ from typing import final
 
 from django.utils.translation import gettext as _
 
-REWARD_MULTIPLE = Decimal(3)
-
 
 @final
 class PositionPlanError(ValueError):
@@ -31,18 +29,19 @@ class PositionPlan:
     notional: Decimal
     planned_risk_amount: Decimal
     target_risk_amount: Decimal
+    reward_multiple: Decimal
 
     @property
     def planned_profit_amount(self) -> Decimal:
-        """Return the executable target profit for the fixed reward ratio."""
+        """Return the executable target profit for the strategy reward ratio."""
         with localcontext() as context:
             context.prec = 96
-            return self.planned_risk_amount * REWARD_MULTIPLE
+            return self.planned_risk_amount * self.reward_multiple
 
     @property
     def take_profit_distance(self) -> Decimal:
         """Return the exact planned price move from entry to take profit."""
-        return self.distance * REWARD_MULTIPLE
+        return self.distance * self.reward_multiple
 
 
 def _is_step_aligned(value: Decimal, step: Decimal) -> bool:
@@ -64,12 +63,13 @@ def calculate_position_plan(
     entry: Decimal,
     stop: Decimal,
     target_risk_amount: Decimal,
+    reward_multiple: Decimal,
     price_step: Decimal,
     quantity_step: Decimal,
     minimum_quantity: Decimal | None = None,
     minimum_notional: Decimal | None = None,
 ) -> PositionPlan:
-    """Calculate an exact 1:3 plan without exceeding target monetary risk.
+    """Calculate an exact plan without exceeding target monetary risk.
 
     Entry and stop must already be executable at the instrument price step.
     Quantity is rounded down so precision normalization can only reduce risk.
@@ -83,6 +83,11 @@ def calculate_position_plan(
             "planned_entry",
             _("The profile does not currently provide positive trade risk."),
         )
+    if reward_multiple <= 0:
+        raise PositionPlanError(
+            "planned_entry",
+            _("Strategy reward multiple must be positive."),
+        )
     if not _is_step_aligned(entry, price_step):
         raise PositionPlanError(
             "planned_entry",
@@ -94,22 +99,23 @@ def calculate_position_plan(
             _("Stop must be aligned with the instrument price step."),
         )
 
-    if direction == "LONG":
+    norm_dir = direction.upper()
+    if norm_dir == "LONG":
         distance = entry - stop
         if distance <= 0:
             raise PositionPlanError(
                 "planned_stop",
                 _("A LONG stop must be below the entry price."),
             )
-        take_profit = entry + distance * REWARD_MULTIPLE
-    elif direction == "SHORT":
+        take_profit = entry + distance * reward_multiple
+    elif norm_dir == "SHORT":
         distance = stop - entry
         if distance <= 0:
             raise PositionPlanError(
                 "planned_stop",
                 _("A SHORT stop must be above the entry price."),
             )
-        take_profit = entry - distance * REWARD_MULTIPLE
+        take_profit = entry - distance * reward_multiple
         if take_profit <= 0:
             raise PositionPlanError(
                 "planned_stop",
@@ -151,6 +157,7 @@ def calculate_position_plan(
         notional=notional,
         planned_risk_amount=planned_risk_amount,
         target_risk_amount=target_risk_amount,
+        reward_multiple=reward_multiple,
     )
 
 

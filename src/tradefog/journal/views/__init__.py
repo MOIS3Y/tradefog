@@ -55,8 +55,15 @@ from tradefog.journal.views.profiles import (
 from tradefog.journal.views.shell import (
     analytics,
     home,
-    trade_new,
-    trades,
+)
+from tradefog.journal.views.trades import (
+    trade_checklist_preview,
+    trade_create,
+    trade_market_preview,
+    trade_options,
+    trade_overview,
+    trade_plan_preview,
+    trade_workspace,
 )
 
 __all__ = [
@@ -88,8 +95,13 @@ __all__ = [
     "strategy_detail",
     "strategy_edit",
     "strategy_restore",
-    "trade_new",
-    "trades",
+    "trade_checklist_preview",
+    "trade_create",
+    "trade_market_preview",
+    "trade_options",
+    "trade_overview",
+    "trade_plan_preview",
+    "trade_workspace",
     "venue_archive",
     "venue_create",
     "venue_delete",

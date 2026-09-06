@@ -1,0 +1,37 @@
+{% load formats i18n %}
+<div id="trade-cascading-options">
+  <select class="form-select" id="trade-strategy" name="strategy" hx-swap-oob="true">
+    {% for strategy in strategies %}
+      <option value="{{ strategy.pk }}" {% if selected_strategy_id and strategy.pk|stringformat:"s" == selected_strategy_id %}selected{% endif %}>
+        {{ strategy.name }} ({{ strategy.risk_percent|compact }}%, 1:{{ strategy.reward_multiple|compact }} R)
+      </option>
+    {% empty %}
+      <option value="">{% translate "No active strategies for this profile" %}</option>
+    {% endfor %}
+  </select>
+
+  <select class="form-select"
+          id="trade-product-kind"
+          name="product_kind"
+          hx-swap-oob="true"
+          hx-get="{% url 'journal:trade_options' %}"
+          hx-include="#trade-profile, #trade-strategy, #trade-product-kind"
+          hx-target="#trade-cascading-options"
+          hx-trigger="change">
+    {% for val, lbl in product_kinds %}
+      <option value="{{ val }}" {% if selected_product_kind == val %}selected{% endif %}>
+        {{ lbl }}
+      </option>
+    {% empty %}
+      <option value="">{% translate "No available markets" %}</option>
+    {% endfor %}
+  </select>
+
+  <select class="form-select" id="trade-instrument" name="venue_instrument" hx-swap-oob="true">
+    {% for inst in instruments %}
+      <option value="{{ inst.pk }}" data-product="{{ inst.product }}">{{ inst.pair.canonical_symbol }}</option>
+    {% empty %}
+      <option value="">{% translate "No compatible instruments" %}</option>
+    {% endfor %}
+  </select>
+</div>

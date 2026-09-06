@@ -831,7 +831,7 @@ msgstr "Зарезервировано кошелька"
 #: src/tradefog/journal/models/trades.py:224
 #: src/tradefog/templates/tradefog/trade.html:52
 msgid "Wallet available"
-msgstr "Доступно кошелька"
+msgstr "Доступно в кошельке"
 
 #: src/tradefog/journal/models/trades.py:231
 msgid "ATR value"
@@ -3084,3 +3084,103 @@ msgstr "Необязательная заметка с описанием это
 #: src/tradefog/templates/tradefog/profiles/partials/wallet_operations.html:59
 msgid "Edit note"
 msgstr "Редактировать заметку"
+
+#: src/tradefog/templates/tradefog/trades/workspace.html
+msgid "Save draft"
+msgstr "Сохранить черновик"
+
+#: src/tradefog/templates/tradefog/trades/partials/checklist_assessment.html
+msgid "0 of 4 assessed"
+msgstr "0 из 4 оценено"
+
+#: src/tradefog/templates/tradefog/trades/partials/checklist_assessment.html
+#, python-format
+msgid "%(answered)s of %(total)s assessed"
+msgstr "%(answered)s из %(total)s оценено"
+
+#: src/tradefog/templates/tradefog/trades/partials/checklist_assessment.html
+msgid "Select checklist observations to evaluate alignment."
+msgstr "Выберите наблюдения в чек-листе для оценки согласованности."
+
+#: src/tradefog/templates/tradefog/trades/partials/checklist_assessment.html
+msgid "D1 observations aligned"
+msgstr "Наблюдения D1 согласованы"
+
+#: src/tradefog/templates/tradefog/trades/partials/checklist_assessment.html
+msgid "D1 observations divergent"
+msgstr "Наблюдения D1 расходятся"
+
+#: src/tradefog/templates/tradefog/trades/partials/checklist_assessment.html
+msgid "D1 observations mixed"
+msgstr "Наблюдения D1 смешанные"
+
+#: src/tradefog/templates/tradefog/trades/partials/checklist_assessment.html
+msgid "Direction disagrees with the checklist"
+msgstr "Направление расходится с чек-листом"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Fetch recent market candles and ATR context"
+msgstr "Загрузить недавние рыночные свечи и контекст ATR"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Fetch data"
+msgstr "Загрузить данные"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Price action awaiting data"
+msgstr "Ожидание рыночных данных"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid ""
+"Select an instrument and click «Fetch data» to load the 14-day candle "
+"history."
+msgstr ""
+"Выберите инструмент и нажмите «Загрузить данные», чтобы загрузить 14-дневную "
+"историю свечей."
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid ""
+"Volatility metrics will be calculated once market candles are fetched."
+msgstr "Метрики волатильности будут рассчитаны после загрузки рыночных свечей."
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Observed range as percentage of ATR"
+msgstr "Наблюдаемый диапазон в процентах от ATR"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Planned move as percentage of ATR"
+msgstr "Планируемое движение в процентах от ATR"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Exceeds 100% ATR"
+msgstr "Превышает 100% ATR"
+
+#: src/tradefog/templates/tradefog/trades/partials/market_context.html
+msgid "Exceeds 75% ATR"
+msgstr "Превышает 75% ATR"
+
+#: src/tradefog/templates/tradefog/trades/partials/position_plan.html
+msgid "Position plan not calculated"
+msgstr "План позиции не рассчитан"
+
+#: src/tradefog/templates/tradefog/trades/partials/position_plan.html
+msgid ""
+"Enter planned entry and stop in the trade form to size the position and "
+"evaluate capital capacity."
+msgstr ""
+"Укажите цены входа и стопа в форме сделки для расчёта объёма позиции и "
+"проверки доступного капитала."
+
+#: src/tradefog/templates/tradefog/trades/workspace.html
+msgid "No compatible instruments"
+msgstr "Нет совместимых инструментов"
+
+#: src/tradefog/templates/tradefog/trades/workspace.html
+#, python-format
+msgid "Reward ratio 1:%(r)s R"
+msgstr "Соотношение 1:%(r)s R"
+
+#: src/tradefog/templates/tradefog/trades/partials/position_plan.html
+#, python-format
+msgid "Quantity is rounded down from a target risk of %(target)s %(symbol)s."
+msgstr "Объём округлён вниз от целевого риска %(target)s %(symbol)s."

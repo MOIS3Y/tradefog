@@ -12,18 +12,6 @@ def home(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-def trades(request: HttpRequest) -> HttpResponse:
-    """Render the trades stub page."""
-    return render(request, "tradefog/trades.html")
-
-
-@login_required
-def trade_new(request: HttpRequest) -> HttpResponse:
-    """Render the static trade-entry page."""
-    return render(request, "tradefog/trade.html")
-
-
-@login_required
 def analytics(request: HttpRequest) -> HttpResponse:
     """Render the static analytics page."""
     return render(request, "tradefog/analytics.html")

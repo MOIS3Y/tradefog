@@ -21,6 +21,10 @@ from tradefog.journal.forms.strategies import (
     StrategyCapitalForm,
     TradingStrategyForm,
 )
+from tradefog.journal.forms.trades import (
+    ChecklistForm,
+    TradeDecisionForm,
+)
 from tradefog.journal.forms.wallet import (
     WalletAssetAddForm,
     WalletAssetEditForm,
@@ -30,7 +34,9 @@ from tradefog.journal.forms.wallet import (
 
 __all__ = [
     "AssetForm",
+    "ChecklistForm",
     "StrategyCapitalForm",
+    "TradeDecisionForm",
     "TradingPairForm",
     "TradingProfileForm",
     "TradingProfileSettingsForm",

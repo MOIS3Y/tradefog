@@ -8,12 +8,14 @@ from decimal import Decimal
 
 from django.db.models import Q, Sum
 
+from tradefog.journal.calculations import wallet_balance
 from tradefog.journal.models import (
     TradingProfile,
     TradingStrategy,
     Venue,
+    WalletAsset,
 )
-from tradefog.journal.models.enums import TradeStatus
+from tradefog.journal.models.enums import TradeStatus, WalletOperationKind
 from tradefog.journal.models.trades import Trade
 
 _UNFINISHED_STATUSES = (
@@ -86,3 +88,14 @@ def reserved_notional(profile: TradingProfile, asset_id: int) -> Decimal:
     return trades.aggregate(total=Sum("snapshot__planned_notional"))[
         "total"
     ] or Decimal(0)
+
+
+def wallet_asset_balance(asset: WalletAsset) -> Decimal:
+    """Return the derived virtual balance of a wallet asset."""
+    deposits = asset.operations.filter(
+        kind=WalletOperationKind.DEPOSIT
+    ).aggregate(total=Sum("amount"))["total"] or Decimal(0)
+    withdrawals = asset.operations.filter(
+        kind=WalletOperationKind.WITHDRAWAL
+    ).aggregate(total=Sum("amount"))["total"] or Decimal(0)
+    return wallet_balance(deposits, withdrawals)

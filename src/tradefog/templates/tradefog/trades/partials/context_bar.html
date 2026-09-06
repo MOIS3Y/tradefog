@@ -1,0 +1,59 @@
+{% load formats i18n %}
+<div class="card tf-trade-context mb-3" id="trade-context-bar">
+  <div class="card-body py-2">
+    <div class="d-flex flex-wrap gap-3 gap-lg-4 align-items-center">
+      <div>
+        <div class="text-secondary small">{% translate "Profile" %}</div>
+        <strong>{{ context_bar.profile.name|default:"—" }}</strong>
+      </div>
+      <div>
+        <div class="text-secondary small">{% translate "Strategy" %}</div>
+        <strong>{{ context_bar.strategy.name|default:"—" }}</strong>
+      </div>
+      <div>
+        <div class="text-secondary small">{% translate "Risk" %}</div>
+        <strong>
+          {% if context_bar.strategy %}
+            {{ context_bar.strategy.risk_percent|compact }}%
+            {% if context_bar.fixed_1r is not None %}
+              <span class="text-secondary fw-normal">({{ context_bar.fixed_1r|floatformat:2 }} {{ context_bar.settlement_symbol }})</span>
+            {% endif %}
+          {% else %}
+            —
+          {% endif %}
+        </strong>
+      </div>
+      <div>
+        <div class="text-secondary small">{% translate "Ratio" %}</div>
+        <strong>
+          {% if context_bar.strategy %}
+            1:{{ context_bar.strategy.reward_multiple|compact }} R
+          {% else %}
+            —
+          {% endif %}
+        </strong>
+      </div>
+      <div>
+        <div class="text-secondary small">{% translate "Market" %}</div>
+        <strong>
+          {% if context_bar.instrument %}
+            {{ context_bar.instrument.pair.canonical_symbol }} · {{ context_bar.instrument.get_product_display }}
+          {% else %}
+            —
+          {% endif %}
+        </strong>
+      </div>
+      <div class="ms-lg-auto text-lg-end">
+        <div class="text-secondary small">{% translate "Wallet available" %}</div>
+        <strong class="text-primary">
+          {% if context_bar.wallet_available is not None %}
+            {{ context_bar.wallet_available|floatformat:2 }} {{ context_bar.settlement_symbol }}
+          {% else %}
+            —
+          {% endif %}
+        </strong>
+      </div>
+    </div>
+  </div>
+</div>
+

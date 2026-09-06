@@ -31,11 +31,16 @@
     })
     : null;
 
-  /** Return one resolved Tabler theme color. */
-  function themeColor(name) {
-    return getComputedStyle(document.documentElement)
+  /** Return one resolved Tabler theme color or a reliable fallback. */
+  function themeColor(name, fallback = "") {
+    const fromDoc = getComputedStyle(document.documentElement)
       .getPropertyValue(name)
       .trim();
+    if (fromDoc) return fromDoc;
+    const fromBody = document.body
+      ? getComputedStyle(document.body).getPropertyValue(name).trim()
+      : "";
+    return fromBody || fallback;
   }
 
   /** Escape labels before placing them in the chart tooltip. */
@@ -45,10 +50,20 @@
     return text.innerHTML;
   }
 
+  /** Safely parse price step from dataset attribute. */
+  function parsePriceStep(step) {
+    if (!step) return 0.01;
+    const normalized = String(step).replace(",", ".");
+    const num = Number(normalized);
+    return Number.isFinite(num) && num > 0 ? num : 0.01;
+  }
+
   /** Count the visible fractional places in a compact decimal step. */
   function fractionalPlaces(step) {
-    const fraction = String(step).split(".")[1];
-    return fraction ? fraction.length : 0;
+    if (!step) return 2;
+    const normalized = String(step).replace(",", ".");
+    const fraction = normalized.split(".")[1];
+    return fraction ? Math.min(fraction.length, 8) : 0;
   }
 
   /** Localize only the decimal mark without grouping or rounding. */
@@ -62,6 +77,7 @@
   /** Build a restrained two-week candlestick chart. */
   function chartOptions(element, data) {
     const language = document.documentElement.lang;
+    const step = parsePriceStep(element.dataset.priceStep);
     const places = fractionalPlaces(element.dataset.priceStep);
     const numberFormat = new Intl.NumberFormat(language, {
       maximumFractionDigits: places,
@@ -76,13 +92,20 @@
     const reducedMotion = matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
-    const lows = data.map((candle) => Number(candle.low));
-    const highs = data.map((candle) => Number(candle.high));
-    const visibleMinimum = Math.min(...lows);
-    const visibleMaximum = Math.max(...highs);
-    const visibleRange = visibleMaximum - visibleMinimum;
-    const minimumPadding = Number(element.dataset.priceStep) * 2;
+    const lows = data.map((candle) => Number(candle.low)).filter(Number.isFinite);
+    const highs = data.map((candle) => Number(candle.high)).filter(Number.isFinite);
+    const visibleMinimum = lows.length ? Math.min(...lows) : 0;
+    const visibleMaximum = highs.length ? Math.max(...highs) : 100;
+    const visibleRange = Math.max(0, visibleMaximum - visibleMinimum);
+    const minimumPadding = step * 2;
     const axisPadding = Math.max(visibleRange * 0.06, minimumPadding);
+
+    const yMin = Number.isFinite(visibleMinimum) && Number.isFinite(axisPadding)
+      ? Math.max(0, visibleMinimum - axisPadding)
+      : undefined;
+    const yMax = Number.isFinite(visibleMaximum) && Number.isFinite(axisPadding)
+      ? visibleMaximum + axisPadding
+      : undefined;
 
     return {
       chart: {
@@ -116,15 +139,15 @@
       plotOptions: {
         candlestick: {
           colors: {
-            upward: themeColor("--tblr-success"),
-            downward: themeColor("--tblr-danger"),
+            upward: themeColor("--tblr-success", "#2fb344"),
+            downward: themeColor("--tblr-danger", "#d63939"),
           },
           wick: { useFillColor: true },
         },
       },
       dataLabels: { enabled: false },
       grid: {
-        borderColor: themeColor("--tblr-border-color"),
+        borderColor: themeColor("--tblr-border-color", "rgba(101, 109, 119, 0.16)"),
         strokeDashArray: 4,
         padding: { left: 6, right: 8 },
       },
@@ -137,8 +160,8 @@
         tooltip: { enabled: false },
       },
       yaxis: {
-        min: Math.max(0, visibleMinimum - axisPadding),
-        max: visibleMaximum + axisPadding,
+        min: yMin,
+        max: yMax,
         decimalsInFloat: places,
         forceNiceScale: false,
         tickAmount: 5,
@@ -210,9 +233,89 @@
     }
   }
 
-  document.addEventListener("DOMContentLoaded", () => initializeCharts());
+  /** Dynamically recalculate ATR target comparison when entry/stop change. */
+  function updateAtrComparison() {
+    const comparisonContainer = document.getElementById("atr-target-comparison");
+    if (!comparisonContainer) return;
+    const atrRaw = comparisonContainer.dataset.atrValue;
+    const rewardMultipleRaw = comparisonContainer.dataset.rewardMultiple || "3";
+    const atrValue = Number(String(atrRaw).replace(",", "."));
+    const rewardMultiple = Number(String(rewardMultipleRaw).replace(",", "."));
+
+    const entryInput = document.getElementById("planned-entry");
+    const stopInput = document.getElementById("planned-stop");
+    const pctEl = document.getElementById("atr-planned-pct");
+    const tapeEl = document.getElementById("atr-planned-tape");
+    const fillEl = document.getElementById("atr-planned-fill");
+    const moveEl = document.getElementById("atr-planned-move");
+    const badgeEl = document.getElementById("atr-planned-badge");
+
+    if (!pctEl || !tapeEl || !fillEl) return;
+
+    if (!Number.isFinite(atrValue) || atrValue <= 0 || !entryInput || !stopInput) {
+      return;
+    }
+
+    const entry = Number(String(entryInput.value).replace(",", "."));
+    const stop = Number(String(stopInput.value).replace(",", "."));
+
+    if (Number.isFinite(entry) && Number.isFinite(stop) && entry > 0 && stop > 0 && entry !== stop) {
+      const distance = Math.abs(entry - stop);
+      const plannedMove = distance * (Number.isFinite(rewardMultiple) && rewardMultiple > 0 ? rewardMultiple : 3);
+      const movePct = (plannedMove / atrValue) * 100;
+      const roundedPct = Math.round(movePct);
+
+      pctEl.textContent = `${roundedPct}%`;
+      tapeEl.style.setProperty("--tf-range-percent", `${movePct}%`);
+
+      if (moveEl) {
+        moveEl.textContent = plannedMove.toFixed(2);
+      }
+
+      fillEl.classList.remove("tf-range-tape-fill-warning", "tf-range-tape-fill-danger");
+      if (movePct > 100) {
+        fillEl.classList.add("tf-range-tape-fill-danger");
+        if (badgeEl) {
+          badgeEl.className = "badge bg-danger-lt";
+          badgeEl.textContent = document.documentElement.lang === "ru" ? "Превышает 100% ATR" : "Exceeds 100% ATR";
+        }
+      } else if (movePct > 75) {
+        fillEl.classList.add("tf-range-tape-fill-warning");
+        if (badgeEl) {
+          badgeEl.className = "badge bg-warning-lt";
+          badgeEl.textContent = document.documentElement.lang === "ru" ? "Превышает 75% ATR" : "Exceeds 75% ATR";
+        }
+      } else {
+        if (badgeEl) {
+          badgeEl.className = "badge d-none";
+        }
+      }
+    } else {
+      pctEl.textContent = "0%";
+      tapeEl.style.setProperty("--tf-range-percent", "0%");
+      if (moveEl) moveEl.textContent = "—";
+      fillEl.classList.remove("tf-range-tape-fill-warning", "tf-range-tape-fill-danger");
+      if (badgeEl) badgeEl.className = "badge d-none";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initializeCharts();
+    updateAtrComparison();
+  });
+  document.addEventListener("input", (event) => {
+    if (event.target && (event.target.id === "planned-entry" || event.target.id === "planned-stop")) {
+      updateAtrComparison();
+    }
+  });
+  document.addEventListener("change", (event) => {
+    if (event.target && (event.target.id === "planned-entry" || event.target.id === "planned-stop" || event.target.id === "trade-strategy")) {
+      updateAtrComparison();
+    }
+  });
   document.addEventListener("htmx:afterSettle", (event) => {
     initializeCharts(event.detail.elt);
+    updateAtrComparison();
   });
   document.addEventListener("htmx:beforeCleanupElement", (event) => {
     destroyCharts(event.detail.elt);

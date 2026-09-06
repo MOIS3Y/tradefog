@@ -28,9 +28,18 @@ def fetch_bybit_daily_candles(
     if normalized_category not in ("spot", "linear", "inverse"):
         normalized_category = "spot"
 
+    clean_symbol = (
+        symbol.upper()
+        .replace("/", "")
+        .replace("-", "")
+        .replace("_", "")
+        .replace(" ", "")
+        .strip()
+    )
+
     params: dict[str, str | int] = {
         "category": normalized_category,
-        "symbol": symbol.upper(),
+        "symbol": clean_symbol,
         "interval": "D",
         "limit": min(limit, 200),
     }
