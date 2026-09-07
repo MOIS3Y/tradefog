@@ -13,7 +13,8 @@ Development is organized into two primary phases:
 
 ## Phase 1: Standalone Backend API
 
-### Stage 1: Core Foundation & Domain
+### Existing Foundation
+
 - [x] Extracted pure domain calculations (position sizing, 1R risk, checklist
       scoring, analytics).
 - [x] Structured logging setup via Loguru.
@@ -21,26 +22,27 @@ Development is organized into two primary phases:
 - [x] Typer CLI entry points (`serve`, `config`, `version`).
 - [x] Base FastAPI application setup and healthcheck endpoints.
 
-### Stage 2: Database Persistence & Migrations
-- [ ] Async SQLAlchemy engine and session management.
-- [ ] Relational ORM models matching `docs/database.dbml`.
-- [ ] Alembic migration environment and initial schema migrations.
-- [ ] Centralized owner-scoping query utilities for user isolation.
+### Stage 1: Database Persistence & Migrations
 
-### Stage 3: Authentication & Shared Reference Catalog API
+- [x] Async SQLAlchemy engine and session management.
+- [x] Fourteen relational ORM models matching `docs/database.dbml`.
+- [x] Alembic migration environment and initial schema migration.
+- [x] Centralized owner-scoping query utilities for user isolation.
+
+### Stage 2: Authentication & Shared Reference Catalog API
+
 - [ ] JWT authentication (token generation, refresh, password hashing).
 - [ ] Role-based access control (Staff vs. Regular users).
 - [ ] Shared catalog endpoints: Assets, Trading Pairs, Venues, Venue
       Instruments, Venue Wallet Assets.
 - [ ] Staff-only catalog mutations with read-only regular user access.
 
-### Stage 4: User Journal & Capital Management API
+### Stage 3: User Journal, Capital & Trade Lifecycle
+
 - [ ] Profile CRUD (active/archived states, single venue binding).
 - [ ] Virtual Wallet and WalletAsset endpoints.
 - [ ] Ledger operations: Deposits and Withdrawals.
 - [ ] TradingStrategy and StrategyCapital fixed allocation management.
-
-### Stage 5: Trade Lifecycle & On-Demand Market Data
 - [ ] Trade workspace endpoints (Drafts, lifecycle state transitions).
 - [ ] Atomic `TradeSnapshot` creation on submission.
 - [ ] Capital reservation validation and locking.
@@ -48,10 +50,15 @@ Development is organized into two primary phases:
 - [ ] On-demand daily candle fetching and `ATR(14)` calculation (Bybit,
       Binance, Yahoo Finance, Manual fallback).
 
-### Stage 6: Analytics & Attachments
+### Stage 4: Analytics, Attachments & CLI
+
 - [ ] Comprehensive analytics endpoint (R-multiples, Trajectory coordinates,
       Expectancy, Streaks, cohort filtering).
 - [ ] Markdown trade notes and private file attachments upload/serving.
+- [ ] Administrative CLI commands.
+
+Each backend stage is implemented in a separate iteration and reviewed
+before the next stage begins.
 
 ---
 

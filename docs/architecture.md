@@ -92,6 +92,47 @@ The system defines two clear ownership zones:
 - **Transactions**: Multi-record mutations (such as trade status transitions
   and wallet reservations) execute within atomic database transactions.
 
+### Database Setup
+
+From the repository root, install dependencies and apply migrations before
+starting the API:
+
+```sh
+uv sync --group dev
+uv run alembic upgrade head
+uv run tradefog serve
+```
+
+Alembic uses the same TOML and `TRADEFOG_` environment settings as the API.
+For an isolated SQLite database, set `TRADEFOG_DATABASE__SQLITE__PATH`.
+The application creates the database parent directory, but never creates
+tables or applies migrations automatically. `uv run alembic check` detects
+model/schema drift. Migration files are packaged under `tradefog/db/migrations`.
+
+`Database.session()` provides a transaction that commits on success and
+rolls back on failure. The API's `SessionDependency` completes that transaction
+before sending the response. Services flush within this boundary rather than
+committing individual records. ORM relationships require explicit eager
+loading to avoid implicit async database IO.
+
+Journal reads use `owned_select(Model, authenticated_user.id)` before adding
+record IDs, filters or pagination. This helper supports all eight journal
+models in the current schema and rejects other models. Staff status does not
+bypass journal isolation. Future mutation services must also validate that
+referenced strategies, wallet assets and instruments belong to the same
+profile/venue; foreign keys alone do not enforce those cross-record rules.
+
+`ExactDecimal` implements DBML decimal precision and scale: PostgreSQL uses
+`NUMERIC`, while SQLite uses canonical decimal text to avoid binary float
+conversion. Inputs must be finite `Decimal` values within the declared
+precision and scale. On SQLite, monetary arithmetic, numeric sorting and
+aggregation must use Python `Decimal`, not SQL arithmetic, `SUM` or text
+ordering. Symbols are stored trimmed and uppercase; a database check plus
+the unique symbol index prevents casing variants of the same asset.
+
+Timestamps follow the DBML's timezone-naive `timestamp` type and are treated
+as UTC. Application services must normalize supplied timestamps to UTC.
+
 ## Market Data Integrations
 
 Market data serves as an on-demand, read-only auxiliary context:
