@@ -98,8 +98,7 @@ instrument. Descriptions, execution increments and availability remain editable.
 Argon2 work runs in a worker thread, and JWT verification requires subject,
 purpose, issue time, expiration and token identifier claims.
 
-`POST /auth/register` creates only regular accounts. It accepts a username and
-a password of at least 12 characters; passwords are stored as Argon2 hashes.
+Accounts are provisioned by the installation owner through `tradefog users`.
 `POST /auth/token` accepts OAuth2 form credentials and issues 15-minute access
 and 7-day refresh JWTs. `POST /auth/refresh` exchanges a refresh token for a
 fresh pair, and `GET /auth/me` validates an access token. A disabled account

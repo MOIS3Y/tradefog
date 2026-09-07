@@ -51,7 +51,7 @@ def normalized_username(username: str) -> str:
 
 
 def validated_password(password: str) -> str:
-    """Apply the same password length policy as public registration."""
+    """Validate a CLI-provided password against the account policy."""
     try:
         return validate_password(password)
     except ValueError as error:
@@ -101,9 +101,7 @@ async def update_user_flag(
         raise ValueError(f"Unsupported user flag: {field}")
     async with cli_session() as session:
         user = await session.scalar(
-            select(User)
-            .where(User.username == username)
-            .with_for_update()
+            select(User).where(User.username == username).with_for_update()
         )
         if user is None:
             raise typer.BadParameter("User not found")
@@ -119,9 +117,7 @@ async def update_user_password(username: str, password: str) -> User:
     """Replace one account password through an isolated transaction."""
     async with cli_session() as session:
         user = await session.scalar(
-            select(User)
-            .where(User.username == username)
-            .with_for_update()
+            select(User).where(User.username == username).with_for_update()
         )
         if user is None:
             raise typer.BadParameter("User not found")
@@ -158,7 +154,7 @@ def create_user(
         typer.Option("--staff", help="Grant staff catalog access"),
     ] = False,
 ) -> None:
-    """Create a regular or staff account without public registration."""
+    """Create a regular or staff account for this installation."""
     user = asyncio.run(
         create_user_record(
             normalized_username(username),

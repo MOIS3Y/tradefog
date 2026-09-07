@@ -1,11 +1,10 @@
-"""Account registration and JWT bearer-token endpoints."""
+"""JWT bearer-token endpoints."""
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from starlette.concurrency import run_in_threadpool
 
 from tradefog.api.dependencies import (
@@ -13,17 +12,15 @@ from tradefog.api.dependencies import (
     SessionDependency,
     get_authentication_settings,
 )
-from tradefog.api.errors import api_error, conflict
+from tradefog.api.errors import api_error
 from tradefog.api.security import (
     DUMMY_PASSWORD_HASH,
     create_token,
     decode_token,
-    hash_password,
     verify_password,
 )
 from tradefog.api.v1.schemas.auth import (
     RefreshRequest,
-    RegisterRequest,
     TokenResponse,
     UserResponse,
 )
@@ -39,28 +36,6 @@ def token_pair(user: User, settings: AuthenticationSettings) -> TokenResponse:
         access_token=create_token(user.id, "access", settings),
         refresh_token=create_token(user.id, "refresh", settings),
     )
-
-
-@router.post(
-    "/register",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def register(
-    request: RegisterRequest, session: SessionDependency
-) -> User:
-    """Create a regular user account; staff access is never self-assigned."""
-    user = User(
-        username=request.username,
-        password=await run_in_threadpool(hash_password, request.password),
-    )
-    session.add(user)
-    try:
-        await session.flush()
-    except IntegrityError:
-        await session.rollback()
-        conflict("Username is already in use")
-    return user
 
 
 @router.post("/token", response_model=TokenResponse)

@@ -62,6 +62,18 @@ async def client(database_path: Path) -> AsyncIterator[AsyncClient]:
                     is_staff=True,
                 )
             )
+            session.add(
+                User(
+                    username="alice",
+                    password=hash_password("alice-password-123"),
+                )
+            )
+            session.add(
+                User(
+                    username="regular",
+                    password=hash_password("regular-password-123"),
+                )
+            )
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
@@ -69,18 +81,13 @@ async def client(database_path: Path) -> AsyncIterator[AsyncClient]:
             yield api_client
 
 
-async def register_and_login(
-    client: AsyncClient, username: str
+async def login_headers(
+    client: AsyncClient, username: str, password: str
 ) -> dict[str, str]:
-    """Create a regular account and return its bearer token headers."""
-    response = await client.post(
-        "/api/v1/auth/register",
-        json={"username": username, "password": "correct-password-123"},
-    )
-    assert response.status_code == 201, response.text
+    """Authenticate a provisioned account and return bearer token headers."""
     response = await client.post(
         "/api/v1/auth/token",
-        data={"username": username, "password": "correct-password-123"},
+        data={"username": username, "password": password},
     )
     assert response.status_code == 200, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
@@ -96,12 +103,12 @@ async def staff_headers(client: AsyncClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-async def test_registration_tokens_and_disabled_accounts(
+async def test_tokens_and_disabled_accounts(
     client: AsyncClient,
     database_path: Path,
 ) -> None:
     """JWTs authenticate active users, distinguish refresh and honor disabling."""
-    headers = await register_and_login(client, "alice")
+    headers = await login_headers(client, "alice", "alice-password-123")
     me = await client.get("/api/v1/auth/me", headers=headers)
     assert me.status_code == 200
     assert me.json() == {
@@ -110,11 +117,6 @@ async def test_registration_tokens_and_disabled_accounts(
         "is_staff": False,
         "is_active": True,
     }
-    duplicate = await client.post(
-        "/api/v1/auth/register",
-        json={"username": "alice", "password": "correct-password-123"},
-    )
-    assert duplicate.status_code == 409
     invalid = await client.post(
         "/api/v1/auth/token",
         data={"username": "alice", "password": "wrong-password"},
@@ -123,7 +125,7 @@ async def test_registration_tokens_and_disabled_accounts(
 
     login = await client.post(
         "/api/v1/auth/token",
-        data={"username": "alice", "password": "correct-password-123"},
+        data={"username": "alice", "password": "alice-password-123"},
     )
     refresh = login.json()["refresh_token"]
     refreshed = await client.post(
@@ -287,7 +289,11 @@ async def test_catalog_is_public_read_and_staff_write(
     client: AsyncClient,
 ) -> None:
     """Only staff can maintain the complete shared catalog graph."""
-    regular_headers = await register_and_login(client, "regular")
+    regular_headers = await login_headers(
+        client,
+        "regular",
+        "regular-password-123",
+    )
     denied = await client.post(
         "/api/v1/catalog/assets",
         headers=regular_headers,
