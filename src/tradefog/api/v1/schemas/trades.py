@@ -1,0 +1,222 @@
+"""Transport models for the trade workspace and lifecycle."""
+
+from datetime import date, datetime
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from tradefog.domain.checklists import (
+    AssessmentDirection,
+    DirectionalValue,
+    TrendRelationship,
+)
+from tradefog.domain.enums import ATRSource, Direction, TradeStatus
+
+
+class TradeInput(BaseModel):
+    """Reject unknown trade fields so journal edits remain intentional."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ChecklistWrite(TradeInput):
+    """The four fixed directional observations of a draft decision."""
+
+    market_sentiment: DirectionalValue | None = None
+    information_background: DirectionalValue | None = None
+    global_daily_direction: DirectionalValue | None = None
+    local_daily_movement: DirectionalValue | None = None
+
+
+class ChecklistResponse(ChecklistWrite):
+    """Checklist answers plus their deterministic advisory assessment."""
+
+    score: Decimal
+    direction: AssessmentDirection
+    completeness: Decimal
+    answered_count: int
+    total_count: int
+    gauge_position: int
+    trend_relationship: TrendRelationship
+    agrees_with_trade: bool | None
+
+
+class TradeCreate(TradeInput):
+    """Create the editable identity and context of a draft trade."""
+
+    profile_id: int = Field(gt=0)
+    strategy_id: int = Field(gt=0)
+    venue_instrument_id: int = Field(gt=0)
+    trade_date: date
+    direction: Direction
+    description_markdown: str | None = None
+
+
+class TradePatch(TradeInput):
+    """Edit a draft identity or evolving journal metadata."""
+
+    strategy_id: int | None = Field(default=None, gt=0)
+    venue_instrument_id: int | None = Field(default=None, gt=0)
+    trade_date: date | None = None
+    direction: Direction | None = None
+    description_markdown: str | None = None
+
+    @model_validator(mode="after")
+    def reject_required_nulls(self) -> "TradePatch":
+        """Allow null only for the nullable Markdown description."""
+        values = self.model_dump(exclude_unset=True)
+        for field, value in values.items():
+            if field != "description_markdown" and value is None:
+                raise ValueError(f"{field} cannot be null")
+        return self
+
+
+class ATRRequest(TradeInput):
+    """Refresh automatic ATR or supply a manual fallback value."""
+
+    value: Decimal | None = Field(
+        default=None, gt=0, max_digits=30, decimal_places=18,
+    )
+    contributing_date: date | None = None
+    stale: bool = False
+
+
+class CandleResponse(BaseModel):
+    """One daily candle returned only as transient market context."""
+
+    date: date
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+
+
+class ATRResponse(BaseModel):
+    """Current draft ATR context and non-persisted preview candles."""
+
+    value: Decimal
+    source: ATRSource
+    contributing_date: date
+    observation_time: datetime
+    stale: bool
+    observed_session_range: Decimal | None = None
+    session_range_percent: Decimal | None = None
+    candles: list[CandleResponse] = Field(default_factory=list)
+
+
+class TradeSubmit(TradeInput):
+    """Freeze the saved draft plan while entering pending or open state."""
+
+    status: TradeStatus
+
+    @model_validator(mode="after")
+    def require_submission_status(self) -> "TradeSubmit":
+        """Limit submission to the two states that create a snapshot."""
+        if self.status not in (TradeStatus.PENDING_ENTRY, TradeStatus.OPEN):
+            raise ValueError("status must be pending_entry or open")
+        return self
+
+
+class TradePlanRequest(TradeInput):
+    """Editable entry and stop values persisted in the draft context."""
+
+    planned_entry: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
+    planned_stop: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
+
+
+class TradePlanResponse(BaseModel):
+    """Executable plan and current capital context before submission."""
+
+    planned_entry: Decimal
+    planned_stop: Decimal
+    planned_take_profit: Decimal
+    quantity: Decimal
+    reward_multiple: Decimal
+    planned_risk_percent: Decimal
+    planned_risk_amount: Decimal
+    planned_notional: Decimal
+    allocation_capital: Decimal
+    already_reserved_risk: Decimal
+    remaining_risk_capacity: Decimal
+    deposit_floor_breach: bool
+    wallet_balance: Decimal
+    wallet_reserved: Decimal
+    wallet_available: Decimal
+    atr_value: Decimal | None
+    take_profit_atr_percent: Decimal | None
+    fits_atr_limit: bool | None
+    atr_limit_percent: Decimal = Decimal(75)
+
+
+class TradeClose(TradeInput):
+    """Record final signed net P&L and optional execution context."""
+
+    realized_pnl: Decimal = Field(max_digits=30, decimal_places=18)
+    actual_exit_price: Decimal | None = Field(
+        default=None, gt=0, max_digits=30, decimal_places=18,
+    )
+    total_commission: Decimal | None = Field(
+        default=None, ge=0, max_digits=30, decimal_places=18,
+    )
+    funding_result: Decimal | None = Field(
+        default=None, max_digits=30, decimal_places=18,
+    )
+
+
+class TradeReview(TradeInput):
+    """Mark or clear review completion for a closed trade."""
+
+    completed: bool = True
+
+
+class SnapshotResponse(BaseModel):
+    """Immutable financial and volatility context frozen at submission."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    planned_entry: Decimal
+    planned_stop: Decimal
+    planned_take_profit: Decimal | None
+    quantity: Decimal | None
+    reward_multiple: Decimal | None
+    planned_risk_percent: Decimal | None
+    planned_risk_amount: Decimal | None
+    planned_notional: Decimal | None
+    allocation_capital: Decimal | None
+    risk_stop_capital: Decimal | None
+    already_reserved_risk: Decimal | None
+    remaining_risk_capacity: Decimal | None
+    deposit_floor_breach: bool | None
+    wallet_balance: Decimal | None
+    wallet_reserved: Decimal | None
+    wallet_available: Decimal | None
+    atr_value: Decimal | None
+    atr_source: ATRSource | None
+    atr_contributing_date: date | None
+    atr_observation_time: datetime | None
+    atr_stale: bool | None
+    created_at: datetime
+
+
+class TradeResponse(BaseModel):
+    """Complete owner-scoped trade workspace representation."""
+
+    id: int
+    profile_id: int
+    strategy_id: int
+    venue_instrument_id: int
+    trade_date: date
+    status: TradeStatus
+    direction: Direction
+    description_markdown: str | None
+    review_completed_at: datetime | None
+    realized_pnl: Decimal | None
+    actual_exit_price: Decimal | None
+    total_commission: Decimal | None
+    funding_result: Decimal | None
+    created_at: datetime
+    checklist: ChecklistResponse
+    plan: TradePlanRequest | None
+    atr: ATRResponse | None
+    snapshot: SnapshotResponse | None

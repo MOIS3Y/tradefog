@@ -164,6 +164,45 @@ the unique symbol index prevents casing variants of the same asset.
 Timestamps follow the DBML's timezone-naive `timestamp` type and are treated
 as UTC. Application services must normalize supplied timestamps to UTC.
 
+### Journal and Trade Lifecycle API
+
+Authenticated journal endpoints are rooted at `/api/v1/profiles` and
+`/api/v1/trades`. Every lookup scopes through `TradingProfile.owner`; a missing
+record and another user's record both return the same not-found response.
+Creating a profile also creates its one-to-one wallet. Wallet balances are
+derived from signed deposit and withdrawal facts plus closed-trade net P&L.
+Pending and open snapshots derive wallet reservations; balances and
+reservations are not duplicated in mutable columns.
+
+Wallet assets must reference an active capability on the profile venue.
+Withdrawals preserve both active trade reservations and capital committed to
+active strategies. Strategy capital is allocated per wallet asset and cannot
+exceed the asset balance across active allocations. Its amount, plus strategy
+risk and reward rules, becomes locked by the first submitted trade.
+Deposit-floor and strategy statuses are advisory and never reject a
+discretionary trade.
+
+Trade identity and checklist fields remain editable in `draft`; Markdown notes
+and analytical trade date remain correctable later. Submission to
+`pending_entry` or `open` locks the trade, validates its settlement allocation,
+calculates an executable position, checks risk capacity and wallet notional,
+then creates exactly one immutable `TradeSnapshot` in the same transaction.
+Reservations release when a trade is cancelled or closed. Closing records
+signed net P&L, and review completion is tracked independently.
+
+`POST /trades/{trade_id}/plan` previews the same validated calculation without
+creating a snapshot or reservation. When ATR context exists, the preview also
+reports whether the take-profit move fits within the advisory 75% ATR limit.
+`PUT /trades/{trade_id}/plan` persists the entry and stop in the draft context;
+submission accepts only a lifecycle status and freezes that saved plan.
+
+Saved plan inputs, checklist answers, and the latest draft ATR are stored
+inside `draft_context`. Automatic ATR fetches run outside the event loop through
+the venue's configured Bybit, Binance, or Yahoo provider. Manual ATR remains
+available when a provider is absent or unavailable. Candles are returned for
+immediate preview and are never persisted; only decision-time ATR fields enter
+the immutable snapshot.
+
 ## Market Data Integrations
 
 Market data serves as an on-demand, read-only auxiliary context:

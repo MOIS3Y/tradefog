@@ -39,15 +39,15 @@ Development is organized into two primary phases:
 
 ### Stage 3: User Journal, Capital & Trade Lifecycle
 
-- [ ] Profile CRUD (active/archived states, single venue binding).
-- [ ] Virtual Wallet and WalletAsset endpoints.
-- [ ] Ledger operations: Deposits and Withdrawals.
-- [ ] TradingStrategy and StrategyCapital fixed allocation management.
-- [ ] Trade workspace endpoints (Drafts, lifecycle state transitions).
-- [ ] Atomic `TradeSnapshot` creation on submission.
-- [ ] Capital reservation validation and locking.
-- [ ] 4-question directional checklist scoring and persistence.
-- [ ] On-demand daily candle fetching and `ATR(14)` calculation (Bybit,
+- [x] Profile CRUD (active/archived states, single venue binding).
+- [x] Virtual Wallet and WalletAsset endpoints.
+- [x] Ledger operations: Deposits and Withdrawals.
+- [x] TradingStrategy and StrategyCapital fixed allocation management.
+- [x] Trade workspace endpoints (Drafts, lifecycle state transitions).
+- [x] Atomic `TradeSnapshot` creation on submission.
+- [x] Capital reservation validation and locking.
+- [x] 4-question directional checklist scoring and persistence.
+- [x] On-demand daily candle fetching and `ATR(14)` calculation (Bybit,
       Binance, Yahoo Finance, Manual fallback).
 
 ### Stage 4: Analytics, Attachments & CLI

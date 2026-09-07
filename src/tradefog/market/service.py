@@ -79,18 +79,10 @@ def fetch_atr_context(
         client=client,
     )
 
-    if candles:
-        latest_candle = candles[-1]
-        if trade_date >= latest_candle.date:
-            closed_candles = candles[:-1]
-            session_candle = latest_candle
-        else:
-            closed_candles = [c for c in candles if c.date < trade_date]
-            session_matches = [c for c in candles if c.date == trade_date]
-            session_candle = session_matches[0] if session_matches else None
-    else:
-        closed_candles = []
-        session_candle = None
+    closed_candles = [candle for candle in candles if candle.date < trade_date]
+    session_candle = next(
+        (candle for candle in candles if candle.date == trade_date), None,
+    )
 
     if len(closed_candles) < 14:
         raise MarketDataError(
