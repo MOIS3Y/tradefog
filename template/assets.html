@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Assets · Catalog · Tradefog</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="css/tradefog.css">
+</head>
+<body>
+  <div class="page">
+    <!-- Top bar -->
+    <header class="navbar navbar-expand-md d-print-none">
+      <div class="container-xl">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-brand navbar-brand-autodark">
+          <a class="d-flex align-items-center gap-2 fw-bold text-reset text-decoration-none" href="index.html">
+            <span class="avatar avatar-sm bg-primary-lt text-primary fw-bold">TF</span>
+            <span class="tf-brand-logo fs-3">Tradefog</span>
+          </a>
+        </div>
+        <div class="navbar-nav flex-row order-md-last align-items-center gap-2">
+          <div class="nav-item">
+            <button class="btn btn-icon border-0 bg-transparent" type="button" data-theme-toggle title="Toggle theme">
+              <i class="ti ti-sun-moon fs-2 tf-theme-icon-auto"></i>
+              <i class="ti ti-moon fs-2 tf-theme-icon-dark d-none"></i>
+              <i class="ti ti-sun fs-2 tf-theme-icon-light d-none"></i>
+            </button>
+          </div>
+          <div class="nav-item dropdown">
+            <a class="nav-link d-flex lh-1 text-reset p-0 ms-2" href="#" data-bs-toggle="dropdown">
+              <span class="avatar avatar-sm bg-secondary-lt">
+                <i class="ti ti-user-circle fs-2"></i>
+              </span>
+              <div class="d-none d-xl-block ps-2">
+                <div>Stepan Trader</div>
+                <div class="text-secondary small">stepan@example.com</div>
+              </div>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+              <a class="dropdown-item" href="profiles.html">Profiles</a>
+              <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#logout-modal">Log out</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main navigation menu -->
+    <header class="navbar-expand-md d-print-none">
+      <div class="collapse navbar-collapse" id="navbar-menu">
+        <div class="navbar">
+          <div class="container-xl">
+            <ul class="navbar-nav">
+              <li class="nav-item"><a class="nav-link" href="index.html"><span class="nav-link-icon"><i class="ti ti-home"></i></span><span class="nav-link-title">Home</span></a></li>
+              <li class="nav-item"><a class="nav-link" href="profiles.html"><span class="nav-link-icon"><i class="ti ti-notebook"></i></span><span class="nav-link-title">Profiles</span></a></li>
+              <li class="nav-item"><a class="nav-link" href="trades.html"><span class="nav-link-icon"><i class="ti ti-chart-candle"></i></span><span class="nav-link-title">Trades</span></a></li>
+              <li class="nav-item"><a class="nav-link" href="analytics.html"><span class="nav-link-icon"><i class="ti ti-chart-line"></i></span><span class="nav-link-title">Analytics</span></a></li>
+              <li class="nav-item dropdown active">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false">
+                  <span class="nav-link-icon"><i class="ti ti-library"></i></span>
+                  <span class="nav-link-title">Catalog</span>
+                </a>
+                <div class="dropdown-menu">
+                  <a class="dropdown-item active" href="assets.html"><i class="ti ti-coin icon dropdown-item-icon"></i> Assets</a>
+                  <a class="dropdown-item" href="pairs.html"><i class="ti ti-arrows-exchange icon dropdown-item-icon"></i> Trading pairs</a>
+                  <a class="dropdown-item" href="venues.html"><i class="ti ti-building-bank icon dropdown-item-icon"></i> Venues</a>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="page-wrapper">
+      <div class="page-header d-print-none">
+        <div class="container-xl">
+          <div class="row g-2 align-items-center">
+            <div class="col">
+              <div class="page-pretitle text-secondary">Catalog</div>
+              <h1 class="page-title d-flex align-items-center gap-2">Assets</h1>
+              <div class="text-secondary small mt-1">Reusable assets shared across trading pairs, venues, and user wallets.</div>
+            </div>
+            <div class="col-auto ms-auto">
+              <div class="btn-list flex-nowrap">
+                <button class="btn btn-icon" type="button" data-bs-toggle="collapse" data-bs-target="#asset-filters" title="Toggle filters">
+                  <i class="ti ti-filter"></i>
+                </button>
+                <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#asset-create-modal">
+                  <i class="ti ti-plus icon me-1"></i> Add asset
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <main class="page-body">
+        <div class="container-xl">
+          <!-- Filter Panel -->
+          <div class="collapse show mb-3" id="asset-filters">
+            <div class="card card-body tf-filter-bar">
+              <div class="row g-2 align-items-center">
+                <div class="col-12 col-md-4">
+                  <div class="input-icon">
+                    <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+                    <input type="text" class="form-control" placeholder="Search by ticker or name...">
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <select class="form-select">
+                    <option value="">All Asset Classes</option>
+                    <option value="crypto">Cryptocurrency</option>
+                    <option value="fiat">Fiat Currency</option>
+                    <option value="equity">Cash Equity / Stock</option>
+                  </select>
+                </div>
+                <div class="col-6 col-md-2">
+                  <select class="form-select">
+                    <option value="active">Active only</option>
+                    <option value="all">All status</option>
+                  </select>
+                </div>
+                <div class="col-auto ms-auto">
+                  <button class="btn btn-outline-secondary" type="button">Reset</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assets Table -->
+          <div class="card">
+            <div class="table-responsive">
+              <table class="table table-vcenter card-table table-hover">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Asset Class</th>
+                    <th>Display Precision</th>
+                    <th>Internal Decimals</th>
+                    <th class="w-1"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="avatar avatar-xs bg-yellow-lt text-yellow fw-bold">₿</span>
+                        <span class="tf-ticker fw-bold">BTC</span>
+                      </div>
+                    </td>
+                    <td>Bitcoin</td>
+                    <td><span class="badge bg-secondary-lt">Cryptocurrency</span></td>
+                    <td>8 decimals</td>
+                    <td>8</td>
+                    <td><button class="btn btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#asset-delete-modal"><i class="ti ti-trash text-danger"></i></button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="avatar avatar-xs bg-azure-lt text-azure fw-bold">Ξ</span>
+                        <span class="tf-ticker fw-bold">ETH</span>
+                      </div>
+                    </td>
+                    <td>Ethereum</td>
+                    <td><span class="badge bg-secondary-lt">Cryptocurrency</span></td>
+                    <td>6 decimals</td>
+                    <td>18</td>
+                    <td><button class="btn btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#asset-delete-modal"><i class="ti ti-trash text-danger"></i></button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="avatar avatar-xs bg-blue-lt text-blue fw-bold">₮</span>
+                        <span class="tf-ticker fw-bold">USDT</span>
+                      </div>
+                    </td>
+                    <td>Tether USD</td>
+                    <td><span class="badge bg-blue-lt">Stablecoin</span></td>
+                    <td>2 decimals</td>
+                    <td>6</td>
+                    <td><button class="btn btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#asset-delete-modal"><i class="ti ti-trash text-danger"></i></button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="avatar avatar-xs bg-blue-lt text-blue fw-bold">$</span>
+                        <span class="tf-ticker fw-bold">USDC</span>
+                      </div>
+                    </td>
+                    <td>USD Coin</td>
+                    <td><span class="badge bg-blue-lt">Stablecoin</span></td>
+                    <td>2 decimals</td>
+                    <td>6</td>
+                    <td><button class="btn btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#asset-delete-modal"><i class="ti ti-trash text-danger"></i></button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="avatar avatar-xs bg-purple-lt text-purple fw-bold">◎</span>
+                        <span class="tf-ticker fw-bold">SOL</span>
+                      </div>
+                    </td>
+                    <td>Solana</td>
+                    <td><span class="badge bg-secondary-lt">Cryptocurrency</span></td>
+                    <td>4 decimals</td>
+                    <td>9</td>
+                    <td><button class="btn btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#asset-delete-modal"><i class="ti ti-trash text-danger"></i></button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="avatar avatar-xs bg-green-lt text-green fw-bold">$</span>
+                        <span class="tf-ticker fw-bold">USD</span>
+                      </div>
+                    </td>
+                    <td>US Dollar</td>
+                    <td><span class="badge bg-green-lt">Fiat Currency</span></td>
+                    <td>2 decimals</td>
+                    <td>2</td>
+                    <td><button class="btn btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#asset-delete-modal"><i class="ti ti-trash text-danger"></i></button></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="avatar avatar-xs bg-primary-lt text-primary fw-bold"></span>
+                        <span class="tf-ticker fw-bold">AAPL</span>
+                      </div>
+                    </td>
+                    <td>Apple Inc.</td>
+                    <td><span class="badge bg-teal-lt">Cash Equity</span></td>
+                    <td>2 decimals</td>
+                    <td>4</td>
+                    <td><button class="btn btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#asset-delete-modal"><i class="ti ti-trash text-danger"></i></button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="footer footer-transparent d-print-none mt-auto">
+        <div class="container-xl text-center text-secondary">
+          Tradefog · Personal trading journal concept
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Create Asset Modal -->
+  <div class="modal modal-blur fade" id="asset-create-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Shared Asset</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label required">Ticker Symbol</label>
+            <input type="text" class="form-control" placeholder="e.g. AVAX">
+          </div>
+          <div class="mb-3">
+            <label class="form-label required">Asset Name</label>
+            <input type="text" class="form-control" placeholder="e.g. Avalanche">
+          </div>
+          <div class="mb-3">
+            <label class="form-label required">Asset Class</label>
+            <select class="form-select">
+              <option value="crypto" selected>Cryptocurrency</option>
+              <option value="fiat">Fiat Currency</option>
+              <option value="equity">Cash Equity</option>
+            </select>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Display Precision</label>
+              <input type="number" class="form-control" value="4">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Internal Decimals</label>
+              <input type="number" class="form-control" value="8">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="button" data-bs-dismiss="modal">Add Asset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Asset Modal -->
+  <div class="modal modal-blur fade" id="asset-delete-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Delete Asset?</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Deleting an asset is only allowed if it is not used by any trading pairs or venue instruments.
+        </div>
+        <div class="modal-footer">
+          <button class="btn" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger" type="button" data-bs-dismiss="modal">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/js/tabler.min.js"></script>
+  <script src="js/prototype.js"></script>
+</body>
+</html>

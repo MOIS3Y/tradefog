@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Analytics · Tradefog</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="css/tradefog.css">
+</head>
+<body>
+  <div class="page">
+    <!-- Top bar -->
+    <header class="navbar navbar-expand-md d-print-none">
+      <div class="container-xl">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-brand navbar-brand-autodark">
+          <a class="d-flex align-items-center gap-2 fw-bold text-reset text-decoration-none" href="index.html">
+            <span class="avatar avatar-sm bg-primary-lt text-primary fw-bold">TF</span>
+            <span class="tf-brand-logo fs-3">Tradefog</span>
+          </a>
+        </div>
+        <div class="navbar-nav flex-row order-md-last align-items-center gap-2">
+          <div class="nav-item">
+            <button class="btn btn-icon border-0 bg-transparent" type="button" data-theme-toggle title="Toggle theme">
+              <i class="ti ti-sun-moon fs-2 tf-theme-icon-auto"></i>
+              <i class="ti ti-moon fs-2 tf-theme-icon-dark d-none"></i>
+              <i class="ti ti-sun fs-2 tf-theme-icon-light d-none"></i>
+            </button>
+          </div>
+          <div class="nav-item dropdown">
+            <a class="nav-link d-flex lh-1 text-reset p-0 ms-2" href="#" data-bs-toggle="dropdown">
+              <span class="avatar avatar-sm bg-secondary-lt">
+                <i class="ti ti-user-circle fs-2"></i>
+              </span>
+              <div class="d-none d-xl-block ps-2">
+                <div>Stepan Trader</div>
+                <div class="text-secondary small">stepan@example.com</div>
+              </div>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+              <a class="dropdown-item" href="profiles.html">Profiles</a>
+              <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#logout-modal">Log out</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main navigation menu -->
+    <header class="navbar-expand-md d-print-none">
+      <div class="collapse navbar-collapse" id="navbar-menu">
+        <div class="navbar">
+          <div class="container-xl">
+            <ul class="navbar-nav">
+              <li class="nav-item"><a class="nav-link" href="index.html"><span class="nav-link-icon"><i class="ti ti-home"></i></span><span class="nav-link-title">Home</span></a></li>
+              <li class="nav-item"><a class="nav-link" href="profiles.html"><span class="nav-link-icon"><i class="ti ti-notebook"></i></span><span class="nav-link-title">Profiles</span></a></li>
+              <li class="nav-item"><a class="nav-link" href="trades.html"><span class="nav-link-icon"><i class="ti ti-chart-candle"></i></span><span class="nav-link-title">Trades</span></a></li>
+              <li class="nav-item active"><a class="nav-link" href="analytics.html"><span class="nav-link-icon"><i class="ti ti-chart-line"></i></span><span class="nav-link-title">Analytics</span></a></li>
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false">
+                  <span class="nav-link-icon"><i class="ti ti-library"></i></span>
+                  <span class="nav-link-title">Catalog</span>
+                </a>
+                <div class="dropdown-menu">
+                  <a class="dropdown-item" href="assets.html"><i class="ti ti-coin icon dropdown-item-icon"></i> Assets</a>
+                  <a class="dropdown-item" href="pairs.html"><i class="ti ti-arrows-exchange icon dropdown-item-icon"></i> Trading pairs</a>
+                  <a class="dropdown-item" href="venues.html"><i class="ti ti-building-bank icon dropdown-item-icon"></i> Venues</a>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="page-wrapper">
+      <div class="page-header d-print-none">
+        <div class="container-xl">
+          <div class="row g-2 align-items-center">
+            <div class="col">
+              <div class="page-pretitle text-secondary">Trading quality</div>
+              <h1 class="page-title d-flex align-items-center gap-2">Analytics</h1>
+              <div class="text-secondary small mt-1">Metrics for reviewing execution quality, R-multiples, and risk discipline.</div>
+            </div>
+            <div class="col-auto ms-auto">
+              <div class="btn-list flex-nowrap">
+                <select class="form-select form-select-sm">
+                  <option value="all" selected>All Profiles</option>
+                  <option value="1">Main Crypto Futures (Bybit)</option>
+                  <option value="2">Stock Swing (IBKR)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <main class="page-body">
+        <div class="container-xl">
+          <div class="row row-cards">
+            <!-- X/Y Trajectory Chart Card -->
+            <div class="col-12">
+              <section class="card tf-trajectory-card">
+                <div class="card-header border-0 pb-0 d-flex justify-content-between align-items-start">
+                  <div>
+                    <h2 class="card-title">X/Y trading trajectory</h2>
+                    <div class="text-secondary small">Each point is one closed trade in analytical order plotted in Risk vs Target units.</div>
+                  </div>
+                  <div class="d-flex gap-4 tf-coordinate-readout">
+                    <div>
+                      <span class="subheader">X (Risk Units)</span>
+                      <span class="h2 mb-0 d-block">9.00R</span>
+                    </div>
+                    <div>
+                      <span class="subheader">Y (Target Units)</span>
+                      <span class="h2 mb-0 text-success d-block">+8.50R</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-body pt-2">
+                  <div class="tf-trajectory-chart" data-analytics-chart="xy-trajectory" role="img"></div>
+                  <div class="d-flex flex-wrap justify-content-between gap-2 small text-secondary mt-2">
+                    <span>X — cumulative full-stop equivalents (risk units taken)</span>
+                    <span>Y — cumulative realized profit (R-multiples achieved)</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <!-- KPI Metric Cards -->
+            <div class="col-6 col-lg-3">
+              <section class="card h-100">
+                <div class="card-body">
+                  <div class="subheader">Closed trades</div>
+                  <div class="h1 mb-1">12</div>
+                  <div class="text-secondary small">
+                    <span class="text-success fw-bold">7 wins</span> · 
+                    <span class="text-danger fw-bold">4 losses</span> · 
+                    <span>1 B/E</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div class="col-6 col-lg-3">
+              <section class="card h-100">
+                <div class="card-body">
+                  <div class="subheader">Net result</div>
+                  <div class="h1 mb-1 text-success">+8.50R</div>
+                  <div class="text-secondary small">Average per trade: <strong>+0.71R</strong></div>
+                </div>
+              </section>
+            </div>
+            <div class="col-6 col-lg-3">
+              <section class="card h-100">
+                <div class="card-body">
+                  <div class="subheader">Win rate</div>
+                  <div class="h1 mb-1">58.3%</div>
+                  <div class="text-secondary small">Profit factor: <strong>2.83</strong></div>
+                </div>
+              </section>
+            </div>
+            <div class="col-6 col-lg-3">
+              <section class="card h-100">
+                <div class="card-body">
+                  <div class="subheader">Current streak</div>
+                  <div class="h1 mb-1 text-primary">2W</div>
+                  <div class="text-secondary small">Max: <strong>3W / 2L</strong></div>
+                </div>
+              </section>
+            </div>
+
+            <!-- Trajectory Decisions Log Table -->
+            <div class="col-12">
+              <section class="card">
+                <div class="card-header">
+                  <h2 class="card-title">Trajectory Decisions Record</h2>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-vcenter card-table table-hover">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Market</th>
+                        <th>Direction</th>
+                        <th>Strategy</th>
+                        <th>Realized R</th>
+                        <th>Cumulative Y (R)</th>
+                        <th>Context</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>12</td>
+                        <td>2026-02-14</td>
+                        <td><span class="tf-ticker">BTCUSDT</span></td>
+                        <td><span class="badge bg-green-lt">LONG</span></td>
+                        <td>Momentum Breakout</td>
+                        <td class="text-success fw-bold">+2.20R</td>
+                        <td class="fw-bold">+8.50R</td>
+                        <td><span class="badge bg-secondary-lt">Bybit</span></td>
+                      </tr>
+                      <tr>
+                        <td>11</td>
+                        <td>2026-02-10</td>
+                        <td><span class="tf-ticker">ETHUSDT</span></td>
+                        <td><span class="badge bg-green-lt">LONG</span></td>
+                        <td>Trend Pullback</td>
+                        <td class="text-success fw-bold">+1.80R</td>
+                        <td class="fw-bold">+6.30R</td>
+                        <td><span class="badge bg-secondary-lt">Bybit</span></td>
+                      </tr>
+                      <tr>
+                        <td>10</td>
+                        <td>2026-02-04</td>
+                        <td><span class="tf-ticker">SOLUSDT</span></td>
+                        <td><span class="badge bg-red-lt">SHORT</span></td>
+                        <td>Mean Reversion</td>
+                        <td class="text-danger fw-bold">-1.00R</td>
+                        <td class="fw-bold">+4.50R</td>
+                        <td><span class="badge bg-secondary-lt">Bybit</span></td>
+                      </tr>
+                      <tr>
+                        <td>9</td>
+                        <td>2026-01-28</td>
+                        <td><span class="tf-ticker">AAPL</span></td>
+                        <td><span class="badge bg-green-lt">LONG</span></td>
+                        <td>Breakout Swing</td>
+                        <td class="text-success fw-bold">+3.00R</td>
+                        <td class="fw-bold">+5.50R</td>
+                        <td><span class="badge bg-secondary-lt">IBKR</span></td>
+                      </tr>
+                      <tr>
+                        <td>8</td>
+                        <td>2026-01-22</td>
+                        <td><span class="tf-ticker">BTCUSDT</span></td>
+                        <td><span class="badge bg-red-lt">SHORT</span></td>
+                        <td>Momentum Breakout</td>
+                        <td class="text-secondary fw-bold">0.00R</td>
+                        <td class="fw-bold">+2.50R</td>
+                        <td><span class="badge bg-secondary-lt">Bybit</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="footer footer-transparent d-print-none mt-auto">
+        <div class="container-xl text-center text-secondary">
+          Tradefog · Personal trading journal concept
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/js/tabler.min.js"></script>
+  <script src="js/prototype.js"></script>
+</body>
+</html>

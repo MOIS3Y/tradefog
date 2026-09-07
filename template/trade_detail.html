@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Trade #TRD-1042 · BTCUSDT LONG · Tradefog</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="css/tradefog.css">
+</head>
+<body>
+  <div class="page">
+    <!-- Top bar -->
+    <header class="navbar navbar-expand-md d-print-none">
+      <div class="container-xl">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-brand navbar-brand-autodark">
+          <a class="d-flex align-items-center gap-2 fw-bold text-reset text-decoration-none" href="index.html">
+            <span class="avatar avatar-sm bg-primary-lt text-primary fw-bold">TF</span>
+            <span class="tf-brand-logo fs-3">Tradefog</span>
+          </a>
+        </div>
+        <div class="navbar-nav flex-row order-md-last align-items-center gap-2">
+          <div class="nav-item">
+            <button class="btn btn-icon border-0 bg-transparent" type="button" data-theme-toggle title="Toggle theme">
+              <i class="ti ti-sun-moon fs-2 tf-theme-icon-auto"></i>
+              <i class="ti ti-moon fs-2 tf-theme-icon-dark d-none"></i>
+              <i class="ti ti-sun fs-2 tf-theme-icon-light d-none"></i>
+            </button>
+          </div>
+          <div class="nav-item dropdown">
+            <a class="nav-link d-flex lh-1 text-reset p-0 ms-2" href="#" data-bs-toggle="dropdown">
+              <span class="avatar avatar-sm bg-secondary-lt">
+                <i class="ti ti-user-circle fs-2"></i>
+              </span>
+              <div class="d-none d-xl-block ps-2">
+                <div>Stepan Trader</div>
+                <div class="text-secondary small">stepan@example.com</div>
+              </div>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+              <a class="dropdown-item" href="profiles.html">Profiles</a>
+              <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#logout-modal">Log out</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main navigation menu -->
+    <header class="navbar-expand-md d-print-none">
+      <div class="collapse navbar-collapse" id="navbar-menu">
+        <div class="navbar">
+          <div class="container-xl">
+            <ul class="navbar-nav">
+              <li class="nav-item"><a class="nav-link" href="index.html"><span class="nav-link-icon"><i class="ti ti-home"></i></span><span class="nav-link-title">Home</span></a></li>
+              <li class="nav-item"><a class="nav-link" href="profiles.html"><span class="nav-link-icon"><i class="ti ti-notebook"></i></span><span class="nav-link-title">Profiles</span></a></li>
+              <li class="nav-item active"><a class="nav-link" href="trades.html"><span class="nav-link-icon"><i class="ti ti-chart-candle"></i></span><span class="nav-link-title">Trades</span></a></li>
+              <li class="nav-item"><a class="nav-link" href="analytics.html"><span class="nav-link-icon"><i class="ti ti-chart-line"></i></span><span class="nav-link-title">Analytics</span></a></li>
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false">
+                  <span class="nav-link-icon"><i class="ti ti-library"></i></span>
+                  <span class="nav-link-title">Catalog</span>
+                </a>
+                <div class="dropdown-menu">
+                  <a class="dropdown-item" href="assets.html"><i class="ti ti-coin icon dropdown-item-icon"></i> Assets</a>
+                  <a class="dropdown-item" href="pairs.html"><i class="ti ti-arrows-exchange icon dropdown-item-icon"></i> Trading pairs</a>
+                  <a class="dropdown-item" href="venues.html"><i class="ti ti-building-bank icon dropdown-item-icon"></i> Venues</a>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="page-wrapper">
+      <!-- Header -->
+      <div class="page-header d-print-none">
+        <div class="container-xl">
+          <div class="row g-2 align-items-center">
+            <div class="col">
+              <div class="page-pretitle text-secondary">
+                Main Crypto Futures · Bybit (Perpetual)
+              </div>
+              <h1 class="page-title d-flex align-items-center gap-2">
+                2026-02-14 BTCUSDT LONG
+                <span class="badge bg-green-lt fs-5">Closed (Win)</span>
+              </h1>
+            </div>
+            <div class="col-auto ms-auto">
+              <div class="btn-list">
+                <a class="btn" href="trades.html"><i class="ti ti-arrow-left me-1"></i> Back</a>
+                <button class="btn btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#trade-delete-modal">
+                  <i class="ti ti-trash me-1"></i> Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <main class="page-body">
+        <div class="container-xl">
+          <!-- Context Bar (Sticky Trade Context) -->
+          <div class="card tf-trade-context mb-3 shadow-sm">
+            <div class="card-body py-2">
+              <div class="row align-items-center g-2 text-center text-md-start">
+                <div class="col-6 col-md-3">
+                  <div class="text-secondary small">Profile / Strategy</div>
+                  <div class="fw-bold text-truncate">Main Crypto · Momentum</div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="text-secondary small">Planned Risk / R-Multiple</div>
+                  <div class="fw-bold text-danger">300.00 USDT (1.00R)</div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="text-secondary small">Position Size (Notional)</div>
+                  <div class="fw-bold font-monospace">0.312 BTC ($30,000)</div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="text-secondary small">Realized Outcome</div>
+                  <div class="fw-bold text-success">+660.00 USDT (+2.20R)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trade Workspace Grid -->
+          <div class="row row-cards">
+            <!-- 1. Decision Form Card -->
+            <div class="col-12 col-lg-7">
+              <div class="card h-100">
+                <div class="card-status-top bg-primary"></div>
+                <div class="card-header">
+                  <div>
+                    <h2 class="card-title">Trade Decision Plan</h2>
+                    <p class="card-subtitle">Trade parameters, entry target, stop loss, and calculated position sizing.</p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <form>
+                    <div class="row g-3">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label required">Profile</label>
+                        <select class="form-select">
+                          <option selected>Main Crypto Futures (Bybit)</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label required">Instrument</label>
+                        <select class="form-select">
+                          <option selected>BTCUSDT · Bybit Perpetual (USDT)</option>
+                        </select>
+                      </div>
+
+                      <div class="col-12 col-md-6">
+                        <label class="form-label required">Strategy</label>
+                        <select class="form-select">
+                          <option selected>Momentum Breakout</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label required">Analytical Date & Time</label>
+                        <input type="datetime-local" class="form-control" value="2026-02-14T09:30">
+                      </div>
+
+                      <!-- Direction Selector -->
+                      <div class="col-12">
+                        <label class="form-label required">Direction</label>
+                        <div class="btn-group w-100" role="group">
+                          <input type="radio" class="btn-check" name="direction" id="dir-long" checked>
+                          <label class="btn btn-outline-success fw-bold" for="dir-long"><i class="ti ti-trending-up me-1"></i> LONG</label>
+                          <input type="radio" class="btn-check" name="direction" id="dir-short">
+                          <label class="btn btn-outline-danger fw-bold" for="dir-short"><i class="ti ti-trending-down me-1"></i> SHORT</label>
+                        </div>
+                      </div>
+
+                      <!-- Prices: Entry, Stop, Take Profit -->
+                      <div class="col-4">
+                        <label class="form-label required">Planned Entry</label>
+                        <div class="input-group">
+                          <span class="input-group-text">$</span>
+                          <input type="number" step="0.01" class="form-control font-monospace fw-bold" value="96200.00">
+                        </div>
+                      </div>
+                      <div class="col-4">
+                        <label class="form-label required">Stop Loss</label>
+                        <div class="input-group">
+                          <span class="input-group-text">$</span>
+                          <input type="number" step="0.01" class="form-control font-monospace fw-bold text-danger" value="95240.00">
+                        </div>
+                        <div class="form-hint text-danger small">Risk distance: $960.00 (1.00%)</div>
+                      </div>
+                      <div class="col-4">
+                        <label class="form-label">Take Profit (Target)</label>
+                        <div class="input-group">
+                          <span class="input-group-text">$</span>
+                          <input type="number" step="0.01" class="form-control font-monospace fw-bold text-success" value="98312.00">
+                        </div>
+                        <div class="form-hint text-success small">Target distance: +$2,112.00 (+2.20R)</div>
+                      </div>
+
+                      <!-- Price Ladder Visualization -->
+                      <div class="col-12 my-2">
+                        <label class="form-label small text-secondary">Risk / Reward Price Ladder</label>
+                        <div class="tf-price-ladder mb-2">
+                          <div class="tf-price-ladder-bar">
+                            <div class="tf-price-segment tf-price-segment-risk" style="width: 31.25%;">
+                              -1.00R (Risk)
+                            </div>
+                            <div class="tf-price-segment tf-price-segment-reward" style="width: 68.75%;">
+                              +2.20R (Reward)
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="col-6">
+                        <label class="form-label">Risk Budget (Capital %)</label>
+                        <div class="input-group">
+                          <input type="number" step="0.1" class="form-control" value="1.5">
+                          <span class="input-group-text">%</span>
+                        </div>
+                        <div class="form-hint small">Reserved: 300.00 USDT</div>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label">Calculated Quantity</label>
+                        <div class="input-group">
+                          <input type="text" class="form-control font-monospace" value="0.3125" readonly>
+                          <span class="input-group-text">BTC</span>
+                        </div>
+                        <div class="form-hint small">Notional: ~$30,062.50 USDT</div>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Market Context & Checklist Assessment Card -->
+            <div class="col-12 col-lg-5">
+              <div class="card h-100">
+                <div class="card-status-top bg-azure"></div>
+                <div class="card-header">
+                  <h2 class="card-title">Checklist & Context</h2>
+                </div>
+                <div class="card-body">
+                  <!-- Direction Bias Gauge -->
+                  <div class="mb-4">
+                    <div class="d-flex justify-content-between mb-1">
+                      <span class="subheader">Direction Bias Score</span>
+                      <span class="fw-bold text-success">+80% (Strong Bullish)</span>
+                    </div>
+                    <div class="tf-direction-gauge">
+                      <div class="tf-direction-gauge-track">
+                        <div class="tf-direction-gauge-midpoint"></div>
+                        <div class="tf-direction-gauge-marker" style="left: 80%;"></div>
+                      </div>
+                    </div>
+                    <div class="d-flex justify-content-between text-secondary small">
+                      <span>Bearish (-100%)</span>
+                      <span>Neutral (0)</span>
+                      <span>Bullish (+100%)</span>
+                    </div>
+                  </div>
+
+                  <!-- Observed ATR & Session Range Tape -->
+                  <div class="mb-4">
+                    <div class="d-flex justify-content-between mb-1">
+                      <span class="subheader">Daily ATR Session Utilization</span>
+                      <span class="fw-bold">65% of ATR (14D: $3,450.00)</span>
+                    </div>
+                    <div class="tf-range-tape">
+                      <div class="tf-range-tape-fill tf-range-tape-fill-success" style="width: 65%;"></div>
+                      <div class="tf-range-tape-marker" style="left: 75%;"><span>Threshold</span></div>
+                    </div>
+                    <div class="text-secondary small mt-1">Healthy volatility range remaining for setup expansion.</div>
+                  </div>
+
+                  <!-- Checklist items -->
+                  <h3 class="card-title mb-2">Setup Criteria</h3>
+                  <div class="form-selectgroup form-selectgroup-boxes d-flex flex-column gap-2">
+                    <label class="form-selectgroup-item flex-fill">
+                      <input type="checkbox" class="form-selectgroup-input" checked disabled>
+                      <div class="form-selectgroup-label d-flex align-items-center p-2">
+                        <div class="me-2"><span class="form-selectgroup-check"></span></div>
+                        <div class="form-selectgroup-label-content">
+                          <span class="font-weight-medium">Higher Timeframe Alignment</span>
+                          <span class="d-block text-secondary small">Daily and 4H trending above 50 EMA</span>
+                        </div>
+                      </div>
+                    </label>
+                    <label class="form-selectgroup-item flex-fill">
+                      <input type="checkbox" class="form-selectgroup-input" checked disabled>
+                      <div class="form-selectgroup-label d-flex align-items-center p-2">
+                        <div class="me-2"><span class="form-selectgroup-check"></span></div>
+                        <div class="form-selectgroup-label-content">
+                          <span class="font-weight-medium">Volume & Open Interest Surge</span>
+                          <span class="d-block text-secondary small">Breakout bar has 1.8x average volume</span>
+                        </div>
+                      </div>
+                    </label>
+                    <label class="form-selectgroup-item flex-fill">
+                      <input type="checkbox" class="form-selectgroup-input" checked disabled>
+                      <div class="form-selectgroup-label d-flex align-items-center p-2">
+                        <div class="me-2"><span class="form-selectgroup-check"></span></div>
+                        <div class="form-selectgroup-label-content">
+                          <span class="font-weight-medium">Clear Invalidation Level</span>
+                          <span class="d-block text-secondary small">Stop placed below swing low consolidation</span>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Notes & Execution Review Card -->
+            <div class="col-12 col-lg-7">
+              <div class="card h-100 tf-trade-description">
+                <div class="card-header">
+                  <h2 class="card-title">Trade Notes & Post-Trade Review</h2>
+                </div>
+                <div class="card-body">
+                  <div class="tf-description-rendered p-3 bg-surface-secondary rounded border">
+                    <h4>Pre-trade Hypothesis:</h4>
+                    <p>
+                      Bitcoin formed a 4-day tight flag consolidation around $95,800 following the weekly open impulse. Entered on the 15-minute close above $96,200 with aggressive limit order fills.
+                    </p>
+                    <h4>Execution & Management:</h4>
+                    <p>
+                      Price expanded swiftly toward $97,500. Trailed stop to breakeven after +1.2R expansion. Full take profit limit triggered cleanly at $98,312 during London-NY session overlap.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Screenshots & Attachments Card -->
+            <div class="col-12 col-lg-5">
+              <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <h2 class="card-title">Screenshots & Charts (2)</h2>
+                  <button class="btn btn-sm btn-outline-primary" type="button">
+                    <i class="ti ti-upload me-1"></i> Add Image
+                  </button>
+                </div>
+                <div class="card-body">
+                  <div class="tf-attachment-grid">
+                    <!-- Attachment 1 -->
+                    <div class="tf-attachment-item">
+                      <div class="tf-attachment-preview">
+                        <div class="text-center p-3 text-secondary">
+                          <i class="ti ti-photo fs-1 text-primary d-block mb-1"></i>
+                          <span class="small fw-bold">15m_breakout.png</span>
+                        </div>
+                      </div>
+                      <div class="tf-attachment-meta">
+                        <div class="tf-attachment-name text-truncate">Entry Trigger</div>
+                        <div class="tf-attachment-actions">
+                          <button class="btn btn-icon btn-sm btn-ghost-secondary"><i class="ti ti-eye"></i></button>
+                          <button class="btn btn-icon btn-sm btn-ghost-danger"><i class="ti ti-trash"></i></button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Attachment 2 -->
+                    <div class="tf-attachment-item">
+                      <div class="tf-attachment-preview">
+                        <div class="text-center p-3 text-secondary">
+                          <i class="ti ti-chart-bar fs-1 text-success d-block mb-1"></i>
+                          <span class="small fw-bold">4h_daily_context.png</span>
+                        </div>
+                      </div>
+                      <div class="tf-attachment-meta">
+                        <div class="tf-attachment-name text-truncate">Daily Higher TF</div>
+                        <div class="tf-attachment-actions">
+                          <button class="btn btn-icon btn-sm btn-ghost-secondary"><i class="ti ti-eye"></i></button>
+                          <button class="btn btn-icon btn-sm btn-ghost-danger"><i class="ti ti-trash"></i></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="footer footer-transparent d-print-none mt-auto">
+        <div class="container-xl text-center text-secondary">
+          Tradefog · Personal trading journal concept
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Delete Trade Modal -->
+  <div class="modal modal-blur fade" id="trade-delete-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Delete Trade #TRD-1042?</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Are you sure you want to delete this trade record and its associated snapshot?
+        </div>
+        <div class="modal-footer">
+          <button class="btn" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger" type="button" data-bs-dismiss="modal">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/js/tabler.min.js"></script>
+  <script src="js/prototype.js"></script>
+</body>
+</html>

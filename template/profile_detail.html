@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Main Crypto Futures · Profile · Tradefog</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="css/tradefog.css">
+</head>
+<body>
+  <div class="page">
+    <!-- Top bar -->
+    <header class="navbar navbar-expand-md d-print-none">
+      <div class="container-xl">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-brand navbar-brand-autodark">
+          <a class="d-flex align-items-center gap-2 fw-bold text-reset text-decoration-none" href="index.html">
+            <span class="avatar avatar-sm bg-primary-lt text-primary fw-bold">TF</span>
+            <span class="tf-brand-logo fs-3">Tradefog</span>
+          </a>
+        </div>
+        <div class="navbar-nav flex-row order-md-last align-items-center gap-2">
+          <div class="nav-item">
+            <button class="btn btn-icon border-0 bg-transparent" type="button" data-theme-toggle title="Toggle theme">
+              <i class="ti ti-sun-moon fs-2 tf-theme-icon-auto"></i>
+              <i class="ti ti-moon fs-2 tf-theme-icon-dark d-none"></i>
+              <i class="ti ti-sun fs-2 tf-theme-icon-light d-none"></i>
+            </button>
+          </div>
+          <div class="nav-item dropdown">
+            <a class="nav-link d-flex lh-1 text-reset p-0 ms-2" href="#" data-bs-toggle="dropdown">
+              <span class="avatar avatar-sm bg-secondary-lt">
+                <i class="ti ti-user-circle fs-2"></i>
+              </span>
+              <div class="d-none d-xl-block ps-2">
+                <div>Stepan Trader</div>
+                <div class="text-secondary small">stepan@example.com</div>
+              </div>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+              <a class="dropdown-item" href="profiles.html">Profiles</a>
+              <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#logout-modal">Log out</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main navigation menu -->
+    <header class="navbar-expand-md d-print-none">
+      <div class="collapse navbar-collapse" id="navbar-menu">
+        <div class="navbar">
+          <div class="container-xl">
+            <ul class="navbar-nav">
+              <li class="nav-item"><a class="nav-link" href="index.html"><span class="nav-link-icon"><i class="ti ti-home"></i></span><span class="nav-link-title">Home</span></a></li>
+              <li class="nav-item active"><a class="nav-link" href="profiles.html"><span class="nav-link-icon"><i class="ti ti-notebook"></i></span><span class="nav-link-title">Profiles</span></a></li>
+              <li class="nav-item"><a class="nav-link" href="trades.html"><span class="nav-link-icon"><i class="ti ti-chart-candle"></i></span><span class="nav-link-title">Trades</span></a></li>
+              <li class="nav-item"><a class="nav-link" href="analytics.html"><span class="nav-link-icon"><i class="ti ti-chart-line"></i></span><span class="nav-link-title">Analytics</span></a></li>
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false">
+                  <span class="nav-link-icon"><i class="ti ti-library"></i></span>
+                  <span class="nav-link-title">Catalog</span>
+                </a>
+                <div class="dropdown-menu">
+                  <a class="dropdown-item" href="assets.html"><i class="ti ti-coin icon dropdown-item-icon"></i> Assets</a>
+                  <a class="dropdown-item" href="pairs.html"><i class="ti ti-arrows-exchange icon dropdown-item-icon"></i> Trading pairs</a>
+                  <a class="dropdown-item" href="venues.html"><i class="ti ti-building-bank icon dropdown-item-icon"></i> Venues</a>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="page-wrapper">
+      <!-- Page Header -->
+      <div class="page-header d-print-none">
+        <div class="container-xl">
+          <div class="row g-2 align-items-center">
+            <div class="col">
+              <div class="page-pretitle text-secondary">
+                <a href="profiles.html" class="text-reset">Profiles</a> · Bybit (Crypto Derivatives)
+              </div>
+              <h1 class="page-title d-flex align-items-center gap-2">
+                Main Crypto Futures
+                <span class="badge bg-green-lt fs-5">Active</span>
+              </h1>
+            </div>
+            <div class="col-auto ms-auto">
+              <a class="btn" href="profiles.html">
+                <i class="ti ti-arrow-left icon me-1"></i> Back to profiles
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <main class="page-body">
+        <div class="container-xl">
+          <div class="card">
+            <div class="card-header">
+              <!-- 4 Profile Tabs -->
+              <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
+                <li class="nav-item">
+                  <a class="nav-link active" href="#profile-overview-tab" data-bs-toggle="tab">
+                    <i class="ti ti-notebook icon me-1"></i> Overview
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="#profile-wallet-tab" data-bs-toggle="tab">
+                    <i class="ti ti-coin icon me-1"></i> Wallet & Capital
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="#profile-strategies-tab" data-bs-toggle="tab">
+                    <i class="ti ti-chart-candle icon me-1"></i> Strategies (3)
+                  </a>
+                </li>
+                <li class="nav-item ms-auto">
+                  <a class="nav-link" href="#profile-settings-tab" data-bs-toggle="tab" title="Settings">
+                    <i class="ti ti-settings icon"></i> Settings
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div class="card-body">
+              <div class="tab-content">
+                <!-- Tab 1: Overview -->
+                <div class="tab-pane active show" id="profile-overview-tab">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <div class="card bg-surface-secondary border-0">
+                        <div class="card-body">
+                          <h3 class="card-title text-secondary">Venue Binding</h3>
+                          <div class="h2 mb-1">Bybit</div>
+                          <div class="text-secondary small">Derivatives & Perpetual Contracts</div>
+                          <div class="mt-3">
+                            <a href="venue_detail.html" class="btn btn-sm btn-outline-primary">
+                              <i class="ti ti-building-bank me-1"></i> View Venue in Catalog
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="card bg-surface-secondary border-0">
+                        <div class="card-body">
+                          <h3 class="card-title text-secondary">Capital & Margin Capacity</h3>
+                          <div class="h2 text-success mb-1">10,450.00 USDT</div>
+                          <div class="text-secondary small">Available: 9,250.00 USDT · Reserved Risk: 1,200.00 USDT</div>
+                          <div class="mt-3">
+                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#wallet-deposit-modal">
+                              <i class="ti ti-plus me-1"></i> Deposit Capital
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-12">
+                      <h3 class="card-title mt-2">Description & Trading Rules</h3>
+                      <p class="text-secondary">
+                        Primary journal profile for USDT perpetual contracts on Bybit. Hard risk ceiling is 1.5% of total wallet capital per setup. Position sizing is calculated automatically from entry to stop-loss distance.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tab 2: Wallet & Capital -->
+                <div class="tab-pane" id="profile-wallet-tab">
+                  <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                      <h3 class="card-title mb-0">Held Wallet Assets</h3>
+                      <div class="text-secondary small">Settlement and collateral assets bound to Bybit</div>
+                    </div>
+                    <div class="btn-list">
+                      <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#wallet-deposit-modal">
+                        <i class="ti ti-arrow-down-left me-1"></i> Deposit
+                      </button>
+                      <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#wallet-withdraw-modal">
+                        <i class="ti ti-arrow-up-right me-1"></i> Withdraw
+                      </button>
+                      <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#wallet-add-asset-modal">
+                        <i class="ti ti-plus me-1"></i> Add Asset
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Wallet Asset Cards -->
+                  <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                      <div class="card tf-wallet-card">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                              <div class="subheader">Settlement Asset</div>
+                              <div class="h2 mb-1">USDT <span class="badge bg-blue-lt">Primary</span></div>
+                            </div>
+                            <span class="avatar bg-blue-lt text-blue"><i class="ti ti-currency-dollar"></i></span>
+                          </div>
+                          <div class="tf-wallet-value text-primary mt-2">10,450.00</div>
+                          <div class="text-secondary small mt-1">Available: 9,250.00 · Reserved: 1,200.00</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="card tf-wallet-card">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                              <div class="subheader">Collateral Asset</div>
+                              <div class="h2 mb-1">BTC</div>
+                            </div>
+                            <span class="avatar bg-yellow-lt text-yellow"><i class="ti ti-currency-bitcoin"></i></span>
+                          </div>
+                          <div class="tf-wallet-value mt-2">0.25000000</div>
+                          <div class="text-secondary small mt-1">Available: 0.25000000 · Reserved: 0.00</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Operations History Table -->
+                  <h3 class="card-title mb-2">Capital Operations Log</h3>
+                  <div class="table-responsive">
+                    <table class="table table-vcenter card-table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Type</th>
+                          <th>Asset</th>
+                          <th>Amount</th>
+                          <th>Balance After</th>
+                          <th>Note</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>2026-02-01 10:30</td>
+                          <td><span class="badge bg-green-lt">Deposit</span></td>
+                          <td class="fw-semibold">USDT</td>
+                          <td class="text-success fw-bold">+5,000.00</td>
+                          <td>10,450.00</td>
+                          <td class="text-secondary">Monthly capital top-up</td>
+                        </tr>
+                        <tr>
+                          <td>2026-01-15 14:20</td>
+                          <td><span class="badge bg-red-lt">Withdrawal</span></td>
+                          <td class="fw-semibold">USDT</td>
+                          <td class="text-danger fw-bold">-1,000.00</td>
+                          <td>5,450.00</td>
+                          <td class="text-secondary">Profit withdrawal</td>
+                        </tr>
+                        <tr>
+                          <td>2026-01-01 09:00</td>
+                          <td><span class="badge bg-green-lt">Initial Deposit</span></td>
+                          <td class="fw-semibold">USDT</td>
+                          <td class="text-success fw-bold">+6,450.00</td>
+                          <td>6,450.00</td>
+                          <td class="text-secondary">Initial account funding</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Tab 3: Strategies -->
+                <div class="tab-pane" id="profile-strategies-tab">
+                  <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                      <h3 class="card-title mb-0">Trading Strategies</h3>
+                      <div class="text-secondary small">Pre-defined playbooks with settlement requirements</div>
+                    </div>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#strategy-create-modal">
+                      <i class="ti ti-plus me-1"></i> New Strategy
+                    </button>
+                  </div>
+
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <div class="card h-100">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between">
+                            <h4 class="card-title text-primary mb-1">Momentum Breakout</h4>
+                            <span class="badge bg-green-lt">Active</span>
+                          </div>
+                          <div class="text-secondary small mb-2">Settlement: <strong class="text-reset">USDT</strong></div>
+                          <p class="text-secondary small tf-card-description">
+                            4H / 1H multi-timeframe breakout from consolidation ranges with volume confirmation.
+                          </p>
+                          <div class="mt-3 pt-2 border-top d-flex justify-content-between small text-secondary">
+                            <span>Win Rate: <strong>62%</strong></span>
+                            <span>Trades: <strong>14</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="card h-100">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between">
+                            <h4 class="card-title text-primary mb-1">Trend Pullback</h4>
+                            <span class="badge bg-green-lt">Active</span>
+                          </div>
+                          <div class="text-secondary small mb-2">Settlement: <strong class="text-reset">USDT</strong></div>
+                          <p class="text-secondary small tf-card-description">
+                            Pullback to 20 EMA in strong trend with ATR validation and tight stop placement.
+                          </p>
+                          <div class="mt-3 pt-2 border-top d-flex justify-content-between small text-secondary">
+                            <span>Win Rate: <strong>55%</strong></span>
+                            <span>Trades: <strong>9</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="card h-100">
+                        <div class="card-body">
+                          <div class="d-flex justify-content-between">
+                            <h4 class="card-title text-primary mb-1">Mean Reversion</h4>
+                            <span class="badge bg-orange-lt">Archived</span>
+                          </div>
+                          <div class="text-secondary small mb-2">Settlement: <strong class="text-reset">USDT</strong></div>
+                          <p class="text-secondary small tf-card-description">
+                            Fading range deviations during low volatility sessions.
+                          </p>
+                          <div class="mt-3 pt-2 border-top d-flex justify-content-between small text-secondary">
+                            <span>Win Rate: <strong>40%</strong></span>
+                            <span>Trades: <strong>5</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tab 4: Settings -->
+                <div class="tab-pane" id="profile-settings-tab">
+                  <div class="row">
+                    <div class="col-12 col-lg-8">
+                      <form>
+                        <div class="mb-3">
+                          <label class="form-label required">Profile Name</label>
+                          <input type="text" class="form-control" value="Main Crypto Futures">
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">Venue</label>
+                          <input type="text" class="form-control" value="Bybit (Crypto Derivatives)" disabled>
+                          <div class="form-hint">Bound venue is permanent and cannot be altered.</div>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">Description</label>
+                          <textarea class="form-control" rows="4">Primary journal profile for USDT perpetual contracts. Strict 1% risk per setup, focus on momentum breakouts.</textarea>
+                        </div>
+                        <div class="btn-list">
+                          <button class="btn btn-primary" type="button">Save Profile</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="footer footer-transparent d-print-none mt-auto">
+        <div class="container-xl text-center text-secondary">
+          Tradefog · Personal trading journal concept
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Deposit Capital Modal -->
+  <div class="modal modal-blur fade" id="wallet-deposit-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Deposit Capital</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label required">Asset</label>
+            <select class="form-select">
+              <option value="USDT" selected>USDT (Tether)</option>
+              <option value="BTC">BTC (Bitcoin)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label required">Amount</label>
+            <input type="number" step="0.01" class="form-control" placeholder="0.00" value="1000.00">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Note / Reference</label>
+            <input type="text" class="form-control" placeholder="e.g. Wire transfer, profit reinvestment">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="button" data-bs-dismiss="modal">Confirm Deposit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Withdraw Capital Modal -->
+  <div class="modal modal-blur fade" id="wallet-withdraw-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Withdraw Capital</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label required">Asset</label>
+            <select class="form-select">
+              <option value="USDT" selected>USDT (Available: 9,250.00)</option>
+              <option value="BTC">BTC (Available: 0.25000000)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label required">Amount</label>
+            <input type="number" step="0.01" class="form-control" placeholder="0.00">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Note / Reason</label>
+            <input type="text" class="form-control" placeholder="e.g. Regular payout">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger" type="button" data-bs-dismiss="modal">Confirm Withdrawal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Wallet Asset Modal -->
+  <div class="modal modal-blur fade" id="wallet-add-asset-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Wallet Asset</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label required">Select Venue Capable Asset</label>
+            <select class="form-select">
+              <option value="USDC">USDC (USD Coin) - Bybit capable</option>
+              <option value="ETH">ETH (Ethereum) - Bybit capable</option>
+              <option value="SOL">SOL (Solana) - Bybit capable</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Initial Balance</label>
+            <input type="number" step="0.01" class="form-control" placeholder="0.00" value="0.00">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="button" data-bs-dismiss="modal">Add Asset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Strategy Modal -->
+  <div class="modal modal-blur fade" id="strategy-create-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Create Trading Strategy</h5>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label required">Strategy Name</label>
+            <input type="text" class="form-control" placeholder="e.g. S&R Level Retest">
+          </div>
+          <div class="mb-3">
+            <label class="form-label required">Settlement Asset</label>
+            <select class="form-select">
+              <option value="USDT" selected>USDT</option>
+              <option value="BTC">BTC</option>
+            </select>
+            <div class="form-hint">Trades under this strategy will settle in this asset.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Strategy Playbook / Rules</label>
+            <textarea class="form-control" rows="3" placeholder="Entry trigger, confirmation indicator, invalidation rules..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" type="button" data-bs-dismiss="modal">Create Strategy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/js/tabler.min.js"></script>
+  <script src="js/prototype.js"></script>
+</body>
+</html>
