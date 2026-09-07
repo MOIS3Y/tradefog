@@ -23,9 +23,8 @@ def default_media_root() -> Path:
 
 
 class MediaSettings(ConfigSection):
-    """Configure user-uploaded files and their public URL."""
+    """Configure private user-uploaded file storage."""
 
-    url: str = "/media/"
     root: Path = Field(default_factory=default_media_root)
     max_attachment_size_mib: int = Field(default=10, ge=0)
 
@@ -35,10 +34,6 @@ class MediaSettings(ConfigSection):
         """Resolve relative media roots from the configuration file."""
         del cls
         return resolve_config_relative_path(root)
-
-    def mount_path(self) -> str:
-        """Return the URL path expected by Starlette's media mount."""
-        return f"/{self.url.strip('/')}"
 
     def max_attachment_size_bytes(self) -> int | None:
         """Return the attachment limit in bytes, or no limit for zero."""

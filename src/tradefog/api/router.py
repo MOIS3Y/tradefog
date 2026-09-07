@@ -2,7 +2,15 @@
 
 from fastapi import APIRouter
 
-from tradefog.api.v1.endpoints import auth, catalog, health, profiles, trades
+from tradefog.api.v1.endpoints import (
+    analytics,
+    attachments,
+    auth,
+    catalog,
+    health,
+    profiles,
+    trades,
+)
 
 api_router = APIRouter()
 
@@ -12,3 +20,5 @@ api_router.include_router(auth.router, prefix="/v1")
 api_router.include_router(catalog.router, prefix="/v1")
 api_router.include_router(profiles.router, prefix="/v1")
 api_router.include_router(trades.router, prefix="/v1")
+api_router.include_router(analytics.router, prefix="/v1")
+api_router.include_router(attachments.router, prefix="/v1")

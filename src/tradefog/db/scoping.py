@@ -8,6 +8,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.sql.elements import ColumnElement
 
 from tradefog.db.models import (
+    Attachment,
     StrategyCapital,
     Trade,
     TradeSnapshot,
@@ -19,7 +20,8 @@ from tradefog.db.models import (
 )
 
 type JournalModel = (
-    TradingProfile
+    Attachment
+    | TradingProfile
     | Wallet
     | WalletAsset
     | WalletOperation
@@ -50,6 +52,7 @@ def owned_select[Model: JournalModel](
     )
     trades = select(Trade.id).where(Trade.profile_id.in_(profiles))
     predicates: dict[type[JournalModel], ColumnElement[bool]] = {
+        Attachment: Attachment.trade_id.in_(trades),
         TradingProfile: TradingProfile.owner_id == owner_id,
         Wallet: Wallet.profile_id.in_(profiles),
         WalletAsset: WalletAsset.wallet_id.in_(wallets),

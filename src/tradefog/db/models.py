@@ -1,4 +1,4 @@
-"""ORM entities matching the fourteen tables in docs/database.dbml."""
+"""ORM entities matching the tables in docs/database.dbml."""
 
 from datetime import date, datetime
 from decimal import Decimal
@@ -39,6 +39,7 @@ from tradefog.domain.enums import (
 
 __all__ = [
     "Asset",
+    "Attachment",
     "Base",
     "StrategyCapital",
     "Trade",
@@ -597,6 +598,38 @@ class TradeSnapshot(PrimaryKeyMixin, Base):
     atr_stale: Mapped[bool | None] = mapped_column(
         Boolean,
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+    )
+
+    trade: Mapped[Trade] = relationship(
+        foreign_keys=[trade_id],
+        lazy="raise",
+    )
+
+
+class Attachment(PrimaryKeyMixin, Base):
+    """Persist private file metadata for one owner-scoped trade."""
+
+    __tablename__: str = "Attachment"
+    __table_args__: tuple[CheckConstraint, ...] = (
+        CheckConstraint("size_bytes >= 0", name="non_negative_size"),
+    )
+    trade_id: Mapped[int] = mapped_column(
+        ForeignKey("Trade.id"),
+    )
+    storage_key: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+    )
+    original_name: Mapped[str] = mapped_column(
+        String(255),
+    )
+    content_type: Mapped[str] = mapped_column(
+        String(127),
+    )
+    size_bytes: Mapped[int] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=func.now(),

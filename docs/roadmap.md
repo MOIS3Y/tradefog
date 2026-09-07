@@ -52,10 +52,10 @@ Development is organized into two primary phases:
 
 ### Stage 4: Analytics, Attachments & CLI
 
-- [ ] Comprehensive analytics endpoint (R-multiples, Trajectory coordinates,
+- [x] Comprehensive analytics endpoint (R-multiples, Trajectory coordinates,
       Expectancy, Streaks, cohort filtering).
-- [ ] Markdown trade notes and private file attachments upload/serving.
-- [ ] Administrative CLI commands.
+- [x] Markdown trade notes and private file attachments upload/serving.
+- [x] Administrative CLI commands.
 
 Each backend stage is implemented in a separate iteration and reviewed
 before the next stage begins.

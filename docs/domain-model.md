@@ -27,7 +27,8 @@ User Journal (Owner-scoped via TradingProfile.owner)
         ├── TradingStrategy        # Risk % and Reward multiple
         │   └── StrategyCapital    # Fixed capital allocated per WalletAsset
         └── Trade                  # Trade draft, open, closed, or cancelled
-            └── TradeSnapshot      # Write-once plan & ATR snapshot
+            ├── TradeSnapshot      # Write-once plan & ATR snapshot
+            └── Attachment         # Private image metadata and storage key
 ```
 
 `TradingProfile.owner` is the single root of ownership for all journal records.
@@ -60,6 +61,8 @@ No child record duplicates user ownership fields.
   (e.g., `1:3`). Reused across assets.
 - **StrategyCapital**: Fixed capital allocated from a `WalletAsset` to a
   `TradingStrategy`.
+- **Attachment**: Private image metadata owned transitively through its
+  `Trade`; file content remains outside the database and is never public.
 
 ### Risk & Capital Invariants
 

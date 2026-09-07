@@ -27,6 +27,7 @@ from tradefog.api.v1.schemas.trades import (
     TradeSubmit,
 )
 from tradefog.db.models import (
+    Attachment,
     Trade,
     TradeSnapshot,
     TradingProfile,
@@ -258,6 +259,12 @@ async def delete_trade(
     )
     if trade.status != TradeStatus.DRAFT:
         conflict("Only a draft trade can be deleted")
+    if await session.scalar(
+        select(Attachment.id)
+        .where(Attachment.trade_id == trade.id)
+        .limit(1)
+    ) is not None:
+        conflict("Delete trade attachments before deleting the draft")
     await session.delete(trade)
     await session.flush()
 

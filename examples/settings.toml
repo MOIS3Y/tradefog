@@ -31,7 +31,7 @@ port = 5432
 level = "INFO"
 
 [media]
-url = "/media/"
+# Files are private and served only through authenticated API endpoints.
 # Maximum size of one trade attachment in MiB. Set to 0 for no app limit.
 max_attachment_size_mib = 10
 # Default: <XDG_DATA_HOME>/tradefog/media

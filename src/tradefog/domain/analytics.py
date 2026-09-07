@@ -3,7 +3,7 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from enum import StrEnum
 
 
@@ -38,6 +38,7 @@ class TrajectoryPoint:
     outcome: Outcome
     x: Decimal
     y: Decimal
+    cumulative_result_r: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,8 +60,13 @@ class TradeAnalytics:
     win_rate: Decimal
     net_result_r: Decimal
     average_result_r: Decimal
+    average_win_r: Decimal
+    average_loss_r: Decimal
     gross_profit_r: Decimal
     gross_loss_r: Decimal
+    profit_factor_r: Decimal | None
+    expectancy_r: Decimal
+    maximum_drawdown_r: Decimal
     current_streak: Streak
     maximum_winning_streak: int
     maximum_losing_streak: int
@@ -89,6 +95,15 @@ def _outcome(result_r: Decimal) -> Outcome:
 def calculate_trade_analytics(
     trades: Iterable[ClosedTradeResult],
 ) -> TradeAnalytics:
+    """Calculate all metrics under one high-precision decimal context."""
+    with localcontext() as context:
+        context.prec = 96
+        return _calculate_trade_analytics(trades)
+
+
+def _calculate_trade_analytics(
+    trades: Iterable[ClosedTradeResult],
+) -> TradeAnalytics:
     """Calculate statistics and X/Y path from ordered closed trades.
 
     Every invocation starts at ``(0, 0)``. Losses advance X by their absolute
@@ -105,6 +120,9 @@ def calculate_trade_analytics(
     break_even_count = 0
     gross_profit_r = Decimal(0)
     gross_loss_r = Decimal(0)
+    cumulative_result_r = Decimal(0)
+    peak_result_r = Decimal(0)
+    maximum_drawdown_r = Decimal(0)
 
     current_streak_outcome: Outcome | None = None
     current_streak_count = 0
@@ -124,6 +142,13 @@ def calculate_trade_analytics(
             x += abs(trade.result_r)
         else:
             break_even_count += 1
+
+        cumulative_result_r += trade.result_r
+        peak_result_r = max(peak_result_r, cumulative_result_r)
+        maximum_drawdown_r = max(
+            maximum_drawdown_r,
+            peak_result_r - cumulative_result_r,
+        )
 
         if outcome is Outcome.BREAK_EVEN:
             current_streak_outcome = None
@@ -146,6 +171,7 @@ def calculate_trade_analytics(
                 outcome=outcome,
                 x=x,
                 y=y,
+                cumulative_result_r=cumulative_result_r,
             )
         )
 
@@ -161,6 +187,30 @@ def calculate_trade_analytics(
         if closed_trade_count > 0
         else Decimal(0)
     )
+    average_win_r = (
+        gross_profit_r / Decimal(win_count)
+        if win_count > 0
+        else Decimal(0)
+    )
+    average_loss_r = (
+        gross_loss_r / Decimal(loss_count)
+        if loss_count > 0
+        else Decimal(0)
+    )
+    profit_factor_r = (
+        gross_profit_r / gross_loss_r
+        if gross_loss_r > 0
+        else None
+    )
+    loss_rate = (
+        Decimal(loss_count) / Decimal(closed_trade_count)
+        if closed_trade_count > 0
+        else Decimal(0)
+    )
+    expectancy_r = (
+        win_rate * average_win_r
+        - loss_rate * average_loss_r
+    )
 
     return TradeAnalytics(
         closed_trade_count=closed_trade_count,
@@ -170,8 +220,13 @@ def calculate_trade_analytics(
         win_rate=win_rate,
         net_result_r=net_result_r,
         average_result_r=average_result_r,
+        average_win_r=average_win_r,
+        average_loss_r=average_loss_r,
         gross_profit_r=gross_profit_r,
         gross_loss_r=gross_loss_r,
+        profit_factor_r=profit_factor_r,
+        expectancy_r=expectancy_r,
+        maximum_drawdown_r=maximum_drawdown_r,
         current_streak=Streak(
             outcome=current_streak_outcome,
             count=current_streak_count,
