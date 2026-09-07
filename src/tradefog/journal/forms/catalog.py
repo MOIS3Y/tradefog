@@ -13,7 +13,7 @@ from tradefog.journal.models import (
     VenueInstrument,
     VenueWalletAsset,
 )
-from tradefog.journal.models.enums import ProductKind
+from tradefog.journal.models.enums import MarketDataProvider, ProductKind
 from tradefog.journal.widgets import CompactNumberInput
 
 
@@ -129,7 +129,12 @@ class VenueForm(forms.ModelForm):
 
     class Meta:
         model: type[Venue] = Venue
-        fields: tuple[str, ...] = ("name", "description", "website")
+        fields: tuple[str, ...] = (
+            "name",
+            "market_data_provider",
+            "description",
+            "website",
+        )
         widgets: ClassVar[dict[str, forms.Widget]] = {
             "name": forms.TextInput(
                 attrs={
@@ -137,6 +142,9 @@ class VenueForm(forms.ModelForm):
                     "placeholder": _("Bybit"),
                     "autocomplete": "off",
                 }
+            ),
+            "market_data_provider": forms.Select(
+                attrs={"class": "form-select"}
             ),
             "description": forms.Textarea(
                 attrs={
@@ -161,6 +169,13 @@ class VenueForm(forms.ModelForm):
         self.fields["name"].help_text = _(
             "Display name, unique across the catalog."
         )
+        self.fields["market_data_provider"].required = False
+        self.fields["market_data_provider"].initial = (
+            MarketDataProvider.NONE
+        )
+        self.fields["market_data_provider"].help_text = _(
+            "Provider used to fetch market candles and ATR context for this venue."
+        )
         self.fields["description"].help_text = _(
             "Short description or operational context for this venue."
         )
@@ -168,8 +183,15 @@ class VenueForm(forms.ModelForm):
             "Optional official website for this venue."
         )
 
+
+
+    def clean_market_data_provider(self) -> str:
+        provider = self.cleaned_data.get("market_data_provider")
+        return provider or MarketDataProvider.NONE
+
     def clean_name(self) -> str:
         """Reject a case-insensitive duplicate venue name."""
+
         name = self.cleaned_data["name"].strip()
         if (
             Venue.objects.filter(name__iexact=name)
@@ -190,6 +212,7 @@ class VenueSettingsForm(forms.ModelForm):
         model: type[Venue] = Venue
         fields: tuple[str, ...] = (
             "name",
+            "market_data_provider",
             "description",
             "website",
             "is_active",
@@ -201,6 +224,9 @@ class VenueSettingsForm(forms.ModelForm):
                     "placeholder": _("Bybit"),
                     "autocomplete": "off",
                 }
+            ),
+            "market_data_provider": forms.Select(
+                attrs={"class": "form-select"}
             ),
             "description": forms.Textarea(
                 attrs={
@@ -228,6 +254,10 @@ class VenueSettingsForm(forms.ModelForm):
         self.fields["name"].help_text = _(
             "Display name, unique across the catalog."
         )
+        self.fields["market_data_provider"].required = False
+        self.fields["market_data_provider"].help_text = _(
+            "Provider used to fetch market candles and ATR context for this venue."
+        )
         self.fields["description"].help_text = _(
             "Short description or operational context for this venue."
         )
@@ -237,6 +267,10 @@ class VenueSettingsForm(forms.ModelForm):
         self.fields["is_active"].help_text = _(
             "Active venues are available for creating new trading profiles."
         )
+
+    def clean_market_data_provider(self) -> str:
+        provider = self.cleaned_data.get("market_data_provider")
+        return provider or MarketDataProvider.NONE
 
     def clean_name(self) -> str:
         """Reject a case-insensitive duplicate venue name."""

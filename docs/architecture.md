@@ -224,9 +224,9 @@ Market data is an on-demand read-only boundary. It does not persist candles or
 feeds in the database. In the trade workspace the user selects a provider and
 the journal fetches the last closed daily candles on demand, computes
 `ATR(14)`, and stores only an ATR decision snapshot (`AUTO` or `MANUAL`
-source) on a submitted trade. Providers are `BYBIT` and `TWELVE_DATA`; an
-instrument without a source may use a manually entered `MANUAL` ATR value, and
-an instrument with no source and no value reports `N/A`. Provider failure
+source) on a submitted trade. Providers are `BYBIT`, `BINANCE`, and `YFINANCE`;
+an instrument without a source may use a manually entered `MANUAL` ATR value,
+and an instrument with no source and no value reports `N/A`. Provider failure
 cannot block manual journaling and never corrupts catalog or journal state.
 
 There are two independent provider responsibilities:

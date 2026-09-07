@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext_lazy as _
 
 from tradefog.journal.models import Trade, TradingProfile, TradingStrategy
@@ -186,35 +187,44 @@ def trade_delete(request: HttpRequest, pk: int) -> HttpResponse:
     )
     if request.method == "POST":
         if trade.status != TradeStatus.DRAFT.value:
-            response = HttpResponse(status=409)
+            if request.headers.get("HX-Request"):
+                response = HttpResponse(status=409)
+                response["HX-Trigger"] = json.dumps(
+                    {
+                        "tradefog:toast": {
+                            "message": str(
+                                _("Only trade drafts can be deleted.")
+                            ),
+                            "kind": "danger",
+                        },
+                        "tradefog:close-modal": {"id": "trade-delete-modal"},
+                    }
+                )
+                return response
+            messages.error(request, _("Only trade drafts can be deleted."))
+            return redirect("journal:trade_workspace", pk=trade.pk)
+
+        trade.delete()
+        if request.headers.get("HX-Request"):
+            context = _get_overview_context(request, swap_oob=True)
+            response = render(
+                request,
+                "tradefog/trades/partials/trade_results.html",
+                context,
+            )
             response["HX-Trigger"] = json.dumps(
                 {
                     "tradefog:toast": {
-                        "message": str(_("Only trade drafts can be deleted.")),
-                        "kind": "danger",
+                        "message": str(_("Trade draft deleted.")),
+                        "kind": "success",
                     },
                     "tradefog:close-modal": {"id": "trade-delete-modal"},
                 }
             )
             return response
 
-        trade.delete()
-        context = _get_overview_context(request, swap_oob=True)
-        response = render(
-            request,
-            "tradefog/trades/partials/trade_results.html",
-            context,
-        )
-        response["HX-Trigger"] = json.dumps(
-            {
-                "tradefog:toast": {
-                    "message": str(_("Trade draft deleted.")),
-                    "kind": "success",
-                },
-                "tradefog:close-modal": {"id": "trade-delete-modal"},
-            }
-        )
-        return response
+        messages.success(request, _("Trade draft deleted."))
+        return redirect("journal:trades")
 
     return render(
         request,

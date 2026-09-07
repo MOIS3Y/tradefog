@@ -56,10 +56,9 @@ class TradeDecisionForm(forms.ModelForm):
     product_kind = forms.ChoiceField(
         required=False,
         label=_("Product"),
-        widget=forms.Select(
+        widget=forms.RadioSelect(
             attrs={
-                "class": "form-select",
-                "id": "trade-product-kind",
+                "class": "btn-check",
             }
         ),
     )
@@ -242,12 +241,7 @@ class TradeDecisionForm(forms.ModelForm):
                 )
                 self.initial["product_kind"] = resolved_kind
 
-                if resolved_kind:
-                    instrument_field.queryset = all_instruments.filter(
-                        product=resolved_kind
-                    )
-                else:
-                    instrument_field.queryset = all_instruments
+                instrument_field.queryset = all_instruments
             else:
                 self.fields["product_kind"].choices = []
                 instrument_field.queryset = VenueInstrument.objects.none()

@@ -283,8 +283,7 @@ def submit_trade(
     )
 
     trade.status = TradeStatus.PENDING_ENTRY.value
-    trade.draft_context = {}
-    trade.save(update_fields=["status", "draft_context"])
+    trade.save(update_fields=["status"])
 
     update_wallet_asset_status(wallet_asset)
     update_strategy_status(trade.strategy)

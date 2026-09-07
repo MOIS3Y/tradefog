@@ -511,7 +511,7 @@ direction and requires immutable historical strategy versions.
 Market data is not persisted in the database. When the user opens or refreshes
 a trade in the workspace, the journal fetches the last closed daily candles
 on demand from the selected provider and computes `ATR(14)` in the moment.
-The supported providers are `BYBIT` and `TWELVE_DATA`; manual candle
+The supported providers are `BYBIT`, `BINANCE`, and `YFINANCE`; manual candle
 maintenance does not exist. Fetched candles are a transient request result and
 are never written back to the catalog.
 

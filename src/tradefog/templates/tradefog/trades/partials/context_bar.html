@@ -4,60 +4,52 @@
     <div class="d-flex flex-wrap gap-3 gap-lg-4 align-items-center">
       <div>
         <div class="text-secondary small">{% translate "Venue" %}</div>
-        <strong>{{ context_bar.profile.venue.name|default:"—" }}</strong>
+        <strong id="ctx-venue-name">{{ context_bar.venue.name|default:"—" }}</strong>
       </div>
       <div>
         <div class="text-secondary small">{% translate "Profile" %}</div>
-        <strong>{{ context_bar.profile.name|default:"—" }}</strong>
+        <strong id="ctx-profile-name">{{ context_bar.profile.name|default:"—" }}</strong>
       </div>
       <div>
         <div class="text-secondary small">{% translate "Strategy" %}</div>
-        <strong>{{ context_bar.strategy.name|default:"—" }}</strong>
+        <strong id="ctx-strategy-name">{{ context_bar.strategy.name|default:"—" }}</strong>
       </div>
       <div>
         <div class="text-secondary small">{% translate "Risk" %}</div>
         <strong>
-          {% if context_bar.strategy %}
-            {{ context_bar.strategy.risk_percent|compact }}%
+          <span id="ctx-fixed-1r">
             {% if context_bar.fixed_1r is not None %}
-              <span class="text-secondary fw-normal">({{ context_bar.fixed_1r|floatformat:2 }} {{ context_bar.settlement_symbol }})</span>
+              {{ context_bar.fixed_1r|floatformat:2 }} {{ context_bar.settlement_symbol }}
+            {% else %}
+              —
             {% endif %}
-          {% else %}
-            —
-          {% endif %}
+          </span>
         </strong>
       </div>
       <div>
         <div class="text-secondary small">{% translate "Ratio" %}</div>
         <strong>
-          {% if context_bar.strategy %}
-            1:{{ context_bar.strategy.reward_multiple|compact }} R
-          {% else %}
-            —
-          {% endif %}
-        </strong>
-      </div>
-      <div>
-        <div class="text-secondary small">{% translate "Market" %}</div>
-        <strong>
-          {% if context_bar.instrument %}
-            {{ context_bar.instrument.pair.canonical_symbol }} · {{ context_bar.instrument.get_product_display }}
-          {% else %}
-            —
-          {% endif %}
+          <span id="ctx-reward-multiple">
+            {% if context_bar.strategy %}
+              1:{{ context_bar.strategy.reward_multiple|compact }} R
+            {% else %}
+              —
+            {% endif %}
+          </span>
         </strong>
       </div>
       <div class="ms-lg-auto text-lg-end">
         <div class="text-secondary small">{% translate "Wallet available" %}</div>
         <strong class="text-primary">
-          {% if context_bar.wallet_available is not None %}
-            {{ context_bar.wallet_available|floatformat:2 }} {{ context_bar.settlement_symbol }}
-          {% else %}
-            —
-          {% endif %}
+          <span id="ctx-wallet-available">
+            {% if context_bar.wallet_available is not None %}
+              {{ context_bar.wallet_available|floatformat:2 }} {{ context_bar.settlement_symbol }}
+            {% else %}
+              —
+            {% endif %}
+          </span>
         </strong>
       </div>
     </div>
   </div>
 </div>
-

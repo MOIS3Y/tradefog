@@ -223,8 +223,8 @@ they are a transient request result, so there is no stale cache or history to
 clean up. Only the resulting ATR decision snapshot is saved on a submitted
 trade.
 
-When the instrument has a provider source, the user selects Bybit or Twelve
-Data and refreshes it in the workspace. When it has no provider source, the
+When the instrument has a provider source, the user selects Bybit, Binance,
+or Yahoo Finance and refreshes it in the workspace. When it has no provider source, the
 user may enter the ATR value manually as the `MANUAL` source. An instrument
 with no source and no entered value reports ATR as `N/A`. Tradefog calculates
 ATR locally for `AUTO` sources regardless of provider.

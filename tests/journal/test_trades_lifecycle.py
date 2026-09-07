@@ -137,6 +137,12 @@ def test_submit_trade_creates_snapshot_and_reserves_capital() -> None:
     wallet_asset = env["wallet_asset"]
     assert isinstance(wallet_asset, WalletAsset)
 
+    trade.draft_context = {
+        "market_sentiment": "POSITIVE",
+        "candles_data": [{"x": "2026-09-01", "y": [1, 2, 0.5, 1.5]}],
+    }
+    trade.save()
+
     # 1% of 10000 = 100 USDT target risk
     # entry 50000, stop 48000 -> dist 2000 -> qty = 100 / 2000 = 0.05 BTC
     # notional = 50000 * 0.05 = 2500 USDT
@@ -148,6 +154,8 @@ def test_submit_trade_creates_snapshot_and_reserves_capital() -> None:
 
     trade.refresh_from_db()
     assert trade.status == TradeStatus.PENDING_ENTRY
+    assert trade.draft_context["market_sentiment"] == "POSITIVE"
+    assert len(trade.draft_context["candles_data"]) == 1
     assert isinstance(snapshot, TradeSnapshot)
     assert snapshot.planned_entry == Decimal("50000.00")
     assert snapshot.planned_stop == Decimal("48000.00")

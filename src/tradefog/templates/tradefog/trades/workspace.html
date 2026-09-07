@@ -15,7 +15,7 @@
       <div class="row g-2 align-items-center">
         <div class="col">
           <div class="page-pretitle">
-            {{ context_bar.profile.name|default:"Profile" }} · {{ context_bar.profile.venue.name|default:"Venue" }}
+            {{ context_bar.profile.name|default:"Profile" }} · {{ context_bar.venue.name|default:"Venue" }}
           </div>
           <h1 class="page-title d-flex align-items-center gap-2">
             {% if is_new %}
@@ -46,14 +46,7 @@
           <div class="btn-list">
             <a class="btn" href="{% url 'journal:trades' %}">{% translate "Back" %}</a>
             {% if not is_new %}
-              {% if trade.status == "draft" %}
-                <button class="btn btn-primary"
-                        type="button"
-                        data-bs-toggle="modal"
-                        data-bs-target="#trade-submit-modal">
-                  {% translate "Submit trade" %}
-                </button>
-              {% elif trade.status == "pending_entry" %}
+              {% if trade.status == "pending_entry" %}
                 <button class="btn btn-success"
                         type="button"
                         data-bs-toggle="modal"
@@ -90,107 +83,50 @@
 
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'tradefog/vendor/easymde/easymde.min.css' %}">
+  <link rel="stylesheet" href="{% static 'tradefog/vendor/tom-select/tom-select.bootstrap5.min.css' %}">
 {% endblock %}
 
 {% block extra_js %}
   <script src="{% static 'tradefog/vendor/apexcharts/apexcharts.min.js' %}"></script>
-  <script src="{% static 'tradefog/js/market-context.js' %}"></script>
+  <script src="{% static 'tradefog/vendor/big.js/big.min.js' %}"></script>
+  <script src="{% static 'tradefog/vendor/tom-select/tom-select.complete.min.js' %}"></script>
   <script src="{% static 'tradefog/vendor/dompurify/purify.min.js' %}"></script>
   <script src="{% static 'tradefog/vendor/easymde/easymde.min.js' %}"></script>
   <script src="{% static 'tradefog/vendor/fslightbox/fslightbox.js' %}"></script>
   <script src="{% static 'tradefog/js/trade-description.js' %}"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      function syncShortAvailability() {
-        const productSelect = document.getElementById("trade-product-kind");
-        const shortRadio = document.getElementById("direction-short");
-        const shortLabel = document.querySelector("label[for='direction-short']");
-        const longRadio = document.getElementById("direction-long");
-        const tooltipWrap = document.getElementById("short-tooltip-wrapper");
-        if (!productSelect || !shortRadio || !shortLabel) return;
-
-        const val = productSelect.value ? productSelect.value.toLowerCase() : "";
-        const isShortDisabled = val === "spot" || val === "cash_equity";
-
-        shortRadio.disabled = isShortDisabled;
-        if (isShortDisabled) {
-          shortLabel.classList.add("disabled");
-          if (shortRadio.checked) {
-            longRadio.checked = true;
-            longRadio.dispatchEvent(new Event("change"));
-          }
-          if (tooltipWrap && window.bootstrap && window.bootstrap.Tooltip) {
-            const inst = window.bootstrap.Tooltip.getOrCreateInstance(tooltipWrap);
-            inst.enable();
-          }
-        } else {
-          shortLabel.classList.remove("disabled");
-          if (tooltipWrap && window.bootstrap && window.bootstrap.Tooltip) {
-            const inst = window.bootstrap.Tooltip.getOrCreateInstance(tooltipWrap);
-            inst.disable();
-            inst.hide();
-          }
-        }
-      }
-
-      document.body.addEventListener("change", function (e) {
-        if (e.target && (e.target.id === "trade-product-kind" || e.target.id === "trade-profile" || e.target.id === "trade-strategy")) {
-          setTimeout(syncShortAvailability, 50);
-        }
-        if (e.target && e.target.name === "direction") {
-          const checkedChecklist = document.querySelector(".tf-checklist-options input:checked");
-          if (checkedChecklist && window.htmx) {
-            window.htmx.trigger(checkedChecklist, "change");
-          }
-        }
-      });
-      document.body.addEventListener("htmx:afterSwap", function (evt) {
-        syncShortAvailability();
-        if (evt.detail.target && evt.detail.target.id === "trade-cascading-options") {
-          const instSelect = document.getElementById("trade-instrument");
-          if (instSelect && window.htmx) {
-            window.htmx.trigger(instSelect, "change");
-          }
-        }
-      });
-      syncShortAvailability();
-
-      // If browser restored form inputs on page refresh, trigger calculation
-      const entryInput = document.getElementById("planned-entry");
-      const stopInput = document.getElementById("planned-stop");
-      if (entryInput && stopInput && entryInput.value.trim() && stopInput.value.trim()) {
-        setTimeout(function () {
-          if (window.htmx) {
-            window.htmx.trigger(entryInput, "change");
-          }
-        }, 100);
-      }
-
-      const checkedChecklist = document.querySelector(".tf-checklist-options input:checked");
-      if (checkedChecklist) {
-        setTimeout(function () {
-          if (window.htmx) {
-            window.htmx.trigger(checkedChecklist, "change");
-          }
-        }, 150);
-      }
-    });
-  </script>
+  <script src="{% static 'tradefog/js/trade-workspace.js' %}"></script>
 {% endblock %}
 
 {% block content %}
+  {% if workspace_config %}
+    {{ workspace_config|json_script:"trade-workspace-config" }}
+  {% else %}
+    <script id="trade-workspace-config" type="application/json">{}</script>
+  {% endif %}
+
   {% include "tradefog/trades/partials/context_bar.html" %}
 
   <form id="trade-form" method="post" autocomplete="off" novalidate>
     {% csrf_token %}
+    <input type="hidden" name="candles_data" id="candles-data-input" value="">
+    <input type="hidden" name="auto_atr_value" id="auto-atr-value-input" value="">
+    <input type="hidden" name="atr_contributing_date" id="atr-contributing-date-input" value="">
+    <input type="hidden" name="observed_session_range" id="observed-session-range-input" value="">
+    <input type="hidden" name="session_range_percent" id="session-range-percent-input" value="">
     <div class="row row-cards">
+      <!-- 1. Trade Decision Card -->
       <div class="col-12 col-lg-7">
         <section class="card h-100" aria-labelledby="decision-title">
+          <div class="card-status-top bg-primary"></div>
           <div class="card-header">
             <div>
               <h2 class="card-title" id="decision-title">{% translate "Trade decision" %}</h2>
               <p class="card-subtitle">
-                {% translate "The analytical date, market, direction, entry, and stop remain editable while this is a draft." %}
+                {% if not trade or trade.status == "draft" %}
+                  {% translate "The analytical date, market, direction, entry, and stop remain editable while this is a draft." %}
+                {% else %}
+                  {% translate "Trade decision parameters are locked." %}
+                {% endif %}
               </p>
             </div>
           </div>
@@ -202,182 +138,160 @@
             {% endif %}
 
             <div class="row g-3">
-              {% if is_new %}
-                <div class="col-12 col-md-6">
-                  <div class="mb-3">
-                    <label class="form-label" for="trade-profile">{{ form.profile.label }}</label>
-                    <select class="form-select"
-                            id="trade-profile"
-                            name="profile"
-                            hx-get="{% url 'journal:trade_options' %}"
-                            hx-include="#trade-form"
-                            hx-target="#trade-cascading-options"
-                            hx-trigger="change">
+              <div class="col-12 col-md-6">
+                <div class="mb-1">
+                  <label class="form-label required" for="trade-profile">{{ form.profile.label }}</label>
+                  {% if is_new %}
+                    <select class="form-select" id="trade-profile" name="profile">
                       {% for p in form.fields.profile.queryset %}
-                        <option value="{{ p.pk }}" {% if form.profile.value|stringformat:"s" == p.pk|stringformat:"s" %}selected{% endif %}>
+                        <option value="{{ p.pk }}" {% if form.profile.value|stringformat:"s" == p.pk|stringformat:"s" or forloop.first and not form.profile.value %}selected{% endif %}>
                           {{ p.name }} ({{ p.venue.name }})
                         </option>
                       {% endfor %}
                     </select>
-                  </div>
+                  {% else %}
+                    <input type="hidden" id="trade-profile" name="profile" value="{{ trade.profile_id }}">
+                    <select class="form-select" id="trade-profile-display" disabled>
+                      <option selected>{{ trade.profile.name }} ({{ trade.profile.venue.name }})</option>
+                    </select>
+                  {% endif %}
                 </div>
-                <div class="col-12 col-md-6">
-                  <div class="mb-3">
-                    <label class="form-label" for="trade-strategy">{{ form.strategy.label }}</label>
-                    <select class="form-select"
-                            id="trade-strategy"
-                            name="strategy"
-                            hx-post="{% url 'journal:trade_plan_preview' %}"
-                            hx-target="#trade-plan"
-                            hx-swap="outerHTML"
-                            hx-include="#trade-form"
-                            hx-trigger="change">
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="mb-1">
+                  <label class="form-label required" for="trade-strategy">{{ form.strategy.label }}</label>
+                  {% if is_new %}
+                    <select class="form-select" id="trade-strategy" name="strategy">
                       {% for s in form.fields.strategy.queryset %}
-                        <option value="{{ s.pk }}" {% if form.strategy.value|stringformat:"s" == s.pk|stringformat:"s" %}selected{% endif %}>
+                        <option value="{{ s.pk }}" {% if form.strategy.value|stringformat:"s" == s.pk|stringformat:"s" or forloop.first and not form.strategy.value %}selected{% endif %}>
                           {{ s.name }} ({{ s.risk_percent|compact }}%, 1:{{ s.reward_multiple|compact }} R)
                         </option>
                       {% endfor %}
                     </select>
-                  </div>
+                  {% else %}
+                    <input type="hidden" id="trade-strategy" name="strategy" value="{{ trade.strategy_id }}">
+                    <select class="form-select" id="trade-strategy-display" disabled>
+                      <option selected>{{ trade.strategy.name }} ({{ trade.strategy.risk_percent|compact }}%, 1:{{ trade.strategy.reward_multiple|compact }} R)</option>
+                    </select>
+                  {% endif %}
                 </div>
-              {% else %}
-                <input type="hidden" id="trade-profile" name="profile" value="{{ trade.profile_id }}">
-                <input type="hidden" id="trade-strategy" name="strategy" value="{{ trade.strategy_id }}">
-              {% endif %}
+              </div>
 
-              <div class="col-12 col-md-4">
-                <div class="mb-3">
-                  <label class="form-label" for="trade-date">{{ form.trade_date.label }}</label>
+              <!-- Market Product & Trading Pair -->
+              <div class="col-12">
+                <fieldset class="mb-1" id="product-kind-fieldset">
+                  <legend class="form-label required mb-2">{% translate "Market product" %}</legend>
+                  <div class="btn-group w-100 tf-product-options" role="group" aria-label="{% translate 'Market product' %}" id="product-kind-options">
+                    {% for choice_val, choice_label in form.fields.product_kind.choices %}
+                      <input class="btn-check"
+                             id="product-kind-{{ choice_val }}"
+                             name="product_kind"
+                             type="radio"
+                             value="{{ choice_val }}"
+                             {% if form.product_kind.value == choice_val or forloop.first and not form.product_kind.value %}checked{% endif %}>
+                      <label class="btn btn-outline-primary" for="product-kind-{{ choice_val }}">{{ choice_label }}</label>
+                    {% endfor %}
+                  </div>
+                </fieldset>
+              </div>
+
+              <div class="col-12">
+                <div class="mb-1">
+                  <label class="form-label required" for="trade-instrument">{% translate "Trading pair" %}</label>
+                  <select class="form-select"
+                          id="trade-instrument"
+                          name="venue_instrument">
+                    {% for inst in form.fields.venue_instrument.queryset %}
+                      <option value="{{ inst.pk }}"
+                              data-product="{{ inst.product }}"
+                              data-canonical="{{ inst.pair.canonical_symbol }}"
+                              data-exec="{{ inst.exec_symbol }}"
+                              {% if form.venue_instrument.value|stringformat:"s" == inst.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ inst.pair.canonical_symbol }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <!-- Date & Direction -->
+              <div class="col-12 col-md-5">
+                <div class="mb-1">
+                  <label class="form-label required" for="trade-date">{{ form.trade_date.label }}</label>
                   <input class="form-control"
                          id="trade-date"
                          name="trade_date"
                          type="date"
-                         value="{{ form.trade_date.value|date:'Y-m-d'|default:'' }}"
-                         hx-post="{% url 'journal:trade_market_preview' %}"
-                         hx-target="#market-context"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+                         value="{{ form.trade_date.value|date:'Y-m-d'|default:'' }}">
                 </div>
               </div>
 
-              <div class="col-12 col-md-4">
-                <div class="mb-3">
-                  <label class="form-label" for="trade-product-kind">{{ form.product_kind.label }}</label>
-                  <select class="form-select"
-                          id="trade-product-kind"
-                          name="product_kind"
-                          hx-get="{% url 'journal:trade_options' %}{% if not is_new %}?is_new=0{% endif %}"
-                          hx-include="#trade-form"
-                          hx-target="#trade-cascading-options"
-                          hx-trigger="change">
-                    {% for pk_val, pk_lbl in form.fields.product_kind.choices %}
-                      <option value="{{ pk_val }}" {% if form.product_kind.value == pk_val %}selected{% endif %}>
-                        {{ pk_lbl }}
-                      </option>
-                    {% empty %}
-                      <option value="">{% translate "No available markets" %}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-              </div>
-
-              <div class="col-12 col-md-4">
-                <div class="mb-3">
-                  <label class="form-label" for="trade-instrument">{{ form.venue_instrument.label }}</label>
-                  <select class="form-select"
-                          id="trade-instrument"
-                          name="venue_instrument"
-                          hx-post="{% url 'journal:trade_market_preview' %}"
-                          hx-target="#market-context"
-                          hx-include="#trade-form"
-                          hx-trigger="change">
-                    {% for inst in form.fields.venue_instrument.queryset %}
-                      <option value="{{ inst.pk }}" data-product="{{ inst.product }}" {% if form.venue_instrument.value|stringformat:"s" == inst.pk|stringformat:"s" %}selected{% endif %}>
-                        {{ inst.pair.canonical_symbol }}
-                      </option>
-                    {% empty %}
-                      <option value="">{% translate "No compatible instruments" %}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-              </div>
-
-              <div class="col-12">
-                <fieldset class="mb-3">
-                  <legend class="form-label">{% translate "Direction" %}</legend>
-                  <div class="btn-group w-100 tf-direction-options" role="group"
-                       aria-label="{% translate 'Direction' %}">
+              <div class="col-12 col-md-7">
+                <fieldset class="mb-1">
+                  <legend class="form-label required mb-2">{% translate "Direction" %}</legend>
+                  <div class="btn-group w-100 tf-direction-options" role="group" aria-label="{% translate 'Direction' %}">
                     <input class="btn-check"
                            id="direction-long"
                            name="direction"
                            type="radio"
                            value="long"
-                           {% if form.direction.value == "long" or form.direction.value == "LONG" or not form.direction.value %}checked{% endif %}
-                           hx-post="{% url 'journal:trade_plan_preview' %}"
-                           hx-target="#trade-plan"
-                           hx-swap="outerHTML"
-                           hx-include="#trade-form"
-                           hx-trigger="change">
+                           {% if form.direction.value == "long" or form.direction.value == "LONG" or not form.direction.value %}checked{% endif %}>
                     <label class="btn btn-outline-success" for="direction-long">LONG</label>
 
-                    <span id="short-tooltip-wrapper" class="d-inline-block flex-fill"
-                          tabindex="0"
-                          data-bs-toggle="tooltip"
-                          data-bs-placement="top"
-                          data-bs-title="{% translate 'Short positions are not available on spot or cash equity markets.' %}">
+                    <span id="short-tooltip-wrapper"
+                          class="d-inline-flex"
+                          data-short-disabled-title="{% translate 'Short positions are not available for Spot products.' %}"
+                          data-bs-placement="top">
                       <input class="btn-check"
                              id="direction-short"
                              name="direction"
                              type="radio"
                              value="short"
-                             {% if form.direction.value == "short" or form.direction.value == "SHORT" %}checked{% endif %}
-                             hx-post="{% url 'journal:trade_plan_preview' %}"
-                             hx-target="#trade-plan"
-                             hx-swap="outerHTML"
-                             hx-include="#trade-form"
-                             hx-trigger="change">
+                             {% if form.direction.value == "short" or form.direction.value == "SHORT" %}checked{% endif %}>
                       <label class="btn btn-outline-danger w-100" for="direction-short">SHORT</label>
                     </span>
+                  </div>
+                  <div class="form-hint text-warning d-none" id="short-disabled-hint">
+                    {% translate "Short positions are not available for Spot products." %}
                   </div>
                 </fieldset>
               </div>
 
+              <!-- Price levels -->
               <div class="col-12 col-md-6">
-                <div class="mb-3">
-                  <label class="form-label" for="planned-entry">{{ form.planned_entry.label }}</label>
+                <div class="mb-0">
+                  <label class="form-label required" for="planned-entry">{{ form.planned_entry.label }}</label>
                   <div class="input-group">
-                    <input class="form-control"
+                    <input class="form-control font-monospace"
                            id="planned-entry"
                            name="planned_entry"
-                           type="text"
-                           value="{{ form.planned_entry.value|default:'' }}"
+                           type="number"
+                           step="any"
+                           min="0"
+                           inputmode="decimal"
                            placeholder="0.00"
-                           hx-post="{% url 'journal:trade_plan_preview' %}"
-                           hx-target="#trade-plan"
-                           hx-swap="outerHTML"
-                           hx-include="#trade-form"
-                           hx-trigger="keyup changed delay:300ms, change">
-                    <span class="input-group-text">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                           value="{{ form.planned_entry.value|default:'' }}"
+                           required>
+                    <span class="input-group-text tf-settlement-symbol">{{ context_bar.settlement_symbol|default:"USD" }}</span>
                   </div>
                 </div>
               </div>
 
               <div class="col-12 col-md-6">
-                <div class="mb-3">
-                  <label class="form-label" for="planned-stop">{{ form.planned_stop.label }}</label>
+                <div class="mb-0">
+                  <label class="form-label required" for="planned-stop">{{ form.planned_stop.label }}</label>
                   <div class="input-group">
-                    <input class="form-control"
+                    <input class="form-control font-monospace"
                            id="planned-stop"
                            name="planned_stop"
-                           type="text"
-                           value="{{ form.planned_stop.value|default:'' }}"
+                           type="number"
+                           step="any"
+                           min="0"
+                           inputmode="decimal"
                            placeholder="0.00"
-                           hx-post="{% url 'journal:trade_plan_preview' %}"
-                           hx-target="#trade-plan"
-                           hx-swap="outerHTML"
-                           hx-include="#trade-form"
-                           hx-trigger="keyup changed delay:300ms, change">
-                    <span class="input-group-text">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                           value="{{ form.planned_stop.value|default:'' }}"
+                           required>
+                    <span class="input-group-text tf-settlement-symbol">{{ context_bar.settlement_symbol|default:"USD" }}</span>
                   </div>
                 </div>
               </div>
@@ -386,6 +300,7 @@
         </section>
       </div>
 
+      <!-- 2. Position Plan Card -->
       <div class="col-12 col-lg-5">
         <section class="card h-100" aria-labelledby="plan-title">
           <div class="card-status-top bg-primary"></div>
@@ -397,14 +312,322 @@
               </p>
             </div>
           </div>
-          {% include "tradefog/trades/partials/position_plan.html" %}
+          <div class="card-body d-flex flex-column" id="trade-plan-container" aria-live="polite">
+            <div id="plan-alert-container"></div>
+
+            <div id="plan-metrics-state" class="tf-fade-in d-none">
+              <div class="row g-2 mb-3">
+                <div class="col-6">
+                  <div class="card card-sm bg-danger-lt border-0 shadow-none h-100">
+                    <div class="card-body p-2 p-sm-3">
+                      <div class="text-secondary small fw-medium mb-1">{% translate "Planned risk" %} (1R)</div>
+                      <div class="h2 mb-0 fw-bold text-danger">
+                        <span id="plan-risk-amount">—</span> <span class="tf-settlement-symbol small fw-normal">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="card card-sm bg-success-lt border-0 shadow-none h-100">
+                    <div class="card-body p-2 p-sm-3">
+                      <div class="text-secondary small fw-medium mb-1">{% translate "Planned profit" %}</div>
+                      <div class="h2 mb-0 fw-bold text-success">
+                        <span id="plan-profit-amount">—</span> <span class="tf-settlement-symbol small fw-normal">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Visual Price Levels Range (Stop ⟷ Entry ⟷ Take Profit) -->
+              <div class="card bg-body-tertiary border mb-3">
+                <div class="card-body p-2 p-sm-3">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-secondary small fw-semibold">{% translate "Price levels" %}</span>
+                    <span id="plan-direction-badge" class="badge bg-success-lt">LONG</span>
+                  </div>
+
+                  <div class="tf-price-ladder pt-4" id="plan-price-ladder">
+                    <div class="tf-price-ladder-bar">
+                      <div class="tf-price-segment tf-price-segment-risk" id="plan-segment-risk" style="width: 25%;">
+                        <span id="plan-risk-ratio-label">1R</span>
+                      </div>
+                      <div class="tf-price-segment tf-price-segment-reward" id="plan-segment-reward" style="width: 75%;">
+                        <span id="plan-reward-ratio-label">3R</span>
+                      </div>
+                      <div class="tf-price-anchor-entry" id="plan-anchor-entry" style="left: 25%;">
+                        <div class="tf-price-pin" id="plan-entry-pin">
+                          <span class="text-uppercase small fw-medium me-1" style="font-size: 0.625rem; opacity: 0.85;">{% translate "Entry" %}</span>
+                          <span id="plan-entry-pin-price">—</span>
+                        </div>
+                        <span class="tf-price-anchor-dot"></span>
+                      </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-baseline mt-2 text-nowrap">
+                      <div class="text-start" id="plan-ladder-left">
+                        <div class="text-danger small fw-semibold" id="plan-ladder-left-label">{% translate "Stop loss" %}</div>
+                        <div class="fw-bold font-monospace small" id="plan-ladder-left-price">—</div>
+                      </div>
+                      <div class="text-end" id="plan-ladder-right">
+                        <div class="text-success small fw-semibold" id="plan-ladder-right-label">{% translate "Take profit" %}</div>
+                        <div class="fw-bold font-monospace small" id="plan-ladder-right-price">—</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row g-2 g-sm-3 mb-3">
+                <div class="col-6">
+                  <div class="p-2 rounded border bg-body-tertiary">
+                    <div class="text-secondary small fw-medium mb-1">{% translate "Stop loss" %}</div>
+                    <div class="fw-bold text-danger">
+                      <span id="plan-stop-loss">—</span> <span class="tf-settlement-symbol text-secondary small fw-normal">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                    </div>
+                    <div class="text-secondary small">
+                      {% translate "Distance" %}: <span id="plan-distance">—</span> <span class="tf-settlement-symbol">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-6">
+                  <div class="p-2 rounded border bg-body-tertiary">
+                    <div class="text-secondary small fw-medium mb-1">{% translate "Take profit" %}</div>
+                    <div class="fw-bold text-success">
+                      <span id="plan-take-profit">—</span> <span class="tf-settlement-symbol text-secondary small fw-normal">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                    </div>
+                    <div class="text-secondary small">
+                      {% translate "Ratio" %}: <span id="plan-target-ratio">1:{{ context_bar.strategy.reward_multiple|compact|default:'3' }} R</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-6">
+                  <div class="p-2 rounded border bg-body-tertiary">
+                    <div class="text-secondary small fw-medium mb-1">{% translate "Quantity" %}</div>
+                    <div class="fw-bold font-monospace" id="plan-quantity">—</div>
+                    <div class="text-secondary small">{% translate "Calculated size" %}</div>
+                  </div>
+                </div>
+
+                <div class="col-6">
+                  <div class="p-2 rounded border bg-body-tertiary">
+                    <div class="text-secondary small fw-medium mb-1">{% translate "Position value" %}</div>
+                    <div class="fw-bold">
+                      <span id="plan-notional">—</span> <span class="tf-settlement-symbol text-secondary small fw-normal">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                    </div>
+                    <div class="text-secondary small">{% translate "Required capital" %}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-flex align-items-center justify-content-between p-2 rounded bg-body-tertiary border">
+                <div>
+                  <span class="text-secondary small">{% translate "Capacity after plan" %}:</span>
+                  <strong class="ms-1" id="plan-capacity-after">—</strong>
+                  <span class="tf-settlement-symbol text-secondary small">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                </div>
+                <span id="plan-capacity-status" class="badge bg-success-lt">{% translate "Available" %}</span>
+              </div>
+
+              <div id="plan-wallet-exceed-alert" class="alert alert-danger mt-2 mb-0 d-none">
+                {% translate "Position value exceeds available wallet funds." %}
+              </div>
+            </div>
+
+            <div id="plan-empty-state" class="empty py-4 text-center my-auto tf-fade-in">
+              <div class="empty-icon text-secondary mb-3">
+                {% include "tradefog/components/icon.html" with name="calculator" class="icon icon-lg" %}
+              </div>
+              <p class="empty-title h4 mb-1">{% translate "Position plan not calculated" %}</p>
+              <p class="empty-subtitle text-secondary mb-0">
+                {% translate "Enter planned entry and stop in the trade form to size the position and evaluate capital capacity." %}
+              </p>
+            </div>
+          </div>
         </section>
       </div>
 
-      <div class="col-12" id="market-context" aria-live="polite">
-        {% include "tradefog/trades/partials/market_context.html" %}
+      <!-- 3. Market Context & ATR Card -->
+      <div class="col-12" id="market-context-section" aria-live="polite">
+        <div class="row row-cards">
+          <div class="col-12 col-lg-7">
+            <section class="card h-100" aria-labelledby="market-chart-title">
+              <div class="card-header">
+                <div>
+                  <div class="d-flex align-items-center gap-2">
+                    <h2 class="card-title mb-0" id="market-chart-title">
+                      {% translate "Price action before the decision" %}
+                    </h2>
+                    <span id="atr-source-badge" class="badge bg-secondary-lt">
+                      {{ context_bar.venue.market_data_provider|upper|default:"AUTO" }}
+                    </span>
+                  </div>
+                  <p class="card-subtitle mt-1 mb-0">
+                    {% translate "Last 14 closed daily candles; the selected trade date is excluded." %}
+                  </p>
+                </div>
+                <div class="card-actions d-flex align-items-center gap-2">
+                  <button type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          id="btn-fetch-market-data"
+                          title="{% translate 'Fetch recent market candles and ATR context' %}">
+                    {% include "tradefog/components/icon.html" with name="refresh" class="icon icon-inline" %}
+                    {% translate "Fetch data" %}
+                  </button>
+
+                  <div class="btn-group btn-group-sm" role="group" aria-label="{% translate 'Data source' %}">
+                    <input type="radio" class="btn-check" name="atr_source" id="atr-source-auto" value="auto" checked>
+                    <label class="btn btn-outline-secondary" for="atr-source-auto">{% translate "Auto" %}</label>
+
+                    <input type="radio" class="btn-check" name="atr_source" id="atr-source-manual" value="manual">
+                    <label class="btn btn-outline-secondary" for="atr-source-manual">{% translate "Manual" %}</label>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body d-flex flex-column justify-content-center">
+                <div id="market-data-alert"></div>
+
+                <!-- Candlestick chart container -->
+                <div id="atr-auto-section">
+                  <div id="market-candle-chart" style="min-height: 280px;"></div>
+                </div>
+
+                <!-- Manual ATR input container -->
+                <div id="atr-manual-section" class="my-auto tf-fade-in d-none">
+                  <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                      <label class="form-label required" for="manual-atr-value">{% translate "ATR(14) value" %}</label>
+                      <div class="input-group">
+                        <input class="form-control"
+                               id="manual-atr-value"
+                               name="manual_atr_value"
+                               type="text"
+                               inputmode="decimal"
+                               placeholder="0.00"
+                               value="">
+                        <span class="input-group-text tf-settlement-symbol">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                      </div>
+                      <small class="form-hint">{% translate "Average True Range for volatility reference." %}</small>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                      <label class="form-label" for="manual-session-range">{% translate "Observed session range" %}</label>
+                      <div class="input-group">
+                        <input class="form-control"
+                               id="manual-session-range"
+                               name="manual_session_range"
+                               type="text"
+                               inputmode="decimal"
+                               placeholder="0.00"
+                               value="">
+                        <span class="input-group-text tf-settlement-symbol">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                      </div>
+                      <small class="form-hint">{% translate "Current day move (High — Low), optional." %}</small>
+                    </div>
+                  </div>
+
+                  <div class="card bg-body-tertiary border mt-3 mb-0">
+                    <div class="card-body p-3">
+                      <div class="d-flex align-items-center gap-2 mb-2 text-secondary fw-semibold small">
+                        {% include "tradefog/components/icon.html" with name="info-circle" class="icon icon-inline" %}
+                        <span>{% translate "How to obtain ATR values" %}</span>
+                      </div>
+                      <ul class="text-secondary small mb-0 ps-3">
+                        <li class="mb-1">
+                          <strong>{% translate "Chart indicator" %}:</strong>
+                          {% translate "On TradingView or exchange charts, open the Daily (D1) timeframe, add the standard «ATR» indicator with period 14 (RMA/Wilder), and take the value of the last closed candle." %}
+                        </li>
+                        <li>
+                          <strong>{% translate "Session range" %}:</strong>
+                          {% translate "Calculate the difference between today's maximum and minimum price (High — Low)." %}
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- ATR Metrics card -->
+          <div class="col-12 col-lg-5">
+            <section class="card h-100" aria-labelledby="volatility-title">
+              <div class="card-header">
+                <div>
+                  <h2 class="card-title" id="volatility-title">{% translate "Daily range context" %}</h2>
+                  <p class="card-subtitle">{% translate "ATR is volatility context, not a directional signal." %}</p>
+                </div>
+                <div class="card-actions d-flex align-items-center gap-2">
+                  <span id="atr-source-badge" class="badge bg-secondary-lt">{% translate "Auto" %}</span>
+                </div>
+              </div>
+              <div class="card-body d-flex flex-column justify-content-center tf-market-card-body">
+                <div class="tf-fade-in" id="atr-metrics-container">
+                  <div class="text-secondary text-uppercase small fw-semibold">ATR(14)</div>
+                  <div class="display-6 fw-semibold lh-1 mt-1">
+                    <span id="metric-atr-value">—</span> <span class="tf-settlement-symbol">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                  </div>
+                  <div class="text-secondary small mt-2" id="atr-contributing-label">
+                    {% translate "Manual volatility context" %}
+                  </div>
+
+                  <div class="border-top mt-4 pt-4" id="atr-session-comparison">
+                    <div class="d-flex justify-content-between gap-3 mb-2">
+                      <div class="fw-semibold">{% translate "Observed session range" %}</div>
+                      <div class="text-end">
+                        <strong id="metric-session-percent">0%</strong>
+                        <span class="text-secondary">{% translate "of ATR" %}</span>
+                      </div>
+                    </div>
+                    <div class="tf-range-tape"
+                         id="atr-session-tape"
+                         style="--tf-range-percent: 0%;"
+                         role="img"
+                         aria-label="{% translate 'Observed range as percentage of ATR' %}">
+                      <div class="tf-range-tape-fill" id="atr-session-fill"></div>
+                      <div class="tf-range-tape-marker"><span>75%</span></div>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between gap-2 text-secondary small mt-2">
+                      <span>{% translate "Observed move" %}: <span id="metric-session-range">—</span> <span class="tf-settlement-symbol">{{ context_bar.settlement_symbol|default:"USD" }}</span></span>
+                      <span>{% translate "75% ATR reference" %}: <span id="metric-atr-75">—</span> <span class="tf-settlement-symbol">{{ context_bar.settlement_symbol|default:"USD" }}</span></span>
+                    </div>
+                  </div>
+
+                  <div class="border-top mt-4 pt-4" id="atr-target-comparison">
+                    <div class="d-flex justify-content-between gap-3 mb-2">
+                      <div class="fw-semibold">{% translate "Entry to take profit" %}</div>
+                      <div class="text-end">
+                        <strong id="metric-planned-move-pct">0%</strong>
+                        <span class="text-secondary">{% translate "of ATR" %}</span>
+                      </div>
+                    </div>
+                    <div class="tf-range-tape"
+                         id="atr-planned-tape"
+                         style="--tf-range-percent: 0%;"
+                         role="img"
+                         aria-label="{% translate 'Planned move as percentage of ATR' %}">
+                      <div id="atr-planned-fill" class="tf-range-tape-fill"></div>
+                      <div class="tf-range-tape-marker"><span>75%</span></div>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+                      <span class="text-secondary small">
+                        {% translate "Planned price move" %}: <span id="metric-planned-move">—</span> <span class="tf-settlement-symbol">{{ context_bar.settlement_symbol|default:"USD" }}</span>
+                      </span>
+                      <span id="atr-exceeds-badge" class="badge bg-warning-lt d-none">
+                        {% translate "Exceeds 75% ATR" %}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
 
+      <!-- 4. Market Checklist Card -->
       <div class="col-12 col-lg-7">
         <section class="card h-100" aria-labelledby="checklist-title">
           <div class="card-header">
@@ -419,143 +642,60 @@
             <div class="tf-checklist-grid">
               <fieldset>
                 <legend class="form-label mb-1">{% translate "Broad market sentiment" %}</legend>
-                <p class="form-hint mb-2">
-                  {% translate "Behavior of the relevant broad market, sector, or related assets." %}
-                </p>
-                <div class="btn-group w-100 tf-checklist-options" role="group"
-                     aria-label="{% translate 'Broad market sentiment' %}">
-                  <input class="btn-check" id="sentiment-negative" name="market_sentiment"
-                         type="radio" value="NEGATIVE"
-                         {% if checklist_form.market_sentiment.value == "NEGATIVE" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+                <p class="form-hint mb-2">{% translate "Behavior of the relevant broad market, sector, or related assets." %}</p>
+                <div class="btn-group w-100 tf-checklist-options" role="group" aria-label="{% translate 'Broad market sentiment' %}">
+                  <input class="btn-check" id="sentiment-negative" name="market_sentiment" type="radio" value="NEGATIVE">
                   <label class="btn btn-outline-danger" for="sentiment-negative">{% translate "Bearish" %}</label>
-                  <input class="btn-check" id="sentiment-neutral" name="market_sentiment"
-                         type="radio" value="NEUTRAL"
-                         {% if checklist_form.market_sentiment.value == "NEUTRAL" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+
+                  <input class="btn-check" id="sentiment-neutral" name="market_sentiment" type="radio" value="NEUTRAL" checked>
                   <label class="btn btn-outline-secondary" for="sentiment-neutral">{% translate "Neutral" %}</label>
-                  <input class="btn-check" id="sentiment-positive" name="market_sentiment"
-                         type="radio" value="POSITIVE"
-                         {% if checklist_form.market_sentiment.value == "POSITIVE" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+
+                  <input class="btn-check" id="sentiment-positive" name="market_sentiment" type="radio" value="POSITIVE">
                   <label class="btn btn-outline-success" for="sentiment-positive">{% translate "Bullish" %}</label>
                 </div>
               </fieldset>
+
               <fieldset>
                 <legend class="form-label mb-1">{% translate "Information background" %}</legend>
                 <p class="form-hint mb-2">{% translate "Relevant news, media, regulatory, and legal context." %}</p>
-                <div class="btn-group w-100 tf-checklist-options" role="group"
-                     aria-label="{% translate 'Information background' %}">
-                  <input class="btn-check" id="info-negative" name="information_background"
-                         type="radio" value="NEGATIVE"
-                         {% if checklist_form.information_background.value == "NEGATIVE" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+                <div class="btn-group w-100 tf-checklist-options" role="group" aria-label="{% translate 'Information background' %}">
+                  <input class="btn-check" id="info-negative" name="information_background" type="radio" value="NEGATIVE">
                   <label class="btn btn-outline-danger" for="info-negative">{% translate "Negative" %}</label>
-                  <input class="btn-check" id="info-neutral" name="information_background"
-                         type="radio" value="NEUTRAL"
-                         {% if checklist_form.information_background.value == "NEUTRAL" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+
+                  <input class="btn-check" id="info-neutral" name="information_background" type="radio" value="NEUTRAL" checked>
                   <label class="btn btn-outline-secondary" for="info-neutral">{% translate "Neutral" %}</label>
-                  <input class="btn-check" id="info-positive" name="information_background"
-                         type="radio" value="POSITIVE"
-                         {% if checklist_form.information_background.value == "POSITIVE" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+
+                  <input class="btn-check" id="info-positive" name="information_background" type="radio" value="POSITIVE">
                   <label class="btn btn-outline-success" for="info-positive">{% translate "Positive" %}</label>
                 </div>
               </fieldset>
+
               <fieldset>
                 <legend class="form-label mb-1">{% translate "Global D1 direction" %}</legend>
-                <p class="form-hint mb-2">
-                  {% translate "The visible structure over approximately 20–30 daily candles." %}
-                </p>
-                <div class="btn-group w-100 tf-checklist-options" role="group"
-                     aria-label="{% translate 'Global D1 direction' %}">
-                  <input class="btn-check" id="global-down" name="global_daily_direction"
-                         type="radio" value="NEGATIVE"
-                         {% if checklist_form.global_daily_direction.value == "NEGATIVE" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+                <p class="form-hint mb-2">{% translate "The visible structure over approximately 20–30 daily candles." %}</p>
+                <div class="btn-group w-100 tf-checklist-options" role="group" aria-label="{% translate 'Global D1 direction' %}">
+                  <input class="btn-check" id="global-down" name="global_daily_direction" type="radio" value="NEGATIVE">
                   <label class="btn btn-outline-danger" for="global-down">{% translate "Down" %}</label>
-                  <input class="btn-check" id="global-sideways" name="global_daily_direction"
-                         type="radio" value="NEUTRAL"
-                         {% if checklist_form.global_daily_direction.value == "NEUTRAL" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+
+                  <input class="btn-check" id="global-sideways" name="global_daily_direction" type="radio" value="NEUTRAL" checked>
                   <label class="btn btn-outline-secondary" for="global-sideways">{% translate "Sideways" %}</label>
-                  <input class="btn-check" id="global-up" name="global_daily_direction"
-                         type="radio" value="POSITIVE"
-                         {% if checklist_form.global_daily_direction.value == "POSITIVE" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+
+                  <input class="btn-check" id="global-up" name="global_daily_direction" type="radio" value="POSITIVE">
                   <label class="btn btn-outline-success" for="global-up">{% translate "Up" %}</label>
                 </div>
               </fieldset>
+
               <fieldset>
                 <legend class="form-label mb-1">{% translate "Local D1 movement" %}</legend>
-                <p class="form-hint mb-2">
-                  {% translate "The more recent movement over approximately 5–7 daily candles." %}
-                </p>
-                <div class="btn-group w-100 tf-checklist-options" role="group"
-                     aria-label="{% translate 'Local D1 movement' %}">
-                  <input class="btn-check" id="local-down" name="local_daily_movement"
-                         type="radio" value="NEGATIVE"
-                         {% if checklist_form.local_daily_movement.value == "NEGATIVE" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+                <p class="form-hint mb-2">{% translate "The more recent movement over approximately 5–7 daily candles." %}</p>
+                <div class="btn-group w-100 tf-checklist-options" role="group" aria-label="{% translate 'Local D1 movement' %}">
+                  <input class="btn-check" id="local-down" name="local_daily_movement" type="radio" value="NEGATIVE">
                   <label class="btn btn-outline-danger" for="local-down">{% translate "Down" %}</label>
-                  <input class="btn-check" id="local-sideways" name="local_daily_movement"
-                         type="radio" value="NEUTRAL"
-                         {% if checklist_form.local_daily_movement.value == "NEUTRAL" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+
+                  <input class="btn-check" id="local-sideways" name="local_daily_movement" type="radio" value="NEUTRAL" checked>
                   <label class="btn btn-outline-secondary" for="local-sideways">{% translate "Sideways" %}</label>
-                  <input class="btn-check" id="local-up" name="local_daily_movement"
-                         type="radio" value="POSITIVE"
-                         {% if checklist_form.local_daily_movement.value == "POSITIVE" %}checked{% endif %}
-                         hx-post="{% url 'journal:trade_checklist_preview' %}"
-                         hx-target="#checklist-assessment"
-                         hx-swap="outerHTML"
-                         hx-include="#trade-form"
-                         hx-trigger="change">
+
+                  <input class="btn-check" id="local-up" name="local_daily_movement" type="radio" value="POSITIVE">
                   <label class="btn btn-outline-success" for="local-up">{% translate "Up" %}</label>
                 </div>
               </fieldset>
@@ -564,16 +704,41 @@
         </section>
       </div>
 
+      <!-- Directional Assessment Card -->
       <div class="col-12 col-lg-5">
-        <section class="card h-100 tf-checklist-assessment-card"
-                 aria-labelledby="checklist-assessment-title">
+        <section class="card h-100 tf-checklist-assessment-card" aria-labelledby="checklist-assessment-title">
           <div class="card-header">
             <div>
               <h2 class="card-title" id="checklist-assessment-title">{% translate "Directional assessment" %}</h2>
               <p class="card-subtitle">{% translate "Weighted context from SHORT through neutral to LONG." %}</p>
             </div>
           </div>
-          {% include "tradefog/trades/partials/checklist_assessment.html" %}
+          <div class="card-body d-flex flex-column" id="checklist-assessment" aria-live="polite">
+            <div class="d-flex justify-content-end mb-3">
+              <span class="badge bg-secondary-lt" id="checklist-assessment-count">
+                {% translate "0 of 4 assessed" %}
+              </span>
+            </div>
+
+            <div class="tf-direction-gauge mb-3" role="img" aria-label="{% translate 'Weighted checklist position from SHORT through neutral to LONG' %}">
+              <div class="tf-direction-gauge-track">
+                <span class="tf-direction-gauge-midpoint" aria-hidden="true"></span>
+                <span class="tf-direction-gauge-marker" id="checklist-gauge-marker" style="--tf-gauge-position: 50%;" aria-hidden="true"></span>
+              </div>
+              <div class="d-flex justify-content-between mt-2 small fw-semibold" aria-hidden="true">
+                <span class="text-danger">SHORT</span>
+                <span class="text-secondary">{% translate "Neutral" %}</span>
+                <span class="text-success">LONG</span>
+              </div>
+            </div>
+
+            <div class="tf-assessment-feedback mt-auto" id="checklist-feedback-container">
+              <div class="text-secondary small text-center my-auto tf-fade-in">
+                <span class="status-dot status-dot-animated bg-azure me-1" aria-hidden="true"></span>
+                {% translate "Select checklist observations to evaluate alignment." %}
+              </div>
+            </div>
+          </div>
         </section>
       </div>
     </div>
@@ -584,18 +749,37 @@
     {% include "tradefog/trades/partials/lifecycle_modals.html" %}
   {% endif %}
 
-  <div class="d-flex justify-content-end gap-2 mt-4">
-    <a class="btn" href="{% url 'journal:trades' %}">{% translate "Back" %}</a>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-4">
+    <div class="d-flex align-items-center gap-2">
+      <a class="btn" href="{% url 'journal:trades' %}">{% translate "Back" %}</a>
+      {% if not is_new and trade.status == "draft" %}
+        <button class="btn btn-outline-danger"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#trade-delete-modal">
+          {% translate "Delete draft" %}
+        </button>
+      {% endif %}
+    </div>
+
     {% if is_new or trade.status == "draft" %}
-      <button class="btn btn-primary" type="submit" form="trade-form">
+      <div class="d-flex align-items-center gap-2 ms-auto">
         {% if is_new %}
-          {% translate "Save draft" %}
+          <button class="btn btn-primary" type="submit" form="trade-form">
+            {% translate "Save draft" %}
+          </button>
         {% else %}
-          {% translate "Save changes" %}
+          <button class="btn btn-outline-primary" type="submit" form="trade-form">
+            {% translate "Save changes" %}
+          </button>
+          <button class="btn btn-primary"
+                  type="button"
+                  data-bs-toggle="modal"
+                  data-bs-target="#trade-submit-modal">
+            {% translate "Submit trade" %}
+          </button>
         {% endif %}
-      </button>
+      </div>
     {% endif %}
   </div>
-
-  <div id="trade-cascading-options" hidden></div>
 {% endblock %}

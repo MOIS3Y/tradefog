@@ -167,22 +167,18 @@ urlpatterns = [
         views.trade_attachment_delete,
         name="trade_attachment_delete",
     ),
-    path("trades/options/", views.trade_options, name="trade_options"),
+    path("trades/options/", views.trade_workspace_options, name="trade_options"),
     path(
-        "trades/plan/preview/",
-        views.trade_plan_preview,
-        name="trade_plan_preview",
+        "trades/workspace/options/",
+        views.trade_workspace_options,
+        name="trade_workspace_options",
     ),
     path(
-        "trades/market/preview/",
-        views.trade_market_preview,
-        name="trade_market_preview",
+        "trades/workspace/market-data/",
+        views.trade_market_data,
+        name="trade_market_data",
     ),
-    path(
-        "trades/checklist/preview/",
-        views.trade_checklist_preview,
-        name="trade_checklist_preview",
-    ),
+
     path("analytics/", views.analytics, name="analytics"),
     # Catalog:
     path(

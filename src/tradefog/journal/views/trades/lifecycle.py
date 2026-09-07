@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -21,6 +22,7 @@ from tradefog.journal.services import (
     open_trade,
     submit_trade,
 )
+from tradefog.journal.views.trades.workspace import extract_draft_context
 
 
 @login_required
@@ -48,7 +50,9 @@ def trade_submit(request: HttpRequest, pk: int) -> HttpResponse:
                 messages.error(request, str(error))
         return redirect("journal:trade_workspace", pk=trade.pk)
 
-    form.save()
+    trade = form.save(commit=False)
+    trade.draft_context = extract_draft_context(request.POST)
+    trade.save()
 
     planned_entry = form.cleaned_data["planned_entry"]
     planned_stop = form.cleaned_data["planned_stop"]
@@ -56,9 +60,25 @@ def trade_submit(request: HttpRequest, pk: int) -> HttpResponse:
 
     atr_value = None
     atr_source = None
+    atr_contributing_date = None
+
     if atr_source_choice == ATRSource.MANUAL:
         atr_value = form.cleaned_data.get("manual_atr_value")
         atr_source = ATRSource.MANUAL
+    else:
+        auto_atr_str = trade.draft_context.get("auto_atr_value")
+        if auto_atr_str:
+            try:
+                atr_value = Decimal(auto_atr_str)
+            except (InvalidOperation, ValueError):
+                atr_value = None
+        atr_source = str(trade.venue_instrument.venue.market_data_provider)
+        date_str = trade.draft_context.get("atr_contributing_date")
+        if date_str:
+            try:
+                atr_contributing_date = datetime.date.fromisoformat(date_str)
+            except ValueError:
+                atr_contributing_date = None
 
     try:
         _snapshot = submit_trade(
@@ -67,6 +87,7 @@ def trade_submit(request: HttpRequest, pk: int) -> HttpResponse:
             planned_stop=planned_stop,
             atr_value=atr_value,
             atr_source=atr_source,
+            atr_contributing_date=atr_contributing_date,
         )
         messages.success(
             request, _("Trade submitted to pending entry successfully.")

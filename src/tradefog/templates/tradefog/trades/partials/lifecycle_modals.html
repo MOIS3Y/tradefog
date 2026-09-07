@@ -19,7 +19,7 @@
         </div>
         <div class="modal-body">
           <p class="mb-0">
-            {% translate "This will freeze the decision plan, risk parameters, and wallet context into a permanent snapshot." %}
+            {% translate "This will reserve the required capital in your wallet and lock the trade parameters. The trade will move to pending entry and can no longer be edited as a draft." %}
           </p>
         </div>
         <div class="modal-footer">
@@ -32,6 +32,42 @@
             {% translate "Submit trade" %}
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal modal-blur fade"
+       id="trade-delete-modal"
+       tabindex="-1"
+       aria-labelledby="trade-delete-modal-title"
+       aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <form method="post" action="{% url 'journal:trade_delete' trade.pk %}">
+          {% csrf_token %}
+          <div class="modal-header">
+            <h2 class="modal-title" id="trade-delete-modal-title">
+              {% translate "Delete draft?" %}
+            </h2>
+            <button class="btn-close"
+                    type="button"
+                    data-bs-dismiss="modal"
+                    aria-label="{% translate 'Close' %}"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">
+              {% translate "Are you sure you want to delete this trade draft? This action cannot be undone." %}
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn" type="button" data-bs-dismiss="modal">
+              {% translate "Cancel" %}
+            </button>
+            <button class="btn btn-danger" type="submit">
+              {% translate "Delete draft" %}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

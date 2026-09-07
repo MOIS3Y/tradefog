@@ -6,6 +6,7 @@
         novalidate>
     {% csrf_token %}
     {% include "tradefog/components/form_field.html" with field=form.name %}
+    {% include "tradefog/components/form_field.html" with field=form.market_data_provider %}
     {% include "tradefog/components/form_field.html" with field=form.description %}
     {% include "tradefog/components/form_field.html" with field=form.website %}
     <div class="modal-footer px-0 pb-0">

@@ -1,4 +1,4 @@
-"""Tests for trade creation, workspace, position planning, and HTMX endpoints."""
+"""Tests for trade creation, workspace, and reactive JSON endpoints."""
 
 import datetime
 import json
@@ -28,6 +28,7 @@ from tradefog.journal.models import (
 )
 from tradefog.journal.models.enums import (
     Direction,
+    MarketDataProvider,
     ProductKind,
     TradeStatus,
     WalletOperationKind,
@@ -38,6 +39,7 @@ PASSWORD = "correct-horse-battery-staple"
 
 def _setup_trade_environment(
     username: str = "trader",
+    market_data_provider: str = MarketDataProvider.BYBIT,
 ) -> tuple[
     Client,
     User,
@@ -61,7 +63,11 @@ def _setup_trade_environment(
         base=btc, quote=usdt, canonical_symbol="BTC/USDT"
     )
 
-    venue = Venue.objects.create(name="Bybit", is_active=True)
+    venue = Venue.objects.create(
+        name="Bybit",
+        market_data_provider=market_data_provider,
+        is_active=True,
+    )
     instrument = VenueInstrument.objects.create(
         venue=venue,
         pair=pair,
@@ -122,6 +128,7 @@ def test_trade_create_get_renders_workspace() -> None:
     content = response.content.decode()
     assert "New trade draft" in content
     assert "Main" in content
+    assert "trade-workspace-config" in content
 
 
 @mark.django_db
@@ -149,6 +156,8 @@ def test_trade_create_post_creates_draft_and_redirects() -> None:
     assert trade is not None
     assert trade.status == TradeStatus.DRAFT
     assert trade.direction == Direction.LONG
+    assert trade.draft_context["planned_entry"] == "60000.00"
+    assert trade.draft_context["planned_stop"] == "58000.00"
 
     # Verify workspace detail view renders with review and attachments
     detail_res = client.get(
@@ -159,142 +168,65 @@ def test_trade_create_post_creates_draft_and_redirects() -> None:
 
 
 @mark.django_db
-def test_trade_options_cascading_endpoint() -> None:
+def test_trade_workspace_options_json_endpoint() -> None:
+    client, _user, profile, strategy, instrument, _w_asset = (
+        _setup_trade_environment()
+    )
+    response = client.get(
+        reverse("journal:trade_workspace_options"),
+        {"profile": profile.pk, "strategy": strategy.pk},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "strategies" in data
+    assert "instruments" in data
+    assert data["selected_strategy_id"] == strategy.pk
+    assert data["selected_instrument_id"] == instrument.pk
+    assert len(data["instruments"]) == 1
+    assert data["instruments"][0]["exec_symbol"] == "BTCUSDT"
+    assert data["context_bar"]["profile_name"] == "Main"
+    assert data["context_bar"]["venue_name"] == "Bybit"
+    assert data["context_bar"]["fixed_1r"] == "50.00"
+
+
+@mark.django_db
+def test_trade_workspace_options_filters_by_strategy_allocations() -> None:
     client, _user, profile, strategy, _instrument, _w_asset = (
         _setup_trade_environment()
     )
-    with override("en"):
-        response = client.get(
-            reverse("journal:trade_options"),
-            {"profile": profile.pk, "strategy": strategy.pk},
-        )
+    # Add an unallocated asset and trading pair
+    sol = Asset.objects.create(symbol="SOL", name="Solana", asset_type="crypto")
+    usdc = Asset.objects.create(symbol="USDC", name="USD Coin", asset_type="crypto")
+    sol_usdc = TradingPair.objects.create(
+        base=sol, quote=usdc, canonical_symbol="SOL/USDC"
+    )
+    _unallocated_inst = VenueInstrument.objects.create(
+        venue=profile.venue,
+        pair=sol_usdc,
+        product=ProductKind.SPOT,
+        exec_symbol="SOLUSDC",
+        price_step=Decimal("0.01"),
+        qty_step=Decimal("0.01"),
+        is_active=True,
+    )
+
+    response = client.get(
+        reverse("journal:trade_workspace_options"),
+        {"profile": profile.pk, "strategy": strategy.pk},
+    )
 
     assert response.status_code == 200
-    content = response.content.decode()
-    assert "Breakout" in content
-    assert "BTC/USDT" in content
+    data = response.json()
+    symbols = [inst["canonical_symbol"] for inst in data["instruments"]]
+    assert "BTC/USDT" in symbols
+    assert "SOL/USDC" not in symbols
 
 
 @mark.django_db
-def test_trade_plan_preview_calculates_1_to_3_plan() -> None:
-    client, _user, _profile, strategy, instrument, _w_asset = (
-        _setup_trade_environment()
-    )
-    # Allocation 5000, risk 1% = 50.00 USDT
-    # Entry 60000, Stop 58000 -> Distance 2000
-    # Take profit = 60000 + 2000 * 3 = 66000
-    # Quantity = 50 / 2000 = 0.025 BTC (step 0.001)
-    # Notional = 60000 * 0.025 = 1500 USDT
-    # Planned risk = 0.025 * 2000 = 50.00 USDT
-    # Planned profit = 50 * 3 = 150.00 USDT
-    with override("en"):
-        response = client.post(
-            reverse("journal:trade_plan_preview"),
-            {
-                "strategy": strategy.pk,
-                "venue_instrument": instrument.pk,
-                "direction": "long",
-                "planned_entry": "60000.00",
-                "planned_stop": "58000.00",
-            },
-        )
-
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "50 USDT" in content  # Planned risk
-    assert "150 USDT" in content  # Planned profit
-    assert "66000" in content  # Take profit
-    assert "0.025" in content  # Quantity
-    assert "BTC" in content
-    assert "1500 USDT" in content  # Position value
-
-
-@mark.django_db
-def test_trade_plan_preview_uses_custom_strategy_reward_multiple() -> None:
-    client, _user, _profile, strategy, instrument, _w_asset = (
-        _setup_trade_environment()
-    )
-    strategy.reward_multiple = Decimal("2.50")
-    strategy.save()
-
-    # Entry 60000, Stop 58000 -> Distance 2000
-    # Take profit = 60000 + 2000 * 2.5 = 65000
-    # Planned risk = 50.00 USDT
-    # Planned profit = 50 * 2.5 = 125.00 USDT
-    with override("en"):
-        response = client.post(
-            reverse("journal:trade_plan_preview"),
-            {
-                "strategy": strategy.pk,
-                "venue_instrument": instrument.pk,
-                "direction": "long",
-                "planned_entry": "60000.00",
-                "planned_stop": "58000.00",
-            },
-        )
-
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "50 USDT" in content
-    assert "125 USDT" in content
-    assert "65000" in content
-
-
-@mark.django_db
-def test_trade_plan_preview_warns_on_price_step_misalignment() -> None:
-    client, _user, _profile, strategy, instrument, _w_asset = (
-        _setup_trade_environment()
-    )
-    with override("en"):
-        response = client.post(
-            reverse("journal:trade_plan_preview"),
-            {
-                "strategy": strategy.pk,
-                "venue_instrument": instrument.pk,
-                "direction": "long",
-                "planned_entry": "60000.005",  # Misaligned for step 0.01
-                "planned_stop": "58000.00",
-            },
-        )
-
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "Entry must be aligned" in content
-
-
-@mark.django_db
-def test_trade_plan_preview_warns_on_insufficient_wallet_capacity() -> None:
-    client, _user, _profile, strategy, instrument, wallet_usdt = (
-        _setup_trade_environment()
-    )
-    # Withdraw most funds so only 100 USDT is available
-    WalletOperation.objects.create(
-        wallet_asset=wallet_usdt,
-        kind=WalletOperationKind.WITHDRAWAL,
-        amount=Decimal(9900),
-    )
-
-    with override("en"):
-        response = client.post(
-            reverse("journal:trade_plan_preview"),
-            {
-                "strategy": strategy.pk,
-                "venue_instrument": instrument.pk,
-                "direction": "long",
-                "planned_entry": "60000.00",
-                "planned_stop": "58000.00",
-            },
-        )
-
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "exceeds available wallet funds" in content
-
-
-@mark.django_db
-def test_trade_market_preview_with_mocked_bybit() -> None:
+def test_trade_market_data_with_mocked_bybit() -> None:
     client, _user, _profile, _strategy, instrument, _w_asset = (
-        _setup_trade_environment()
+        _setup_trade_environment(market_data_provider=MarketDataProvider.BYBIT)
     )
 
     sample_records: list[list[str]] = []
@@ -335,160 +267,35 @@ def test_trade_market_preview_with_mocked_bybit() -> None:
         "tradefog.market.providers.bybit.httpx.Client"
     ) as mock_client_cls:
         mock_client_cls.return_value.__enter__.return_value = mock_client
-        with override("en"):
-            response = client.post(
-                reverse("journal:trade_market_preview"),
-                {
-                    "venue_instrument": instrument.pk,
-                    "trade_date": "2026-08-20",
-                    "planned_entry": "60000.00",
-                    "planned_stop": "58000.00",
-                },
-            )
-
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "ATR(14)" in content
-
-
-@mark.django_db
-def test_trade_checklist_preview() -> None:
-    client, _user, _profile, _strategy, _instrument, _w_asset = (
-        _setup_trade_environment()
-    )
-    with override("en"):
-        response = client.post(
-            reverse("journal:trade_checklist_preview"),
+        response = client.get(
+            reverse("journal:trade_market_data"),
             {
-                "market_sentiment": "POSITIVE",
-                "information_background": "POSITIVE",
-                "global_daily_direction": "POSITIVE",
-                "local_daily_movement": "POSITIVE",
-                "direction": "LONG",
+                "instrument": instrument.pk,
+                "trade_date": "2026-08-20",
             },
         )
 
     assert response.status_code == 200
-    content = response.content.decode()
-    assert "4 of 4" in content
-    assert "Direction agrees with the checklist" in content
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["provider"] == "bybit"
+    assert "atr_value" in data
+    assert len(data["candles"]) > 0
 
 
 @mark.django_db
-def test_trade_options_filters_by_product_kind() -> None:
-    client, _user, profile, strategy, _instrument, _w_asset = (
-        _setup_trade_environment()
+def test_trade_market_data_for_manual_venue_returns_manual_status() -> None:
+    client, _user, _profile, _strategy, instrument, _w_asset = (
+        _setup_trade_environment(market_data_provider=MarketDataProvider.NONE)
     )
-    # Add a perpetual futures instrument on the same venue
-    usdt = _w_asset.venue_wallet_asset.asset
-    eth = Asset.objects.create(
-        symbol="ETH", name="Ethereum", asset_type="crypto"
+    response = client.get(
+        reverse("journal:trade_market_data"),
+        {"instrument": instrument.pk, "trade_date": "2026-08-20"},
     )
-    eth_usdt = TradingPair.objects.create(
-        base=eth, quote=usdt, canonical_symbol="ETH/USDT"
-    )
-    _futures_inst = VenueInstrument.objects.create(
-        venue=profile.venue,
-        pair=eth_usdt,
-        product=ProductKind.PERPETUAL_FUTURE,
-        exec_symbol="ETHUSDT",
-        price_step=Decimal("0.05"),
-        qty_step=Decimal("0.01"),
-        min_qty=Decimal("0.01"),
-        min_notional=Decimal("5.00"),
-        is_active=True,
-    )
-
-    with override("en"):
-        # Select spot product kind
-        response_spot = client.get(
-            reverse("journal:trade_options"),
-            {
-                "profile": profile.pk,
-                "strategy": strategy.pk,
-                "product_kind": "spot",
-            },
-        )
-        # Select perpetual future product kind
-        response_futures = client.get(
-            reverse("journal:trade_options"),
-            {
-                "profile": profile.pk,
-                "strategy": strategy.pk,
-                "product_kind": "perpetual_future",
-            },
-        )
-
-    assert response_spot.status_code == 200
-    content_spot = response_spot.content.decode()
-    assert "BTC/USDT" in content_spot
-    assert "ETH/USDT" not in content_spot
-
-    assert response_futures.status_code == 200
-    content_futures = response_futures.content.decode()
-    assert "ETH/USDT" in content_futures
-    assert "BTC/USDT" not in content_futures
-
-
-@mark.django_db
-def test_trade_plan_preview_empty_inputs_renders_placeholder() -> None:
-    client, _user, _profile, _strategy, _instrument, _w_asset = (
-        _setup_trade_environment()
-    )
-    with override("en"):
-        response = client.post(
-            reverse("journal:trade_plan_preview"),
-            {},
-        )
-
     assert response.status_code == 200
-    content = response.content.decode()
-    assert "Position plan not calculated" in content
-    assert "Enter planned entry and stop" in content
-
-
-@mark.django_db
-def test_trade_checklist_preview_initial_neutral_gauge() -> None:
-    client, _user, _profile, _strategy, _instrument, _w_asset = (
-        _setup_trade_environment()
-    )
-    with override("en"):
-        response = client.post(
-            reverse("journal:trade_checklist_preview"),
-            {},
-        )
-
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "0 of 4" in content
-    assert "--tf-gauge-position: 50%" in content
-
-
-@mark.django_db
-def test_trade_market_preview_manual_atr() -> None:
-    client, _user, _profile, strategy, instrument, _w_asset = (
-        _setup_trade_environment()
-    )
-    with override("en"):
-        response = client.post(
-            reverse("journal:trade_market_preview"),
-            {
-                "venue_instrument": instrument.pk,
-                "strategy": strategy.pk,
-                "atr_source": "manual",
-                "manual_atr_value": "4.00",
-                "manual_session_range": "2.00",
-                "planned_entry": "100.00",
-                "planned_stop": "99.00",
-            },
-        )
-
-    assert response.status_code == 200
-    content = response.content.decode()
-    assert "ATR(14)" in content
-    assert "4" in content
-    assert "3" in content  # 75% reference of 4.00 is 3.00
-    assert "50%" in content  # Session 2.00 is 50% of 4.00
+    data = response.json()
+    assert data["status"] == "manual"
+    assert data["provider"] == "none"
 
 
 @mark.django_db
@@ -522,57 +329,6 @@ def test_trades_overview_without_profile_renders_no_profile_modal(
 
 
 @mark.django_db
-def test_trade_options_for_existing_draft_keeps_strategy_hidden() -> None:
-    client, _user, profile, strategy, instrument, _w_asset = (
-        _setup_trade_environment()
-    )
-    # Create perpetual future instrument on same venue
-    perp_instrument = VenueInstrument.objects.create(
-        venue=profile.venue,
-        pair=instrument.pair,
-        product=ProductKind.PERPETUAL_FUTURE,
-        exec_symbol="BTCUSDT.P",
-        price_step=Decimal("0.01"),
-        qty_step=Decimal("0.001"),
-        min_qty=Decimal("0.001"),
-        min_notional=Decimal("5.00"),
-        is_active=True,
-    )
-
-    _trade = Trade.objects.create(
-        profile=profile,
-        strategy=strategy,
-        venue_instrument=instrument,
-        trade_date=datetime.date(2026, 9, 6),
-        direction=Direction.LONG,
-    )
-
-    with override("en"):
-        # When user changes product_kind on existing trade (is_new=0)
-        response = client.get(
-            reverse("journal:trade_options"),
-            {
-                "profile": profile.pk,
-                "strategy": strategy.pk,
-                "product_kind": ProductKind.PERPETUAL_FUTURE.value,
-                "is_new": "0",
-            },
-        )
-
-    assert response.status_code == 200
-    content = response.content.decode()
-    # Strategy select must NOT be present when is_new=0
-    assert 'id="trade-strategy"' not in content
-    # Product kind select must be present with Perpetual Future
-    assert 'id="trade-product-kind"' in content
-    assert "Perpetual Future" in content
-    # Venue instrument select must contain the perpetual instrument
-    assert 'id="trade-instrument"' in content
-    assert str(perp_instrument.pk) in content
-    assert "Main" in content  # Context bar profile
-
-
-@mark.django_db
 def test_trade_delete_draft_success() -> None:
     client, _user, profile, strategy, instrument, _w_asset = (
         _setup_trade_environment()
@@ -592,13 +348,29 @@ def test_trade_delete_draft_success() -> None:
     assert get_res.status_code == 200
     assert "Delete draft" in get_res.content.decode()
 
-    # POST deletes draft and returns trade results table
+    # Standard POST deletes draft and redirects to overview
     post_res = client.post(
         reverse("journal:trade_delete", kwargs={"pk": trade.pk})
     )
-    assert post_res.status_code == 200
+    assert post_res.status_code == 302
+    assert post_res.headers["Location"] == reverse("journal:trades")
     assert not Trade.objects.filter(pk=trade.pk).exists()
-    assert "tradefog:toast" in post_res.headers.get("HX-Trigger", "")
+
+    # HTMX POST deletes draft and returns trade results table
+    trade2 = Trade.objects.create(
+        profile=profile,
+        strategy=strategy,
+        venue_instrument=instrument,
+        trade_date=datetime.date(2026, 9, 6),
+        direction=Direction.LONG,
+    )
+    htmx_res = client.post(
+        reverse("journal:trade_delete", kwargs={"pk": trade2.pk}),
+        headers={"HX-Request": "true"},
+    )
+    assert htmx_res.status_code == 200
+    assert not Trade.objects.filter(pk=trade2.pk).exists()
+    assert "tradefog:toast" in htmx_res.headers.get("HX-Trigger", "")
 
 
 @mark.django_db
@@ -616,7 +388,8 @@ def test_cannot_delete_non_draft_trade() -> None:
     )
 
     post_res = client.post(
-        reverse("journal:trade_delete", kwargs={"pk": trade.pk})
+        reverse("journal:trade_delete", kwargs={"pk": trade.pk}),
+        headers={"HX-Request": "true"},
     )
     assert post_res.status_code == 409
     assert Trade.objects.filter(pk=trade.pk).exists()
@@ -642,7 +415,6 @@ def test_save_trade_draft_preserves_notes_and_context() -> None:
             "profile": profile.pk,
             "strategy": strategy.pk,
             "trade_date": "2026-09-07",
-            "product_kind": ProductKind.SPOT.value,
             "venue_instrument": instrument.pk,
             "direction": "long",
             "planned_entry": "51000.00",
@@ -671,3 +443,58 @@ def test_save_trade_draft_preserves_notes_and_context() -> None:
     content = get_res.content.decode()
     assert 'value="51000.00"' in content
     assert 'value="49500.00"' in content
+    assert "trade-workspace-config" in content
+
+
+@mark.django_db
+def test_trade_workspace_read_only_mode_for_pending_trade() -> None:
+    client, _user, profile, strategy, instrument, _w_asset = (
+        _setup_trade_environment()
+    )
+    trade = Trade.objects.create(
+        profile=profile,
+        strategy=strategy,
+        venue_instrument=instrument,
+        trade_date=datetime.date(2026, 9, 6),
+        direction=Direction.LONG,
+        status=TradeStatus.PENDING_ENTRY,
+        draft_context={
+            "market_sentiment": "POSITIVE",
+            "candles_data": [
+                {"x": "2026-09-06", "y": [50000, 52000, 49000, 51000]}
+            ],
+        },
+    )
+    from tradefog.journal.models import TradeSnapshot
+
+    TradeSnapshot.objects.create(
+        trade=trade,
+        planned_entry=Decimal("50000.00"),
+        planned_stop=Decimal("48000.00"),
+        planned_take_profit=Decimal("56000.00"),
+        quantity=Decimal("0.05"),
+        reward_multiple=Decimal("3.0"),
+        planned_risk_percent=Decimal("1.0"),
+        planned_risk_amount=Decimal("100.00"),
+        planned_notional=Decimal("2500.00"),
+        allocation_capital=Decimal("10000.00"),
+        already_reserved_risk=Decimal(0),
+        remaining_risk_capacity=Decimal("10000.00"),
+        wallet_balance=Decimal("10000.00"),
+        wallet_reserved=Decimal("2500.00"),
+        wallet_available=Decimal("7500.00"),
+        atr_value=Decimal("1500.00"),
+        atr_source="bybit",
+    )
+
+    get_res = client.get(
+        reverse("journal:trade_workspace", kwargs={"pk": trade.pk})
+    )
+    assert get_res.status_code == 200
+    config = get_res.context["workspace_config"]
+    assert config["is_read_only"] is True
+    assert config["status"] == "pending_entry"
+    assert config["checklist"]["market_sentiment"] == "POSITIVE"
+    assert len(config["candles_data"]) == 1
+    assert config["atr_value"] == "1500"
+    assert config["atr_source"] == "bybit"

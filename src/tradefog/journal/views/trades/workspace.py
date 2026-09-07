@@ -1,18 +1,25 @@
-"""Views for trade creation, workspace, and cascading selectors."""
+"""Views for trade workspace, trade creation, and reactive JSON endpoints."""
 
+import datetime
+import json
+import logging
 from decimal import Decimal
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
 from tradefog.journal.forms.trades import ChecklistForm, TradeDecisionForm
+from tradefog.journal.markdown import render_markdown
 from tradefog.journal.models import (
     StrategyCapital,
     Trade,
@@ -20,11 +27,13 @@ from tradefog.journal.models import (
     TradingStrategy,
     VenueInstrument,
 )
-from tradefog.journal.models.enums import ProductKind
+from tradefog.journal.models.enums import MarketDataProvider, ProductKind
+from tradefog.journal.presentation import compact_decimal
 from tradefog.journal.services import (
     reserved_notional,
     wallet_asset_balance,
 )
+from tradefog.market import MarketDataError, fetch_atr_context
 
 
 def _get_context_bar_data(
@@ -36,11 +45,17 @@ def _get_context_bar_data(
     if not profile or not strategy:
         return {
             "profile": profile,
+            "venue": profile.venue if profile else None,
             "strategy": strategy,
             "instrument": instrument,
             "fixed_1r": None,
             "wallet_available": None,
             "settlement_symbol": None,
+            "market_data_provider": (
+                profile.venue.market_data_provider
+                if profile and profile.venue
+                else MarketDataProvider.NONE
+            ),
         }
 
     settlement_id = None
@@ -88,15 +103,79 @@ def _get_context_bar_data(
 
     return {
         "profile": profile,
+        "venue": profile.venue,
         "strategy": strategy,
         "instrument": instrument,
         "fixed_1r": fixed_1r,
         "wallet_available": wallet_avail,
         "settlement_symbol": settlement_symbol,
+        "market_data_provider": profile.venue.market_data_provider,
     }
 
 
-def _extract_draft_context(data: Any) -> dict[str, Any]:
+def _get_instruments_for_strategy(
+    profile: TradingProfile, strategy: TradingStrategy | None
+) -> list[VenueInstrument]:
+    """Return all active venue instruments compatible with strategy allocations."""
+    if not strategy:
+        return []
+    allocated_ids = StrategyCapital.objects.filter(
+        strategy=strategy, is_archived=False
+    ).values_list("wallet_asset__venue_wallet_asset__asset_id", flat=True)
+    return list(
+        VenueInstrument.objects.filter(venue=profile.venue, is_active=True)
+        .filter(
+            Q(settlement_asset_id__in=allocated_ids)
+            | Q(
+                settlement_asset__isnull=True,
+                pair__quote_id__in=allocated_ids,
+            )
+        )
+        .select_related(
+            "pair__base", "pair__quote", "settlement_asset", "venue"
+        )
+        .order_by("exec_symbol")
+    )
+
+
+def _serialize_instrument(inst: VenueInstrument) -> dict[str, Any]:
+    """Serialize a venue instrument for frontend state."""
+    settlement_sym = (
+        inst.settlement_asset.symbol
+        if inst.settlement_asset
+        else inst.pair.quote.symbol
+    )
+    return {
+        "id": inst.pk,
+        "exec_symbol": inst.exec_symbol,
+        "canonical_symbol": inst.pair.canonical_symbol,
+        "product": inst.product,
+        "product_label": str(ProductKind(inst.product).label),
+        "price_step": compact_decimal(inst.price_step),
+        "qty_step": compact_decimal(inst.qty_step),
+        "min_qty": (
+            compact_decimal(inst.min_qty) if inst.min_qty is not None else None
+        ),
+        "min_notional": (
+            compact_decimal(inst.min_notional)
+            if inst.min_notional is not None
+            else None
+        ),
+        "settlement_symbol": settlement_sym,
+    }
+
+
+def _serialize_strategy(strat: TradingStrategy) -> dict[str, Any]:
+    """Serialize a strategy for frontend state."""
+    return {
+        "id": strat.pk,
+        "name": strat.name,
+        "risk_percent": compact_decimal(strat.risk_percent),
+        "reward_multiple": compact_decimal(strat.reward_multiple),
+    }
+
+
+def extract_draft_context(data: Any) -> dict[str, Any]:
     """Extract serializable non-model form values for the draft."""
     keys = (
         "planned_entry",
@@ -108,6 +187,10 @@ def _extract_draft_context(data: Any) -> dict[str, Any]:
         "local_daily_movement",
         "manual_atr_value",
         "manual_session_range",
+        "auto_atr_value",
+        "atr_contributing_date",
+        "observed_session_range",
+        "session_range_percent",
         "atr_source",
     )
     result: dict[str, Any] = {}
@@ -117,7 +200,153 @@ def _extract_draft_context(data: Any) -> dict[str, Any]:
             s_val = str(val).strip()
             if s_val:
                 result[k] = s_val
+
+    raw_candles = data.get("candles_data")
+    if raw_candles:
+        if isinstance(raw_candles, list):
+            result["candles_data"] = raw_candles
+        elif isinstance(raw_candles, str):
+            trimmed = raw_candles.strip()
+            if trimmed:
+                try:
+                    parsed = json.loads(trimmed)
+                    if isinstance(parsed, list):
+                        result["candles_data"] = parsed
+                except (json.JSONDecodeError, TypeError) as exc:
+                    logger.debug("Failed to decode candles_data JSON: %s", exc)
     return result
+
+
+def _build_workspace_config(
+    *,
+    profile: TradingProfile,
+    strategy: TradingStrategy | None,
+    instrument: VenueInstrument | None,
+    trade: Trade | None = None,
+    draft_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build complete JSON config payload for trade-workspace.js."""
+    strategies = list(
+        TradingStrategy.objects.filter(
+            profile=profile, is_archived=False
+        ).order_by("name")
+    )
+    instruments = _get_instruments_for_strategy(profile, strategy)
+    ctx_bar = _get_context_bar_data(profile, strategy, instrument)
+
+    saved_ctx = draft_context or (trade.draft_context if trade else {}) or {}
+
+    planned_entry = saved_ctx.get("planned_entry", "")
+    planned_stop = saved_ctx.get("planned_stop", "")
+    snapshot_atr_val: str | None = None
+    snapshot_atr_src: str | None = None
+    snapshot_atr_date: str | None = None
+
+    if trade:
+        try:
+            snapshot = trade.snapshot
+            if snapshot is not None:
+                planned_entry = str(snapshot.planned_entry)
+                planned_stop = str(snapshot.planned_stop)
+                if snapshot.atr_value is not None:
+                    snapshot_atr_val = compact_decimal(snapshot.atr_value)
+                if snapshot.atr_source:
+                    snapshot_atr_src = snapshot.atr_source
+                if snapshot.atr_contributing_date:
+                    snapshot_atr_date = (
+                        snapshot.atr_contributing_date.isoformat()
+                    )
+        except ObjectDoesNotExist:
+            pass
+
+    is_read_only = trade is not None and trade.status != "draft"
+
+    effective_atr_val = (
+        snapshot_atr_val
+        or saved_ctx.get("auto_atr_value")
+        or saved_ctx.get("manual_atr_value")
+        or ""
+    )
+    effective_atr_date = (
+        snapshot_atr_date
+        or saved_ctx.get("atr_contributing_date")
+        or ""
+    )
+    effective_session_range = (
+        saved_ctx.get("observed_session_range")
+        or saved_ctx.get("manual_session_range")
+        or ""
+    )
+    effective_session_pct = saved_ctx.get("session_range_percent") or ""
+
+    return {
+        "is_new": trade is None,
+        "trade_id": trade.pk if trade else None,
+        "status": trade.status if trade else "draft",
+        "is_read_only": is_read_only,
+        "selected_profile_id": profile.pk,
+        "selected_strategy_id": strategy.pk if strategy else None,
+        "selected_instrument_id": instrument.pk if instrument else None,
+        "product_kind": (
+            instrument.product
+            if instrument
+            else saved_ctx.get("product_kind", "")
+        ),
+        "direction": (trade.direction if trade else "long").lower(),
+        "trade_date": (
+            trade.trade_date.isoformat()
+            if trade
+            else datetime.datetime.now(datetime.UTC).date().isoformat()
+        ),
+        "planned_entry": planned_entry,
+        "planned_stop": planned_stop,
+        "atr_source": snapshot_atr_src or saved_ctx.get("atr_source", "auto"),
+        "atr_value": effective_atr_val,
+        "atr_contributing_date": effective_atr_date,
+        "observed_session_range": effective_session_range,
+        "session_range_percent": effective_session_pct,
+        "candles_data": saved_ctx.get("candles_data", []),
+        "manual_atr_value": saved_ctx.get("manual_atr_value", ""),
+        "manual_session_range": saved_ctx.get("manual_session_range", ""),
+        "checklist": {
+            "market_sentiment": saved_ctx.get("market_sentiment", "NEUTRAL"),
+            "information_background": saved_ctx.get(
+                "information_background", "NEUTRAL"
+            ),
+            "global_daily_direction": saved_ctx.get(
+                "global_daily_direction", "NEUTRAL"
+            ),
+            "local_daily_movement": saved_ctx.get(
+                "local_daily_movement", "NEUTRAL"
+            ),
+        },
+        "strategies": [_serialize_strategy(s) for s in strategies],
+        "instruments": [_serialize_instrument(inst) for inst in instruments],
+        "context_bar": {
+            "profile_name": profile.name,
+            "venue_name": profile.venue.name,
+            "market_data_provider": profile.venue.market_data_provider,
+            "strategy_name": strategy.name if strategy else None,
+            "reward_multiple": (
+                compact_decimal(strategy.reward_multiple) if strategy else "3"
+            ),
+            "risk_percent": (
+                compact_decimal(strategy.risk_percent) if strategy else "1"
+            ),
+            "fixed_1r": (
+                f"{ctx_bar['fixed_1r']:.2f}"
+                if ctx_bar["fixed_1r"] is not None
+                else None
+            ),
+            "wallet_available": (
+                f"{ctx_bar['wallet_available']:.2f}"
+                if ctx_bar["wallet_available"] is not None
+                else None
+            ),
+            "settlement_symbol": ctx_bar["settlement_symbol"],
+        },
+    }
+
 
 
 @login_required
@@ -151,7 +380,7 @@ def trade_create(request: HttpRequest) -> HttpResponse:
             pk=strategy_id, profile=profile, is_archived=False
         ).first()
 
-    if profile and not strategy:
+    if not strategy:
         strategy = TradingStrategy.objects.filter(
             profile=profile, is_archived=False
         ).first()
@@ -167,7 +396,7 @@ def trade_create(request: HttpRequest) -> HttpResponse:
 
         if form.is_valid():
             trade = form.save(commit=False)
-            trade.draft_context = _extract_draft_context(request.POST)
+            trade.draft_context = extract_draft_context(request.POST)
             trade.save()
             messages.success(
                 request,
@@ -190,11 +419,18 @@ def trade_create(request: HttpRequest) -> HttpResponse:
             instrument = first_obj
 
     context_bar = _get_context_bar_data(profile, strategy, instrument)
+    workspace_config = _build_workspace_config(
+        profile=profile,
+        strategy=strategy,
+        instrument=instrument,
+        draft_context=extract_draft_context(request.GET),
+    )
 
     context = {
         "form": form,
         "checklist_form": checklist_form,
         "context_bar": context_bar,
+        "workspace_config": workspace_config,
         "trade": None,
         "is_new": True,
     }
@@ -212,6 +448,8 @@ def trade_workspace(request: HttpRequest, pk: int) -> HttpResponse:
             "strategy",
             "venue_instrument__pair__base",
             "venue_instrument__pair__quote",
+            "venue_instrument__settlement_asset",
+            "snapshot",
         ),
         pk=pk,
         profile__owner=request.user,
@@ -228,7 +466,7 @@ def trade_workspace(request: HttpRequest, pk: int) -> HttpResponse:
         if form.is_valid():
             saved_trade = form.save(commit=False)
             if saved_trade.status == "draft":
-                saved_trade.draft_context = _extract_draft_context(
+                saved_trade.draft_context = extract_draft_context(
                     request.POST
                 )
             saved_trade.save()
@@ -242,14 +480,17 @@ def trade_workspace(request: HttpRequest, pk: int) -> HttpResponse:
             strategy=trade.strategy,
         )
 
-    checklist_initial: dict[str, Any] | None = None
-    if trade.status == "draft" and trade.draft_context:
-        checklist_initial = trade.draft_context
+    checklist_initial: dict[str, Any] | None = trade.draft_context or None
     checklist_form = ChecklistForm(initial=checklist_initial)
     context_bar = _get_context_bar_data(
         trade.profile, trade.strategy, trade.venue_instrument
     )
-    from tradefog.journal.markdown import render_markdown
+    workspace_config = _build_workspace_config(
+        profile=trade.profile,
+        strategy=trade.strategy,
+        instrument=trade.venue_instrument,
+        trade=trade,
+    )
 
     rendered_description = render_markdown(trade.description_markdown)
 
@@ -257,6 +498,7 @@ def trade_workspace(request: HttpRequest, pk: int) -> HttpResponse:
         "form": form,
         "checklist_form": checklist_form,
         "context_bar": context_bar,
+        "workspace_config": workspace_config,
         "trade": trade,
         "rendered_description": rendered_description,
         "is_new": False,
@@ -266,15 +508,10 @@ def trade_workspace(request: HttpRequest, pk: int) -> HttpResponse:
 
 @login_required
 @require_http_methods(["GET"])
-def trade_options(request: HttpRequest) -> HttpResponse:
-    """HTMX endpoint returning cascading options for strategies and instruments."""
-    profile_id = request.GET.get("profile") or request.POST.get("profile")
-    strategy_id = request.GET.get("strategy") or request.POST.get("strategy")
-    product_kind_param = request.GET.get("product_kind") or request.POST.get(
-        "product_kind"
-    )
-    is_new_param = request.GET.get("is_new")
-    is_new = is_new_param != "0" and is_new_param != "false"
+def trade_workspace_options(request: HttpRequest) -> JsonResponse:
+    """JSON endpoint returning cascading options for strategies and instruments."""
+    profile_id = request.GET.get("profile")
+    strategy_id = request.GET.get("strategy")
 
     profile: TradingProfile | None = None
     if profile_id:
@@ -287,86 +524,159 @@ def trade_options(request: HttpRequest) -> HttpResponse:
             owner=request.user, is_archived=False
         ).first()
 
-    strategies: list[TradingStrategy] = []
-    instruments: list[VenueInstrument] = []
-    product_kinds: list[tuple[str, str]] = []
-    selected_product_kind: str | None = None
+    if not profile:
+        return JsonResponse({"error": "No trading profile available"}, status=404)
+
+    strategies = list(
+        TradingStrategy.objects.filter(
+            profile=profile, is_archived=False
+        ).order_by("name")
+    )
+
     selected_strategy: TradingStrategy | None = None
-
-    if profile:
-        strategies = list(
-            TradingStrategy.objects.filter(
-                profile=profile, is_archived=False
-            ).order_by("name")
+    if strategy_id:
+        selected_strategy = next(
+            (s for s in strategies if str(s.pk) == str(strategy_id)), None
         )
+    if not selected_strategy and strategies:
+        selected_strategy = strategies[0]
 
-        if strategy_id:
-            selected_strategy = next(
-                (s for s in strategies if str(s.pk) == str(strategy_id)), None
-            )
-        if not selected_strategy and strategies:
-            selected_strategy = strategies[0]
-
-        if selected_strategy:
-            allocated_ids = StrategyCapital.objects.filter(
-                strategy=selected_strategy, is_archived=False
-            ).values_list(
-                "wallet_asset__venue_wallet_asset__asset_id", flat=True
-            )
-            all_instruments = list(
-                VenueInstrument.objects.filter(
-                    venue=profile.venue, is_active=True
-                )
-                .filter(
-                    Q(settlement_asset_id__in=allocated_ids)
-                    | Q(
-                        settlement_asset__isnull=True,
-                        pair__quote_id__in=allocated_ids,
-                    )
-                )
-                .select_related("pair__base", "pair__quote")
-                .order_by("exec_symbol")
-            )
-
-            available_kinds = sorted(
-                {inst.product for inst in all_instruments}
-            )
-            product_kinds = [
-                (kind, str(ProductKind(kind).label))
-                for kind in available_kinds
-            ]
-
-            if product_kind_param and product_kind_param in available_kinds:
-                selected_product_kind = product_kind_param
-            elif available_kinds:
-                selected_product_kind = available_kinds[0]
-
-            if selected_product_kind:
-                instruments = [
-                    inst
-                    for inst in all_instruments
-                    if inst.product == selected_product_kind
-                ]
-            else:
-                instruments = all_instruments
-
+    instruments = _get_instruments_for_strategy(profile, selected_strategy)
     selected_instrument = instruments[0] if instruments else None
-    context_bar = _get_context_bar_data(
+
+    ctx_bar = _get_context_bar_data(
         profile, selected_strategy, selected_instrument
     )
 
-    context = {
-        "strategies": strategies,
-        "instruments": instruments,
-        "product_kinds": product_kinds,
-        "selected_strategy_id": (
-            str(selected_strategy.pk) if selected_strategy else None
-        ),
-        "selected_product_kind": selected_product_kind,
-        "selected_instrument_id": (
-            str(selected_instrument.pk) if selected_instrument else None
-        ),
-        "context_bar": context_bar,
-        "is_new": is_new,
-    }
-    return render(request, "tradefog/trades/partials/options.html", context)
+    return JsonResponse(
+        {
+            "strategies": [_serialize_strategy(s) for s in strategies],
+            "instruments": [_serialize_instrument(inst) for inst in instruments],
+            "selected_strategy_id": (
+                selected_strategy.pk if selected_strategy else None
+            ),
+            "selected_instrument_id": (
+                selected_instrument.pk if selected_instrument else None
+            ),
+            "context_bar": {
+                "profile_name": profile.name,
+                "venue_name": profile.venue.name,
+                "market_data_provider": profile.venue.market_data_provider,
+                "strategy_name": (
+                    selected_strategy.name if selected_strategy else None
+                ),
+                "reward_multiple": (
+                    compact_decimal(selected_strategy.reward_multiple)
+                    if selected_strategy
+                    else "3"
+                ),
+                "risk_percent": (
+                    compact_decimal(selected_strategy.risk_percent)
+                    if selected_strategy
+                    else "1"
+                ),
+                "fixed_1r": (
+                    f"{ctx_bar['fixed_1r']:.2f}"
+                    if ctx_bar["fixed_1r"] is not None
+                    else None
+                ),
+                "wallet_available": (
+                    f"{ctx_bar['wallet_available']:.2f}"
+                    if ctx_bar["wallet_available"] is not None
+                    else None
+                ),
+                "settlement_symbol": ctx_bar["settlement_symbol"],
+            },
+        }
+    )
+
+
+
+@login_required
+@require_http_methods(["GET"])
+def trade_market_data(request: HttpRequest) -> JsonResponse:
+    """JSON endpoint returning on-demand candles and calculated ATR context."""
+    instrument_id = request.GET.get("instrument")
+    trade_date_raw = request.GET.get("trade_date", "").strip()
+
+    if not instrument_id:
+        return JsonResponse(
+            {"status": "error", "message": "Missing instrument ID"}, status=400
+        )
+
+    instrument = get_object_or_404(
+        VenueInstrument.objects.select_related("venue", "pair"),
+        pk=instrument_id,
+        is_active=True,
+    )
+
+    trade_date: datetime.date | None = None
+    if trade_date_raw:
+        try:
+            trade_date = datetime.date.fromisoformat(trade_date_raw)
+        except ValueError:
+            trade_date = None
+
+    if trade_date is None:
+        trade_date = datetime.datetime.now(datetime.UTC).date()
+
+    provider = str(instrument.venue.market_data_provider)
+
+    if provider == MarketDataProvider.NONE.value:
+        return JsonResponse(
+            {
+                "status": "manual",
+                "provider": provider,
+                "atr_value": None,
+                "candles": [],
+                "message": str(
+                    _("Venue is configured for manual ATR input only.")
+                ),
+            }
+        )
+
+    try:
+        atr_ctx = fetch_atr_context(
+            provider=provider,
+            symbol=instrument.exec_symbol,
+            product_kind=instrument.product,
+            trade_date=trade_date,
+        )
+        candles_data = [
+            {
+                "date": candle.date.isoformat(),
+                "open": float(candle.open),
+                "high": float(candle.high),
+                "low": float(candle.low),
+                "close": float(candle.close),
+            }
+            for candle in atr_ctx.candles
+        ]
+        return JsonResponse(
+            {
+                "status": "ok",
+                "provider": provider,
+                "atr_value": str(atr_ctx.atr_value),
+                "contributing_date": atr_ctx.contributing_date.isoformat(),
+                "is_stale": atr_ctx.is_stale,
+                "observed_session_range": (
+                    str(atr_ctx.observed_session_range)
+                    if atr_ctx.observed_session_range is not None
+                    else None
+                ),
+                "session_range_percent": (
+                    str(atr_ctx.session_range_percent)
+                    if atr_ctx.session_range_percent is not None
+                    else None
+                ),
+                "candles": candles_data,
+            }
+        )
+    except MarketDataError as err:
+        return JsonResponse(
+            {
+                "status": "error",
+                "provider": provider,
+                "message": str(err),
+            }
+        )

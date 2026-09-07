@@ -37,6 +37,16 @@ class ATRSource(models.TextChoices):
     MANUAL = "manual", _("Manual")
 
 
+class MarketDataProvider(models.TextChoices):
+    """Provider for on-demand market candles and ATR context."""
+
+    NONE = "none", _("Manual only")
+    BYBIT = "bybit", _("Bybit")
+    BINANCE = "binance", _("Binance")
+    YFINANCE = "yfinance", _("Yahoo Finance")
+
+
+
 class TradeStatus(models.TextChoices):
     """Lifecycle state of a journal trade."""
 

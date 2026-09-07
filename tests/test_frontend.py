@@ -34,7 +34,16 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     assert "venue_overview" not in rendered_template
 
     assert "tradefog/vendor/apexcharts/apexcharts.min.js" in trade_template
-    assert "tradefog/js/market-context.js" in trade_template
+    assert "tradefog/vendor/big.js/big.min.js" in trade_template
+    assert (
+        "tradefog/vendor/tom-select/tom-select.complete.min.js"
+        in trade_template
+    )
+    assert (
+        "tradefog/vendor/tom-select/tom-select.bootstrap5.min.css"
+        in trade_template
+    )
+    assert "tradefog/js/trade-workspace.js" in trade_template
     assert "tradefog/js/trade-description.js" in trade_template
     assert "tradefog/vendor/easymde/easymde.min.css" in trade_template
     assert "data-analytics-chart" in analytics_template
@@ -42,10 +51,11 @@ def test_shared_template_and_static_directories_are_configured() -> None:
     assert "tradefog/vendor/apexcharts/apexcharts.min.js" in analytics_template
 
     template_root = settings.static.source_dirs()[0].parent / "templates"
-    market_context_source = (
-        template_root / "tradefog/trades/partials/market_context.html"
+    workspace_source = (
+        template_root / "tradefog/trades/workspace.html"
     ).read_text(encoding="utf-8")
-    assert "data-market-candle-chart" in market_context_source
+    assert 'id="market-candle-chart"' in workspace_source
+
     login_source = (template_root / "registration/login.html").read_text(
         encoding="utf-8"
     )

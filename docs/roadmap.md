@@ -213,7 +213,7 @@ The following work begins only after the manual journal is useful and stable:
   additive v0.2.0 extension: owner-scoped named API keys selected by a
   profile, one-shot order placement without background execution tracking,
   and no effect on past trades or the manual journal;
-- additional market-data providers beyond Bybit and Twelve Data;
+- additional market-data providers beyond Bybit, Binance, and Yahoo Finance;
 - optional TradingView embedded chart as a clearly external visual aid;
 - cross-profile portfolio views after currency-conversion requirements are
   known;

@@ -28,6 +28,13 @@ Enum atr_source {
   manual
 }
 
+Enum market_data_provider {
+  none
+  bybit
+  binance
+  yfinance
+}
+
 Enum trade_status {
   draft
   pending_entry
@@ -96,6 +103,7 @@ Table TradingPair {
 Table Venue {
   id integer [pk, increment, note: 'Primary key']
   name varchar(128) [not null, note: 'Exchange or broker name, unique']
+  market_data_provider market_data_provider [default: 'none', not null, note: 'Provider used for on-demand market candles and ATR context']
   description text [note: 'Optional short description or operational context for this venue']
   website varchar(255) [note: 'Optional venue website URL']
   is_active boolean [default: true, not null, note: 'Availability for creating new profiles; deactivation moves venue to archives']
@@ -104,6 +112,7 @@ Table Venue {
     (name) [unique, name: 'venue_name_idx']
   }
 }
+
 
 Table VenueInstrument {
   id integer [pk, increment, note: 'Primary key']
@@ -210,7 +219,9 @@ Table Trade {
   trade_date date [not null, note: 'Analytical date; source of truth for time filters']
   status trade_status [not null, note: 'Draft, pending, open, closed, or cancelled']
   direction direction [not null, note: 'Long or short; locked once the snapshot exists']
+  draft_context json [not null, default: '{}', note: 'Intermediate form and calculation state saved during draft editing']
   description_markdown text [note: 'Evolving Markdown description in any state']
+
   review_completed_at timestamp [note: 'Optional review completion time; closed trades only']
   realized_pnl decimal(30, 18) [note: 'Final signed net P&L when closed, in the settlement asset']
   actual_exit_price decimal(30, 18) [note: 'Optional reference exit price']

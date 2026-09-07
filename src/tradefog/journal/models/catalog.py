@@ -15,7 +15,11 @@ from typing import TYPE_CHECKING, final, override
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from tradefog.journal.models.enums import AssetType, ProductKind
+from tradefog.journal.models.enums import (
+    AssetType,
+    MarketDataProvider,
+    ProductKind,
+)
 
 if TYPE_CHECKING:
     from django.db.models import Manager
@@ -127,6 +131,12 @@ class Venue(models.Model):
     )
     description = models.TextField(blank=True, verbose_name=_("Description"))
     website = models.URLField(blank=True, verbose_name=_("Website"))
+    market_data_provider = models.CharField(
+        max_length=32,
+        choices=MarketDataProvider.choices,
+        default=MarketDataProvider.NONE,
+        verbose_name=_("Market data provider"),
+    )
     is_active = models.BooleanField(
         default=True,
         db_index=True,
