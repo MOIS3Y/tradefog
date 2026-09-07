@@ -2,17 +2,17 @@
 
 import asyncio
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
 import typer
 import uvicorn
+from rich.console import Console
+from rich.table import Table
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from rich.console import Console
-from rich.table import Table
 
 from tradefog import __version__
 from tradefog.api.security import hash_password
@@ -32,7 +32,7 @@ app.add_typer(users_app, name="users")
 
 
 @asynccontextmanager
-async def cli_session() -> AsyncIterator[AsyncSession]:
+async def cli_session() -> AsyncGenerator[AsyncSession]:
     """Provide one committed CLI transaction and dispose its engine."""
     database = Database(get_settings().database)
     try:
@@ -134,9 +134,10 @@ def change_user_flag(username: str, field: str, value: bool) -> None:
     """Run an administrative flag mutation and print its result."""
     normalized = normalized_username(username)
     user = asyncio.run(update_user_flag(normalized, field, value))
+    value_text = str(value).lower()
     console.print(
-        f"Updated [bold]{user.username}[/bold]: "
-        f"{field}=[green]{str(value).lower()}[/green]"
+        f"Updated [bold]{user.username}[/bold]: {field}="
+        + f"[green]{value_text}[/green]"
     )
 
 

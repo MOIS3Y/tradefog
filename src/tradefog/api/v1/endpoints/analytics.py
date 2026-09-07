@@ -143,9 +143,9 @@ async def get_analytics(
                 trade_id=trade.id,
                 trade_date=trade.trade_date,
                 profile_name=profile_name,
-                market_type=market_type.value,
+                market_type=market_type,
                 pair_symbol=pair_symbol,
-                direction=trade.direction.value,
+                direction=trade.direction,
                 result_r=result_r,
                 reward_multiple=reward or Decimal(0),
             )

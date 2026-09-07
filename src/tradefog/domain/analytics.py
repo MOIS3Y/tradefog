@@ -6,6 +6,8 @@ from datetime import date
 from decimal import Decimal, localcontext
 from enum import StrEnum
 
+from tradefog.domain.enums import Direction, ProductKind
+
 
 class Outcome(StrEnum):
     """Normalized signs used for counts and consecutive streaks."""
@@ -22,9 +24,9 @@ class ClosedTradeResult:
     trade_id: int
     trade_date: date
     profile_name: str
-    market_type: str
+    market_type: ProductKind
     pair_symbol: str
-    direction: str
+    direction: Direction
     result_r: Decimal
     reward_multiple: Decimal
 
