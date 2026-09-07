@@ -23,7 +23,7 @@ The backend is fully self-sufficient and agnostic of the client.
 - **CLI**: Typer
 - **HTTP Client**: HTTPX (on-demand market data)
 - **Dependency Management & Packaging**: `uv`, Nix flakes (`uv2nix`)
-- **Frontend (Target)**: Vue.js, Tabler UI
+- **Frontend (Target)**: ???
 
 ## Application Structure
 
@@ -236,5 +236,5 @@ Market data serves as an on-demand, read-only auxiliary context:
 
 - **API Layer**: Standardized machine-readable error codes and invariant
   data representations.
-- **Frontend Layer**: Client-side internationalization (vue-i18n) supporting
+- **Frontend Layer**: Client-side internationalization supporting
   English (default) and Russian.
