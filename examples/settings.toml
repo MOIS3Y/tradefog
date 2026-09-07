@@ -13,6 +13,10 @@ algorithm = "HS256"
 access_token_expire_minutes = 15
 refresh_token_expire_days = 7
 
+[frontend]
+# Optional directory containing index.html and compiled assets.
+# path = "/path/to/frontend/dist"
+
 [database]
 active = "sqlite"
 

@@ -2,9 +2,13 @@
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from loguru import logger
 
 from tradefog import __version__
 from tradefog.api import api_router
@@ -51,7 +55,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Mount API router
     app.include_router(api_router, prefix="/api")
 
+    configure_frontend(app, app_settings.frontend.path)
+
     return app
+
+
+def configure_frontend(app: FastAPI, path: Path | None) -> None:
+    """Safely expose a compiled SPA without changing headless API behavior."""
+    if path is None:
+        return
+
+    root = path.resolve()
+    index = root / "index.html"
+    if not root.is_dir() or not index.is_file():
+        logger.warning(
+            "Configured frontend path is unavailable: {}",
+            root,
+        )
+        return
+
+    assets = root / "assets"
+    if assets.is_dir():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=assets),
+            name="frontend-assets",
+        )
+
+    @app.get("/{frontend_path:path}", include_in_schema=False)
+    async def serve_frontend(frontend_path: str) -> FileResponse:
+        """Serve SPA navigation while leaving missing static files as 404."""
+        if Path(frontend_path).suffix:
+            raise HTTPException(status_code=404, detail="Not Found")
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
 
 
 app = create_app()

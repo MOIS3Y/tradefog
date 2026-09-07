@@ -105,6 +105,53 @@
         editableSet = pythonSet.overrideScope editableOverlay;
         devVirtualenv = editableSet.mkVirtualEnv devPackageName devDeps;
 
+        frontendPackage = pkgs.buildNpmPackage {
+          pname = "tradefog-frontend";
+          inherit version;
+          src = ./frontend;
+          npmDepsHash = "sha256-/TWLd01lFxCI+jbXi11xjS+mGu9MJH1MJr3hXwvTKng=";
+          npmBuildScript = "build";
+
+          installPhase = ''
+            mkdir -p "$out/share/tradefog/frontend"
+            cp -r dist/. "$out/share/tradefog/frontend/"
+          '';
+        };
+
+        backendDev = pkgs.writeShellApplication {
+          name = "tradefog-backend-dev";
+          runtimeInputs = [ devVirtualenv ];
+          text = ''
+            exec tradefog serve --reload "$@"
+          '';
+        };
+
+        frontendDev = pkgs.writeShellApplication {
+          name = "tradefog-frontend-dev";
+          runtimeInputs = [ pkgs.git pkgs.nodejs_22 ];
+          text = ''
+            repository_root="''${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
+            exec npm --prefix "$repository_root/frontend" run dev -- "$@"
+          '';
+        };
+
+        fullDev = pkgs.writeShellApplication {
+          name = "tradefog-dev";
+          runtimeInputs = [ backendDev frontendDev ];
+          text = ''
+            tradefog-backend-dev &
+            backend_pid=$!
+            tradefog-frontend-dev &
+            frontend_pid=$!
+
+            cleanup() {
+              kill "$backend_pid" "$frontend_pid" 2>/dev/null || true
+            }
+            trap cleanup EXIT INT TERM
+            wait -n "$backend_pid" "$frontend_pid"
+          '';
+        };
+
         # Container image
         dockerImage = pkgs.dockerTools.buildLayeredImage {
           name = "tradefog";
@@ -112,6 +159,7 @@
 
           contents = [
             applicationPackage
+            frontendPackage
             pkgs.dockerTools.binSh
             pkgs.dockerTools.caCertificates
           ];
@@ -161,6 +209,7 @@
               # Python runtime
               "PYTHONUNBUFFERED=1"
               "PYTHONDONTWRITEBYTECODE=1"
+              "TRADEFOG_FRONTEND__PATH=${frontendPackage}/share/tradefog/frontend"
             ];
 
             Entrypoint = [ "/bin/tradefog" ];
@@ -179,6 +228,7 @@
       {
         packages = {
           default = applicationPackage;
+          frontend = frontendPackage;
         }
         // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           docker = dockerImage;
@@ -194,7 +244,11 @@
           packages = [
             devVirtualenv
             pkgs.git
+            pkgs.nodejs_22
             pkgs.uv
+            backendDev
+            frontendDev
+            fullDev
           ];
           env = {
             # uv

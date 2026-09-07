@@ -13,8 +13,11 @@ dist/
 *.mo
 
 # Generated frontend
-/src/tradefog/static/tradefog/css/tradefog.css
-/src/tradefog/static/tradefog/icons/tabler.svg
+/frontend/node_modules/
+/frontend/dist/
+/frontend/coverage/
+/frontend/playwright-report/
+/frontend/test-results/
 
 # Local runtime
 .runtime/
