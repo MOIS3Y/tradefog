@@ -23,7 +23,8 @@ The backend is fully self-sufficient and agnostic of the client.
 - **CLI**: Typer
 - **HTTP Client**: HTTPX (on-demand market data)
 - **Dependency Management & Packaging**: `uv`, Nix flakes (`uv2nix`)
-- **Frontend (Target)**: ???
+- **Frontend**: Vue SPA with TypeScript, Vite, Vue Router, TanStack Query,
+  Pinia, Tailwind CSS, Reka UI, Apache ECharts, and Vue I18n
 
 ## Application Structure
 
@@ -38,7 +39,33 @@ src/tradefog/
 ├── cli.py          # Typer CLI application entry point
 ├── logging.py      # Loguru configuration setup
 └── main.py         # FastAPI application factory
+
+frontend/
+├── src/             # Vue application code
+├── public/          # Unprocessed public assets
+├── tests/           # Frontend-focused tests
+├── package.json
+└── package-lock.json
 ```
+
+### Frontend Development and Delivery
+
+The frontend is an independent project under `frontend/`, including its
+`package.json`, lockfile, and tool-specific configuration. Repository-wide
+files, including the single `.gitignore`, remain at the root. The client uses
+the relative API prefix `/api/v1`; the Vite development server proxies `/api`
+to the local FastAPI process. Nix provides separate backend, frontend, and
+combined development commands.
+
+The frontend and backend are built as separate Nix derivations. The production
+container includes both artifacts, and FastAPI serves the compiled SPA. A
+reverse proxy and TLS termination remain deployment concerns outside the
+container.
+
+The optional `[frontend] path` setting identifies the directory containing
+`index.html` and compiled assets. When it is unset or invalid, the headless API
+remains available and frontend requests return a safe not-found response.
+Missing assets never expose filesystem paths or fall through to API routes.
 
 ### Layered Architecture
 
