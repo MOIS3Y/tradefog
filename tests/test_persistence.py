@@ -18,9 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradefog.config import get_settings
 from tradefog.config.database import DatabaseSettings, SQLiteSettings
+from tradefog.db.base import Base
 from tradefog.db.models import (
     Asset,
-    Base,
     StrategyCapital,
     Trade,
     TradeSnapshot,

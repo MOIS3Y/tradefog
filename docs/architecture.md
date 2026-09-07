@@ -81,6 +81,37 @@ The system defines two clear ownership zones:
 - Role-based permissions: Staff vs. Regular user.
 - Multi-user isolation enforced at the database repository/service boundary.
 
+### Authentication and Catalog API
+
+Version-one endpoints are rooted at `/api/v1`. Anyone can read the shared
+catalog; a valid bearer access token with `is_staff=true` is required to create
+or update an asset, pair, venue, venue instrument, or venue wallet asset.
+Catalog identities are never deleted. Deactivation preserves historical
+references and keeps a record out of default active-venue/instrument/capability
+lists.
+
+Catalog PATCH requests reject explicit nulls for required fields. Referenced
+asset identities and pairs used by instruments cannot be reassigned; a traded
+instrument's product, execution symbol and settlement asset are also locked.
+Create a new catalog identity for a different market and deactivate the old
+instrument. Descriptions, execution increments and availability remain editable.
+Argon2 work runs in a worker thread, and JWT verification requires subject,
+purpose, issue time, expiration and token identifier claims.
+
+`POST /auth/register` creates only regular accounts. It accepts a username and
+a password of at least 12 characters; passwords are stored as Argon2 hashes.
+`POST /auth/token` accepts OAuth2 form credentials and issues 15-minute access
+and 7-day refresh JWTs. `POST /auth/refresh` exchanges a refresh token for a
+fresh pair, and `GET /auth/me` validates an access token. A disabled account
+cannot authenticate or use a token issued before its deactivation. Refresh
+tokens have no server-side revocation list in this stage, so the old refresh
+token remains valid until it expires. Staff accounts must be provisioned
+directly in the database until the administrative CLI arrives in stage four.
+
+Set `TRADEFOG_AUTHENTICATION__JWT_SECRET_KEY` to a private value of at least
+32 characters before production. The bundled default exists only for local
+development and must never be used on an exposed service.
+
 ## Persistence & Invariants
 
 - **Primary Database**: SQLite for single-node deployments; schema and ORM

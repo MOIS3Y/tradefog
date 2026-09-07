@@ -23,8 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from tradefog.db.base import Base as Base
-from tradefog.db.base import PrimaryKeyMixin
+from tradefog.db.base import Base, PrimaryKeyMixin
 from tradefog.db.types import ExactDecimal
 from tradefog.domain.enums import (
     AssetType,
@@ -37,6 +36,24 @@ from tradefog.domain.enums import (
     WalletAssetStatus,
     WalletOperationKind,
 )
+
+__all__ = [
+    "Asset",
+    "Base",
+    "StrategyCapital",
+    "Trade",
+    "TradeSnapshot",
+    "TradingPair",
+    "TradingProfile",
+    "TradingStrategy",
+    "User",
+    "Venue",
+    "VenueInstrument",
+    "VenueWalletAsset",
+    "Wallet",
+    "WalletAsset",
+    "WalletOperation",
+]
 
 
 def enum_values(members: type[StrEnum]) -> list[str]:

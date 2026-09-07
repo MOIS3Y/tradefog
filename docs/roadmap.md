@@ -31,11 +31,11 @@ Development is organized into two primary phases:
 
 ### Stage 2: Authentication & Shared Reference Catalog API
 
-- [ ] JWT authentication (token generation, refresh, password hashing).
-- [ ] Role-based access control (Staff vs. Regular users).
-- [ ] Shared catalog endpoints: Assets, Trading Pairs, Venues, Venue
+- [x] JWT authentication (token generation, refresh, password hashing).
+- [x] Role-based access control (Staff vs. Regular users).
+- [x] Shared catalog endpoints: Assets, Trading Pairs, Venues, Venue
       Instruments, Venue Wallet Assets.
-- [ ] Staff-only catalog mutations with read-only regular user access.
+- [x] Staff-only catalog mutations with read-only regular user access.
 
 ### Stage 3: User Journal, Capital & Trade Lifecycle
 
