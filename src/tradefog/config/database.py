@@ -19,7 +19,7 @@ def default_database_path() -> Path:
             appname="tradefog",
             appauthor=False,
         )
-        / "db.sqlite3"
+        / "tradefog.db"
     )
 
 
@@ -53,24 +53,20 @@ class DatabaseSettings(ConfigSection):
     sqlite: SQLiteSettings = Field(default_factory=SQLiteSettings)
     psql: PostgreSQLSettings = Field(default_factory=PostgreSQLSettings)
 
-    def django_databases(self) -> dict[str, dict[str, object]]:
-        """Translate the selected backend into Django's database mapping."""
-        default: dict[str, object]
+    @property
+    def url(self) -> str:
+        """Return standard database connection URL."""
         if self.active == "sqlite":
-            default = {
-                "ENGINE": "django.db.backends.sqlite3",
-                "NAME": self.sqlite.path,
-            }
-        else:
-            default = {
-                "ENGINE": "django.db.backends.postgresql",
-                "NAME": self.psql.name,
-                "USER": self.psql.user,
-                "PASSWORD": self.psql.password.get_secret_value(),
-                "HOST": self.psql.host,
-                "PORT": self.psql.port,
-            }
+            return f"sqlite:///{self.sqlite.path.as_posix()}"
+        pwd = self.psql.password.get_secret_value()
+        auth = f"{self.psql.user}:{pwd}@" if pwd else f"{self.psql.user}@"
+        return f"postgresql://{auth}{self.psql.host}:{self.psql.port}/{self.psql.name}"
 
-        return {
-            "default": default,
-        }
+    @property
+    def async_url(self) -> str:
+        """Return async database connection URL for SQLAlchemy/Alembic."""
+        if self.active == "sqlite":
+            return f"sqlite+aiosqlite:///{self.sqlite.path.as_posix()}"
+        pwd = self.psql.password.get_secret_value()
+        auth = f"{self.psql.user}:{pwd}@" if pwd else f"{self.psql.user}@"
+        return f"postgresql+asyncpg://{auth}{self.psql.host}:{self.psql.port}/{self.psql.name}"

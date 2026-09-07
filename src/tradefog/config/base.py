@@ -44,7 +44,7 @@ class ConfigSection(BaseModel):
     """Base model for an immutable thematic configuration section."""
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
-        extra="forbid",
+        extra="ignore",
         frozen=True,
     )
 
@@ -56,7 +56,7 @@ class TradefogSettings(BaseSettings):
         case_sensitive=False,
         env_nested_delimiter="__",
         env_prefix="TRADEFOG_",
-        extra="forbid",
+        extra="ignore",
         frozen=True,
         nested_model_default_partial_update=True,
     )

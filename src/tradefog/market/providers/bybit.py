@@ -67,7 +67,7 @@ def fetch_bybit_daily_candles(
         )
 
     try:
-        raw_payload: object = response.json()
+        raw_payload: object = cast(object, response.json())
     except Exception as error:
         raise MarketDataError(
             f"Invalid JSON received from Bybit for {symbol}."

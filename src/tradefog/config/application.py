@@ -1,4 +1,4 @@
-"""Application and security-related configuration."""
+"""Application and general API configuration."""
 
 from pydantic import Field, SecretStr, field_validator
 
@@ -6,11 +6,21 @@ from tradefog.config.base import ConfigSection
 
 
 class ApplicationSettings(ConfigSection):
-    """Settings that control the Django application's runtime mode."""
+    """Settings that control the FastAPI application runtime mode."""
 
-    secret_key: SecretStr = SecretStr("django-insecure-development-only")
+    app_name: str = "Tradefog"
+    api_prefix: str = "/api/v1"
     debug: bool = False
-    allowed_hosts: list[str] = Field(default_factory=list)
+    secret_key: SecretStr = SecretStr(
+        "insecure-development-secret-key-tradefog"
+    )
+    cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:8000",
+        ]
+    )
 
     @field_validator("secret_key")
     @classmethod
@@ -20,7 +30,3 @@ class ApplicationSettings(ConfigSection):
         if secret_key.get_secret_value() == "!required":
             raise ValueError("application.secret_key must be configured")
         return secret_key
-
-    def django_secret_key(self) -> str:
-        """Return the secret key in the representation Django expects."""
-        return self.secret_key.get_secret_value()

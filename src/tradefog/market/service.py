@@ -37,7 +37,11 @@ def fetch_daily_candles(
         )
 
     if normalized_provider == "binance":
-        category = "perpetual_future" if product_kind == "perpetual_future" else "spot"
+        category = (
+            "perpetual_future"
+            if product_kind == "perpetual_future"
+            else "spot"
+        )
         return fetch_binance_daily_candles(
             symbol=symbol, category=category, limit=limit, client=client
         )

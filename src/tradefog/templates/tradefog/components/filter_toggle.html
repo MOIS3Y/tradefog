@@ -1,9 +1,0 @@
-{% load i18n %}
-<button class="btn" type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#{{ filter_id }}"
-        aria-expanded="{% if filters_active %}true{% else %}false{% endif %}"
-        aria-controls="{{ filter_id }}">
-  {% include "tradefog/components/icon.html" with name="filter" %}
-  {% translate "Filters" %}
-</button>

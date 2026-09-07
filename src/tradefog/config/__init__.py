@@ -1,5 +1,5 @@
-"""Public runtime configuration interface for tradefog."""
+"""Application runtime configuration."""
 
-from tradefog.config.root import Settings
+from tradefog.config.root import Settings, get_settings
 
-__all__ = ["Settings"]
+__all__ = ["Settings", "get_settings"]

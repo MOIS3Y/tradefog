@@ -8,7 +8,9 @@ import httpx
 
 from tradefog.market.types import DailyCandle, MarketDataError
 
-YFINANCE_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+YFINANCE_CHART_URL = (
+    "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+)
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Tradefog Journal)"
 
@@ -56,7 +58,7 @@ def fetch_yfinance_daily_candles(
         )
 
     try:
-        raw_payload: object = response.json()
+        raw_payload: object = cast(object, response.json())
     except Exception as error:
         raise MarketDataError(
             f"Invalid JSON received from Yahoo Finance for {symbol}."
@@ -77,9 +79,7 @@ def fetch_yfinance_daily_candles(
     chart_dict = cast(dict[str, object], chart_obj)
     error_obj = chart_dict.get("error")
     if error_obj is not None:
-        raise MarketDataError(
-            f"Yahoo Finance error for {symbol}: {error_obj}"
-        )
+        raise MarketDataError(f"Yahoo Finance error for {symbol}: {error_obj}")
 
     results = chart_dict.get("result")
     if not isinstance(results, list) or not results:

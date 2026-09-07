@@ -1,1 +1,0 @@
-"""Trading journal domain application."""

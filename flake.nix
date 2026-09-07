@@ -58,18 +58,19 @@
         # Development environment
         developmentSettings = pkgs.writeText "settings.toml" ''
           [application]
-          secret_key = "django-insecure-local-development"
+          secret_key = "insecure-local-development-secret-key"
           debug = true
-          allowed_hosts = ["127.0.0.1", "localhost"]
+          cors_origins = [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:8000"
+          ]
 
           [database.sqlite]
-          path = "../../data/tradefog/db.sqlite3"
+          path = "../../data/tradefog/tradefog.db"
 
           [logging]
           level = "DEBUG"
-
-          [static]
-          root = "../../cache/tradefog/static"
 
           [media]
           root = "../../data/tradefog/media"
@@ -84,14 +85,7 @@
         workspaceOverlay = workspace.mkPyprojectOverlay {
           sourcePreference = "wheel";
         };
-        buildToolsOverlay = final: prev: {
-          tradefog = prev.tradefog.overrideAttrs (old: {
-            nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
-              pkgs.dart-sass
-              pkgs.gettext
-            ];
-          });
-        };
+        buildToolsOverlay = final: prev: { };
         editableOverlay = workspace.mkEditablePyprojectOverlay {
           root = "$REPO_ROOT";
         };
@@ -199,8 +193,6 @@
         devShells.default = pkgs.mkShell {
           packages = [
             devVirtualenv
-            pkgs.dart-sass
-            pkgs.gettext
             pkgs.git
             pkgs.uv
           ];
@@ -217,7 +209,6 @@
 
               # Application paths
               unset TRADEFOG_DATABASE__SQLITE__PATH
-              unset TRADEFOG_STATIC__ROOT
               unset TRADEFOG_MEDIA__ROOT
             }
 
@@ -252,39 +243,16 @@
               export TRADEFOG_CONFIG="$tradefog_config_path"
             }
 
-            tradefog_compile_translations() {
-              find "$REPO_ROOT/src/tradefog/locale" -name '*.po' \
-                -exec sh -c '
-                  for catalog do
-                    msgfmt --check -o "''${catalog%.po}.mo" "$catalog"
-                  done
-                ' sh {} +
-            }
-
-            tradefog_build_frontend_assets() {
-              python -m tradefog.assets.build
-            }
-
-            tradefog_collect_static() {
-              python -m tradefog setup --collect-static
-            }
-
             tradefog_reset_environment
             tradefog_set_repository_root
             tradefog_prepare_runtime_directories
             tradefog_prepare_configuration
-            tradefog_compile_translations
-            tradefog_build_frontend_assets
-            tradefog_collect_static
 
             unset -f \
               tradefog_reset_environment \
               tradefog_set_repository_root \
               tradefog_prepare_runtime_directories \
-              tradefog_prepare_configuration \
-              tradefog_compile_translations \
-              tradefog_build_frontend_assets \
-              tradefog_collect_static
+              tradefog_prepare_configuration
           '';
         };
       }

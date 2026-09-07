@@ -1,221 +1,89 @@
-# Tradefog roadmap
+# Roadmap
 
-Development proceeds in small, reviewable stages. Each stage is implemented,
-tested, reviewed manually, and committed before the next stage begins.
+## Architecture Overview
 
-## Completed foundation
+Development is organized into two primary phases:
 
-### Stage 1: identity and ownership
+1. **Phase 1: Standalone Headless Backend API** (FastAPI, SQLAlchemy Async,
+   Alembic, Pydantic, Loguru, Typer).
+2. **Phase 2: Independent Frontend Application** (Vue.js SPA, Tabler UI,
+   ApexCharts).
 
-- custom Django user model;
-- administrator-created accounts without public registration;
-- localized login and logout;
-- authenticated application shell;
-- locally vendored Tabler UI;
-- focused authentication and routing tests.
+---
 
-### Stage 2: initial profiles and markets
+## Phase 1: Standalone Backend API
 
-- owner-scoped profile creation, editing, archiving, and restoration;
-- the initial manual provider and market representation;
-- profile overview and workspace;
-- two-level Tabler navigation shell;
-- English and Russian interface coverage.
+### Stage 1: Core Foundation & Domain
+- [x] Extracted pure domain calculations (position sizing, 1R risk, checklist
+      scoring, analytics).
+- [x] Structured logging setup via Loguru.
+- [x] Typed application settings with TOML and `.env` support.
+- [x] Typer CLI entry points (`serve`, `config`, `version`).
+- [x] Base FastAPI application setup and healthcheck endpoints.
 
-The original profile-instrument representation was intentionally superseded
-by Stage 4 while pre-release compatibility was inexpensive.
+### Stage 2: Database Persistence & Migrations
+- [ ] Async SQLAlchemy engine and session management.
+- [ ] Relational ORM models matching `docs/database.dbml`.
+- [ ] Alembic migration environment and initial schema migrations.
+- [ ] Centralized owner-scoping query utilities for user isolation.
 
-### Stage 3: profile capital and risk state
+### Stage 3: Authentication & Shared Reference Catalog API
+- [ ] JWT authentication (token generation, refresh, password hashing).
+- [ ] Role-based access control (Staff vs. Regular users).
+- [ ] Shared catalog endpoints: Assets, Trading Pairs, Venues, Venue
+      Instruments, Venue Wallet Assets.
+- [ ] Staff-only catalog mutations with read-only regular user access.
 
-- profiles based on initial capital, risk per trade, and an absolute risk
-  stop;
-- explicit deposit and withdrawal operations;
-- capital derived from facts rather than an editable balance;
-- `ACTIVE`, `AT_RISK`, `RISK_STOPPED`, and `ARCHIVED` states;
-- profile configuration, capital controls, and status presentation;
-- removal of the abandoned accounting-period design.
+### Stage 4: User Journal & Capital Management API
+- [ ] Profile CRUD (active/archived states, single venue binding).
+- [ ] Virtual Wallet and WalletAsset endpoints.
+- [ ] Ledger operations: Deposits and Withdrawals.
+- [ ] TradingStrategy and StrategyCapital fixed allocation management.
 
-### Stage 4: assets, pairs, and manual trades
+### Stage 5: Trade Lifecycle & On-Demand Market Data
+- [ ] Trade workspace endpoints (Drafts, lifecycle state transitions).
+- [ ] Atomic `TradeSnapshot` creation on submission.
+- [ ] Capital reservation validation and locking.
+- [ ] 4-question directional checklist scoring and persistence.
+- [ ] On-demand daily candle fetching and `ATR(14)` calculation (Bybit,
+      Binance, Yahoo Finance, Manual fallback).
 
-- owner-scoped reusable asset catalog;
-- capital asset and homogeneous market type on each profile;
-- profile-scoped trading pairs with precision and minimum-order rules;
-- Spot LONG-only and isolated `1x` Perpetual Future LONG/SHORT behavior;
-- cross-profile Trades section and two-step trade creation flow;
-- editable analytical trade dates;
-- deterministic `1:3` position sizing;
-- draft, pending, open, closed, and cancelled lifecycle;
-- pending/open risk reservation and profile status updates;
-- decision-time risk snapshots and advisory breaches;
-- net realized P&L, optional commission, and signed funding context;
-- focused ownership, validation, lifecycle, calculation, and UI tests.
+### Stage 6: Analytics & Attachments
+- [ ] Comprehensive analytics endpoint (R-multiples, Trajectory coordinates,
+      Expectancy, Streaks, cohort filtering).
+- [ ] Markdown trade notes and private file attachments upload/serving.
 
-### Stage 5: core X/Y analytics
+---
 
-- pure lifetime and date-filtered trajectory calculations;
-- all-time, common rolling-range, and arbitrary date filters;
-- a trajectory recalculated from `(0, 0)` using `trade_date`;
-- the `Y = X / 3` break-even line without an artificial target line;
-- net and average R, outcome counts, win rate, and streaks;
-- profile, pair, market-type, and date filtering where useful;
-- a locally vendored ApexCharts visualization styled with Tabler UI;
-- HTMX filtering with stable query-string URLs;
-- a functional Analytics navigation item;
-- coverage for partial outcomes, ordering, filters, and corrections.
+## Phase 2: Standalone Frontend (Vue.js)
 
-Capital operations and capital size remain outside these quality metrics.
+### Stage 7: Frontend Application Architecture
+- [ ] Vue 3 + Vite setup with TypeScript.
+- [ ] Pinia state stores (Auth, Catalog, Active Profile).
+- [ ] Vue Router with navigation guards and language routes (`/en/`, `/ru/`).
+- [ ] Tabler UI styling integration and Dark/Light theme switching.
 
-### Stage 6: checklist and directional assessment
+### Stage 8: Catalog & Profile Management Views
+- [ ] Shared Catalog browser and staff management modals.
+- [ ] Profile setup flow, Wallet dashboard, deposit/withdrawal modals.
+- [ ] Strategy builder and capital allocation interface.
 
-- a fixed cross-market checklist with explicit `1/1/3/2` weights;
-- typed, versioned answers attached one-to-one to each saved trade;
-- pure signed scoring, completeness, and derived D1 relationships;
-- atomic draft and checklist persistence with read-only submitted context;
-- an advisory `SHORT`-to-`LONG` gauge in the HTMX trade workspace;
-- preserved disagreement between selected direction and checklist assessment;
-- English and Russian segmented controls and read-only presentation;
-- focused calculation, lifecycle, ownership, HTMX, and UI coverage.
+### Stage 9: Interactive Trade Workspace
+- [ ] Unified trade editor (Product/Pair selector, dynamic position calculator).
+- [ ] Interactive directional checklist gauge.
+- [ ] Candlestick preview and ATR comparison charts (ApexCharts).
+- [ ] Markdown notes editor and attachment gallery.
 
-User-defined strategy checklists remain a separate future capability because
-they measure setup strength and require immutable strategy versions.
+### Stage 10: Analytics & Hardening
+- [ ] Global analytical filter bar and performance summaries.
+- [ ] Interactive X/Y quality trajectory and break-even visualization.
+- [ ] Client-side translations (English & Russian).
+- [ ] Toast notification system and responsive design verification.
 
-### Stage 7: on-demand market data and ATR
+---
 
-- profile-pair candle sources defaulting to manual maintenance;
-- owner-scoped closed daily OHLC maintenance and provenance;
-- deterministic True Range and Wilder `ATR(14)` calculations before the
-  selected trade date;
-- a separate cached current-session range and advisory 75% ATR reference;
-- a public Bybit Spot/Perpetual Future daily-candle client using HTTPX;
-- reactive pair/date loading and explicit draft refresh;
-- a date-safe two-week candlestick chart using the vendored ApexCharts;
-- a cross-profile pair registry with direct pair and candle-management
-  actions;
-- consistent pair and candle filters with server-side sorting and paginated
-  HTMX results;
-- consistent server-side sorting and pagination for assets, trades, profile
-  pairs, archived pairs, and capital history, plus operational trade filters;
-- a global progressively revealed back-to-top control for long histories;
-- cached fallback with visible stale state after provider failure;
-- immutable ATR decision snapshots when trades leave draft;
-- English and Russian server-rendered presentation and focused coverage.
+## Future Capabilities
 
-Market data remains independent of execution providers, and unavailable ATR
-does not block the manual journal workflow.
-
-### Stage 8: post-trade review and private attachments
-
-- an evolving Markdown trade description for observations, errors, and
-  conclusions in every lifecycle state;
-- private screenshots and other trade attachments;
-- asynchronous per-file uploads with visible progress and an image lightbox;
-- owner-checked authenticated attachment delivery;
-- visible incomplete review without another complex lifecycle state.
-
-## Completed restructuring
-
-### Stage 9: account-scoped wallet and strategic-profile restructuring
-
-- owner-activated Crypto and Equities markets, venues, and market-specific
-  trading accounts;
-- account-wallet assets with account-specific balances, reservations,
-  deposits, withdrawals, and trade-result effects;
-- strategic profiles with fixed capital, fixed monetary risk, virtual equity,
-  one settlement wallet asset, and no profile capital operations;
-- venue-specific pairs whose product determines directions and which are
-  automatically available to compatible account profiles;
-- wallet-backed `1x` notional validation for pending and open trades;
-- global market candle sources and cached local candle history;
-- Crypto Spot, Crypto Perpetual Future, and Equity Cash product rules;
-- sticky horizontal navigation shell, wallet page, grouped profile navigation,
-  market catalog, user settings, and footer;
-- a structural reorganization of journal models, forms, services, views, and
-  templates into cohesive subpackages;
-- replacement of pre-release migrations and development/test databases.
-
-## Planned stages
-
-### Stage 10: shared reference catalog and direct instrument reference
-
-Replace the market activations, trading accounts, global owner assets, global
-pairs, `ProfileAsset`, and profile-owned pair duplication with a shared,
-staff-managed reference catalog that regular users read but do not edit:
-
-- introduce a shared `Asset` with a globally reusable symbol and an
-  unambiguous Crypto, Equity, or Fiat type, and a reusable `TradingPair` as
-  the logical `BASE/QUOTE` market;
-- introduce shared `Venue`, `VenueInstrument`, and `VenueWalletAsset`
-  records, with product kind Spot, Perpetual Future, or Cash Equity placed on
-  the instrument so the market class is derived and a venue can host several
-  products without duplication;
-- make only staff members create or edit catalog records; regular users read
-  and reuse them and request new markets from staff;
-- drop the `ProfileProduct`/`ProfileInstrument` working-subset selection
-  layer and the venue-scoped `VenueAsset`; trades reference a shared
-  `VenueInstrument` directly;
-- keep `TradingProfile` as the owner-scoped journal context bound to one venue
-  and owning a one-to-one `Wallet`, strategies, and trades, with
-  `TradingProfile.owner` as the single ownership root and all journal queries
-  routed through a centralized scoping manager;
-- make `WalletAsset` reference `VenueWalletAsset` so profile wallet assets are
-  venue-capable on the profile's venue;
-- keep `TradingStrategy` as the profile-scoped edge layer (risk percent and
-  reward multiple) backed by `StrategyCapital` per-asset allocations, so one
-  strategy is reused across every wallet asset it allocates and the fixed
-  allocation capital is never resized; the advisory `risk_stop_capital`
-  deposit floor lives on `WalletAsset`;
-- introduce a write-once `TradeSnapshot` created atomically on the
-  draft-to-pending transition, freezing the plan, risk, wallet, and ATR
-  context and backing the derived wallet reservation while the trade is
-  pending or open;
-- enforce shared-catalog, product, and exact-settlement compatibility in
-  selectors, draft persistence, and every pending or open transition;
-- stop persisting market data: remove candle tables and feeds, fetch the last
-  closed daily candles on demand in the trade workspace, and store only an
-  ATR decision snapshot (`AUTO` or `MANUAL` source) on submitted trades;
-- reshape Settings → Catalog for staff management and the trade workspace for
-  direct instrument selection and on-demand data refresh;
-- update first-use setup, trade flow, analytics terminology, ownership zones,
-  English and Russian UI, and focused regression coverage;
-- replace obsolete pre-release migrations and local development or test
-  databases rather than migrate their data.
-
-Catalog collection pages for Assets and Trading pairs are implemented first:
-each lists the shared records with server-side search, filtering, sorting,
-and pagination, while staff create and remove records through modal forms.
-Venues follow as a small responsive card grid with a detail page that groups
-the venue's instruments, wallet-capable assets, and settings as card tabs;
-staff manage instruments and wallet assets through modal forms and an inline
-delisting switch, and edit the venue name and website on the Settings tab.
-Instrument parameters are visible to every user through a read-only details
-modal and a settlement column. Catalog and venue filters are revealed by a
-Filters button and collapsed by default. The remaining wallet and
-trade-reference restructuring continues in this stage.
-
-Stage 9 remains implementation history. The revised Stage 10 supersedes its
-account/catalog model, the interim profile-owned asset and pair model, and the
-venue-scoped `VenueAsset`/selection-layer model.
-
-### Stage 11: manual-journal hardening and release
-
-- complete English and Russian translations;
-- ownership, lifecycle, attachment, and HTMX regression coverage;
-- SQLite, wheel, Nix package, and container verification;
-- accessibility, responsive layout, empty-state, and validation review.
-
-## Later roadmap
-
-The following work begins only after the manual journal is useful and stable:
-
-- authenticated exchange execution only after a concrete workflow justifies
-  its independent complexity;
-- automated order placement on selected venues (initially Bybit) as an
-  additive v0.2.0 extension: owner-scoped named API keys selected by a
-  profile, one-shot order placement without background execution tracking,
-  and no effect on past trades or the manual journal;
-- additional market-data providers beyond Bybit, Binance, and Yahoo Finance;
-- optional TradingView embedded chart as a clearly external visual aid;
-- cross-profile portfolio views after currency-conversion requirements are
-  known;
-- advanced comparative analytics, drawdown, and checklist correlations;
-- new market types or partial-execution modeling based on actual workflows.
+- Automated order placement on selected exchanges (one-shot, non-tracking).
+- Multi-currency portfolio aggregation.
+- Custom strategy-specific setup checklists.

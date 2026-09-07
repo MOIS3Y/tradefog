@@ -2,17 +2,23 @@
 # Replace every "!required" marker before using the related feature.
 
 [application]
-secret_key = "!required"
+app_name = "Tradefog"
 debug = false
-allowed_hosts = []
+secret_key = "!required"
+cors_origins = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:8000"]
+
+[authentication]
+jwt_secret_key = "!required"
+algorithm = "HS256"
+access_token_expire_minutes = 15
+refresh_token_expire_days = 7
 
 [database]
 active = "sqlite"
 
 [database.sqlite]
-# Default: <XDG_DATA_HOME>/tradefog/db.sqlite3
-# Relative paths are resolved from the directory containing this file.
-# path = "/path/to/db.sqlite3"
+# Default: <XDG_DATA_HOME>/tradefog/tradefog.db
+# path = "/path/to/tradefog.db"
 
 [database.psql]
 name = "tradefog"
@@ -21,33 +27,18 @@ password = "!required"
 host = "localhost"
 port = 5432
 
-[localization]
-time_zone = "UTC"
-
 [logging]
 level = "INFO"
-
-[static]
-url = "/static/"
-# Default: <XDG_CACHE_HOME>/tradefog/static
-# Relative paths are resolved from the directory containing this file.
-# root = "/path/to/static"
 
 [media]
 url = "/media/"
 # Maximum size of one trade attachment in MiB. Set to 0 for no app limit.
 max_attachment_size_mib = 10
 # Default: <XDG_DATA_HOME>/tradefog/media
-# Relative paths are resolved from the directory containing this file.
 # root = "/path/to/media"
 
-# Any keyword argument accepted by the installed uvicorn.run is supported.
 [uvicorn]
 host = "127.0.0.1"
 port = 8000
 reload = false
 workers = 1
-proxy_headers = true
-forwarded_allow_ips = "127.0.0.1"
-access_log = true
-timeout_keep_alive = 5
