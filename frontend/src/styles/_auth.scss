@@ -1,0 +1,273 @@
+/** Login and session-entry screen. */
+.tf-app {
+  .login-page {
+    position: relative;
+    display: grid;
+    min-height: 100vh;
+    grid-template-columns: minmax(440px, 1.08fr) minmax(460px, 0.92fr);
+    overflow: hidden;
+    background:
+      radial-gradient(
+        circle at 18% 80%,
+        rgb(31 155 105 / 13%),
+        transparent 30rem
+      ),
+      linear-gradient(140deg, #090d12 0%, #0c1218 58%, #090d12 100%);
+
+    &::before {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(var(--tf-line-soft) 1px, transparent 1px),
+        linear-gradient(90deg, var(--tf-line-soft) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: linear-gradient(to right, #000, transparent 72%);
+      content: "";
+    }
+  }
+
+  .login-manifesto {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: clamp(2rem, 4.5vw, 4.5rem);
+  }
+
+  .manifesto-copy {
+    max-width: 39rem;
+    margin-top: auto;
+
+    blockquote {
+      margin: 0;
+      color: var(--tf-ink-strong);
+      font-size: clamp(2.35rem, 4vw, 4.25rem);
+      font-weight: 700;
+      letter-spacing: -0.06em;
+      line-height: 1.02;
+    }
+
+    p {
+      margin: 1.3rem 0 0;
+      color: var(--tf-ink-soft);
+      font-family: var(--tf-mono);
+      font-size: 0.64rem;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+  }
+
+  .manifesto-index {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    color: var(--tf-action);
+    font-family: var(--tf-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+
+    &::before {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--tf-action);
+      box-shadow: 0 0 12px var(--tf-action);
+      content: "";
+    }
+  }
+
+  .risk-preview {
+    position: relative;
+    margin-top: 3rem;
+    padding: 1.1rem 1.1rem 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-lg);
+    background: linear-gradient(
+      145deg,
+      rgb(23 33 44 / 90%),
+      rgb(13 18 24 / 74%)
+    );
+    box-shadow: var(--tf-shadow);
+
+    &::after {
+      position: absolute;
+      right: -70px;
+      bottom: -100px;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: rgb(53 217 144 / 8%);
+      filter: blur(35px);
+      content: "";
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 108px;
+      margin-top: 0.75rem;
+      overflow: visible;
+    }
+  }
+
+  .risk-preview__header {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--tf-ink-faint);
+    font-family: var(--tf-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+  }
+
+  .risk-preview__status {
+    color: var(--tf-action);
+  }
+
+  .risk-preview__area {
+    fill: url("#risk-area");
+  }
+
+  .risk-preview__line {
+    fill: none;
+    stroke: var(--tf-action);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+    filter: drop-shadow(0 0 6px rgb(53 217 144 / 42%));
+  }
+
+  .manifesto-ruler {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--tf-line-soft);
+    color: var(--tf-ink-faint);
+    font-family: var(--tf-mono);
+    font-size: 0.58rem;
+  }
+
+  .login-panel {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    min-height: 100vh;
+    place-items: center;
+    padding: 5rem clamp(2rem, 7vw, 7rem);
+  }
+
+  .login-panel__language {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    z-index: 4;
+  }
+
+  .login-form-wrap {
+    position: relative;
+    width: min(100%, 430px);
+    padding: clamp(1.8rem, 4vw, 2.7rem);
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-lg);
+    background: linear-gradient(
+      145deg,
+      rgb(23 33 44 / 92%),
+      rgb(14 20 27 / 92%)
+    );
+    box-shadow: var(--tf-shadow);
+    backdrop-filter: blur(18px);
+
+    h1 {
+      margin: 0.65rem 0 0;
+      color: var(--tf-ink-strong);
+      font-size: clamp(2rem, 3.3vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.055em;
+      line-height: 1.04;
+    }
+  }
+
+  .login-form-wrap__glow {
+    position: absolute;
+    top: -90px;
+    right: -70px;
+    width: 190px;
+    height: 190px;
+    border-radius: 50%;
+    background: rgb(53 217 144 / 11%);
+    filter: blur(42px);
+    pointer-events: none;
+  }
+
+  .login-lead {
+    margin: 0.9rem 0 2.1rem;
+    color: var(--tf-ink-soft);
+    font-size: 0.86rem;
+    line-height: 1.65;
+  }
+
+  .login-form {
+    display: grid;
+    gap: 1.1rem;
+
+    label {
+      display: grid;
+      gap: 0.48rem;
+      color: #a6b1bc;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      min-height: 49px;
+      padding: 0 0.9rem;
+      border: 1px solid var(--tf-line);
+      border-radius: var(--tf-radius-sm);
+      color: var(--tf-ink-strong);
+      caret-color: var(--tf-action);
+      background: rgb(8 13 18 / 74%);
+      box-shadow: inset 0 1px 2px rgb(0 0 0 / 24%);
+      transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background 160ms ease;
+
+      &:hover {
+        border-color: #354354;
+      }
+
+      &:focus {
+        border-color: rgb(53 217 144 / 66%);
+        background: rgb(9 15 20 / 94%);
+        box-shadow: 0 0 0 4px rgb(53 217 144 / 8%);
+        outline: none;
+      }
+    }
+  }
+
+  .form-error {
+    margin: 0;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid rgb(241 110 118 / 20%);
+    border-radius: var(--tf-radius-sm);
+    color: #ff9ba1;
+    background: rgb(241 110 118 / 8%);
+    font-size: 0.76rem;
+    line-height: 1.5;
+  }
+
+  .setup-note {
+    margin: 1.15rem 0 0;
+    color: var(--tf-ink-faint);
+    font-size: 0.68rem;
+    line-height: 1.5;
+  }
+}

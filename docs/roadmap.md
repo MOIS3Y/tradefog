@@ -27,3 +27,6 @@ Development is organized into two primary phases:
 
 Each stage ends with a production frontend build, static checks, and a small
 set of tests for its critical user flow before the next stage begins.
+
+Stages 1 and 2 are complete. Stage 3, assets and trading pairs, is the current
+implementation target.

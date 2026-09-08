@@ -1,0 +1,185 @@
+/** Breakpoint overrides. Keep desktop rules in their owning module. */
+@media (max-width: 920px) {
+  .tf-app {
+    .login-page {
+      grid-template-columns: 1fr;
+    }
+
+    .login-manifesto {
+      min-height: auto;
+      padding: 2rem;
+    }
+
+    .manifesto-copy {
+      margin-top: 5rem;
+
+      blockquote {
+        max-width: 650px;
+        font-size: clamp(2.1rem, 7vw, 3.5rem);
+      }
+    }
+
+    .risk-preview {
+      display: none;
+    }
+
+    .login-panel {
+      min-height: auto;
+      padding: 2rem 2rem 5rem;
+    }
+
+    .app-frame {
+      display: block;
+    }
+
+    .mobile-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      height: 68px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.1rem;
+      border-bottom: 1px solid var(--tf-line-soft);
+      background: rgb(9 13 18 / 92%);
+      backdrop-filter: blur(18px);
+    }
+
+    .icon-button {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      border: 1px solid var(--tf-line);
+      border-radius: var(--tf-radius-sm);
+      background: var(--tf-panel);
+    }
+
+    .menu-lines,
+    .menu-lines::before,
+    .menu-lines::after {
+      display: block;
+      width: 18px;
+      height: 1px;
+      background: currentColor;
+      content: "";
+    }
+
+    .menu-lines::before {
+      transform: translateY(-6px);
+    }
+
+    .menu-lines::after {
+      transform: translateY(5px);
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 68px;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 9;
+      height: auto;
+      visibility: hidden;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition:
+        opacity 180ms ease,
+        transform 180ms ease,
+        visibility 180ms;
+    }
+
+    .sidebar--open {
+      visibility: visible;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .wordmark--desktop,
+    .position-diagram {
+      display: none;
+    }
+
+    .primary-nav {
+      margin-top: 1rem;
+    }
+
+    .setup-card {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+@media (max-width: 620px) {
+  .tf-app {
+    .login-page::before {
+      background-size: 48px 48px;
+    }
+
+    .login-manifesto {
+      min-height: 285px;
+      padding: 1.4rem;
+    }
+
+    .manifesto-copy {
+      margin-top: 4rem;
+
+      p,
+      .manifesto-index {
+        display: none;
+      }
+    }
+
+    .login-panel__language {
+      top: 1.4rem;
+      right: 1.4rem;
+    }
+
+    .login-panel {
+      padding: 1.2rem 0.85rem 3rem;
+    }
+
+    .login-form-wrap {
+      padding: 1.4rem;
+      border-radius: 16px;
+    }
+
+    .workspace {
+      padding: 2.2rem 1rem;
+    }
+
+    .workspace-header {
+      display: grid;
+    }
+
+    .connection-badge {
+      grid-row: 1;
+      justify-self: start;
+    }
+
+    .setup-card {
+      padding: 1.25rem;
+      border-radius: 16px;
+    }
+
+    .discipline-card {
+      grid-template-columns: 1fr;
+      padding: 1.25rem;
+      border-radius: 16px;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-app,
+  .tf-app *,
+  .tf-app *::before,
+  .tf-app *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

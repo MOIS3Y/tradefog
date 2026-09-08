@@ -1,0 +1,12 @@
+/**
+ * Tradefog stylesheet entrypoint.
+ *
+ * Import order: tokens → global base → reusable components → page modules →
+ * responsive overrides. New styles belong to the narrowest relevant module.
+ */
+@use "tokens";
+@use "base";
+@use "components";
+@use "auth";
+@use "shell";
+@use "responsive";

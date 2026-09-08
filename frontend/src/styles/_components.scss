@@ -1,0 +1,228 @@
+/** Reusable visual controls and shared asynchronous-state presentation. */
+.tf-app {
+  .eyebrow,
+  .section-label {
+    margin: 0;
+    color: var(--tf-action);
+    font-family: var(--tf-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+
+  .button {
+    display: inline-flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.2rem;
+    border: 1px solid transparent;
+    border-radius: var(--tf-radius-sm);
+    cursor: pointer;
+    font-size: 0.86rem;
+    font-weight: 700;
+    transition:
+      box-shadow 160ms ease,
+      border-color 160ms ease,
+      transform 160ms ease;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.6;
+    }
+  }
+
+  .button--primary {
+    color: #06120d;
+    background: linear-gradient(
+      135deg,
+      var(--tf-action-bright),
+      var(--tf-action-dark)
+    );
+    box-shadow: 0 9px 28px rgb(37 205 132 / 17%);
+
+    &:hover:not(:disabled) {
+      box-shadow: 0 11px 34px rgb(37 205 132 / 26%);
+    }
+  }
+
+  .button--secondary {
+    border-color: var(--tf-line);
+    background: var(--tf-panel-raised);
+  }
+
+  .brand-mark {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border: 1px solid rgb(53 217 144 / 42%);
+    border-radius: 10px;
+    color: var(--tf-action);
+    background: linear-gradient(145deg, rgb(53 217 144 / 12%), transparent);
+    box-shadow: inset 0 0 14px rgb(53 217 144 / 7%);
+    font-family: var(--tf-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: -0.06em;
+  }
+
+  .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.72rem;
+    color: var(--tf-ink-strong);
+    font-size: 1.13rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+
+  .language-trigger {
+    display: inline-flex;
+    min-width: 58px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0 0.7rem;
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-sm);
+    color: var(--tf-ink-soft);
+    background: rgb(18 25 34 / 82%);
+    cursor: pointer;
+    font-family: var(--tf-mono);
+    font-size: 0.66rem;
+    transition:
+      color 160ms ease,
+      border-color 160ms ease,
+      background 160ms ease;
+
+    &:hover {
+      border-color: rgb(53 217 144 / 42%);
+      color: var(--tf-ink);
+      background: var(--tf-panel-raised);
+    }
+
+    svg {
+      width: 13px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.4;
+    }
+  }
+
+  .state-panel {
+    display: grid;
+    min-height: 250px;
+    place-items: center;
+    align-content: center;
+    gap: 0.75rem;
+    padding: 2rem;
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-lg);
+    background: var(--tf-panel);
+    text-align: center;
+
+    h2,
+    p {
+      margin: 0;
+    }
+
+    p {
+      max-width: 440px;
+      color: var(--tf-ink-soft);
+      line-height: 1.6;
+    }
+  }
+
+  .state-panel__loader {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--tf-line);
+    border-top-color: var(--tf-action);
+    border-radius: 50%;
+    animation: tf-spin 700ms linear infinite;
+  }
+
+  .state-panel__zero,
+  .state-panel__mark {
+    color: var(--tf-action);
+    font-family: var(--tf-mono);
+  }
+
+  .state-panel__mark {
+    color: var(--tf-danger);
+  }
+
+  .not-found {
+    display: grid;
+    min-height: 100vh;
+    place-items: center;
+    align-content: center;
+    padding: 2rem;
+    color: var(--tf-ink);
+    background:
+      radial-gradient(circle, rgb(53 217 144 / 8%), transparent 24rem),
+      var(--tf-void);
+    text-align: center;
+
+    h1 {
+      margin: 0.6rem 0;
+      color: var(--tf-ink-strong);
+      font-size: clamp(2.3rem, 5vw, 4.5rem);
+      font-weight: 700;
+      letter-spacing: -0.055em;
+    }
+
+    p {
+      margin: 0 0 1.5rem;
+      color: var(--tf-ink-soft);
+    }
+  }
+
+  .not-found__code {
+    color: var(--tf-action);
+    font-family: var(--tf-mono);
+    font-size: 0.7rem;
+  }
+}
+
+// Reka renders this menu through a body-level portal, outside `.tf-app`.
+.tf-language-menu {
+  z-index: 20;
+  min-width: 142px;
+  padding: 0.4rem;
+  border: 1px solid var(--tf-line);
+  border-radius: 12px;
+  background: rgb(18 25 34 / 96%);
+  box-shadow: var(--tf-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.tf-language-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.62rem 0.75rem;
+  border-radius: 8px;
+  color: var(--tf-ink-soft);
+  cursor: pointer;
+  font-size: 0.78rem;
+
+  &[data-highlighted] {
+    color: var(--tf-ink-strong);
+    background: var(--tf-action-soft);
+    outline: none;
+  }
+}
+
+@keyframes tf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

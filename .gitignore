@@ -18,6 +18,7 @@ dist/
 /frontend/coverage/
 /frontend/playwright-report/
 /frontend/test-results/
+/frontend/*.tsbuildinfo
 
 # Local runtime
 .runtime/

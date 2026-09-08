@@ -1,0 +1,38 @@
+/**
+ * Tradefog visual foundation.
+ *
+ * Only semantic design tokens belong here. Components consume these custom
+ * properties rather than literal colors so the terminal palette remains
+ * coherent as the product grows.
+ */
+:root {
+  color: #e7edf2;
+  background: #090d12;
+  color-scheme: dark;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --tf-ink: #e7edf2;
+  --tf-ink-strong: #f7fafc;
+  --tf-ink-soft: #84919e;
+  --tf-ink-faint: #596675;
+  --tf-void: #090d12;
+  --tf-canvas: #0d1218;
+  --tf-panel: #121922;
+  --tf-panel-raised: #17212c;
+  --tf-panel-soft: #10171f;
+  --tf-line: #25303c;
+  --tf-line-soft: rgb(104 122 140 / 17%);
+  --tf-action: #35d990;
+  --tf-action-bright: #52edaa;
+  --tf-action-dark: #19b974;
+  --tf-action-soft: rgb(53 217 144 / 11%);
+  --tf-danger: #f16e76;
+  --tf-mono: "IBM Plex Mono", monospace;
+  --tf-radius-sm: 9px;
+  --tf-radius-md: 14px;
+  --tf-radius-lg: 20px;
+  --tf-shadow: 0 24px 72px rgb(0 0 0 / 34%);
+  --tf-glow: 0 0 36px rgb(53 217 144 / 12%);
+}
