@@ -387,6 +387,77 @@ async def test_catalog_is_public_read_and_staff_write(
         == 1
     )
 
+    in_use_venue = await client.delete(
+        f"/api/v1/catalog/venues/{venue.json()['id']}",
+        headers=staff,
+    )
+    assert in_use_venue.status_code == 409
+    assert in_use_venue.json()["detail"]["code"] == "venue_in_use"
+
+    unused_venue = await client.post(
+        "/api/v1/catalog/venues",
+        headers=staff,
+        json={"name": "Paper broker"},
+    )
+    active_delete = await client.delete(
+        f"/api/v1/catalog/venues/{unused_venue.json()['id']}",
+        headers=staff,
+    )
+    assert active_delete.status_code == 409
+    assert active_delete.json()["detail"]["code"] == "venue_not_archived"
+    await client.patch(
+        f"/api/v1/catalog/venues/{unused_venue.json()['id']}",
+        headers=staff,
+        json={"is_active": False},
+    )
+    deleted_venue = await client.delete(
+        f"/api/v1/catalog/venues/{unused_venue.json()['id']}",
+        headers=staff,
+    )
+    assert unused_venue.status_code == 201
+    assert deleted_venue.status_code == 204
+
+    active_instrument_delete = await client.delete(
+        f"/api/v1/catalog/instruments/{instrument.json()['id']}",
+        headers=staff,
+    )
+    active_capability_delete = await client.delete(
+        f"/api/v1/catalog/wallet-assets/{wallet_asset.json()['id']}",
+        headers=staff,
+    )
+    assert active_instrument_delete.status_code == 409
+    assert (
+        active_instrument_delete.json()["detail"]["code"]
+        == "instrument_not_archived"
+    )
+    assert active_capability_delete.status_code == 409
+    assert (
+        active_capability_delete.json()["detail"]["code"]
+        == "wallet_asset_not_archived"
+    )
+    await client.patch(
+        f"/api/v1/catalog/instruments/{instrument.json()['id']}",
+        headers=staff,
+        json={"is_active": False},
+    )
+    await client.patch(
+        f"/api/v1/catalog/wallet-assets/{wallet_asset.json()['id']}",
+        headers=staff,
+        json={"is_active": False},
+    )
+    assert (
+        await client.delete(
+            f"/api/v1/catalog/instruments/{instrument.json()['id']}",
+            headers=staff,
+        )
+    ).status_code == 204
+    assert (
+        await client.delete(
+            f"/api/v1/catalog/wallet-assets/{wallet_asset.json()['id']}",
+            headers=staff,
+        )
+    ).status_code == 204
+
 
 async def test_catalog_deletes_only_unused_assets_and_pairs(
     client: AsyncClient,

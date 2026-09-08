@@ -28,5 +28,5 @@ Development is organized into two primary phases:
 Each stage ends with a production frontend build, static checks, and a small
 set of tests for its critical user flow before the next stage begins.
 
-Stages 1 through 3 are complete. Stage 4, venues, instruments, and wallet
-capabilities, is the current implementation target.
+Stages 1 through 4 are complete. Stage 5, profiles, wallets, strategies, and
+capital allocations, is the current implementation target.

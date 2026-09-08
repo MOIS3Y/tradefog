@@ -226,7 +226,11 @@ export interface paths {
     get: operations["get_venue_api_v1_catalog_venues__venue_id__get"];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Delete Venue
+     * @description Delete an archived venue with no catalog or journal references.
+     */
+    delete: operations["delete_venue_api_v1_catalog_venues__venue_id__delete"];
     options?: never;
     head?: never;
     /**
@@ -270,7 +274,11 @@ export interface paths {
     get?: never;
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Delete Instrument
+     * @description Delete an archived instrument that has never been used by a trade.
+     */
+    delete: operations["delete_instrument_api_v1_catalog_instruments__instrument_id__delete"];
     options?: never;
     head?: never;
     /**
@@ -314,7 +322,11 @@ export interface paths {
     get?: never;
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Delete Venue Wallet Asset
+     * @description Delete an archived wallet capability absent from profile wallets.
+     */
+    delete: operations["delete_venue_wallet_asset_api_v1_catalog_wallet_assets__venue_wallet_asset_id__delete"];
     options?: never;
     head?: never;
     /**
@@ -2455,6 +2467,35 @@ export interface operations {
       };
     };
   };
+  delete_venue_api_v1_catalog_venues__venue_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        venue_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   update_venue_api_v1_catalog_venues__venue_id__patch: {
     parameters: {
       query?: never;
@@ -2558,6 +2599,35 @@ export interface operations {
       };
     };
   };
+  delete_instrument_api_v1_catalog_instruments__instrument_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        instrument_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   update_instrument_api_v1_catalog_instruments__instrument_id__patch: {
     parameters: {
       query?: never;
@@ -2649,6 +2719,35 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["VenueWalletAssetResponse"];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_venue_wallet_asset_api_v1_catalog_wallet_assets__venue_wallet_asset_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        venue_wallet_asset_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {

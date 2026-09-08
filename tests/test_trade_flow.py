@@ -349,3 +349,27 @@ async def test_complete_trade_lifecycle_updates_capital_and_analytics(
     )
     assert review_response.status_code == 200
     assert review_response.json()["review_completed_at"] is not None
+
+    await flow_client.patch(
+        f"/api/v1/catalog/instruments/{instrument_id}",
+        headers=staff,
+        json={"is_active": False},
+    )
+    instrument_delete = await flow_client.delete(
+        f"/api/v1/catalog/instruments/{instrument_id}",
+        headers=staff,
+    )
+    assert instrument_delete.status_code == 409
+    assert instrument_delete.json()["detail"]["code"] == "instrument_in_use"
+
+    await flow_client.patch(
+        f"/api/v1/catalog/wallet-assets/{capability_id}",
+        headers=staff,
+        json={"is_active": False},
+    )
+    capability_delete = await flow_client.delete(
+        f"/api/v1/catalog/wallet-assets/{capability_id}",
+        headers=staff,
+    )
+    assert capability_delete.status_code == 409
+    assert capability_delete.json()["detail"]["code"] == "wallet_asset_in_use"

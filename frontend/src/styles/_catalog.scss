@@ -335,6 +335,11 @@
       color: var(--tf-action);
       background: var(--tf-panel-raised);
     }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
   }
 
   .icon-action--danger:hover {

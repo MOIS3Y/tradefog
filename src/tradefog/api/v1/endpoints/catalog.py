@@ -32,9 +32,11 @@ from tradefog.db.models import (
     Asset,
     Trade,
     TradingPair,
+    TradingProfile,
     Venue,
     VenueInstrument,
     VenueWalletAsset,
+    WalletAsset,
 )
 from tradefog.domain.enums import AssetType
 
@@ -378,6 +380,49 @@ async def update_venue(
     return venue
 
 
+@router.delete(
+    "/venues/{venue_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_venue(
+    venue_id: int,
+    session: SessionDependency,
+    _staff: StaffUserDependency,
+) -> None:
+    """Delete an archived venue with no catalog or journal references."""
+    venue = await get_or_404(session, Venue, venue_id)
+    if venue.is_active:
+        api_error(
+            status.HTTP_409_CONFLICT,
+            "venue_not_archived",
+            "Venue must be archived before deletion",
+        )
+    references = (
+        select(VenueInstrument.id).where(
+            VenueInstrument.venue_id == venue_id,
+        ),
+        select(VenueWalletAsset.id).where(
+            VenueWalletAsset.venue_id == venue_id,
+        ),
+        select(TradingProfile.id).where(
+            TradingProfile.venue_id == venue_id,
+        ),
+    )
+    for statement in references:
+        if await session.scalar(statement.limit(1)) is not None:
+            api_error(
+                status.HTTP_409_CONFLICT,
+                "venue_in_use",
+                "Venue is in use and cannot be deleted",
+            )
+    await session.delete(venue)
+    await flush_or_conflict(
+        session,
+        "Venue is in use and cannot be deleted",
+        "venue_in_use",
+    )
+
+
 @router.get(
     "/venues/{venue_id}/instruments",
     response_model=list[InstrumentResponse],
@@ -432,6 +477,42 @@ async def create_instrument(
         VenueInstrument,
         instrument.id,
         instrument_options(),
+    )
+
+
+@router.delete(
+    "/instruments/{instrument_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_instrument(
+    instrument_id: int,
+    session: SessionDependency,
+    _staff: StaffUserDependency,
+) -> None:
+    """Delete an archived instrument that has never been used by a trade."""
+    instrument = await get_or_404(session, VenueInstrument, instrument_id)
+    if instrument.is_active:
+        api_error(
+            status.HTTP_409_CONFLICT,
+            "instrument_not_archived",
+            "Instrument must be archived before deletion",
+        )
+    reference = await session.scalar(
+        select(Trade.id)
+        .where(Trade.venue_instrument_id == instrument_id)
+        .limit(1)
+    )
+    if reference is not None:
+        api_error(
+            status.HTTP_409_CONFLICT,
+            "instrument_in_use",
+            "Instrument is used by a trade and cannot be deleted",
+        )
+    await session.delete(instrument)
+    await flush_or_conflict(
+        session,
+        "Instrument is used by a trade and cannot be deleted",
+        "instrument_in_use",
     )
 
 
@@ -555,3 +636,45 @@ async def update_venue_wallet_asset(
         setattr(capability, field, value)
     await session.flush()
     return capability
+
+
+@router.delete(
+    "/wallet-assets/{venue_wallet_asset_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_venue_wallet_asset(
+    venue_wallet_asset_id: int,
+    session: SessionDependency,
+    _staff: StaffUserDependency,
+) -> None:
+    """Delete an archived wallet capability absent from profile wallets."""
+    capability = await get_or_404(
+        session,
+        VenueWalletAsset,
+        venue_wallet_asset_id,
+    )
+    if capability.is_active:
+        api_error(
+            status.HTTP_409_CONFLICT,
+            "wallet_asset_not_archived",
+            "Wallet asset must be archived before deletion",
+        )
+    reference = await session.scalar(
+        select(WalletAsset.id)
+        .where(
+            WalletAsset.venue_wallet_asset_id == venue_wallet_asset_id,
+        )
+        .limit(1)
+    )
+    if reference is not None:
+        api_error(
+            status.HTTP_409_CONFLICT,
+            "wallet_asset_in_use",
+            "Wallet asset is used by a profile and cannot be deleted",
+        )
+    await session.delete(capability)
+    await flush_or_conflict(
+        session,
+        "Wallet asset is used by a profile and cannot be deleted",
+        "wallet_asset_in_use",
+    )

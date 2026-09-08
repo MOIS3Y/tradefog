@@ -114,6 +114,10 @@
     .catalog-path li > span {
       grid-template-columns: auto 1fr;
     }
+
+    .venue-console {
+      grid-template-columns: 220px minmax(0, 1fr);
+    }
   }
 }
 
@@ -181,11 +185,8 @@
     }
 
     .catalog-path {
-      grid-template-columns: 1fr 1fr;
-
-      li:last-child {
-        display: none;
-      }
+      grid-template-columns: repeat(3, minmax(112px, 1fr));
+      overflow-x: auto;
     }
 
     .catalog-toolbar {
@@ -250,6 +251,46 @@
           display: none;
         }
       }
+    }
+
+    .venue-console {
+      display: block;
+    }
+
+    .venue-directory {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--tf-line-soft);
+    }
+
+    .venue-card {
+      min-width: 210px;
+    }
+
+    .venue-detail__header,
+    .venue-subsection__header {
+      display: grid;
+      padding: 1.2rem 1rem;
+    }
+
+    .venue-detail__actions {
+      grid-row: 1;
+      justify-self: end;
+    }
+
+    .venue-tabs {
+      padding-inline: 1rem;
+    }
+
+    .venue-subsection__toolbar {
+      flex-wrap: wrap;
+      padding: 0.8rem 1rem;
+    }
+
+    .form-grid--two {
+      grid-template-columns: 1fr;
     }
   }
 }

@@ -2,7 +2,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from "@lucide/vue";
 import { computed } from "vue";
 
-import type { SortDirection } from "@/features/catalog/filters";
+import type { SortDirection } from "@/utils/sorting";
 
 const props = defineProps<{
   label: string;

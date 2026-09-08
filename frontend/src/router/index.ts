@@ -29,6 +29,12 @@ const routes: RouteRecordRaw[] = [
     props: { section: "pairs" },
     meta: { requiresAuth: true },
   },
+  {
+    path: "/catalog/venues",
+    component: CatalogView,
+    props: { section: "venues" },
+    meta: { requiresAuth: true },
+  },
   { path: "/login", component: LoginView, meta: { guestOnly: true } },
   { path: "/:pathMatch(.*)*", component: NotFoundView },
 ];

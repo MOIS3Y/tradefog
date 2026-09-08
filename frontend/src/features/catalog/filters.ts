@@ -1,14 +1,10 @@
 import type { Asset, AssetType, Pair } from "@/features/catalog/api";
+import { compareText, type SortDirection } from "@/utils/sorting";
 
-export type SortDirection = "asc" | "desc";
+export type { SortDirection } from "@/utils/sorting";
 export type AssetSortKey = "symbol" | "name" | "asset_type";
 export type PairSortKey =
   "canonical_symbol" | "base" | "quote" | "type_relation";
-
-const collator = new Intl.Collator(undefined, {
-  numeric: true,
-  sensitivity: "base",
-});
 
 function normalized(value: string): string {
   return value.trim().toLocaleLowerCase();
@@ -45,21 +41,6 @@ export function filterPairs(pairs: Pair[], search: string): Pair[] {
       .toLocaleLowerCase();
     return haystack.includes(term);
   });
-}
-
-function compareText(
-  left: string | null,
-  right: string | null,
-  direction: SortDirection,
-): number {
-  if (left === null) {
-    return right === null ? 0 : 1;
-  }
-  if (right === null) {
-    return -1;
-  }
-  const result = collator.compare(left, right);
-  return direction === "asc" ? result : -result;
 }
 
 function assetSortValue(asset: Asset, key: AssetSortKey): string | null {

@@ -5,9 +5,10 @@ import { useI18n } from "vue-i18n";
 
 import AssetCatalog from "@/features/catalog/AssetCatalog.vue";
 import PairCatalog from "@/features/catalog/PairCatalog.vue";
+import VenueCatalog from "@/features/venues/VenueCatalog.vue";
 import AppShell from "@/layouts/AppShell.vue";
 
-const props = defineProps<{ section: "assets" | "pairs" }>();
+const props = defineProps<{ section: "assets" | "pairs" | "venues" }>();
 const { t } = useI18n();
 
 const steps = computed(() => [
@@ -21,13 +22,18 @@ const steps = computed(() => [
     label: t("catalog.pair.title"),
     icon: ArrowLeftRight,
     path: "/catalog/pairs",
-    state: props.section === "pairs" ? "active" : "pending",
+    state:
+      props.section === "pairs"
+        ? "active"
+        : props.section === "venues"
+          ? "complete"
+          : "pending",
   },
   {
     label: t("catalog.venues"),
     icon: Building2,
-    path: null,
-    state: "locked",
+    path: "/catalog/venues",
+    state: props.section === "venues" ? "active" : "pending",
   },
 ]);
 </script>
@@ -57,7 +63,8 @@ const steps = computed(() => [
       </ol>
 
       <AssetCatalog v-if="section === 'assets'" />
-      <PairCatalog v-else />
+      <PairCatalog v-else-if="section === 'pairs'" />
+      <VenueCatalog v-else />
     </div>
   </AppShell>
 </template>

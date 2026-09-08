@@ -58,7 +58,7 @@ function updateValue(value: unknown): void {
         <ChevronDown :size="16" aria-hidden="true" />
       </ComboboxTrigger>
     </ComboboxAnchor>
-    <ComboboxPortal>
+    <ComboboxPortal to=".tf-app">
       <ComboboxContent
         class="tf-combobox-content"
         position="popper"
