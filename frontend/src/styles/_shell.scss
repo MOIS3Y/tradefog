@@ -110,22 +110,14 @@
   .nav-item {
     display: grid;
     min-height: 45px;
-    grid-template-columns: 7px 1fr auto;
+    grid-template-columns: 7px 1fr;
     align-items: center;
     gap: 0.72rem;
     padding: 0 0.78rem;
     border: 1px solid transparent;
     border-radius: 11px;
     color: #667484;
-    font-size: 0.78rem;
-
-    small {
-      color: #495563;
-      font-family: var(--tf-mono);
-      font-size: 0.47rem;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
+    font-size: 0.84rem;
   }
 
   .nav-item--active {
@@ -174,7 +166,7 @@
     color: var(--tf-action);
     background: var(--tf-action-soft);
     font-family: var(--tf-mono);
-    font-size: 0.62rem;
+    font-size: 0.68rem;
   }
 
   .account-card__identity {
@@ -184,13 +176,13 @@
     strong {
       overflow: hidden;
       color: var(--tf-ink);
-      font-size: 0.72rem;
+      font-size: 0.78rem;
       text-overflow: ellipsis;
     }
 
     small {
       color: var(--tf-ink-faint);
-      font-size: 0.58rem;
+      font-size: 0.64rem;
     }
   }
 
@@ -202,7 +194,7 @@
     color: var(--tf-ink-soft);
     background: none;
     cursor: pointer;
-    font-size: 0.62rem;
+    font-size: 0.68rem;
 
     &:hover {
       color: var(--tf-action);

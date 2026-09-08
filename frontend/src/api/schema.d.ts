@@ -122,7 +122,11 @@ export interface paths {
     get: operations["get_asset_api_v1_catalog_assets__asset_id__get"];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Delete Asset
+     * @description Delete an unused asset without cascading into catalog history.
+     */
+    delete: operations["delete_asset_api_v1_catalog_assets__asset_id__delete"];
     options?: never;
     head?: never;
     /**
@@ -170,7 +174,11 @@ export interface paths {
     get: operations["get_pair_api_v1_catalog_pairs__pair_id__get"];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Delete Pair
+     * @description Delete an unused pair without cascading into venue instruments.
+     */
+    delete: operations["delete_pair_api_v1_catalog_pairs__pair_id__delete"];
     options?: never;
     head?: never;
     /**
@@ -2140,6 +2148,35 @@ export interface operations {
       };
     };
   };
+  delete_asset_api_v1_catalog_assets__asset_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        asset_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   update_asset_api_v1_catalog_assets__asset_id__patch: {
     parameters: {
       query?: never;
@@ -2247,6 +2284,35 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["PairResponse"];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_pair_api_v1_catalog_pairs__pair_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        pair_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {

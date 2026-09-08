@@ -386,3 +386,98 @@ async def test_catalog_is_public_read_and_staff_write(
         )
         == 1
     )
+
+
+async def test_catalog_deletes_only_unused_assets_and_pairs(
+    client: AsyncClient,
+) -> None:
+    """Allow staff cleanup without cascading through catalog references."""
+    staff = await staff_headers(client)
+    regular = await login_headers(
+        client,
+        "regular",
+        "regular-password-123",
+    )
+    base = (
+        await client.post(
+            "/api/v1/catalog/assets",
+            headers=staff,
+            json={"symbol": "ETH", "asset_type": "crypto"},
+        )
+    ).json()
+    quote = (
+        await client.post(
+            "/api/v1/catalog/assets",
+            headers=staff,
+            json={"symbol": "USDT", "asset_type": "crypto"},
+        )
+    ).json()
+    unused = (
+        await client.post(
+            "/api/v1/catalog/assets",
+            headers=staff,
+            json={"symbol": "EUR", "asset_type": "fiat"},
+        )
+    ).json()
+    pair = (
+        await client.post(
+            "/api/v1/catalog/pairs",
+            headers=staff,
+            json={"base_id": base["id"], "quote_id": quote["id"]},
+        )
+    ).json()
+    unused_pair = (
+        await client.post(
+            "/api/v1/catalog/pairs",
+            headers=staff,
+            json={"base_id": quote["id"], "quote_id": base["id"]},
+        )
+    ).json()
+    venue = (
+        await client.post(
+            "/api/v1/catalog/venues",
+            headers=staff,
+            json={"name": "Deletion test"},
+        )
+    ).json()
+    instrument = await client.post(
+        f"/api/v1/catalog/venues/{venue['id']}/instruments",
+        headers=staff,
+        json={
+            "pair_id": pair["id"],
+            "product": "spot",
+            "exec_symbol": "ETHUSDT",
+            "price_step": "0.01",
+            "qty_step": "0.001",
+        },
+    )
+    assert instrument.status_code == 201
+
+    denied = await client.delete(
+        f"/api/v1/catalog/assets/{unused['id']}",
+        headers=regular,
+    )
+    assert denied.status_code == 403
+    in_use = await client.delete(
+        f"/api/v1/catalog/assets/{base['id']}",
+        headers=staff,
+    )
+    assert in_use.status_code == 409
+    assert in_use.json()["detail"]["code"] == "asset_in_use"
+
+    pair_in_use = await client.delete(
+        f"/api/v1/catalog/pairs/{pair['id']}",
+        headers=staff,
+    )
+    assert pair_in_use.status_code == 409
+    assert pair_in_use.json()["detail"]["code"] == "pair_in_use"
+    deleted_pair = await client.delete(
+        f"/api/v1/catalog/pairs/{unused_pair['id']}",
+        headers=staff,
+    )
+    deleted_asset = await client.delete(
+        f"/api/v1/catalog/assets/{unused['id']}",
+        headers=staff,
+    )
+    assert deleted_pair.status_code == 204
+    assert deleted_asset.status_code == 204

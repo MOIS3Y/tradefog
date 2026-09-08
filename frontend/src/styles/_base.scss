@@ -2,6 +2,7 @@
 html {
   min-width: 320px;
   background: var(--tf-void);
+  font-size: 17px;
 }
 
 body {
@@ -21,7 +22,8 @@ body {
   min-height: 100vh;
 
   button,
-  input {
+  input,
+  select {
     font: inherit;
   }
 
@@ -42,6 +44,8 @@ body {
   button:focus-visible,
   a:focus-visible,
   input:focus-visible,
+  select:focus-visible,
+  [role="combobox"]:focus-visible,
   [role="menuitem"]:focus-visible {
     outline: 3px solid rgb(53 217 144 / 24%);
     outline-offset: 3px;

@@ -16,6 +16,7 @@
     min-height: 48px;
     align-items: center;
     justify-content: center;
+    gap: 0.5rem;
     padding: 0.75rem 1.2rem;
     border: 1px solid transparent;
     border-radius: var(--tf-radius-sm);
@@ -24,12 +25,7 @@
     font-weight: 700;
     transition:
       box-shadow 160ms ease,
-      border-color 160ms ease,
-      transform 160ms ease;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-1px);
-    }
+      border-color 160ms ease;
 
     &:disabled {
       cursor: wait;
@@ -54,6 +50,12 @@
   .button--secondary {
     border-color: var(--tf-line);
     background: var(--tf-panel-raised);
+  }
+
+  .button--danger {
+    border-color: rgb(241 110 118 / 25%);
+    color: #fff;
+    background: linear-gradient(135deg, #da626b, #b9434d);
   }
 
   .brand-mark {

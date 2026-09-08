@@ -113,9 +113,10 @@ The system defines two clear ownership zones:
 Version-one endpoints are rooted at `/api/v1`. Anyone can read the shared
 catalog; a valid bearer access token with `is_staff=true` is required to create
 or update an asset, pair, venue, venue instrument, or venue wallet asset.
-Catalog identities are never deleted. Deactivation preserves historical
-references and keeps a record out of default active-venue/instrument/capability
-lists.
+Unused assets and trading pairs may be deleted by staff, but deletion never
+cascades into related catalog or journal records. Referenced identities return
+a conflict instead. Venues, instruments, and wallet capabilities are retained;
+deactivation keeps them out of default active lists while preserving history.
 
 Catalog PATCH requests reject explicit nulls for required fields. Referenced
 asset identities and pairs used by instruments cannot be reassigned; a traded

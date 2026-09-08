@@ -79,13 +79,17 @@ async def get_or_404[
     return item
 
 
-async def flush_or_conflict(session: AsyncSession, message: str) -> None:
+async def flush_or_conflict(
+    session: AsyncSession,
+    message: str,
+    code: str = "conflict",
+) -> None:
     """Flush a mutation early and expose database uniqueness as HTTP 409."""
     try:
         await session.flush()
     except IntegrityError:
         await session.rollback()
-        conflict(message)
+        api_error(status.HTTP_409_CONFLICT, code, message)
 
 
 async def resolve_pair_assets(
@@ -178,6 +182,46 @@ async def update_asset(
     return asset
 
 
+@router.delete(
+    "/assets/{asset_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_asset(
+    asset_id: int,
+    session: SessionDependency,
+    _staff: StaffUserDependency,
+) -> None:
+    """Delete an unused asset without cascading into catalog history."""
+    asset = await get_or_404(session, Asset, asset_id)
+    references = (
+        select(TradingPair.id).where(
+            or_(
+                TradingPair.base_id == asset_id,
+                TradingPair.quote_id == asset_id,
+            )
+        ),
+        select(VenueInstrument.id).where(
+            VenueInstrument.settlement_asset_id == asset_id,
+        ),
+        select(VenueWalletAsset.id).where(
+            VenueWalletAsset.asset_id == asset_id,
+        ),
+    )
+    for statement in references:
+        if await session.scalar(statement.limit(1)) is not None:
+            api_error(
+                status.HTTP_409_CONFLICT,
+                "asset_in_use",
+                "Asset is in use and cannot be deleted",
+            )
+    await session.delete(asset)
+    await flush_or_conflict(
+        session,
+        "Asset is in use and cannot be deleted",
+        "asset_in_use",
+    )
+
+
 @router.get("/pairs", response_model=list[PairResponse])
 async def list_pairs(session: SessionDependency) -> Sequence[TradingPair]:
     """List logical markets with their base and quote assets."""
@@ -252,6 +296,36 @@ async def update_pair(
         pair.canonical_symbol = f"{base.symbol}/{quote.symbol}"
         await flush_or_conflict(session, "Trading pair is already in use")
     return await get_or_404(session, TradingPair, pair.id, pair_options())
+
+
+@router.delete(
+    "/pairs/{pair_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_pair(
+    pair_id: int,
+    session: SessionDependency,
+    _staff: StaffUserDependency,
+) -> None:
+    """Delete an unused pair without cascading into venue instruments."""
+    pair = await get_or_404(session, TradingPair, pair_id)
+    reference = (
+        select(VenueInstrument.id)
+        .where(VenueInstrument.pair_id == pair_id)
+        .limit(1)
+    )
+    if await session.scalar(reference) is not None:
+        api_error(
+            status.HTTP_409_CONFLICT,
+            "pair_in_use",
+            "Trading pair is in use and cannot be deleted",
+        )
+    await session.delete(pair)
+    await flush_or_conflict(
+        session,
+        "Trading pair is in use and cannot be deleted",
+        "pair_in_use",
+    )
 
 
 @router.get("/venues", response_model=list[VenueResponse])

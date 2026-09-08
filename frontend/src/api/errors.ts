@@ -4,7 +4,12 @@ interface ErrorDetail {
 }
 
 interface ErrorEnvelope {
-  detail?: ErrorDetail | string;
+  detail?: ErrorDetail | ValidationDetail[] | string;
+}
+
+interface ValidationDetail {
+  loc?: Array<number | string>;
+  msg?: string;
 }
 
 export class ApiError extends Error {
@@ -28,6 +33,15 @@ export function toApiError(error: unknown, response?: Response): ApiError {
   const envelope = error as ErrorEnvelope;
   if (typeof envelope.detail === "string") {
     return new ApiError(status, "request_failed", envelope.detail);
+  }
+
+  if (Array.isArray(envelope.detail)) {
+    const first = envelope.detail[0];
+    return new ApiError(
+      status,
+      "validation_error",
+      first?.msg ?? "Request validation failed",
+    );
   }
 
   return new ApiError(

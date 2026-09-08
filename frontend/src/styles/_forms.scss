@@ -1,0 +1,210 @@
+/** Shared form controls and searchable entity selectors. */
+.tf-app {
+  .field {
+    display: grid;
+    gap: 0.55rem;
+
+    > span {
+      color: var(--tf-ink);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    > small {
+      color: var(--tf-ink-faint);
+      font-size: 0.72rem;
+      line-height: 1.45;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 46px;
+      padding: 0 0.85rem;
+      border: 1px solid var(--tf-line);
+      border-radius: var(--tf-radius-sm);
+      color: var(--tf-ink-strong);
+      background: var(--tf-panel-soft);
+    }
+  }
+
+  .tf-form {
+    display: grid;
+    gap: 1.2rem;
+  }
+}
+
+.tf-combobox-anchor {
+  display: grid;
+  min-height: 46px;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  border: 1px solid var(--tf-line);
+  border-radius: var(--tf-radius-sm);
+  background: var(--tf-panel-soft);
+
+  &:focus-within {
+    border-color: rgb(53 217 144 / 55%);
+    box-shadow: 0 0 0 3px rgb(53 217 144 / 9%);
+  }
+
+  &[data-disabled] {
+    cursor: not-allowed;
+    opacity: 0.48;
+  }
+}
+
+.tf-combobox-input,
+.tf-combobox-trigger {
+  border: 0;
+  color: var(--tf-ink-strong);
+  background: transparent;
+}
+
+.tf-combobox-input {
+  min-width: 0;
+  padding: 0 0.85rem;
+  outline: none;
+
+  &::placeholder {
+    color: var(--tf-ink-faint);
+  }
+}
+
+.tf-combobox-trigger {
+  cursor: pointer;
+  color: var(--tf-ink-soft);
+}
+
+.tf-combobox-content {
+  z-index: 60;
+  width: var(--reka-combobox-trigger-width);
+  max-height: min(320px, var(--reka-combobox-content-available-height));
+  overflow: hidden;
+  border: 1px solid var(--tf-line);
+  border-radius: 12px;
+  background: rgb(18 25 34 / 98%);
+  box-shadow: var(--tf-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.tf-combobox-viewport {
+  padding: 0.4rem;
+}
+
+.tf-combobox-item {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.52rem 0.65rem;
+  border-radius: 8px;
+  color: var(--tf-ink-soft);
+  cursor: pointer;
+  outline: none;
+
+  &[data-highlighted] {
+    color: var(--tf-ink-strong);
+    background: var(--tf-action-soft);
+  }
+
+  > span:first-child {
+    display: grid;
+    min-width: 0;
+  }
+
+  strong {
+    font-family: var(--tf-mono);
+    font-size: 0.81rem;
+  }
+
+  small {
+    overflow: hidden;
+    color: var(--tf-ink-faint);
+    font-size: 0.7rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.tf-combobox-indicator {
+  color: var(--tf-action);
+}
+
+.tf-combobox-empty {
+  padding: 1.1rem 0.75rem;
+  color: var(--tf-ink-faint);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.tf-select-trigger {
+  display: inline-flex;
+  min-width: 150px;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--tf-line);
+  border-radius: 10px;
+  color: var(--tf-ink-soft);
+  background: var(--tf-panel-soft);
+  cursor: pointer;
+  font-size: 0.78rem;
+
+  &:hover,
+  &[data-state="open"] {
+    border-color: rgb(53 217 144 / 42%);
+    color: var(--tf-ink);
+  }
+}
+
+.field .tf-select-trigger {
+  width: 100%;
+  min-height: 46px;
+}
+
+.tf-select-icon {
+  display: inline-flex;
+  color: var(--tf-ink-faint);
+}
+
+.tf-select-content {
+  z-index: 60;
+  min-width: var(--reka-select-trigger-width);
+  overflow: hidden;
+  border: 1px solid var(--tf-line);
+  border-radius: 12px;
+  background: rgb(18 25 34 / 98%);
+  box-shadow: var(--tf-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.tf-select-viewport {
+  padding: 0.4rem;
+}
+
+.tf-select-item {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  color: var(--tf-ink-soft);
+  cursor: pointer;
+  font-size: 0.76rem;
+  outline: none;
+
+  &[data-highlighted] {
+    color: var(--tf-ink-strong);
+    background: var(--tf-action-soft);
+  }
+}
+
+.tf-select-indicator {
+  display: inline-flex;
+  color: var(--tf-action);
+}

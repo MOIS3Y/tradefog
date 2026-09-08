@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import BrandMark from "@/components/BrandMark.vue";
 import LanguageMenu from "@/components/LanguageMenu.vue";
@@ -11,14 +11,19 @@ import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
 const { t } = useI18n();
 const router = useRouter();
+const route = useRoute();
 const navigationOpen = ref(false);
 
 const navigation = computed(() => [
-  { label: t("nav.overview"), active: true },
-  { label: t("nav.catalog"), active: false },
-  { label: t("nav.profiles"), active: false },
-  { label: t("nav.trades"), active: false },
-  { label: t("nav.analytics"), active: false },
+  { label: t("nav.overview"), path: "/", active: route.path === "/" },
+  {
+    label: t("nav.catalog"),
+    path: "/catalog/assets",
+    active: route.path.startsWith("/catalog"),
+  },
+  { label: t("nav.profiles"), path: null, active: false },
+  { label: t("nav.trades"), path: null, active: false },
+  { label: t("nav.analytics"), path: null, active: false },
 ]);
 
 const initials = computed(() =>
@@ -28,6 +33,10 @@ const initials = computed(() =>
 async function signOut(): Promise<void> {
   auth.signOut();
   await router.replace("/login");
+}
+
+function closeNavigation(): void {
+  navigationOpen.value = false;
 }
 </script>
 
@@ -63,17 +72,19 @@ async function signOut(): Promise<void> {
       <PositionDiagram />
 
       <nav class="primary-nav" aria-label="Primary navigation">
-        <div
+        <component
           v-for="item in navigation"
           :key="item.label"
+          :is="item.path ? 'RouterLink' : 'div'"
+          :to="item.path"
           class="nav-item"
           :class="{ 'nav-item--active': item.active }"
           :aria-current="item.active ? 'page' : undefined"
+          @click="item.path && closeNavigation()"
         >
           <span class="nav-item__marker" aria-hidden="true"></span>
           <span>{{ item.label }}</span>
-          <small v-if="!item.active">{{ $t("nav.next") }}</small>
-        </div>
+        </component>
       </nav>
 
       <div class="sidebar__footer">
