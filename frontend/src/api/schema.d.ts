@@ -472,6 +472,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/profiles/wallet-operations/{operation_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update Wallet Operation Note
+     * @description Correct an operation note without changing its financial fact.
+     */
+    patch: operations["update_wallet_operation_note_api_v1_profiles_wallet_operations__operation_id__patch"];
+    trace?: never;
+  };
   "/api/v1/profiles/{profile_id}/strategies": {
     parameters: {
       query?: never;
@@ -1919,6 +1939,14 @@ export interface components {
      */
     WalletOperationKind: "deposit" | "withdrawal";
     /**
+     * WalletOperationPatch
+     * @description Correct only the note attached to an immutable ledger fact.
+     */
+    WalletOperationPatch: {
+      /** Note */
+      note?: string | null;
+    };
+    /**
      * WalletOperationResponse
      * @description Immutable signed wallet ledger fact.
      */
@@ -3105,6 +3133,41 @@ export interface operations {
     responses: {
       /** @description Successful Response */
       201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WalletOperationResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_wallet_operation_note_api_v1_profiles_wallet_operations__operation_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        operation_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WalletOperationPatch"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
         headers: {
           [name: string]: unknown;
         };

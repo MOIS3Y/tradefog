@@ -10,6 +10,7 @@ import CatalogView from "@/views/CatalogView.vue";
 import DashboardView from "@/views/DashboardView.vue";
 import LoginView from "@/views/LoginView.vue";
 import NotFoundView from "@/views/NotFoundView.vue";
+import ProfilesView from "@/views/ProfilesView.vue";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", component: DashboardView, meta: { requiresAuth: true } },
@@ -33,6 +34,11 @@ const routes: RouteRecordRaw[] = [
     path: "/catalog/venues",
     component: CatalogView,
     props: { section: "venues" },
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/profiles",
+    component: ProfilesView,
     meta: { requiresAuth: true },
   },
   { path: "/login", component: LoginView, meta: { guestOnly: true } },

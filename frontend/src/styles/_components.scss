@@ -58,6 +58,35 @@
     background: linear-gradient(135deg, #da626b, #b9434d);
   }
 
+  .icon-action {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--tf-ink-faint);
+    background: transparent;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--tf-line);
+      color: var(--tf-action);
+      background: var(--tf-panel-raised);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+  }
+
+  .icon-action--danger:hover {
+    color: var(--tf-danger);
+  }
+
   .brand-mark {
     display: grid;
     width: 32px;

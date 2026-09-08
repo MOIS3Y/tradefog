@@ -56,7 +56,9 @@ No child record duplicates user ownership fields.
 - **WalletAsset**: Held balance for a `VenueWalletAsset`. Tracks current
   balance, derived reservations, and an advisory `risk_stop_capital` floor.
 - **WalletOperation**: Explicit ledger entries for `DEPOSIT` and `WITHDRAWAL`.
-  Initial capital is represented as an initial deposit operation.
+  Initial capital is represented as an initial deposit operation. Its kind,
+  amount, and creation time are immutable; only its explanatory note may be
+  corrected.
 - **TradingStrategy**: Defines risk discipline: `risk_percent` and `reward_ratio`
   (e.g., `1:3`). Reused across assets.
 - **StrategyCapital**: Fixed capital allocated from a `WalletAsset` to a

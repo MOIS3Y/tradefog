@@ -319,33 +319,6 @@
     gap: 0.35rem;
   }
 
-  .icon-action {
-    display: grid;
-    width: 32px;
-    height: 32px;
-    place-items: center;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    color: var(--tf-ink-faint);
-    background: transparent;
-    cursor: pointer;
-
-    &:hover {
-      border-color: var(--tf-line);
-      color: var(--tf-action);
-      background: var(--tf-panel-raised);
-    }
-
-    &:disabled {
-      cursor: not-allowed;
-      opacity: 0.45;
-    }
-  }
-
-  .icon-action--danger:hover {
-    color: var(--tf-danger);
-  }
-
   .catalog-no-results {
     display: grid;
     min-height: 220px;

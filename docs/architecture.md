@@ -198,6 +198,8 @@ Authenticated journal endpoints are rooted at `/api/v1/profiles` and
 record and another user's record both return the same not-found response.
 Creating a profile also creates its one-to-one wallet. Wallet balances are
 derived from signed deposit and withdrawal facts plus closed-trade net P&L.
+Ledger fact amounts, kinds, and timestamps cannot be patched; the dedicated
+operation-note endpoint changes only optional explanatory text.
 Pending and open snapshots derive wallet reservations; balances and
 reservations are not duplicated in mutable columns.
 

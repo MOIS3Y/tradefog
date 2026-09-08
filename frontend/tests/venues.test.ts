@@ -111,6 +111,8 @@ describe("venue catalog flow", () => {
     expect(formatDecimal("0.010000000000000000")).toBe("0.01");
     expect(formatDecimal("0.000001000000000000")).toBe("0.000001");
     expect(formatDecimal("10.000000000000000000")).toBe("10");
+    expect(formatDecimal("0E-18")).toBe("0");
+    expect(formatDecimal("-0E-18")).toBe("0");
     expect(formatDecimal("12345678901234567890.0100")).toBe(
       "12345678901234567890.01",
     );

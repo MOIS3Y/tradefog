@@ -58,9 +58,14 @@ class ProfilePatch(JournalInput):
     def reject_null_required_fields(self) -> "ProfilePatch":
         """Prevent explicit null for non-null profile columns."""
         fields = self.model_dump(exclude_unset=True)
-        if fields.get("name", False) is None or fields.get(
-            "is_archived", False,
-        ) is None:
+        if (
+            fields.get("name", False) is None
+            or fields.get(
+                "is_archived",
+                False,
+            )
+            is None
+        ):
             raise ValueError("name and is_archived cannot be null")
         return self
 
@@ -82,7 +87,10 @@ class WalletAssetCreate(JournalInput):
 
     venue_wallet_asset_id: int = Field(gt=0)
     risk_stop_capital: Decimal | None = Field(
-        default=None, ge=0, max_digits=30, decimal_places=18,
+        default=None,
+        ge=0,
+        max_digits=30,
+        decimal_places=18,
     )
 
 
@@ -90,7 +98,10 @@ class WalletAssetPatch(JournalInput):
     """Edit the advisory deposit floor or archive a zero balance."""
 
     risk_stop_capital: Decimal | None = Field(
-        default=None, ge=0, max_digits=30, decimal_places=18,
+        default=None,
+        ge=0,
+        max_digits=30,
+        decimal_places=18,
     )
     is_archived: bool | None = None
 
@@ -136,6 +147,12 @@ class WalletOperationCreate(JournalInput):
     note: str | None = Field(default=None, max_length=255)
 
 
+class WalletOperationPatch(JournalInput):
+    """Correct only the note attached to an immutable ledger fact."""
+
+    note: str | None = Field(default=None, max_length=255)
+
+
 class WalletOperationResponse(BaseModel):
     """Immutable signed wallet ledger fact."""
 
@@ -154,9 +171,14 @@ class StrategyCreate(JournalInput):
 
     name: str = Field(min_length=1, max_length=128)
     description: str | None = None
-    risk_percent: Decimal = Field(gt=0, le=100, max_digits=10, decimal_places=6)
+    risk_percent: Decimal = Field(
+        gt=0, le=100, max_digits=10, decimal_places=6
+    )
     reward_multiple: Decimal = Field(
-        default=Decimal(3), gt=0, max_digits=10, decimal_places=6,
+        default=Decimal(3),
+        gt=0,
+        max_digits=10,
+        decimal_places=6,
     )
 
     @field_validator("name")
@@ -175,10 +197,17 @@ class StrategyPatch(JournalInput):
     name: str | None = Field(default=None, min_length=1, max_length=128)
     description: str | None = None
     risk_percent: Decimal | None = Field(
-        default=None, gt=0, le=100, max_digits=10, decimal_places=6,
+        default=None,
+        gt=0,
+        le=100,
+        max_digits=10,
+        decimal_places=6,
     )
     reward_multiple: Decimal | None = Field(
-        default=None, gt=0, max_digits=10, decimal_places=6,
+        default=None,
+        gt=0,
+        max_digits=10,
+        decimal_places=6,
     )
     is_archived: bool | None = None
 
@@ -186,13 +215,20 @@ class StrategyPatch(JournalInput):
     @classmethod
     def normalize_name(cls, name: str | None) -> str | None:
         """Normalize a supplied strategy name."""
-        return StrategyCreate.normalize_name(name) if name is not None else None
+        return (
+            StrategyCreate.normalize_name(name) if name is not None else None
+        )
 
     @model_validator(mode="after")
     def reject_null_required_fields(self) -> "StrategyPatch":
         """Prevent explicit null for non-null strategy columns."""
         values = self.model_dump(exclude_unset=True)
-        for field in ("name", "risk_percent", "reward_multiple", "is_archived"):
+        for field in (
+            "name",
+            "risk_percent",
+            "reward_multiple",
+            "is_archived",
+        ):
             if field in values and values[field] is None:
                 raise ValueError(f"{field} cannot be null")
         return self
@@ -209,7 +245,10 @@ class StrategyCapitalPatch(JournalInput):
     """Edit unlocked allocation capital or its archive state."""
 
     capital: Decimal | None = Field(
-        default=None, gt=0, max_digits=30, decimal_places=18,
+        default=None,
+        gt=0,
+        max_digits=30,
+        decimal_places=18,
     )
     is_archived: bool | None = None
 

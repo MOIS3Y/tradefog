@@ -5,6 +5,10 @@
  * JavaScript number and therefore without losing decimal precision.
  */
 export function formatDecimal(value: string): string {
+  if (/^[+-]?0+(?:\.0+)?[eE][+-]?\d+$/.test(value)) {
+    return "0";
+  }
+
   const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(value);
   if (match === null) {
     return value;
@@ -19,4 +23,10 @@ export function formatDecimal(value: string): string {
   return significantFraction
     ? `${normalizedSign}${integer}.${significantFraction}`
     : `${normalizedSign}${integer}`;
+}
+
+/** Return whether an exact decimal string represents a value above zero. */
+export function isPositiveDecimal(value: string): boolean {
+  const normalized = value.trim();
+  return /^\d+(\.\d+)?$/.test(normalized) && /[1-9]/.test(normalized);
 }

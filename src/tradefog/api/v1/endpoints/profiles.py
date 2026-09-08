@@ -24,6 +24,7 @@ from tradefog.api.v1.schemas.journal import (
     WalletAssetPatch,
     WalletAssetResponse,
     WalletOperationCreate,
+    WalletOperationPatch,
     WalletOperationResponse,
     WalletResponse,
 )
@@ -119,8 +120,10 @@ async def strategy_response(
         reward_multiple=strategy.reward_multiple,
         status=strategy.status,
         is_archived=strategy.is_archived,
-        allocations=[StrategyCapitalResponse.model_validate(item)
-                     for item in allocations],
+        allocations=[
+            StrategyCapitalResponse.model_validate(item)
+            for item in allocations
+        ],
     )
 
 
@@ -133,7 +136,8 @@ async def allocation_has_snapshot(
     if wallet_asset is None:
         return False
     capability = await session.get(
-        VenueWalletAsset, wallet_asset.venue_wallet_asset_id,
+        VenueWalletAsset,
+        wallet_asset.venue_wallet_asset_id,
     )
     if capability is None:
         return False
@@ -165,7 +169,8 @@ async def list_profiles(
 ) -> Sequence[TradingProfile]:
     """List only the authenticated user's trading profiles."""
     statement = owned_select(TradingProfile, user.id).order_by(
-        TradingProfile.name, TradingProfile.id,
+        TradingProfile.name,
+        TradingProfile.id,
     )
     if not include_archived:
         statement = statement.where(TradingProfile.is_archived.is_(False))
@@ -173,7 +178,9 @@ async def list_profiles(
 
 
 @router.post(
-    "", response_model=ProfileResponse, status_code=status.HTTP_201_CREATED,
+    "",
+    response_model=ProfileResponse,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_profile(
     request: ProfileCreate,
@@ -205,7 +212,10 @@ async def get_profile(
 ) -> TradingProfile:
     """Return one profile without exposing another owner's identifiers."""
     return await get_owned(
-        session, TradingProfile, profile_id, user.id,
+        session,
+        TradingProfile,
+        profile_id,
+        user.id,
     )
 
 
@@ -218,7 +228,11 @@ async def update_profile(
 ) -> TradingProfile:
     """Edit profile metadata or toggle its archive state."""
     profile = await get_owned(
-        session, TradingProfile, profile_id, user.id, for_update=True,
+        session,
+        TradingProfile,
+        profile_id,
+        user.id,
+        for_update=True,
     )
     values = request.model_dump(exclude_unset=True)
     if values.get("is_archived") is False and profile.is_archived:
@@ -239,7 +253,11 @@ async def delete_profile(
 ) -> Response:
     """Permanently remove an archived profile that has no journal history."""
     profile = await get_owned(
-        session, TradingProfile, profile_id, user.id, for_update=True,
+        session,
+        TradingProfile,
+        profile_id,
+        user.id,
+        for_update=True,
     )
     if not profile.is_archived:
         conflict("Only an archived profile can be deleted")
@@ -285,16 +303,23 @@ async def get_wallet(
 ) -> WalletResponse:
     """Return the profile wallet with derived balances and reservations."""
     profile = await get_owned(
-        session, TradingProfile, profile_id, user.id,
+        session,
+        TradingProfile,
+        profile_id,
+        user.id,
     )
     wallet = await session.scalar(
         owned_select(Wallet, user.id).where(Wallet.profile_id == profile.id)
     )
     if wallet is None:
         not_found("Wallet")
-    statement = owned_select(WalletAsset, user.id).where(
-        WalletAsset.wallet_id == wallet.id,
-    ).order_by(WalletAsset.id)
+    statement = (
+        owned_select(WalletAsset, user.id)
+        .where(
+            WalletAsset.wallet_id == wallet.id,
+        )
+        .order_by(WalletAsset.id)
+    )
     if not include_archived:
         statement = statement.where(WalletAsset.is_archived.is_(False))
     items = (await session.scalars(statement)).all()
@@ -318,12 +343,17 @@ async def create_wallet_asset(
 ) -> WalletAssetResponse:
     """Add an active asset capability belonging to the profile venue."""
     profile = await get_owned(
-        session, TradingProfile, profile_id, user.id, for_update=True,
+        session,
+        TradingProfile,
+        profile_id,
+        user.id,
+        for_update=True,
     )
     if profile.is_archived:
         conflict("Archived profiles cannot accept new wallet assets")
     capability = await session.get(
-        VenueWalletAsset, request.venue_wallet_asset_id,
+        VenueWalletAsset,
+        request.venue_wallet_asset_id,
     )
     if (
         capability is None
@@ -331,7 +361,8 @@ async def create_wallet_asset(
         or capability.venue_id != profile.venue_id
     ):
         api_error(
-            422, "invalid_wallet_asset",
+            422,
+            "invalid_wallet_asset",
             "Asset must be active on the profile venue",
         )
     wallet = await session.scalar(
@@ -351,7 +382,8 @@ async def create_wallet_asset(
 
 
 @router.patch(
-    "/wallet-assets/{wallet_asset_id}", response_model=WalletAssetResponse,
+    "/wallet-assets/{wallet_asset_id}",
+    response_model=WalletAssetResponse,
 )
 async def update_wallet_asset(
     wallet_asset_id: int,
@@ -361,17 +393,25 @@ async def update_wallet_asset(
 ) -> WalletAssetResponse:
     """Edit a risk floor or archive an unused zero-balance wallet asset."""
     item = await get_owned(
-        session, WalletAsset, wallet_asset_id, user.id, for_update=True,
+        session,
+        WalletAsset,
+        wallet_asset_id,
+        user.id,
+        for_update=True,
     )
     values = request.model_dump(exclude_unset=True)
     if values.get("is_archived") is False and item.is_archived:
         wallet = await session.get(Wallet, item.wallet_id)
         capability = await session.get(
-            VenueWalletAsset, item.venue_wallet_asset_id,
+            VenueWalletAsset,
+            item.venue_wallet_asset_id,
         )
         profile = (
             await get_owned(
-                session, TradingProfile, wallet.profile_id, user.id,
+                session,
+                TradingProfile,
+                wallet.profile_id,
+                user.id,
             )
             if wallet is not None
             else None
@@ -395,7 +435,9 @@ async def update_wallet_asset(
             )
         )
         if balance != 0 or reserved != 0 or active_allocations:
-            conflict("Only an unused zero-balance wallet asset can be archived")
+            conflict(
+                "Only an unused zero-balance wallet asset can be archived"
+            )
     for field, value in values.items():
         setattr(item, field, value)
     await recompute_wallet_asset(session, item)
@@ -436,14 +478,21 @@ async def create_wallet_operation(
 ) -> WalletOperation:
     """Append a deposit or withdrawal to an active wallet asset."""
     item = await get_owned(
-        session, WalletAsset, wallet_asset_id, user.id, for_update=True,
+        session,
+        WalletAsset,
+        wallet_asset_id,
+        user.id,
+        for_update=True,
     )
     if item.is_archived:
         conflict("Archived wallet assets cannot accept operations")
     wallet = await session.get(Wallet, item.wallet_id)
     profile = (
         await get_owned(
-            session, TradingProfile, wallet.profile_id, user.id,
+            session,
+            TradingProfile,
+            wallet.profile_id,
+            user.id,
         )
         if wallet is not None
         else None
@@ -451,12 +500,40 @@ async def create_wallet_operation(
     if profile is None or profile.is_archived:
         conflict("Archived profiles cannot accept wallet operations")
     return await record_wallet_operation(
-        session, item, request.kind, request.amount, request.note,
+        session,
+        item,
+        request.kind,
+        request.amount,
+        request.note,
     )
 
 
+@router.patch(
+    "/wallet-operations/{operation_id}",
+    response_model=WalletOperationResponse,
+)
+async def update_wallet_operation_note(
+    operation_id: int,
+    request: WalletOperationPatch,
+    session: SessionDependency,
+    user: CurrentUserDependency,
+) -> WalletOperation:
+    """Correct an operation note without changing its financial fact."""
+    operation = await get_owned(
+        session,
+        WalletOperation,
+        operation_id,
+        user.id,
+        for_update=True,
+    )
+    operation.note = request.note
+    await session.flush()
+    return operation
+
+
 @router.get(
-    "/{profile_id}/strategies", response_model=list[StrategyResponse],
+    "/{profile_id}/strategies",
+    response_model=list[StrategyResponse],
 )
 async def list_strategies(
     profile_id: int,
@@ -466,17 +543,22 @@ async def list_strategies(
 ) -> list[StrategyResponse]:
     """List strategies and allocations belonging to one owned profile."""
     await get_owned(session, TradingProfile, profile_id, user.id)
-    statement = owned_select(TradingStrategy, user.id).where(
-        TradingStrategy.profile_id == profile_id,
-    ).options(selectinload(TradingStrategy.profile)).order_by(
-        TradingStrategy.name, TradingStrategy.id,
+    statement = (
+        owned_select(TradingStrategy, user.id)
+        .where(
+            TradingStrategy.profile_id == profile_id,
+        )
+        .options(selectinload(TradingStrategy.profile))
+        .order_by(
+            TradingStrategy.name,
+            TradingStrategy.id,
+        )
     )
     if not include_archived:
         statement = statement.where(TradingStrategy.is_archived.is_(False))
     strategies = (await session.scalars(statement)).all()
     return [
-        await strategy_response(session, item, user.id)
-        for item in strategies
+        await strategy_response(session, item, user.id) for item in strategies
     ]
 
 
@@ -493,7 +575,11 @@ async def create_strategy(
 ) -> StrategyResponse:
     """Create reusable risk and reward rules inside an active profile."""
     profile = await get_owned(
-        session, TradingProfile, profile_id, user.id, for_update=True,
+        session,
+        TradingProfile,
+        profile_id,
+        user.id,
+        for_update=True,
     )
     if profile.is_archived:
         conflict("Archived profiles cannot accept new strategies")
@@ -565,7 +651,8 @@ async def update_strategy(
 
 
 @router.delete(
-    "/strategies/{strategy_id}", status_code=status.HTTP_204_NO_CONTENT,
+    "/strategies/{strategy_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_strategy(
     strategy_id: int,
@@ -574,13 +661,20 @@ async def delete_strategy(
 ) -> Response:
     """Delete an archived strategy that has no trade history."""
     strategy = await get_owned(
-        session, TradingStrategy, strategy_id, user.id, for_update=True,
+        session,
+        TradingStrategy,
+        strategy_id,
+        user.id,
+        for_update=True,
     )
     if not strategy.is_archived:
         conflict("Only an archived strategy can be deleted")
-    if await session.scalar(
-        select(Trade.id).where(Trade.strategy_id == strategy.id).limit(1)
-    ) is not None:
+    if (
+        await session.scalar(
+            select(Trade.id).where(Trade.strategy_id == strategy.id).limit(1)
+        )
+        is not None
+    ):
         conflict("A strategy with trade history cannot be deleted")
     await session.execute(
         delete(StrategyCapital).where(
@@ -605,10 +699,17 @@ async def create_allocation(
 ) -> StrategyCapital:
     """Allocate available wallet capital to an active strategy."""
     strategy = await get_owned(
-        session, TradingStrategy, strategy_id, user.id, for_update=True,
+        session,
+        TradingStrategy,
+        strategy_id,
+        user.id,
+        for_update=True,
     )
     wallet_asset = await get_owned(
-        session, WalletAsset, request.wallet_asset_id, user.id,
+        session,
+        WalletAsset,
+        request.wallet_asset_id,
+        user.id,
         for_update=True,
     )
     profile_wallet = await session.scalar(
@@ -620,10 +721,14 @@ async def create_allocation(
     if profile_wallet is None:
         conflict("Allocation asset must belong to the strategy profile")
     profile = await get_owned(
-        session, TradingProfile, strategy.profile_id, user.id,
+        session,
+        TradingProfile,
+        strategy.profile_id,
+        user.id,
     )
     capability = await session.get(
-        VenueWalletAsset, wallet_asset.venue_wallet_asset_id,
+        VenueWalletAsset,
+        wallet_asset.venue_wallet_asset_id,
     )
     if (
         profile.is_archived
@@ -635,12 +740,15 @@ async def create_allocation(
         conflict("Archived records cannot accept new allocations")
     balance = await wallet_balance(session, wallet_asset)
     allocated = sum(
-        (await session.scalars(
-            select(StrategyCapital.capital).where(
-                StrategyCapital.wallet_asset_id == wallet_asset.id,
-                StrategyCapital.is_archived.is_(False),
+        (
+            await session.scalars(
+                select(StrategyCapital.capital).where(
+                    StrategyCapital.wallet_asset_id == wallet_asset.id,
+                    StrategyCapital.is_archived.is_(False),
+                )
             )
-        )).all(), Decimal(0),
+        ).all(),
+        Decimal(0),
     )
     if allocated + request.capital > balance:
         conflict("Allocation exceeds wallet asset balance")
@@ -656,7 +764,8 @@ async def create_allocation(
 
 
 @router.patch(
-    "/allocations/{allocation_id}", response_model=StrategyCapitalResponse,
+    "/allocations/{allocation_id}",
+    response_model=StrategyCapitalResponse,
 )
 async def update_allocation(
     allocation_id: int,
@@ -666,7 +775,11 @@ async def update_allocation(
 ) -> StrategyCapital:
     """Edit unlocked capital or archive a strategy allocation."""
     allocation = await get_owned(
-        session, StrategyCapital, allocation_id, user.id, for_update=True,
+        session,
+        StrategyCapital,
+        allocation_id,
+        user.id,
+        for_update=True,
     )
     values = request.model_dump(exclude_unset=True)
     capital_changed = (
@@ -677,16 +790,26 @@ async def update_allocation(
         conflict("Allocation capital is locked by submitted trade history")
     if capital_changed or reactivated:
         wallet_asset = await get_owned(
-            session, WalletAsset, allocation.wallet_asset_id, user.id,
+            session,
+            WalletAsset,
+            allocation.wallet_asset_id,
+            user.id,
         )
         strategy = await get_owned(
-            session, TradingStrategy, allocation.strategy_id, user.id,
+            session,
+            TradingStrategy,
+            allocation.strategy_id,
+            user.id,
         )
         profile = await get_owned(
-            session, TradingProfile, strategy.profile_id, user.id,
+            session,
+            TradingProfile,
+            strategy.profile_id,
+            user.id,
         )
         capability = await session.get(
-            VenueWalletAsset, wallet_asset.venue_wallet_asset_id,
+            VenueWalletAsset,
+            wallet_asset.venue_wallet_asset_id,
         )
         if reactivated and (
             wallet_asset.is_archived
@@ -697,23 +820,30 @@ async def update_allocation(
         ):
             conflict("An allocation requires active parent records")
         other = sum(
-            (await session.scalars(
-                select(StrategyCapital.capital).where(
-                    StrategyCapital.wallet_asset_id == wallet_asset.id,
-                    StrategyCapital.is_archived.is_(False),
-                    StrategyCapital.id != allocation.id,
+            (
+                await session.scalars(
+                    select(StrategyCapital.capital).where(
+                        StrategyCapital.wallet_asset_id == wallet_asset.id,
+                        StrategyCapital.is_archived.is_(False),
+                        StrategyCapital.id != allocation.id,
+                    )
                 )
-            )).all(), Decimal(0),
+            ).all(),
+            Decimal(0),
         )
         capital = values.get("capital", allocation.capital)
         if other + capital > await wallet_balance(
-            session, wallet_asset,
+            session,
+            wallet_asset,
         ):
             conflict("Allocation exceeds wallet asset balance")
     for field, value in values.items():
         setattr(allocation, field, value)
     wallet_asset = await get_owned(
-        session, WalletAsset, allocation.wallet_asset_id, user.id,
+        session,
+        WalletAsset,
+        allocation.wallet_asset_id,
+        user.id,
     )
     await recompute_wallet_asset(session, wallet_asset)
     await recompute_strategy(session, allocation.strategy_id)

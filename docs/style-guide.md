@@ -25,6 +25,8 @@ accents reserved for active state, selection, and primary actions.
   confirmation dialog; reversible archive actions remain visually quieter.
 - Permanent deletion is offered only for archived records. The API remains the
   authority on whether journal references make deletion unsafe.
+- Wallet operations are presented as ledger facts. Their financial fields have
+  no edit affordance; note correction opens a note-only form.
 - Success and failure use stacked, dismissible toasts in the lower-right corner.
 
 ## Content and States

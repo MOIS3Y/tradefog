@@ -15,6 +15,7 @@ when the compiled SPA is embedded or extended.
 - `_shell.scss` — signed-in navigation shell and workspace cards.
 - `_catalog.scss` — shared catalog tables and navigation.
 - `_venues.scss` — venue directory, details, instruments, and wallet assets.
+- `_profiles.scss` — profiles, wallet ledger, strategies, and allocations.
 - `_responsive.scss` — breakpoint-specific overrides, ordered from wide to
   narrow.
 

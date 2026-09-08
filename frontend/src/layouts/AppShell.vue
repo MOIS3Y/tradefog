@@ -21,7 +21,11 @@ const navigation = computed(() => [
     path: "/catalog/assets",
     active: route.path.startsWith("/catalog"),
   },
-  { label: t("nav.profiles"), path: null, active: false },
+  {
+    label: t("nav.profiles"),
+    path: "/profiles",
+    active: route.path.startsWith("/profiles"),
+  },
   { label: t("nav.trades"), path: null, active: false },
   { label: t("nav.analytics"), path: null, active: false },
 ]);

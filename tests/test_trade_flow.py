@@ -182,6 +182,23 @@ async def test_complete_trade_lifecycle_updates_capital_and_analytics(
     )
     assert deposit_response.status_code == 201, deposit_response.text
     assert Decimal(deposit_response.json()["amount"]) == Decimal(10000)
+    operation_id = deposit_response.json()["id"]
+
+    note_response = await flow_client.patch(
+        f"/api/v1/profiles/wallet-operations/{operation_id}",
+        headers=trader,
+        json={"note": "Initial capital"},
+    )
+    assert note_response.status_code == 200, note_response.text
+    assert note_response.json()["note"] == "Initial capital"
+    assert note_response.json()["kind"] == "deposit"
+    assert Decimal(note_response.json()["amount"]) == Decimal(10000)
+    immutable_fields = await flow_client.patch(
+        f"/api/v1/profiles/wallet-operations/{operation_id}",
+        headers=trader,
+        json={"note": "Corrected", "amount": "1"},
+    )
+    assert immutable_fields.status_code == 422
 
     strategy_response = await flow_client.post(
         f"/api/v1/profiles/{profile_id}/strategies",
@@ -373,3 +390,59 @@ async def test_complete_trade_lifecycle_updates_capital_and_analytics(
     )
     assert capability_delete.status_code == 409
     assert capability_delete.json()["detail"]["code"] == "wallet_asset_in_use"
+
+    archive_profile = await flow_client.patch(
+        f"/api/v1/profiles/{profile_id}",
+        headers=trader,
+        json={"is_archived": True},
+    )
+    assert archive_profile.status_code == 200
+    profile_delete = await flow_client.delete(
+        f"/api/v1/profiles/{profile_id}",
+        headers=trader,
+    )
+    assert profile_delete.status_code == 409
+
+
+async def test_empty_profile_requires_archival_before_deletion(
+    flow_client: AsyncClient,
+) -> None:
+    """Only an archived profile without journal facts can be removed."""
+    staff = await authenticated_headers(
+        flow_client,
+        "staff",
+        "staff-password-123",
+    )
+    trader = await authenticated_headers(
+        flow_client,
+        "trader",
+        "trader-password-123",
+    )
+    venue = await flow_client.post(
+        "/api/v1/catalog/venues",
+        headers=staff,
+        json={"name": "Paper account"},
+    )
+    profile = await flow_client.post(
+        "/api/v1/profiles",
+        headers=trader,
+        json={"venue_id": venue.json()["id"], "name": "Disposable"},
+    )
+    profile_id = profile.json()["id"]
+
+    active_delete = await flow_client.delete(
+        f"/api/v1/profiles/{profile_id}",
+        headers=trader,
+    )
+    assert active_delete.status_code == 409
+    archived = await flow_client.patch(
+        f"/api/v1/profiles/{profile_id}",
+        headers=trader,
+        json={"is_archived": True},
+    )
+    assert archived.status_code == 200
+    deleted = await flow_client.delete(
+        f"/api/v1/profiles/{profile_id}",
+        headers=trader,
+    )
+    assert deleted.status_code == 204
