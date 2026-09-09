@@ -455,7 +455,9 @@ function activeDirection(key: InstrumentSortKey): SortDirection | null {
               }}</strong>
             </td>
             <td :data-label="$t('catalog.pair.market')">
-              {{ instrument.pair.canonical_symbol }}
+              <span class="venue-instrument-market">
+                {{ instrument.pair.canonical_symbol }}
+              </span>
             </td>
             <td :data-label="$t('venues.instruments.product')">
               <span class="product-badge">

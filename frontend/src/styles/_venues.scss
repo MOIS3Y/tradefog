@@ -4,6 +4,10 @@
     display: grid;
     min-height: 540px;
     grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+
+    .catalog-tag {
+      white-space: nowrap;
+    }
   }
 
   .venue-directory {
@@ -278,6 +282,10 @@
       font-family: var(--tf-mono);
       font-weight: 500;
     }
+  }
+
+  .venue-instrument-market {
+    white-space: nowrap;
   }
 
   .venue-instrument-table th,
