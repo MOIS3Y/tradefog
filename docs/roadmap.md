@@ -21,12 +21,14 @@ Development is organized into two primary phases:
 5. **Profiles & Capital**: Implement first-use setup, profiles, wallet
    operations, strategies, and capital allocations.
 6. **Trade Workspace**: Implement drafts, checklist, ATR, position planning,
-   lifecycle transitions, notes, review, and private attachments.
+   lifecycle transitions, frozen allocation identity and timestamps, notes,
+   attachments, and a ten-point quality rating.
 7. **Analytics & Release**: Implement filters and analytical visualizations,
-   then complete responsive, accessibility, and deployment verification.
+   including per-allocation L/W and monetary performance, then complete
+   responsive, accessibility, and deployment verification.
 
 Each stage ends with a production frontend build, static checks, and a small
 set of tests for its critical user flow before the next stage begins.
 
-Stages 1 through 5 are complete. Stage 6, trade workspace and lifecycle, is the
-current implementation target.
+Stages 1 through 5 are complete. Stage 6 is in final domain-alignment and
+verification before analytics work begins.

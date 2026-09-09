@@ -52,7 +52,7 @@ async function renewTokens(): Promise<boolean> {
   return true;
 }
 
-async function authenticatedFetch(request: Request): Promise<Response> {
+export async function authenticatedFetch(request: Request): Promise<Response> {
   const original = request.clone();
   const response = await fetch(withAccessToken(request));
   if (response.status !== 401 || isAuthenticationRequest(original)) {

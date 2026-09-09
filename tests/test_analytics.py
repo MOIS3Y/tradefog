@@ -1,11 +1,12 @@
 """Focused regression tests for trading-quality analytics."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from tradefog.domain.analytics import (
     ClosedTradeResult,
     Outcome,
+    calculate_monetary_analytics,
     calculate_trade_analytics,
 )
 from tradefog.domain.enums import Direction, ProductKind
@@ -15,6 +16,10 @@ def closed_trade(
     identifier: int,
     result_r: str,
     reward_multiple: str = "3",
+    *,
+    allocation_id: int = 1,
+    realized_pnl: str | None = None,
+    quality_rating: int | None = None,
 ) -> ClosedTradeResult:
     """Build one minimal closed-trade fact for deterministic analytics."""
     return ClosedTradeResult(
@@ -26,6 +31,17 @@ def closed_trade(
         direction=Direction.LONG,
         result_r=Decimal(result_r),
         reward_multiple=Decimal(reward_multiple),
+        closed_at=datetime(2026, 9, identifier, tzinfo=UTC),
+        strategy_capital_id=allocation_id,
+        settlement_asset_id=10 + allocation_id,
+        settlement_asset_symbol="USD" if allocation_id == 1 else "EUR",
+        allocation_capital=Decimal(1000),
+        realized_pnl=(
+            Decimal(realized_pnl)
+            if realized_pnl is not None
+            else Decimal(result_r) * Decimal(10)
+        ),
+        quality_rating=quality_rating,
     )
 
 
@@ -52,7 +68,7 @@ def test_analytics_calculates_mixed_results_drawdown_and_streaks() -> None:
             closed_trade(3, "-0.5"),
             closed_trade(4, "0"),
             closed_trade(5, "1.5"),
-            closed_trade(6, "3"),
+            closed_trade(6, "3", quality_rating=8),
         ]
     )
 
@@ -76,3 +92,30 @@ def test_analytics_calculates_mixed_results_drawdown_and_streaks() -> None:
     assert analytics.points[3].y == analytics.points[2].y
     assert analytics.final_x == Decimal("1.5")
     assert analytics.final_y == Decimal("2.5")
+    assert analytics.average_quality_rating == Decimal(8)
+
+
+def test_monetary_analytics_keeps_allocations_separate() -> None:
+    """Money remains meaningful without conversion or persisted rollups."""
+    analytics = calculate_monetary_analytics(
+        [
+            closed_trade(1, "3", realized_pnl="300"),
+            closed_trade(2, "-1", realized_pnl="-100"),
+            closed_trade(
+                3,
+                "3",
+                allocation_id=2,
+                realized_pnl="30",
+            ),
+        ]
+    )
+
+    assert len(analytics) == 2
+    usd, eur = analytics
+    assert usd.gross_profit == Decimal(300)
+    assert usd.gross_loss == Decimal(100)
+    assert usd.net_pnl == Decimal(200)
+    assert usd.allocation_return_percent == Decimal(20)
+    assert usd.points[-1].cumulative_pnl == Decimal(200)
+    assert eur.net_pnl == Decimal(30)
+    assert eur.settlement_asset_symbol == "EUR"

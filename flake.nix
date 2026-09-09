@@ -109,7 +109,7 @@
           pname = "tradefog-frontend";
           inherit version;
           src = ./frontend;
-          npmDepsHash = "sha256-RKWcnqhteQB+stG9kSaZ73kbxbmdKS28fQJPkNlw7NY=";
+          npmDepsHash = "sha256-Efwp2jaXLgyzYrlh3srXVV9+ERSYbDjj1u3xaZkceyU=";
           npmBuildScript = "build";
 
           installPhase = ''

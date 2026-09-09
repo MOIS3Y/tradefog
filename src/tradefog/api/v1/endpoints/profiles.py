@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from decimal import Decimal
 
 from fastapi import APIRouter, Response, status
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
@@ -32,11 +32,9 @@ from tradefog.db.models import (
     StrategyCapital,
     Trade,
     TradeSnapshot,
-    TradingPair,
     TradingProfile,
     TradingStrategy,
     Venue,
-    VenueInstrument,
     VenueWalletAsset,
     Wallet,
     WalletAsset,
@@ -117,7 +115,7 @@ async def strategy_response(
         name=strategy.name,
         description=strategy.description,
         risk_percent=strategy.risk_percent,
-        reward_multiple=strategy.reward_multiple,
+        reward_multiple=int(strategy.reward_multiple),
         status=strategy.status,
         is_archived=strategy.is_archived,
         allocations=[
@@ -132,29 +130,10 @@ async def allocation_has_snapshot(
     allocation: StrategyCapital,
 ) -> bool:
     """Return whether immutable history has locked allocation capital."""
-    wallet_asset = await session.get(WalletAsset, allocation.wallet_asset_id)
-    if wallet_asset is None:
-        return False
-    capability = await session.get(
-        VenueWalletAsset,
-        wallet_asset.venue_wallet_asset_id,
-    )
-    if capability is None:
-        return False
     statement = (
         select(TradeSnapshot.id)
-        .join(Trade, Trade.id == TradeSnapshot.trade_id)
-        .join(VenueInstrument, VenueInstrument.id == Trade.venue_instrument_id)
-        .join(TradingPair, TradingPair.id == VenueInstrument.pair_id)
         .where(
-            Trade.strategy_id == allocation.strategy_id,
-            or_(
-                VenueInstrument.settlement_asset_id == capability.asset_id,
-                (
-                    VenueInstrument.settlement_asset_id.is_(None)
-                    & (TradingPair.quote_id == capability.asset_id)
-                ),
-            ),
+            TradeSnapshot.strategy_capital_id == allocation.id,
         )
         .limit(1)
     )
@@ -588,7 +567,7 @@ async def create_strategy(
         name=request.name,
         description=request.description,
         risk_percent=request.risk_percent,
-        reward_multiple=request.reward_multiple,
+        reward_multiple=Decimal(request.reward_multiple),
         status=StrategyStatus.ACTIVE,
     )
     session.add(strategy)
@@ -645,6 +624,8 @@ async def update_strategy(
         if active_allocations:
             conflict("Archive strategy allocations before the strategy")
     for field, value in values.items():
+        if field == "reward_multiple":
+            value = Decimal(value)
         setattr(strategy, field, value)
     await session.flush()
     return await strategy_response(session, strategy, user.id)

@@ -1,4 +1,4 @@
-"""Initial journal and catalog schema.
+"""Initial Tradefog schema.
 
 Revision ID: 0001
 Revises: None
@@ -19,7 +19,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Apply this schema revision."""
-    _ = op.create_table(
+    op.create_table(
         "Asset",
         sa.Column("symbol", sa.String(length=32), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=True),
@@ -45,7 +45,7 @@ def upgrade() -> None:
     with op.batch_alter_table("Asset", schema=None) as batch_op:
         batch_op.create_index("asset_symbol_idx", ["symbol"], unique=True)
 
-    _ = op.create_table(
+    op.create_table(
         "Venue",
         sa.Column("name", sa.String(length=128), nullable=False),
         sa.Column(
@@ -65,7 +65,10 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("website", sa.String(length=255), nullable=True),
         sa.Column(
-            "is_active", sa.Boolean(), server_default=sa.true(), nullable=False
+            "is_active",
+            sa.Boolean(),
+            server_default=sa.text("1"),
+            nullable=False,
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_Venue")),
@@ -73,21 +76,27 @@ def upgrade() -> None:
     with op.batch_alter_table("Venue", schema=None) as batch_op:
         batch_op.create_index("venue_name_idx", ["name"], unique=True)
 
-    _ = op.create_table(
+    op.create_table(
         "users",
         sa.Column("username", sa.String(length=150), nullable=False),
         sa.Column("password", sa.String(length=128), nullable=False),
         sa.Column(
-            "is_staff", sa.Boolean(), server_default=sa.false(), nullable=False
+            "is_staff",
+            sa.Boolean(),
+            server_default=sa.text("0"),
+            nullable=False,
         ),
         sa.Column(
-            "is_active", sa.Boolean(), server_default=sa.true(), nullable=False
+            "is_active",
+            sa.Boolean(),
+            server_default=sa.text("1"),
+            nullable=False,
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_users")),
         sa.UniqueConstraint("username", name=op.f("uq_users_username")),
     )
-    _ = op.create_table(
+    op.create_table(
         "TradingPair",
         sa.Column("base_id", sa.Integer(), nullable=False),
         sa.Column("quote_id", sa.Integer(), nullable=False),
@@ -113,7 +122,7 @@ def upgrade() -> None:
             "trading_pair_base_quote_idx", ["base_id", "quote_id"], unique=True
         )
 
-    _ = op.create_table(
+    op.create_table(
         "TradingProfile",
         sa.Column("owner_id", sa.Integer(), nullable=False),
         sa.Column("venue_id", sa.Integer(), nullable=False),
@@ -122,7 +131,7 @@ def upgrade() -> None:
         sa.Column(
             "is_archived",
             sa.Boolean(),
-            server_default=sa.false(),
+            server_default=sa.text("0"),
             nullable=False,
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -138,12 +147,15 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_TradingProfile")),
     )
-    _ = op.create_table(
+    op.create_table(
         "VenueWalletAsset",
         sa.Column("venue_id", sa.Integer(), nullable=False),
         sa.Column("asset_id", sa.Integer(), nullable=False),
         sa.Column(
-            "is_active", sa.Boolean(), server_default=sa.true(), nullable=False
+            "is_active",
+            sa.Boolean(),
+            server_default=sa.text("1"),
+            nullable=False,
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.ForeignKeyConstraint(
@@ -165,7 +177,7 @@ def upgrade() -> None:
             unique=True,
         )
 
-    _ = op.create_table(
+    op.create_table(
         "TradingStrategy",
         sa.Column("profile_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(length=128), nullable=False),
@@ -196,10 +208,18 @@ def upgrade() -> None:
         sa.Column(
             "is_archived",
             sa.Boolean(),
-            server_default=sa.false(),
+            server_default=sa.text("0"),
             nullable=False,
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.CheckConstraint(
+            "CAST(reward_multiple AS NUMERIC) >= 3\n            AND CAST(reward_multiple AS NUMERIC) <= 100\n            AND CAST(reward_multiple AS NUMERIC)\n                = CAST(reward_multiple AS INTEGER)",
+            name=op.f("ck_TradingStrategy_strategy_reward_multiple_range"),
+        ),
+        sa.CheckConstraint(
+            "CAST(risk_percent AS NUMERIC) >= 0.01\n            AND CAST(risk_percent AS NUMERIC) <= 100",
+            name=op.f("ck_TradingStrategy_strategy_risk_percent_range"),
+        ),
         sa.ForeignKeyConstraint(
             ["profile_id"],
             ["TradingProfile.id"],
@@ -207,7 +227,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_TradingStrategy")),
     )
-    _ = op.create_table(
+    op.create_table(
         "VenueInstrument",
         sa.Column("venue_id", sa.Integer(), nullable=False),
         sa.Column("pair_id", sa.Integer(), nullable=False),
@@ -246,7 +266,10 @@ def upgrade() -> None:
         ),
         sa.Column("settlement_asset_id", sa.Integer(), nullable=True),
         sa.Column(
-            "is_active", sa.Boolean(), server_default=sa.true(), nullable=False
+            "is_active",
+            sa.Boolean(),
+            server_default=sa.text("1"),
+            nullable=False,
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.ForeignKeyConstraint(
@@ -278,7 +301,7 @@ def upgrade() -> None:
             unique=True,
         )
 
-    _ = op.create_table(
+    op.create_table(
         "Wallet",
         sa.Column("profile_id", sa.Integer(), nullable=False),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -290,7 +313,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_Wallet")),
         sa.UniqueConstraint("profile_id", name=op.f("uq_Wallet_profile_id")),
     )
-    _ = op.create_table(
+    op.create_table(
         "Trade",
         sa.Column("profile_id", sa.Integer(), nullable=False),
         sa.Column("strategy_id", sa.Integer(), nullable=False),
@@ -328,6 +351,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("description_markdown", sa.Text(), nullable=True),
+        sa.Column("quality_rating", sa.Integer(), nullable=True),
         sa.Column("review_completed_at", sa.DateTime(), nullable=True),
         sa.Column(
             "realized_pnl",
@@ -349,6 +373,10 @@ def upgrade() -> None:
             tradefog.db.types.ExactDecimal(precision=30, scale=18),
             nullable=True,
         ),
+        sa.Column("submitted_at", sa.DateTime(), nullable=True),
+        sa.Column("opened_at", sa.DateTime(), nullable=True),
+        sa.Column("closed_at", sa.DateTime(), nullable=True),
+        sa.Column("cancelled_at", sa.DateTime(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(),
@@ -356,6 +384,10 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.CheckConstraint(
+            "quality_rating IS NULL\n            OR (quality_rating >= 1 AND quality_rating <= 10)",
+            name=op.f("ck_Trade_trade_quality_rating_range"),
+        ),
         sa.ForeignKeyConstraint(
             ["profile_id"],
             ["TradingProfile.id"],
@@ -373,7 +405,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_Trade")),
     )
-    _ = op.create_table(
+    op.create_table(
         "WalletAsset",
         sa.Column("wallet_id", sa.Integer(), nullable=False),
         sa.Column("venue_wallet_asset_id", sa.Integer(), nullable=False),
@@ -397,7 +429,7 @@ def upgrade() -> None:
         sa.Column(
             "is_archived",
             sa.Boolean(),
-            server_default=sa.false(),
+            server_default=sa.text("0"),
             nullable=False,
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -420,7 +452,34 @@ def upgrade() -> None:
             unique=True,
         )
 
-    _ = op.create_table(
+    op.create_table(
+        "Attachment",
+        sa.Column("trade_id", sa.Integer(), nullable=False),
+        sa.Column("storage_key", sa.String(length=255), nullable=False),
+        sa.Column("original_name", sa.String(length=255), nullable=False),
+        sa.Column("content_type", sa.String(length=127), nullable=False),
+        sa.Column("size_bytes", sa.Integer(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            server_default=sa.text("(CURRENT_TIMESTAMP)"),
+            nullable=False,
+        ),
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.CheckConstraint(
+            "size_bytes >= 0", name=op.f("ck_Attachment_non_negative_size")
+        ),
+        sa.ForeignKeyConstraint(
+            ["trade_id"],
+            ["Trade.id"],
+            name=op.f("fk_Attachment_trade_id_Trade"),
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_Attachment")),
+        sa.UniqueConstraint(
+            "storage_key", name=op.f("uq_Attachment_storage_key")
+        ),
+    )
+    op.create_table(
         "StrategyCapital",
         sa.Column("strategy_id", sa.Integer(), nullable=False),
         sa.Column("wallet_asset_id", sa.Integer(), nullable=False),
@@ -432,7 +491,7 @@ def upgrade() -> None:
         sa.Column(
             "is_archived",
             sa.Boolean(),
-            server_default=sa.false(),
+            server_default=sa.text("0"),
             nullable=False,
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -455,9 +514,45 @@ def upgrade() -> None:
             unique=True,
         )
 
-    _ = op.create_table(
+    op.create_table(
+        "WalletOperation",
+        sa.Column("wallet_asset_id", sa.Integer(), nullable=False),
+        sa.Column(
+            "kind",
+            sa.Enum(
+                "deposit",
+                "withdrawal",
+                name="wallet_operation_kind",
+                native_enum=False,
+                create_constraint=True,
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "amount",
+            tradefog.db.types.ExactDecimal(precision=30, scale=18),
+            nullable=False,
+        ),
+        sa.Column("note", sa.String(length=255), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            server_default=sa.text("(CURRENT_TIMESTAMP)"),
+            nullable=False,
+        ),
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.ForeignKeyConstraint(
+            ["wallet_asset_id"],
+            ["WalletAsset.id"],
+            name=op.f("fk_WalletOperation_wallet_asset_id_WalletAsset"),
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_WalletOperation")),
+    )
+    op.create_table(
         "TradeSnapshot",
         sa.Column("trade_id", sa.Integer(), nullable=False),
+        sa.Column("strategy_capital_id", sa.Integer(), nullable=False),
+        sa.Column("settlement_asset_id", sa.Integer(), nullable=False),
         sa.Column(
             "planned_entry",
             tradefog.db.types.ExactDecimal(precision=30, scale=18),
@@ -561,6 +656,16 @@ def upgrade() -> None:
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.ForeignKeyConstraint(
+            ["settlement_asset_id"],
+            ["Asset.id"],
+            name=op.f("fk_TradeSnapshot_settlement_asset_id_Asset"),
+        ),
+        sa.ForeignKeyConstraint(
+            ["strategy_capital_id"],
+            ["StrategyCapital.id"],
+            name=op.f("fk_TradeSnapshot_strategy_capital_id_StrategyCapital"),
+        ),
+        sa.ForeignKeyConstraint(
             ["trade_id"],
             ["Trade.id"],
             name=op.f("fk_TradeSnapshot_trade_id_Trade"),
@@ -570,50 +675,17 @@ def upgrade() -> None:
             "trade_id", name=op.f("uq_TradeSnapshot_trade_id")
         ),
     )
-    _ = op.create_table(
-        "WalletOperation",
-        sa.Column("wallet_asset_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "kind",
-            sa.Enum(
-                "deposit",
-                "withdrawal",
-                name="wallet_operation_kind",
-                native_enum=False,
-                create_constraint=True,
-            ),
-            nullable=False,
-        ),
-        sa.Column(
-            "amount",
-            tradefog.db.types.ExactDecimal(precision=30, scale=18),
-            nullable=False,
-        ),
-        sa.Column("note", sa.String(length=255), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(),
-            server_default=sa.text("(CURRENT_TIMESTAMP)"),
-            nullable=False,
-        ),
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.ForeignKeyConstraint(
-            ["wallet_asset_id"],
-            ["WalletAsset.id"],
-            name=op.f("fk_WalletOperation_wallet_asset_id_WalletAsset"),
-        ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_WalletOperation")),
-    )
 
 
 def downgrade() -> None:
     """Reverse this schema revision."""
-    op.drop_table("WalletOperation")
     op.drop_table("TradeSnapshot")
+    op.drop_table("WalletOperation")
     with op.batch_alter_table("StrategyCapital", schema=None) as batch_op:
         batch_op.drop_index("strategy_capital_strategy_wallet_asset_idx")
 
     op.drop_table("StrategyCapital")
+    op.drop_table("Attachment")
     with op.batch_alter_table("WalletAsset", schema=None) as batch_op:
         batch_op.drop_index("wallet_asset_wallet_venue_asset_idx")
 

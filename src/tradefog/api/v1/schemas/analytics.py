@@ -1,6 +1,6 @@
 """Transport models for owner-scoped trading-quality analytics."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
@@ -33,6 +33,7 @@ class TrajectoryPointResponse(BaseModel):
     sequence: int
     trade_id: int
     trade_date: date
+    closed_at: datetime
     profile_name: str
     product: ProductKind
     pair_symbol: str
@@ -40,8 +41,8 @@ class TrajectoryPointResponse(BaseModel):
     result_r: Decimal
     outcome: Outcome
     cumulative_result_r: Decimal
-    discipline_x: Decimal
-    discipline_y: Decimal
+    discipline_x: Decimal | None
+    discipline_y: Decimal | None
 
 
 class ReferencePointResponse(BaseModel):
@@ -56,6 +57,31 @@ class DisciplineReferencePointResponse(BaseModel):
 
     x: Decimal
     y: Decimal
+
+
+class MonetaryTrajectoryPointResponse(BaseModel):
+    """One realized result in a single allocation's settlement asset."""
+
+    sequence: int
+    trade_id: int
+    closed_at: datetime
+    realized_pnl: Decimal
+    cumulative_pnl: Decimal
+
+
+class AllocationMonetaryResponse(BaseModel):
+    """Money totals scoped to one immutable allocation and asset."""
+
+    strategy_capital_id: int
+    settlement_asset_id: int
+    settlement_asset_symbol: str
+    allocation_capital: Decimal
+    trade_count: int
+    gross_profit: Decimal
+    gross_loss: Decimal
+    net_pnl: Decimal
+    allocation_return_percent: Decimal
+    trajectory: list[MonetaryTrajectoryPointResponse]
 
 
 class AnalyticsResponse(BaseModel):
@@ -79,6 +105,10 @@ class AnalyticsResponse(BaseModel):
     current_streak: StreakResponse
     maximum_winning_streak: int
     maximum_losing_streak: int
+    average_quality_rating: Decimal | None
     trajectory: list[TrajectoryPointResponse]
     break_even_reference: list[ReferencePointResponse]
+    discipline_available: bool
+    discipline_reward_multiple: int | None
     discipline_break_even_reference: list[DisciplineReferencePointResponse]
+    monetary: list[AllocationMonetaryResponse]

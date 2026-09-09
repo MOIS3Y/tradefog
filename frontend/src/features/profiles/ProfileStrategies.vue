@@ -3,6 +3,7 @@ import {
   Archive,
   ArchiveRestore,
   Gauge,
+  LockKeyhole,
   Pencil,
   Plus,
   ShieldCheck,
@@ -34,7 +35,11 @@ import {
   type Strategy,
 } from "@/features/profiles/api";
 import { useToastStore } from "@/stores/toasts";
-import { formatDecimal, isPositiveDecimal } from "@/utils/decimal";
+import {
+  compareDecimal,
+  formatDecimal,
+  isPositiveDecimal,
+} from "@/utils/decimal";
 
 const props = defineProps<{ profile: Profile }>();
 const { t } = useI18n();
@@ -113,7 +118,9 @@ const strategyInvalid = computed(
   () =>
     strategyForm.name.trim().length === 0 ||
     !positiveDecimal(strategyForm.riskPercent) ||
-    !positiveDecimal(strategyForm.rewardMultiple),
+    compareDecimal(strategyForm.riskPercent, "0.01") < 0 ||
+    compareDecimal(strategyForm.riskPercent, "100") > 0 ||
+    !/^(?:[3-9]|[1-9]\d|100)$/.test(strategyForm.rewardMultiple),
 );
 const allocationInvalid = computed(
   () =>
@@ -160,7 +167,7 @@ const saveMutation = useMutation({
       name: strategyForm.name,
       description: strategyForm.description || null,
       risk_percent: strategyForm.riskPercent,
-      reward_multiple: strategyForm.rewardMultiple,
+      reward_multiple: Number(strategyForm.rewardMultiple),
     };
     return editing.value
       ? updateStrategy(editing.value.id, input)
@@ -269,7 +276,7 @@ function openEdit(strategy: Strategy): void {
     name: strategy.name,
     description: strategy.description ?? "",
     riskPercent: formatDecimal(strategy.risk_percent),
-    rewardMultiple: formatDecimal(strategy.reward_multiple),
+    rewardMultiple: strategy.reward_multiple.toString(),
   });
   strategyDialogOpen.value = true;
 }
@@ -356,7 +363,7 @@ function openAllocation(allocation: Allocation | null): void {
             ><small>{{ $t("profiles.strategies.riskPerTrade") }}</small></span
           >
           <span class="strategy-card__ratio"
-            >1 : {{ formatDecimal(strategy.reward_multiple) }}</span
+            >1 : {{ strategy.reward_multiple }}</span
           >
         </button>
       </div>
@@ -418,9 +425,7 @@ function openAllocation(allocation: Allocation | null): void {
             ><ShieldCheck :size="17" /><small>{{
               $t("profiles.strategies.reward")
             }}</small
-            ><strong
-              >1 : {{ formatDecimal(selected.reward_multiple) }}</strong
-            ></span
+            ><strong>1 : {{ selected.reward_multiple }}</strong></span
           >
         </div>
         <header class="allocation-heading">
@@ -529,10 +534,17 @@ function openAllocation(allocation: Allocation | null): void {
           ><span>{{ $t("profiles.strategies.reward") }}</span
           ><input
             v-model="strategyForm.rewardMultiple"
-            inputmode="decimal"
+            type="number"
+            min="3"
+            max="100"
+            step="1"
             required
           /><small>{{ $t("profiles.strategies.rewardHint") }}</small></label
         >
+      </div>
+      <div class="strategy-lock-note">
+        <LockKeyhole :size="17" aria-hidden="true" />
+        <span>{{ $t("profiles.strategies.rulesLockHint") }}</span>
       </div>
       <label class="field"
         ><span>{{ $t("profiles.strategies.strategyDescription") }}</span

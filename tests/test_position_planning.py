@@ -17,7 +17,7 @@ def test_position_plan_rounds_down_without_exceeding_risk() -> None:
         entry=Decimal(100),
         stop=Decimal(97),
         target_risk_amount=Decimal(10),
-        reward_multiple=Decimal(2),
+        reward_multiple=Decimal(3),
         price_step=Decimal("0.01"),
         quantity_step=Decimal("0.7"),
     )
@@ -25,7 +25,7 @@ def test_position_plan_rounds_down_without_exceeding_risk() -> None:
     assert plan.quantity == Decimal("2.8")
     assert plan.planned_risk_amount == Decimal("8.4")
     assert plan.planned_risk_amount <= plan.target_risk_amount
-    assert plan.take_profit == Decimal(106)
+    assert plan.take_profit == Decimal(109)
     assert plan.notional == Decimal(280)
 
 
@@ -52,4 +52,24 @@ def test_position_plan_rejects_non_executable_boundaries(
             reward_multiple=Decimal(3),
             price_step=Decimal("0.01"),
             quantity_step=Decimal(1),
+        )
+
+
+@pytest.mark.parametrize(
+    "reward",
+    [Decimal(2), Decimal("3.5"), Decimal(101)],
+)
+def test_position_plan_rejects_unsupported_reward_multiple(
+    reward: Decimal,
+) -> None:
+    """Position geometry requires a bounded whole reward multiple."""
+    with pytest.raises(PositionPlanError, match="whole number"):
+        calculate_position_plan(
+            direction="long",
+            entry=Decimal(100),
+            stop=Decimal(90),
+            target_risk_amount=Decimal(10),
+            reward_multiple=reward,
+            price_step=Decimal("0.01"),
+            quantity_step=Decimal("0.01"),
         )

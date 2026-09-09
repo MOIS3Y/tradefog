@@ -4,19 +4,22 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, localcontext
 
 from fastapi import APIRouter
-from sqlalchemy import or_
 
 from tradefog.api.dependencies import CurrentUserDependency, SessionDependency
 from tradefog.api.errors import api_error
 from tradefog.api.v1.schemas.analytics import (
+    AllocationMonetaryResponse,
     AnalyticsPeriod,
     AnalyticsResponse,
     DisciplineReferencePointResponse,
+    MonetaryTrajectoryPointResponse,
     ReferencePointResponse,
     StreakResponse,
     TrajectoryPointResponse,
 )
 from tradefog.db.models import (
+    Asset,
+    StrategyCapital,
     Trade,
     TradeSnapshot,
     TradingPair,
@@ -26,6 +29,7 @@ from tradefog.db.models import (
 from tradefog.db.scoping import owned_select
 from tradefog.domain.analytics import (
     ClosedTradeResult,
+    calculate_monetary_analytics,
     calculate_trade_analytics,
 )
 from tradefog.domain.enums import ProductKind, TradeStatus
@@ -46,6 +50,7 @@ async def get_analytics(
     instrument_id: int | None = None,
     pair_id: int | None = None,
     settlement_asset_id: int | None = None,
+    strategy_capital_id: int | None = None,
 ) -> AnalyticsResponse:
     """Calculate quality metrics for a filtered cohort of closed trades."""
     if (
@@ -58,9 +63,8 @@ async def get_analytics(
             "invalid_date_range",
             "A custom period requires date_from or date_to",
         )
-    if (
-        period is not AnalyticsPeriod.CUSTOM
-        and (date_from is not None or date_to is not None)
+    if period is not AnalyticsPeriod.CUSTOM and (
+        date_from is not None or date_to is not None
     ):
         api_error(
             422,
@@ -78,6 +82,14 @@ async def get_analytics(
             date_from = date(today.year, 1, 1)
     if date_from is not None and date_to is not None and date_from > date_to:
         api_error(422, "invalid_date_range", "date_from cannot follow date_to")
+    if strategy_capital_id is not None:
+        allocation = await session.scalar(
+            owned_select(StrategyCapital, user.id).where(
+                StrategyCapital.id == strategy_capital_id,
+            )
+        )
+        if allocation is None:
+            api_error(404, "not_found", "StrategyCapital not found")
 
     statement = (
         owned_select(Trade, user.id)
@@ -86,6 +98,7 @@ async def get_analytics(
             TradingProfile.name,
             TradingPair.canonical_symbol,
             VenueInstrument.product,
+            Asset.symbol,
         )
         .join(TradeSnapshot, TradeSnapshot.trade_id == Trade.id)
         .join(TradingProfile, TradingProfile.id == Trade.profile_id)
@@ -94,16 +107,24 @@ async def get_analytics(
             VenueInstrument.id == Trade.venue_instrument_id,
         )
         .join(TradingPair, TradingPair.id == VenueInstrument.pair_id)
+        .join(Asset, Asset.id == TradeSnapshot.settlement_asset_id)
         .where(
             Trade.status == TradeStatus.CLOSED,
             Trade.realized_pnl.is_not(None),
+            Trade.closed_at.is_not(None),
         )
-        .order_by(Trade.trade_date, Trade.id)
+        .order_by(Trade.closed_at, Trade.id)
     )
     if date_from is not None:
-        statement = statement.where(Trade.trade_date >= date_from)
+        statement = statement.where(
+            Trade.closed_at >= datetime.combine(date_from, datetime.min.time())
+        )
     if date_to is not None:
-        statement = statement.where(Trade.trade_date <= date_to)
+        exclusive_end = datetime.combine(
+            date_to + timedelta(days=1),
+            datetime.min.time(),
+        )
+        statement = statement.where(Trade.closed_at < exclusive_end)
     if profile_id is not None:
         statement = statement.where(Trade.profile_id == profile_id)
     if strategy_id is not None:
@@ -116,23 +137,32 @@ async def get_analytics(
         statement = statement.where(VenueInstrument.pair_id == pair_id)
     if settlement_asset_id is not None:
         statement = statement.where(
-            or_(
-                VenueInstrument.settlement_asset_id == settlement_asset_id,
-                (
-                    VenueInstrument.settlement_asset_id.is_(None)
-                    & (TradingPair.quote_id == settlement_asset_id)
-                ),
-            )
+            TradeSnapshot.settlement_asset_id == settlement_asset_id,
+        )
+    if strategy_capital_id is not None:
+        statement = statement.where(
+            TradeSnapshot.strategy_capital_id == strategy_capital_id,
         )
 
     closed_trades: list[ClosedTradeResult] = []
     excluded_trade_count = 0
-    for trade, snapshot, profile_name, pair_symbol, market_type in (
-        await session.execute(statement)
-    ).all():
+    for (
+        trade,
+        snapshot,
+        profile_name,
+        pair_symbol,
+        market_type,
+        settlement_symbol,
+    ) in (await session.execute(statement)).all():
         risk = snapshot.planned_risk_amount
         reward = snapshot.reward_multiple
-        if trade.realized_pnl is None or risk is None or risk <= 0:
+        closed_at = trade.closed_at
+        if (
+            trade.realized_pnl is None
+            or closed_at is None
+            or risk is None
+            or risk <= 0
+        ):
             excluded_trade_count += 1
             continue
         with localcontext() as context:
@@ -148,15 +178,29 @@ async def get_analytics(
                 direction=trade.direction,
                 result_r=result_r,
                 reward_multiple=reward or Decimal(0),
+                closed_at=closed_at,
+                strategy_capital_id=snapshot.strategy_capital_id,
+                settlement_asset_id=snapshot.settlement_asset_id,
+                settlement_asset_symbol=settlement_symbol,
+                allocation_capital=snapshot.allocation_capital or Decimal(0),
+                realized_pnl=trade.realized_pnl,
+                quality_rating=trade.quality_rating,
             )
         )
 
     analytics = calculate_trade_analytics(closed_trades)
+    discipline_rewards = {trade.reward_multiple for trade in closed_trades}
+    discipline_available = (
+        strategy_capital_id is not None
+        and len(discipline_rewards) == 1
+        and next(iter(discipline_rewards)) >= 3
+    )
     trajectory = [
         TrajectoryPointResponse(
             sequence=point.sequence,
             trade_id=point.trade.trade_id,
             trade_date=point.trade.trade_date,
+            closed_at=point.trade.closed_at,
             profile_name=point.trade.profile_name,
             product=point.trade.market_type,
             pair_symbol=point.trade.pair_symbol,
@@ -164,8 +208,8 @@ async def get_analytics(
             result_r=point.trade.result_r,
             outcome=point.outcome,
             cumulative_result_r=point.cumulative_result_r,
-            discipline_x=point.x,
-            discipline_y=point.y,
+            discipline_x=point.x if discipline_available else None,
+            discipline_y=point.y if discipline_available else None,
         )
         for point in analytics.points
     ]
@@ -174,17 +218,50 @@ async def get_analytics(
         reference.append(
             ReferencePointResponse(sequence=analytics.closed_trade_count)
         )
-    discipline_limit = max(analytics.final_x, analytics.final_y)
-    discipline_reference = [
-        DisciplineReferencePointResponse(x=Decimal(0), y=Decimal(0)),
-    ]
-    if discipline_limit > 0:
+    discipline_reference: list[DisciplineReferencePointResponse] = []
+    discipline_reward: Decimal | None = None
+    if discipline_available:
+        discipline_reward = closed_trades[0].reward_multiple
+        discipline_reference.append(
+            DisciplineReferencePointResponse(x=Decimal(0), y=Decimal(0))
+        )
+        discipline_limit = max(
+            analytics.final_x,
+            analytics.final_y * discipline_reward,
+        )
+    else:
+        discipline_limit = Decimal(0)
+    if discipline_reward is not None and discipline_limit > 0:
         discipline_reference.append(
             DisciplineReferencePointResponse(
                 x=discipline_limit,
-                y=discipline_limit,
+                y=discipline_limit / discipline_reward,
             )
         )
+    monetary = [
+        AllocationMonetaryResponse(
+            strategy_capital_id=item.strategy_capital_id,
+            settlement_asset_id=item.settlement_asset_id,
+            settlement_asset_symbol=item.settlement_asset_symbol,
+            allocation_capital=item.allocation_capital,
+            trade_count=item.trade_count,
+            gross_profit=item.gross_profit,
+            gross_loss=item.gross_loss,
+            net_pnl=item.net_pnl,
+            allocation_return_percent=item.allocation_return_percent,
+            trajectory=[
+                MonetaryTrajectoryPointResponse(
+                    sequence=point.sequence,
+                    trade_id=point.trade_id,
+                    closed_at=point.closed_at,
+                    realized_pnl=point.realized_pnl,
+                    cumulative_pnl=point.cumulative_pnl,
+                )
+                for point in item.points
+            ],
+        )
+        for item in calculate_monetary_analytics(closed_trades)
+    ]
     return AnalyticsResponse(
         closed_trade_count=analytics.closed_trade_count,
         excluded_trade_count=excluded_trade_count,
@@ -207,7 +284,13 @@ async def get_analytics(
         ),
         maximum_winning_streak=analytics.maximum_winning_streak,
         maximum_losing_streak=analytics.maximum_losing_streak,
+        average_quality_rating=analytics.average_quality_rating,
         trajectory=trajectory,
         break_even_reference=reference,
+        discipline_available=discipline_available,
+        discipline_reward_multiple=(
+            int(discipline_reward) if discipline_reward is not None else None
+        ),
         discipline_break_even_reference=discipline_reference,
+        monetary=monetary,
     )

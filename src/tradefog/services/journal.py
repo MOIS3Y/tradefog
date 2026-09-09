@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradefog.api.errors import conflict, not_found
@@ -10,9 +10,7 @@ from tradefog.db.models import (
     StrategyCapital,
     Trade,
     TradeSnapshot,
-    TradingPair,
     TradingStrategy,
-    VenueInstrument,
     VenueWalletAsset,
     Wallet,
     WalletAsset,
@@ -54,7 +52,8 @@ async def wallet_balance(
         )
     ).all()
     capability = await session.get(
-        VenueWalletAsset, wallet_asset.venue_wallet_asset_id,
+        VenueWalletAsset,
+        wallet_asset.venue_wallet_asset_id,
     )
     if capability is None:
         return sum(operations, Decimal(0))
@@ -64,27 +63,18 @@ async def wallet_balance(
     profits = (
         await session.scalars(
             select(Trade.realized_pnl)
-            .join(
-                VenueInstrument,
-                VenueInstrument.id == Trade.venue_instrument_id,
-            )
-            .join(TradingPair, TradingPair.id == VenueInstrument.pair_id)
+            .join(TradeSnapshot, TradeSnapshot.trade_id == Trade.id)
             .where(
                 Trade.profile_id == profile_id,
                 Trade.status == TradeStatus.CLOSED,
                 Trade.realized_pnl.is_not(None),
-                or_(
-                    VenueInstrument.settlement_asset_id == capability.asset_id,
-                    (
-                        VenueInstrument.settlement_asset_id.is_(None)
-                        & (TradingPair.quote_id == capability.asset_id)
-                    ),
-                ),
+                TradeSnapshot.settlement_asset_id == capability.asset_id,
             )
         )
     ).all()
     return sum(operations, Decimal(0)) + sum(
-        (value for value in profits if value is not None), Decimal(0),
+        (value for value in profits if value is not None),
+        Decimal(0),
     )
 
 
@@ -94,7 +84,8 @@ async def wallet_reserved(
 ) -> Decimal:
     """Derive reserved notional for pending and open trades in this asset."""
     capability = await session.get(
-        VenueWalletAsset, wallet_asset.venue_wallet_asset_id,
+        VenueWalletAsset,
+        wallet_asset.venue_wallet_asset_id,
     )
     profile_id = await session.scalar(
         select(Wallet.profile_id).where(Wallet.id == wallet_asset.wallet_id)
@@ -105,21 +96,12 @@ async def wallet_reserved(
         await session.scalars(
             select(TradeSnapshot.planned_notional)
             .join(Trade, Trade.id == TradeSnapshot.trade_id)
-            .join(
-                VenueInstrument,
-                VenueInstrument.id == Trade.venue_instrument_id,
-            )
-            .join(TradingPair, TradingPair.id == VenueInstrument.pair_id)
             .where(
                 Trade.profile_id == profile_id,
-                Trade.status.in_((TradeStatus.PENDING_ENTRY, TradeStatus.OPEN)),
-                or_(
-                    VenueInstrument.settlement_asset_id == capability.asset_id,
-                    (
-                        VenueInstrument.settlement_asset_id.is_(None)
-                        & (TradingPair.quote_id == capability.asset_id)
-                    ),
+                Trade.status.in_(
+                    (TradeStatus.PENDING_ENTRY, TradeStatus.OPEN)
                 ),
+                TradeSnapshot.settlement_asset_id == capability.asset_id,
             )
         )
     ).all()
@@ -149,7 +131,8 @@ async def recompute_wallet_asset(
     """Persist derived wallet and dependent strategy statuses."""
     balance = await wallet_balance(session, wallet_asset)
     wallet_asset.status = wallet_asset_status(
-        balance, wallet_asset.risk_stop_capital,
+        balance,
+        wallet_asset.risk_stop_capital,
     )
     strategy_ids = (
         await session.scalars(

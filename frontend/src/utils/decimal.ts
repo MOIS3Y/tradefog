@@ -30,3 +30,36 @@ export function isPositiveDecimal(value: string): boolean {
   const normalized = value.trim();
   return /^\d+(\.\d+)?$/.test(normalized) && /[1-9]/.test(normalized);
 }
+
+/** Compare two unsigned fixed-point decimal strings without floating point. */
+export function compareDecimal(left: string, right: string): number {
+  const leftMatch = /^(\d+)(?:\.(\d+))?$/.exec(left.trim());
+  const rightMatch = /^(\d+)(?:\.(\d+))?$/.exec(right.trim());
+  if (leftMatch === null || rightMatch === null) return 0;
+  const scale = Math.max(leftMatch[2]?.length ?? 0, rightMatch[2]?.length ?? 0);
+  const integer = (match: RegExpExecArray): bigint =>
+    BigInt(`${match[1]}${(match[2] ?? "").padEnd(scale, "0")}`);
+  const leftInteger = integer(leftMatch);
+  const rightInteger = integer(rightMatch);
+  return leftInteger === rightInteger ? 0 : leftInteger > rightInteger ? 1 : -1;
+}
+
+/** Round a fixed-point decimal for compact presentation without float loss. */
+export function formatRoundedDecimal(value: string, places: number): string {
+  const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(value.trim());
+  if (match === null || places < 0) return formatDecimal(value);
+  const sign = match[1] ?? "";
+  const integer = match[2] ?? "0";
+  const fraction = match[3] ?? "";
+  const retained = fraction.slice(0, places).padEnd(places, "0");
+  const next = fraction.charAt(places);
+  const combined = BigInt(`${integer}${retained}` || "0");
+  const rounded = combined + (next >= "5" ? 1n : 0n);
+  const digits = rounded.toString().padStart(places + 1, "0");
+  const split = places === 0 ? digits.length : digits.length - places;
+  const result =
+    places === 0
+      ? `${sign}${digits}`
+      : `${sign}${digits.slice(0, split)}.${digits.slice(split)}`;
+  return formatDecimal(result);
+}

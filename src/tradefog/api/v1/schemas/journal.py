@@ -172,14 +172,12 @@ class StrategyCreate(JournalInput):
     name: str = Field(min_length=1, max_length=128)
     description: str | None = None
     risk_percent: Decimal = Field(
-        gt=0, le=100, max_digits=10, decimal_places=6
-    )
-    reward_multiple: Decimal = Field(
-        default=Decimal(3),
-        gt=0,
+        ge=Decimal("0.01"),
+        le=100,
         max_digits=10,
         decimal_places=6,
     )
+    reward_multiple: int = Field(default=3, ge=3, le=100)
 
     @field_validator("name")
     @classmethod
@@ -198,17 +196,12 @@ class StrategyPatch(JournalInput):
     description: str | None = None
     risk_percent: Decimal | None = Field(
         default=None,
-        gt=0,
+        ge=Decimal("0.01"),
         le=100,
         max_digits=10,
         decimal_places=6,
     )
-    reward_multiple: Decimal | None = Field(
-        default=None,
-        gt=0,
-        max_digits=10,
-        decimal_places=6,
-    )
+    reward_multiple: int | None = Field(default=None, ge=3, le=100)
     is_archived: bool | None = None
 
     @field_validator("name")
@@ -281,7 +274,7 @@ class StrategyResponse(BaseModel):
     name: str
     description: str | None
     risk_percent: Decimal
-    reward_multiple: Decimal
+    reward_multiple: int
     status: StrategyStatus
     is_archived: bool
     allocations: list[StrategyCapitalResponse]

@@ -416,6 +416,24 @@
     }
   }
 
+  .strategy-lock-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid rgb(232 184 95 / 18%);
+    border-radius: var(--tf-radius-sm);
+    color: #c7a968;
+    background: rgb(232 184 95 / 5%);
+    font-size: 0.74rem;
+    line-height: 1.45;
+
+    svg {
+      flex: 0 0 auto;
+      margin-top: 0.1rem;
+    }
+  }
+
   .ledger-list,
   .allocation-list {
     display: grid;

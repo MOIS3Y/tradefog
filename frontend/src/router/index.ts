@@ -11,6 +11,7 @@ import DashboardView from "@/views/DashboardView.vue";
 import LoginView from "@/views/LoginView.vue";
 import NotFoundView from "@/views/NotFoundView.vue";
 import ProfilesView from "@/views/ProfilesView.vue";
+import TradesView from "@/views/TradesView.vue";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", component: DashboardView, meta: { requiresAuth: true } },
@@ -39,6 +40,11 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/profiles",
     component: ProfilesView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/trades",
+    component: TradesView,
     meta: { requiresAuth: true },
   },
   { path: "/login", component: LoginView, meta: { guestOnly: true } },

@@ -627,7 +627,7 @@ export interface paths {
     head?: never;
     /**
      * Update Trade
-     * @description Edit draft identity and universally editable date or Markdown notes.
+     * @description Edit draft identity or universally editable journal metadata.
      */
     patch: operations["update_trade_api_v1_trades__trade_id__patch"];
     trace?: never;
@@ -690,6 +690,26 @@ export interface paths {
      * @description Calculate an executable plan without persisting a snapshot.
      */
     post: operations["preview_trade_plan_api_v1_trades__trade_id__plan_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/trades/{trade_id}/plan-context": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Trade Plan Context
+     * @description Return stable exact inputs for a responsive local draft calculator.
+     */
+    get: operations["get_trade_plan_context_api_v1_trades__trade_id__plan_context_get"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -893,6 +913,8 @@ export interface components {
       value?: number | string | null;
       /** Contributing Date */
       contributing_date?: string | null;
+      /** Observed Session Range */
+      observed_session_range?: number | string | null;
       /**
        * Stale
        * @default false
@@ -932,6 +954,32 @@ export interface components {
      * @enum {string}
      */
     ATRSource: "auto" | "manual";
+    /**
+     * AllocationMonetaryResponse
+     * @description Money totals scoped to one immutable allocation and asset.
+     */
+    AllocationMonetaryResponse: {
+      /** Strategy Capital Id */
+      strategy_capital_id: number;
+      /** Settlement Asset Id */
+      settlement_asset_id: number;
+      /** Settlement Asset Symbol */
+      settlement_asset_symbol: string;
+      /** Allocation Capital */
+      allocation_capital: string;
+      /** Trade Count */
+      trade_count: number;
+      /** Gross Profit */
+      gross_profit: string;
+      /** Gross Loss */
+      gross_loss: string;
+      /** Net Pnl */
+      net_pnl: string;
+      /** Allocation Return Percent */
+      allocation_return_percent: string;
+      /** Trajectory */
+      trajectory: components["schemas"]["MonetaryTrajectoryPointResponse"][];
+    };
     /**
      * AnalyticsPeriod
      * @description Named date cohorts supported by the analytics endpoint.
@@ -979,12 +1027,20 @@ export interface components {
       maximum_winning_streak: number;
       /** Maximum Losing Streak */
       maximum_losing_streak: number;
+      /** Average Quality Rating */
+      average_quality_rating: string | null;
       /** Trajectory */
       trajectory: components["schemas"]["TrajectoryPointResponse"][];
       /** Break Even Reference */
       break_even_reference: components["schemas"]["ReferencePointResponse"][];
+      /** Discipline Available */
+      discipline_available: boolean;
+      /** Discipline Reward Multiple */
+      discipline_reward_multiple: number | null;
       /** Discipline Break Even Reference */
       discipline_break_even_reference: components["schemas"]["DisciplineReferencePointResponse"][];
+      /** Monetary */
+      monetary: components["schemas"]["AllocationMonetaryResponse"][];
     };
     /**
      * AssessmentDirection
@@ -1256,6 +1312,25 @@ export interface components {
      */
     MarketDataProvider: "none" | "bybit" | "binance" | "yfinance";
     /**
+     * MonetaryTrajectoryPointResponse
+     * @description One realized result in a single allocation's settlement asset.
+     */
+    MonetaryTrajectoryPointResponse: {
+      /** Sequence */
+      sequence: number;
+      /** Trade Id */
+      trade_id: number;
+      /**
+       * Closed At
+       * Format: date-time
+       */
+      closed_at: string;
+      /** Realized Pnl */
+      realized_pnl: string;
+      /** Cumulative Pnl */
+      cumulative_pnl: string;
+    };
+    /**
      * Outcome
      * @description Normalized signs used for counts and consecutive streaks.
      * @enum {string}
@@ -1367,6 +1442,10 @@ export interface components {
     SnapshotResponse: {
       /** Id */
       id: number;
+      /** Strategy Capital Id */
+      strategy_capital_id: number;
+      /** Settlement Asset Id */
+      settlement_asset_id: number;
       /** Planned Entry */
       planned_entry: string;
       /** Planned Stop */
@@ -1413,6 +1492,16 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+      /**
+       * Stop Distance
+       * @description Return the absolute frozen entry-to-stop distance.
+       */
+      readonly stop_distance: string;
+      /**
+       * Take Profit Distance
+       * @description Return the absolute frozen entry-to-target distance.
+       */
+      readonly take_profit_distance: string | null;
     };
     /**
      * StrategyCapitalCreate
@@ -1465,7 +1554,7 @@ export interface components {
        * Reward Multiple
        * @default 3
        */
-      reward_multiple: number | string;
+      reward_multiple: number;
     };
     /**
      * StrategyPatch
@@ -1479,7 +1568,7 @@ export interface components {
       /** Risk Percent */
       risk_percent?: number | string | null;
       /** Reward Multiple */
-      reward_multiple?: number | string | null;
+      reward_multiple?: number | null;
       /** Is Archived */
       is_archived?: boolean | null;
     };
@@ -1499,7 +1588,7 @@ export interface components {
       /** Risk Percent */
       risk_percent: string;
       /** Reward Multiple */
-      reward_multiple: string;
+      reward_multiple: number;
       status: components["schemas"]["StrategyStatus"];
       /** Is Archived */
       is_archived: boolean;
@@ -1584,10 +1673,12 @@ export interface components {
       direction?: components["schemas"]["Direction"] | null;
       /** Description Markdown */
       description_markdown?: string | null;
+      /** Quality Rating */
+      quality_rating?: number | null;
     };
     /**
      * TradePlanRequest
-     * @description Editable entry and stop values persisted in the draft context.
+     * @description Editable position anchors persisted as normalized entry and stop.
      */
     "TradePlanRequest-Input": {
       /** Planned Entry */
@@ -1597,7 +1688,7 @@ export interface components {
     };
     /**
      * TradePlanRequest
-     * @description Editable entry and stop values persisted in the draft context.
+     * @description Editable position anchors persisted as normalized entry and stop.
      */
     "TradePlanRequest-Output": {
       /** Planned Entry */
@@ -1616,12 +1707,18 @@ export interface components {
       planned_stop: string;
       /** Planned Take Profit */
       planned_take_profit: string;
+      /** Stop Distance */
+      stop_distance: string;
+      /** Take Profit Distance */
+      take_profit_distance: string;
       /** Quantity */
       quantity: string;
       /** Reward Multiple */
-      reward_multiple: string;
+      reward_multiple: number;
       /** Planned Risk Percent */
       planned_risk_percent: string;
+      /** Target Risk Amount */
+      target_risk_amount: string;
       /** Planned Risk Amount */
       planned_risk_amount: string;
       /** Planned Notional */
@@ -1640,6 +1737,10 @@ export interface components {
       wallet_reserved: string;
       /** Wallet Available */
       wallet_available: string;
+      /** Capital Remaining */
+      capital_remaining: string;
+      /** Capital Sufficient */
+      capital_sufficient: boolean;
       /** Atr Value */
       atr_value: string | null;
       /** Take Profit Atr Percent */
@@ -1651,6 +1752,42 @@ export interface components {
        * @default 75
        */
       atr_limit_percent: string;
+    };
+    /**
+     * TradePlanningContextResponse
+     * @description Stable inputs required for a local draft position calculation.
+     */
+    TradePlanningContextResponse: {
+      /** Price Step */
+      price_step: string;
+      /** Quantity Step */
+      quantity_step: string;
+      /** Minimum Quantity */
+      minimum_quantity: string | null;
+      /** Minimum Notional */
+      minimum_notional: string | null;
+      /** Reward Multiple */
+      reward_multiple: number;
+      /** Planned Risk Percent */
+      planned_risk_percent: string;
+      /** Target Risk Amount */
+      target_risk_amount: string;
+      /** Allocation Capital */
+      allocation_capital: string;
+      /** Already Reserved Risk */
+      already_reserved_risk: string;
+      /** Remaining Risk Capacity */
+      remaining_risk_capacity: string;
+      /** Risk Stop Capital */
+      risk_stop_capital: string | null;
+      /** Wallet Balance */
+      wallet_balance: string;
+      /** Wallet Reserved */
+      wallet_reserved: string;
+      /** Wallet Available */
+      wallet_available: string;
+      /** Deposit Floor Breach */
+      deposit_floor_breach: boolean;
     };
     /**
      * TradeResponse
@@ -1674,6 +1811,8 @@ export interface components {
       direction: components["schemas"]["Direction"];
       /** Description Markdown */
       description_markdown: string | null;
+      /** Quality Rating */
+      quality_rating: number | null;
       /** Review Completed At */
       review_completed_at: string | null;
       /** Realized Pnl */
@@ -1684,6 +1823,14 @@ export interface components {
       total_commission: string | null;
       /** Funding Result */
       funding_result: string | null;
+      /** Submitted At */
+      submitted_at: string | null;
+      /** Opened At */
+      opened_at: string | null;
+      /** Closed At */
+      closed_at: string | null;
+      /** Cancelled At */
+      cancelled_at: string | null;
       /**
        * Created At
        * Format: date-time
@@ -1732,6 +1879,11 @@ export interface components {
        * Format: date
        */
       trade_date: string;
+      /**
+       * Closed At
+       * Format: date-time
+       */
+      closed_at: string;
       /** Profile Name */
       profile_name: string;
       product: components["schemas"]["ProductKind"];
@@ -1744,9 +1896,9 @@ export interface components {
       /** Cumulative Result R */
       cumulative_result_r: string;
       /** Discipline X */
-      discipline_x: string;
+      discipline_x: string | null;
       /** Discipline Y */
-      discipline_y: string;
+      discipline_y: string | null;
     };
     /**
      * TrendRelationship
@@ -3689,6 +3841,37 @@ export interface operations {
       };
     };
   };
+  get_trade_plan_context_api_v1_trades__trade_id__plan_context_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        trade_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TradePlanningContextResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   submit_draft_api_v1_trades__trade_id__submit_post: {
     parameters: {
       query?: never;
@@ -3868,6 +4051,7 @@ export interface operations {
         instrument_id?: number | null;
         pair_id?: number | null;
         settlement_asset_id?: number | null;
+        strategy_capital_id?: number | null;
       };
       header?: never;
       path?: never;

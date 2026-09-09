@@ -219,11 +219,13 @@ then creates exactly one immutable `TradeSnapshot` in the same transaction.
 Reservations release when a trade is cancelled or closed. Closing records
 signed net P&L, and review completion is tracked independently.
 
-`POST /trades/{trade_id}/plan` previews the same validated calculation without
-creating a snapshot or reservation. When ATR context exists, the preview also
-reports whether the take-profit move fits within the advisory 75% ATR limit.
-`PUT /trades/{trade_id}/plan` persists the entry and stop in the draft context;
-submission accepts only a lifecycle status and freezes that saved plan.
+`GET /trades/{trade_id}/plan-context` supplies exact instrument, strategy, and
+capital inputs for the frontend's synchronous Decimal calculation. The user
+edits only entry and stop; take profit and quantity remain derived. `POST
+/trades/{trade_id}/plan` provides the same preview to headless API clients.
+`PUT /trades/{trade_id}/plan` revalidates and persists entry and stop while
+still allowing an underfunded draft. Submission rechecks current capital and
+freezes the saved plan.
 
 Saved plan inputs, checklist answers, and the latest draft ATR are stored
 inside `draft_context`. Automatic ATR fetches run outside the event loop through

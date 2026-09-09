@@ -59,10 +59,15 @@ No child record duplicates user ownership fields.
   Initial capital is represented as an initial deposit operation. Its kind,
   amount, and creation time are immutable; only its explanatory note may be
   corrected.
-- **TradingStrategy**: Defines risk discipline: `risk_percent` and `reward_ratio`
-  (e.g., `1:3`). Reused across assets.
+- **TradingStrategy**: Defines risk discipline through two independent values.
+  `risk_percent` accepts decimal values from `0.01%` through `100%` and sets the
+  monetary size of `1R` for every allocation. `reward_multiple` is the right
+  side of the canonical `1:N` ratio and is a whole number from `3` through
+  `100`. The left side is always one and is never entered separately.
 - **StrategyCapital**: Fixed capital allocated from a `WalletAsset` to a
-  `TradingStrategy`.
+  `TradingStrategy`. Its amount is locked after the first submitted trade that
+  uses it; a materially different risk tier requires a new strategy or
+  allocation rather than rewriting history.
 - **Attachment**: Private image metadata owned transitively through its
   `Trade`; file content remains outside the database and is never public.
 
@@ -70,9 +75,14 @@ No child record duplicates user ownership fields.
 
 - **Fixed Monetary Risk (1R)**:
   `1R = StrategyCapital.allocated_capital * (TradingStrategy.risk_percent / 100)`
+- **Canonical Reward Rule**: `take_profit_distance = stop_distance * N`, where
+  `N` is the strategy's whole reward multiple from `3` through `100`. For
+  example, a `5.5%` risk and `N = 3` risk `5.5%` of the fixed allocation and
+  target three times that monetary risk.
 - **Take-Profit Price**: Derived deterministically from entry, stop, and reward
   multiple. Cannot be edited independently.
-- **Position Sizing**: Calculated so that monetary loss at stop loss equals `1R`.
+- **Position Sizing**: Quantity rounds down to the venue step, so executable
+  monetary loss at the stop never exceeds the target `1R`.
 - **Wallet Reservations**: Moving a trade to `PENDING` or `OPEN` locks the
   required notional capital.
 
@@ -88,9 +98,10 @@ CANCELLED  CANCELLED  CANCELLED
 1. **DRAFT**: Editable trade workspace. Checklist, plan, and ATR can be
    updated freely.
 2. **PENDING**: Order placed with external broker. Freezes an immutable
-   `TradeSnapshot` and reserves capital in the wallet.
+   `TradeSnapshot`, records `submitted_at`, and reserves capital in the wallet.
 3. **OPEN**: Order filled. Position is active.
-4. **CLOSED**: Position exited. Net realized P&L is recorded.
+4. **CLOSED**: Position exited. `closed_at` and final signed net realized P&L
+   in the snapshotted settlement asset are recorded.
 5. **CANCELLED**: Order cancelled before fill or aborted. Releases wallet
    reservations.
 
@@ -99,12 +110,19 @@ CANCELLED  CANCELLED  CANCELLED
 Transitioning from `DRAFT` to `PENDING` or `OPEN` atomically creates an
 immutable `TradeSnapshot`:
 
+- Identifies the exact `StrategyCapital` and settlement `Asset` used by the
+  trade, keeping analytical cohorts stable after archival.
 - Freezes planned entry, stop loss, take profit, position quantity, and planned
   notional.
-- Freezes planned 1R risk amount and ATR context (source and calculated value).
+- Freezes strategy risk percent, reward multiple, allocation capital, planned
+  1R risk amount, and ATR context (source and calculated value).
 - Verifies that `VenueInstrument.settlement_asset` matches the strategy's
   settlement `WalletAsset`.
 - Verifies that available wallet balance is sufficient for required notional.
+
+After the snapshot exists, direction, checklist, ATR, and position fields are
+locked. Notes, attachments, review completion, and an optional integer quality
+rating from `1` through `10` remain editable without changing the plan.
 
 ## Directional Checklist & Setup Assessment
 

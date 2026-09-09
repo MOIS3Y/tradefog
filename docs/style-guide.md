@@ -28,6 +28,17 @@ accents reserved for active state, selection, and primary actions.
 - Wallet operations are presented as ledger facts. Their financial fields have
   no edit affordance; note correction opens a note-only form.
 - Success and failure use stacked, dismissible toasts in the lower-right corner.
+- The trade workspace keeps cross-profile navigation in a persistent directory
+  and groups position, checklist, volatility, notes, and images by decision task.
+- Lifecycle actions follow draft, pending entry, open, closed or cancelled;
+  immutable snapshot values receive no edit affordance after submission.
+- ATR bars share a visible 75% marker. Exceeding it is advisory and changes the
+  visual warning state without blocking a discretionary draft.
+- Position inputs follow stop, entry, and derived target order. The target is
+  read-only; the risk map keeps stop and target labels at opposite edges and
+  places entry at the exact `1:R` boundary.
+- Trade notes and screenshots share one journal module. Private image blobs
+  open in a keyboard-accessible full-screen gallery and are revoked locally.
 
 ## Content and States
 

@@ -12,6 +12,7 @@ when the compiled SPA is embedded or extended.
 - `_forms.scss` — form fields and searchable entity selectors.
 - `_feedback.scss` — dialogs, confirmations, and toast notifications.
 - `_auth.scss` — authentication and entry-screen composition.
+- `_trades.scss` — trade navigation, lifecycle, and decision workspace.
 - `_shell.scss` — signed-in navigation shell and workspace cards.
 - `_catalog.scss` — shared catalog tables and navigation.
 - `_venues.scss` — venue directory, details, instruments, and wallet assets.

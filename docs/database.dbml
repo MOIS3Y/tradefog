@@ -192,8 +192,8 @@ Table TradingStrategy {
   profile_id integer [not null, note: 'Owning profile; the strategy is a tool of the profile, not a shared catalog record']
   name varchar(128) [not null, note: 'Strategy name, e.g. Easy']
   description text [note: 'Strategy description']
-  risk_percent decimal(10, 6) [not null, note: 'Risk percent of the per-asset allocation capital per trade']
-  reward_multiple decimal(10, 6) [not null, default: 3, note: 'Fixed reward ratio (R:R), e.g. 3 means take profit = risk * 3']
+  risk_percent decimal(10, 6) [not null, note: 'Risk percent from 0.01 through 100 of the per-asset allocation capital per trade']
+  reward_multiple decimal(10, 6) [not null, default: 3, note: 'Whole reward multiple from 3 through 100; the canonical left side is always 1, so 3 means 1:3']
   status strategy_status [not null, note: 'The worst status among its active StrategyCapital wallet assets']
   is_archived boolean [default: false, not null, note: 'Soft-archived strategy; hidden from active strategy views']
   Note: 'Edge layer: the fixed risk and reward coefficients of a strategy cohort. Ownership is scoped transitively through TradingProfile.owner. Capital lives per asset in StrategyCapital, so one strategy is reused across every wallet asset it allocates.'
@@ -216,17 +216,22 @@ Table Trade {
   profile_id integer [not null, note: 'Owning profile; owner is the profile owner (single ownership root)']
   strategy_id integer [not null, note: 'Owning strategy']
   venue_instrument_id integer [not null, note: 'Shared instrument traded; references catalog directly']
-  trade_date date [not null, note: 'Analytical date; source of truth for time filters']
+  trade_date date [not null, note: 'Descriptive planning or entry date; realized-performance periods use closed_at']
   status trade_status [not null, note: 'Draft, pending, open, closed, or cancelled']
   direction direction [not null, note: 'Long or short; locked once the snapshot exists']
   draft_context json [not null, default: '{}', note: 'Intermediate form and calculation state saved during draft editing']
   description_markdown text [note: 'Evolving Markdown description in any state']
 
+  quality_rating integer [note: 'Optional decision-quality score from 1 through 10; remains editable after submission']
   review_completed_at timestamp [note: 'Optional review completion time; closed trades only']
   realized_pnl decimal(30, 18) [note: 'Final signed net P&L when closed, in the settlement asset']
   actual_exit_price decimal(30, 18) [note: 'Optional reference exit price']
   total_commission decimal(30, 18) [note: 'Optional total commission context']
   funding_result decimal(30, 18) [note: 'Optional signed funding context']
+  submitted_at timestamp [note: 'First transition from draft to pending or directly to open']
+  opened_at timestamp [note: 'When the position was marked open']
+  closed_at timestamp [note: 'When P&L was realized; source of truth for realized-performance periods']
+  cancelled_at timestamp [note: 'When an active lifecycle was cancelled']
   created_at timestamp [default: `now()`, not null, note: 'Creation time']
   Note: 'Working journal record and lifecycle. Ownership is scoped transitively through TradingProfile.owner. The instrument settlement asset must match the asset of one StrategyCapital of the strategy. Decision context is frozen into TradeSnapshot on the draft-to-pending transition; Trade working fields are locked from then on.'
 }
@@ -234,6 +239,8 @@ Table Trade {
 Table TradeSnapshot {
   id integer [pk, increment, note: 'Primary key']
   trade_id integer [unique, not null, note: 'One write-once snapshot per trade']
+  strategy_capital_id integer [not null, note: 'Exact immutable allocation cohort used by this trade']
+  settlement_asset_id integer [not null, note: 'Frozen monetary denomination for P&L and analytics']
   planned_entry decimal(30, 18) [not null, note: 'Frozen planned entry price']
   planned_stop decimal(30, 18) [not null, note: 'Frozen planned stop price']
   planned_take_profit decimal(30, 18) [note: 'Frozen take profit, derived at the reward multiple']
@@ -300,4 +307,6 @@ Ref: Trade.strategy_id > TradingStrategy.id
 Ref: Trade.venue_instrument_id > VenueInstrument.id
 
 Ref: TradeSnapshot.trade_id > Trade.id
+Ref: TradeSnapshot.strategy_capital_id > StrategyCapital.id
+Ref: TradeSnapshot.settlement_asset_id > Asset.id
 Ref: Attachment.trade_id > Trade.id

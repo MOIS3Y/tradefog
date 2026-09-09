@@ -123,6 +123,8 @@ async def seed_journal(
     )
     snapshot = TradeSnapshot(
         trade=trade,
+        strategy_capital=capital,
+        settlement_asset=capability.asset,
         planned_entry=Decimal("0.000000000000000002"),
         planned_stop=Decimal("0.000000000000000001"),
     )

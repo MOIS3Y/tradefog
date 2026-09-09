@@ -361,6 +361,77 @@
     .form-grid--two {
       grid-template-columns: 1fr;
     }
+
+    .trade-toolbar {
+      flex-wrap: wrap;
+      padding: 0.8rem 1rem;
+    }
+
+    .trade-search {
+      min-width: 100%;
+    }
+
+    .trade-toolbar__create {
+      margin-left: 0;
+    }
+
+    .trade-console {
+      display: block;
+    }
+
+    .trade-directory {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--tf-line-soft);
+    }
+
+    .trade-directory__count,
+    .trade-directory__empty {
+      min-width: 150px;
+    }
+
+    .trade-card {
+      min-width: 245px;
+    }
+
+    .trade-detail__header,
+    .trade-lifecycle {
+      align-items: stretch;
+      flex-direction: column;
+      padding: 1.1rem;
+    }
+
+    .trade-rating {
+      justify-items: start;
+    }
+
+    .trade-lifecycle__rail {
+      overflow-x: auto;
+    }
+
+    .trade-lifecycle__actions {
+      flex-wrap: wrap;
+    }
+
+    .trade-workgrid {
+      grid-template-columns: 1fr;
+    }
+
+    .trade-module {
+      padding: 1.1rem;
+      border-right: 0;
+    }
+
+    .position-fields,
+    .position-summary {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .trade-journal-grid {
+      grid-template-columns: 1fr;
+    }
   }
 }
 
@@ -376,6 +447,49 @@
     bottom: 1rem;
     left: 1rem;
     width: auto;
+  }
+
+  .tf-app {
+    .trade-date-range {
+      width: 100%;
+    }
+
+    .trade-date-range input {
+      flex: 1;
+    }
+
+    .position-fields,
+    .position-summary {
+      grid-template-columns: 1fr;
+    }
+
+    .position-summary div {
+      border-right: 0;
+      border-bottom: 1px solid var(--tf-line-soft);
+    }
+
+    .checklist-row {
+      grid-template-columns: 1fr;
+    }
+
+    .checklist-row > div {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .trade-review {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .atr-source-panel--manual {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .atr-manual-fields {
+      grid-template-columns: 1fr;
+    }
   }
 }
 

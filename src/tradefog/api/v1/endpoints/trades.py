@@ -20,6 +20,7 @@ from tradefog.api.v1.schemas.trades import (
     TradeClose,
     TradeCreate,
     TradePatch,
+    TradePlanningContextResponse,
     TradePlanRequest,
     TradePlanResponse,
     TradeResponse,
@@ -28,11 +29,13 @@ from tradefog.api.v1.schemas.trades import (
 )
 from tradefog.db.models import (
     Attachment,
+    StrategyCapital,
     Trade,
     TradeSnapshot,
     TradingProfile,
     Venue,
     VenueInstrument,
+    WalletAsset,
 )
 from tradefog.db.scoping import owned_select
 from tradefog.domain.checklists import (
@@ -48,8 +51,8 @@ from tradefog.services.trades import (
     SubmissionContext,
     atr_from_context,
     checklist_payload,
+    prepare_planning_context,
     prepare_submission,
-    settlement_allocation,
     stored_decimal,
     submit_trade,
     validate_trade_identity,
@@ -113,11 +116,16 @@ async def trade_response(
         status=trade.status,
         direction=trade.direction,
         description_markdown=trade.description_markdown,
+        quality_rating=trade.quality_rating,
         review_completed_at=trade.review_completed_at,
         realized_pnl=trade.realized_pnl,
         actual_exit_price=trade.actual_exit_price,
         total_commission=trade.total_commission,
         funding_result=trade.funding_result,
+        submitted_at=trade.submitted_at,
+        opened_at=trade.opened_at,
+        closed_at=trade.closed_at,
+        cancelled_at=trade.cancelled_at,
         created_at=trade.created_at,
         checklist=ChecklistResponse.model_validate(checklist_payload(trade)),
         plan=saved_plan(trade),
@@ -151,9 +159,14 @@ def plan_response(
         planned_entry=entry,
         planned_stop=stop,
         planned_take_profit=stored_decimal(context.plan.take_profit),
+        stop_distance=stored_decimal(context.plan.distance),
+        take_profit_distance=stored_decimal(
+            context.plan.take_profit_distance,
+        ),
         quantity=stored_decimal(context.plan.quantity),
-        reward_multiple=context.strategy.reward_multiple,
+        reward_multiple=int(context.strategy.reward_multiple),
         planned_risk_percent=context.strategy.risk_percent,
+        target_risk_amount=context.target_risk_amount,
         planned_risk_amount=stored_decimal(
             context.plan.planned_risk_amount,
         ),
@@ -172,6 +185,13 @@ def plan_response(
         wallet_balance=stored_decimal(context.balance),
         wallet_reserved=stored_decimal(context.reserved_notional),
         wallet_available=stored_decimal(context.available),
+        capital_remaining=stored_decimal(
+            context.available - context.plan.notional,
+        ),
+        capital_sufficient=(
+            context.plan.notional <= context.available
+            and context.target_risk_amount <= context.remaining_risk_capacity
+        ),
         atr_value=context.atr.value if context.atr else None,
         take_profit_atr_percent=atr_percent,
         fits_atr_limit=fits_atr_limit,
@@ -188,7 +208,8 @@ async def list_trades(
 ) -> list[TradeResponse]:
     """List authenticated journal trades with optional cohort filters."""
     statement = owned_select(Trade, user.id).order_by(
-        Trade.trade_date.desc(), Trade.id.desc(),
+        Trade.trade_date.desc(),
+        Trade.id.desc(),
     )
     if profile_id is not None:
         statement = statement.where(Trade.profile_id == profile_id)
@@ -201,7 +222,9 @@ async def list_trades(
 
 
 @router.post(
-    "", response_model=TradeResponse, status_code=status.HTTP_201_CREATED,
+    "",
+    response_model=TradeResponse,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_trade(
     request: TradeCreate,
@@ -210,7 +233,11 @@ async def create_trade(
 ) -> TradeResponse:
     """Create an editable draft after validating its profile references."""
     profile = await get_owned(
-        session, TradingProfile, request.profile_id, user.id, for_update=True,
+        session,
+        TradingProfile,
+        request.profile_id,
+        user.id,
+        for_update=True,
     )
     if profile.is_archived:
         conflict("Archived profiles cannot accept new trades")
@@ -255,15 +282,22 @@ async def delete_trade(
 ) -> None:
     """Permanently remove a draft that has never created immutable history."""
     trade = await get_owned(
-        session, Trade, trade_id, user.id, for_update=True,
+        session,
+        Trade,
+        trade_id,
+        user.id,
+        for_update=True,
     )
     if trade.status != TradeStatus.DRAFT:
         conflict("Only a draft trade can be deleted")
-    if await session.scalar(
-        select(Attachment.id)
-        .where(Attachment.trade_id == trade.id)
-        .limit(1)
-    ) is not None:
+    if (
+        await session.scalar(
+            select(Attachment.id)
+            .where(Attachment.trade_id == trade.id)
+            .limit(1)
+        )
+        is not None
+    ):
         conflict("Delete trade attachments before deleting the draft")
     await session.delete(trade)
     await session.flush()
@@ -276,17 +310,29 @@ async def update_trade(
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradeResponse:
-    """Edit draft identity and universally editable date or Markdown notes."""
+    """Edit draft identity or universally editable journal metadata."""
     trade = await get_owned(
-        session, Trade, trade_id, user.id, for_update=True,
+        session,
+        Trade,
+        trade_id,
+        user.id,
+        for_update=True,
     )
     values = request.model_dump(exclude_unset=True)
-    draft_only = {"strategy_id", "venue_instrument_id", "direction"}
+    draft_only = {
+        "strategy_id",
+        "venue_instrument_id",
+        "trade_date",
+        "direction",
+    }
     if trade.status != TradeStatus.DRAFT and draft_only & values.keys():
         conflict("Submitted trade identity is immutable")
     if draft_only & values.keys():
         profile = await get_owned(
-            session, TradingProfile, trade.profile_id, user.id,
+            session,
+            TradingProfile,
+            trade.profile_id,
+            user.id,
         )
         await validate_trade_identity(
             session,
@@ -310,7 +356,11 @@ async def update_checklist(
 ) -> ChecklistResponse:
     """Replace and assess the four directional answers on a draft trade."""
     trade = await get_owned(
-        session, Trade, trade_id, user.id, for_update=True,
+        session,
+        Trade,
+        trade_id,
+        user.id,
+        for_update=True,
     )
     if trade.status != TradeStatus.DRAFT:
         conflict("Checklist is locked after trade submission")
@@ -355,26 +405,42 @@ async def refresh_atr(
                 "invalid_atr_date",
                 "ATR contributing date cannot follow the trade date",
             )
+        session_percent: Decimal | None = None
+        if request.observed_session_range is not None:
+            with localcontext() as decimal_context:
+                decimal_context.prec = 96
+                session_percent = stored_decimal(
+                    request.observed_session_range
+                    / request.value
+                    * Decimal(100),
+                )
         response = ATRResponse(
             value=request.value,
             source=ATRSource.MANUAL,
             contributing_date=request.contributing_date or trade.trade_date,
             observation_time=datetime.now(UTC),
             stale=request.stale,
+            observed_session_range=request.observed_session_range,
+            session_range_percent=session_percent,
         )
     else:
         instrument = await session.get(
-            VenueInstrument, trade.venue_instrument_id,
+            VenueInstrument,
+            trade.venue_instrument_id,
         )
         profile = await get_owned(
-            session, TradingProfile, trade.profile_id, user.id,
+            session,
+            TradingProfile,
+            trade.profile_id,
+            user.id,
         )
         venue = await session.get(Venue, profile.venue_id)
         if instrument is None or venue is None:
             not_found("Trade market context")
         if venue.market_data_provider.value == "none":
             api_error(
-                422, "manual_atr_required",
+                422,
+                "manual_atr_required",
                 "Venue has no automatic market data provider",
             )
         try:
@@ -395,13 +461,16 @@ async def refresh_atr(
             stale=context.is_stale,
             observed_session_range=context.observed_session_range,
             session_range_percent=context.session_range_percent,
-            candles=[CandleResponse(
-                date=candle.date,
-                open=candle.open,
-                high=candle.high,
-                low=candle.low,
-                close=candle.close,
-            ) for candle in context.candles],
+            candles=[
+                CandleResponse(
+                    date=candle.date,
+                    open=candle.open,
+                    high=candle.high,
+                    low=candle.low,
+                    close=candle.close,
+                )
+                for candle in context.candles
+            ],
         )
     locked_trade = await session.scalar(
         owned_select(Trade, user.id)
@@ -413,21 +482,27 @@ async def refresh_atr(
         not_found("Trade")
     if locked_trade.status != TradeStatus.DRAFT:
         conflict("ATR context is locked after trade submission")
-    store_draft_section(locked_trade, "atr", {
-        "value": str(response.value),
-        "source": response.source.value,
-        "contributing_date": response.contributing_date.isoformat(),
-        "observation_time": response.observation_time.isoformat(),
-        "stale": response.stale,
-        "observed_session_range": (
-            str(response.observed_session_range)
-            if response.observed_session_range is not None else None
-        ),
-        "session_range_percent": (
-            str(response.session_range_percent)
-            if response.session_range_percent is not None else None
-        ),
-    })
+    store_draft_section(
+        locked_trade,
+        "atr",
+        {
+            "value": str(response.value),
+            "source": response.source.value,
+            "contributing_date": response.contributing_date.isoformat(),
+            "observation_time": response.observation_time.isoformat(),
+            "stale": response.stale,
+            "observed_session_range": (
+                str(response.observed_session_range)
+                if response.observed_session_range is not None
+                else None
+            ),
+            "session_range_percent": (
+                str(response.session_range_percent)
+                if response.session_range_percent is not None
+                else None
+            ),
+        },
+    )
     await session.flush()
     return response
 
@@ -441,18 +516,63 @@ async def preview_trade_plan(
 ) -> TradePlanResponse:
     """Calculate an executable plan without persisting a snapshot."""
     trade = await get_owned(
-        session, Trade, trade_id, user.id, for_update=True,
+        session,
+        Trade,
+        trade_id,
+        user.id,
+        for_update=True,
     )
     context = await prepare_submission(
         session,
         trade,
         request.planned_entry,
         request.planned_stop,
+        enforce_capital=False,
     )
     return plan_response(
         request.planned_entry,
         request.planned_stop,
         context,
+    )
+
+
+@router.get(
+    "/{trade_id}/plan-context",
+    response_model=TradePlanningContextResponse,
+)
+async def get_trade_plan_context(
+    trade_id: int,
+    session: SessionDependency,
+    user: CurrentUserDependency,
+) -> TradePlanningContextResponse:
+    """Return stable exact inputs for a responsive local draft calculator."""
+    trade = await get_owned(session, Trade, trade_id, user.id)
+    context = await prepare_planning_context(
+        session,
+        trade,
+        for_update=False,
+    )
+    return TradePlanningContextResponse(
+        price_step=context.instrument.price_step,
+        quantity_step=context.instrument.qty_step,
+        minimum_quantity=context.instrument.min_qty,
+        minimum_notional=context.instrument.min_notional,
+        reward_multiple=int(context.strategy.reward_multiple),
+        planned_risk_percent=context.strategy.risk_percent,
+        target_risk_amount=context.target_risk_amount,
+        allocation_capital=context.allocation.capital,
+        already_reserved_risk=stored_decimal(context.already_reserved_risk),
+        remaining_risk_capacity=stored_decimal(
+            context.remaining_risk_capacity,
+        ),
+        risk_stop_capital=context.wallet_asset.risk_stop_capital,
+        wallet_balance=stored_decimal(context.balance),
+        wallet_reserved=stored_decimal(context.reserved_notional),
+        wallet_available=stored_decimal(context.available),
+        deposit_floor_breach=(
+            context.wallet_asset.risk_stop_capital is not None
+            and context.balance <= context.wallet_asset.risk_stop_capital
+        ),
     )
 
 
@@ -465,10 +585,21 @@ async def save_trade_plan(
 ) -> TradeResponse:
     """Persist editable entry and stop values in a draft context."""
     trade = await get_owned(
-        session, Trade, trade_id, user.id, for_update=True,
+        session,
+        Trade,
+        trade_id,
+        user.id,
+        for_update=True,
     )
     if trade.status != TradeStatus.DRAFT:
         conflict("Plan is locked after trade submission")
+    await prepare_submission(
+        session,
+        trade,
+        request.planned_entry,
+        request.planned_stop,
+        enforce_capital=False,
+    )
     store_draft_section(trade, "plan", request.model_dump(mode="json"))
     await session.flush()
     return await trade_response(session, trade)
@@ -514,11 +645,16 @@ async def open_trade(
 ) -> TradeResponse:
     """Mark a pending external order as filled and open."""
     trade = await get_owned(
-        session, Trade, trade_id, user.id, for_update=True,
+        session,
+        Trade,
+        trade_id,
+        user.id,
+        for_update=True,
     )
     if trade.status != TradeStatus.PENDING_ENTRY:
         conflict("Only a pending trade can be opened")
     trade.status = TradeStatus.OPEN
+    trade.opened_at = datetime.now(UTC).replace(tzinfo=None)
     await session.flush()
     return await trade_response(session, trade)
 
@@ -531,7 +667,11 @@ async def cancel_trade(
 ) -> TradeResponse:
     """Cancel a draft, pending or open trade and release derived reservation."""
     trade = await get_owned(
-        session, Trade, trade_id, user.id, for_update=True,
+        session,
+        Trade,
+        trade_id,
+        user.id,
+        for_update=True,
     )
     if trade.status not in (
         TradeStatus.DRAFT,
@@ -540,6 +680,7 @@ async def cancel_trade(
     ):
         conflict("Trade cannot be cancelled from its current state")
     trade.status = TradeStatus.CANCELLED
+    trade.cancelled_at = datetime.now(UTC).replace(tzinfo=None)
     await session.flush()
     return await trade_response(session, trade)
 
@@ -553,14 +694,32 @@ async def close_trade(
 ) -> TradeResponse:
     """Close an open trade, release reservation and add realized P&L."""
     trade = await get_owned(
-        session, Trade, trade_id, user.id, for_update=True,
+        session,
+        Trade,
+        trade_id,
+        user.id,
+        for_update=True,
     )
     if trade.status != TradeStatus.OPEN:
         conflict("Only an open trade can be closed")
-    _allocation, wallet_asset = await settlement_allocation(
-        session, trade, active_only=False,
+    snapshot = await session.scalar(
+        select(TradeSnapshot).where(TradeSnapshot.trade_id == trade.id)
     )
+    if snapshot is None:
+        conflict("An open trade requires an immutable snapshot")
+    allocation = await session.get(
+        StrategyCapital,
+        snapshot.strategy_capital_id,
+    )
+    wallet_asset = (
+        await session.get(WalletAsset, allocation.wallet_asset_id)
+        if allocation is not None
+        else None
+    )
+    if wallet_asset is None:
+        conflict("The snapshotted allocation is no longer available")
     trade.status = TradeStatus.CLOSED
+    trade.closed_at = datetime.now(UTC).replace(tzinfo=None)
     trade.realized_pnl = request.realized_pnl
     trade.actual_exit_price = request.actual_exit_price
     trade.total_commission = request.total_commission
@@ -580,7 +739,11 @@ async def review_trade(
 ) -> TradeResponse:
     """Set review completion time on a closed trade."""
     trade = await get_owned(
-        session, Trade, trade_id, user.id, for_update=True,
+        session,
+        Trade,
+        trade_id,
+        user.id,
+        for_update=True,
     )
     if trade.status != TradeStatus.CLOSED:
         conflict("Only a closed trade can be reviewed")

@@ -3,7 +3,13 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    model_validator,
+)
 
 from tradefog.domain.checklists import (
     AssessmentDirection,
@@ -60,13 +66,15 @@ class TradePatch(TradeInput):
     trade_date: date | None = None
     direction: Direction | None = None
     description_markdown: str | None = None
+    quality_rating: int | None = Field(default=None, ge=1, le=10)
 
     @model_validator(mode="after")
     def reject_required_nulls(self) -> "TradePatch":
         """Allow null only for the nullable Markdown description."""
         values = self.model_dump(exclude_unset=True)
+        nullable = {"description_markdown", "quality_rating"}
         for field, value in values.items():
-            if field != "description_markdown" and value is None:
+            if field not in nullable and value is None:
                 raise ValueError(f"{field} cannot be null")
         return self
 
@@ -75,9 +83,18 @@ class ATRRequest(TradeInput):
     """Refresh automatic ATR or supply a manual fallback value."""
 
     value: Decimal | None = Field(
-        default=None, gt=0, max_digits=30, decimal_places=18,
+        default=None,
+        gt=0,
+        max_digits=30,
+        decimal_places=18,
     )
     contributing_date: date | None = None
+    observed_session_range: Decimal | None = Field(
+        default=None,
+        ge=0,
+        max_digits=30,
+        decimal_places=18,
+    )
     stale: bool = False
 
 
@@ -118,10 +135,30 @@ class TradeSubmit(TradeInput):
 
 
 class TradePlanRequest(TradeInput):
-    """Editable entry and stop values persisted in the draft context."""
+    """Editable position anchors persisted as normalized entry and stop."""
 
     planned_entry: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
     planned_stop: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
+
+
+class TradePlanningContextResponse(BaseModel):
+    """Stable inputs required for a local draft position calculation."""
+
+    price_step: Decimal
+    quantity_step: Decimal
+    minimum_quantity: Decimal | None
+    minimum_notional: Decimal | None
+    reward_multiple: int
+    planned_risk_percent: Decimal
+    target_risk_amount: Decimal
+    allocation_capital: Decimal
+    already_reserved_risk: Decimal
+    remaining_risk_capacity: Decimal
+    risk_stop_capital: Decimal | None
+    wallet_balance: Decimal
+    wallet_reserved: Decimal
+    wallet_available: Decimal
+    deposit_floor_breach: bool
 
 
 class TradePlanResponse(BaseModel):
@@ -130,9 +167,12 @@ class TradePlanResponse(BaseModel):
     planned_entry: Decimal
     planned_stop: Decimal
     planned_take_profit: Decimal
+    stop_distance: Decimal
+    take_profit_distance: Decimal
     quantity: Decimal
-    reward_multiple: Decimal
+    reward_multiple: int
     planned_risk_percent: Decimal
+    target_risk_amount: Decimal
     planned_risk_amount: Decimal
     planned_notional: Decimal
     allocation_capital: Decimal
@@ -142,6 +182,8 @@ class TradePlanResponse(BaseModel):
     wallet_balance: Decimal
     wallet_reserved: Decimal
     wallet_available: Decimal
+    capital_remaining: Decimal
+    capital_sufficient: bool
     atr_value: Decimal | None
     take_profit_atr_percent: Decimal | None
     fits_atr_limit: bool | None
@@ -153,13 +195,21 @@ class TradeClose(TradeInput):
 
     realized_pnl: Decimal = Field(max_digits=30, decimal_places=18)
     actual_exit_price: Decimal | None = Field(
-        default=None, gt=0, max_digits=30, decimal_places=18,
+        default=None,
+        gt=0,
+        max_digits=30,
+        decimal_places=18,
     )
     total_commission: Decimal | None = Field(
-        default=None, ge=0, max_digits=30, decimal_places=18,
+        default=None,
+        ge=0,
+        max_digits=30,
+        decimal_places=18,
     )
     funding_result: Decimal | None = Field(
-        default=None, max_digits=30, decimal_places=18,
+        default=None,
+        max_digits=30,
+        decimal_places=18,
     )
 
 
@@ -175,6 +225,8 @@ class SnapshotResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    strategy_capital_id: int
+    settlement_asset_id: int
     planned_entry: Decimal
     planned_stop: Decimal
     planned_take_profit: Decimal | None
@@ -198,6 +250,20 @@ class SnapshotResponse(BaseModel):
     atr_stale: bool | None
     created_at: datetime
 
+    @computed_field
+    @property
+    def stop_distance(self) -> Decimal:
+        """Return the absolute frozen entry-to-stop distance."""
+        return abs(self.planned_entry - self.planned_stop)
+
+    @computed_field
+    @property
+    def take_profit_distance(self) -> Decimal | None:
+        """Return the absolute frozen entry-to-target distance."""
+        if self.planned_take_profit is None:
+            return None
+        return abs(self.planned_take_profit - self.planned_entry)
+
 
 class TradeResponse(BaseModel):
     """Complete owner-scoped trade workspace representation."""
@@ -210,11 +276,16 @@ class TradeResponse(BaseModel):
     status: TradeStatus
     direction: Direction
     description_markdown: str | None
+    quality_rating: int | None
     review_completed_at: datetime | None
     realized_pnl: Decimal | None
     actual_exit_price: Decimal | None
     total_commission: Decimal | None
     funding_result: Decimal | None
+    submitted_at: datetime | None
+    opened_at: datetime | None
+    closed_at: datetime | None
+    cancelled_at: datetime | None
     created_at: datetime
     checklist: ChecklistResponse
     plan: TradePlanRequest | None

@@ -81,10 +81,14 @@ def calculate_position_plan(
             "planned_entry",
             "The profile does not currently provide positive trade risk.",
         )
-    if reward_multiple <= 0:
+    if (
+        reward_multiple < 3
+        or reward_multiple > 100
+        or reward_multiple != reward_multiple.to_integral_value()
+    ):
         raise PositionPlanError(
             "planned_entry",
-            "Strategy reward multiple must be positive.",
+            "Strategy reward multiple must be a whole number from 3 to 100.",
         )
     if not _is_step_aligned(entry, price_step):
         raise PositionPlanError(

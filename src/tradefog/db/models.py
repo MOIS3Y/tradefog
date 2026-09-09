@@ -394,6 +394,20 @@ class TradingStrategy(PrimaryKeyMixin, Base):
     """Persist TradingStrategy records from the source schema."""
 
     __tablename__: str = "TradingStrategy"
+    __table_args__: tuple[CheckConstraint, ...] = (
+        CheckConstraint(
+            """CAST(risk_percent AS NUMERIC) >= 0.01
+            AND CAST(risk_percent AS NUMERIC) <= 100""",
+            name="strategy_risk_percent_range",
+        ),
+        CheckConstraint(
+            """CAST(reward_multiple AS NUMERIC) >= 3
+            AND CAST(reward_multiple AS NUMERIC) <= 100
+            AND CAST(reward_multiple AS NUMERIC)
+                = CAST(reward_multiple AS INTEGER)""",
+            name="strategy_reward_multiple_range",
+        ),
+    )
     profile_id: Mapped[int] = mapped_column(
         ForeignKey("TradingProfile.id"),
     )
@@ -467,6 +481,13 @@ class Trade(PrimaryKeyMixin, Base):
     """Persist Trade records from the source schema."""
 
     __tablename__: str = "Trade"
+    __table_args__: tuple[CheckConstraint, ...] = (
+        CheckConstraint(
+            """quality_rating IS NULL
+            OR (quality_rating >= 1 AND quality_rating <= 10)""",
+            name="trade_quality_rating_range",
+        ),
+    )
     profile_id: Mapped[int] = mapped_column(
         ForeignKey("TradingProfile.id"),
     )
@@ -493,6 +514,7 @@ class Trade(PrimaryKeyMixin, Base):
     description_markdown: Mapped[str | None] = mapped_column(
         Text,
     )
+    quality_rating: Mapped[int | None] = mapped_column()
     review_completed_at: Mapped[datetime | None] = mapped_column(
         DateTime,
     )
@@ -508,6 +530,10 @@ class Trade(PrimaryKeyMixin, Base):
     funding_result: Mapped[Decimal | None] = mapped_column(
         ExactDecimal(30, 18),
     )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=func.now(),
@@ -534,6 +560,12 @@ class TradeSnapshot(PrimaryKeyMixin, Base):
     trade_id: Mapped[int] = mapped_column(
         ForeignKey("Trade.id"),
         unique=True,
+    )
+    strategy_capital_id: Mapped[int] = mapped_column(
+        ForeignKey("StrategyCapital.id"),
+    )
+    settlement_asset_id: Mapped[int] = mapped_column(
+        ForeignKey("Asset.id"),
     )
     planned_entry: Mapped[Decimal] = mapped_column(
         ExactDecimal(30, 18),
@@ -605,6 +637,14 @@ class TradeSnapshot(PrimaryKeyMixin, Base):
 
     trade: Mapped[Trade] = relationship(
         foreign_keys=[trade_id],
+        lazy="raise",
+    )
+    strategy_capital: Mapped[StrategyCapital] = relationship(
+        foreign_keys=[strategy_capital_id],
+        lazy="raise",
+    )
+    settlement_asset: Mapped[Asset] = relationship(
+        foreign_keys=[settlement_asset_id],
         lazy="raise",
     )
 
