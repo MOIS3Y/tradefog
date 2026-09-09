@@ -12,16 +12,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
+import RemoteCatalogSelect from "@/components/RemoteCatalogSelect.vue";
 import { ApiError } from "@/api/errors";
+import PaginationControls from "@/components/PaginationControls.vue";
+import { usePagination } from "@/composables/usePagination";
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import ErrorState from "@/components/ErrorState.vue";
 import FormDialog from "@/components/FormDialog.vue";
 import LoadingState from "@/components/LoadingState.vue";
-import SearchableSelect, {
-  type SearchableOption,
-} from "@/components/SearchableSelect.vue";
 import {
   createOperation,
   createWalletAsset,
@@ -68,8 +68,16 @@ const capabilitiesQuery = useQuery({
     "venues",
     props.profile.venue_id,
     "wallet-assets",
+    walletQuery.data.value?.assets.map((x) => x.venue_wallet_asset_id),
   ]),
-  queryFn: () => listVenueWalletAssets(props.profile.venue_id),
+  queryFn: () =>
+    listVenueWalletAssets(props.profile.venue_id, {
+      visibility: "active",
+      page_size: 1,
+      exclude_ids:
+        walletQuery.data.value?.assets.map((x) => x.venue_wallet_asset_id) ??
+        [],
+    }),
 });
 const assets = computed(() => walletQuery.data.value?.assets ?? []);
 const selected = computed(
@@ -78,42 +86,35 @@ const selected = computed(
     assets.value[0] ??
     null,
 );
-const capabilities = computed(() => capabilitiesQuery.data.value ?? []);
-const activeCapabilities = computed(() =>
-  capabilities.value.filter((item) => item.is_active),
+const availableCapabilities = computed(
+  () => capabilitiesQuery.data.value?.items ?? [],
 );
-const availableCapabilities = computed(() => {
-  const assigned = new Set(
-    assets.value.map((item) => item.venue_wallet_asset_id),
-  );
-  return activeCapabilities.value.filter((item) => !assigned.has(item.id));
-});
-const capabilityOptions = computed<SearchableOption[]>(() =>
-  (assetEditing.value
-    ? capabilities.value.filter(
-        (item) => item.id === assetEditing.value?.venue_wallet_asset_id,
-      )
-    : availableCapabilities.value
-  ).map((item) => ({
-    value: item.id,
-    label: item.asset.symbol,
-    detail: item.asset.name ?? t(`catalog.types.${item.asset.asset_type}`),
-  })),
-);
+const capabilityParams = computed(() => ({
+  visibility: "active" as const,
+  exclude_ids: assetEditing.value
+    ? []
+    : assets.value.map((x) => x.venue_wallet_asset_id),
+}));
 const operationsKey = computed(() => [
   "profiles",
   "wallet-assets",
   selected.value?.id,
   "operations",
 ]);
+const operationPagination = usePagination(computed(() => selected.value?.id));
+const { page: operationPage, pageSize: operationPageSize } =
+  operationPagination;
 const operationsQuery = useQuery({
-  queryKey: operationsKey,
-  queryFn: () => listOperations(selected.value?.id ?? 0),
+  queryKey: computed(() => [
+    ...operationsKey.value,
+    operationPagination.params.value,
+  ]),
+  queryFn: () =>
+    listOperations(selected.value?.id ?? 0, operationPagination.params.value),
   enabled: computed(() => selected.value !== null),
 });
-const operations = computed(() =>
-  [...(operationsQuery.data.value ?? [])].reverse(),
-);
+operationPagination.track(computed(() => operationsQuery.data.value));
+const operations = computed(() => operationsQuery.data.value?.items ?? []);
 const kindOptions = computed<SelectOption<WalletOperationKind>[]>(() => [
   { value: "deposit", label: t("profiles.wallet.deposit") },
   { value: "withdrawal", label: t("profiles.wallet.withdrawal") },
@@ -210,6 +211,7 @@ const operationMutation = useMutation({
       note: operationForm.note || null,
     }),
   onSuccess: async () => {
+    operationPage.value = 1;
     await refreshWallet();
     operationDialogOpen.value = false;
     toasts.success({ title: t("profiles.wallet.operationAdded") });
@@ -416,6 +418,10 @@ function formattedDate(value: string): string {
           v-if="operationsQuery.isPending.value"
           :label="$t('profiles.wallet.loadingOperations')"
         />
+        <ErrorState
+          v-else-if="operationsQuery.isError.value"
+          @retry="operationsQuery.refetch()"
+        />
         <div v-else-if="operations.length" class="ledger-list">
           <article
             v-for="operation in operations"
@@ -456,6 +462,13 @@ function formattedDate(value: string): string {
         <p v-else class="ledger-empty">
           {{ $t("profiles.wallet.noOperations") }}
         </p>
+        <PaginationControls
+          v-if="operationsQuery.isSuccess.value"
+          v-model:page="operationPage"
+          v-model:page-size="operationPageSize"
+          :total="operationsQuery.data.value?.total ?? 0"
+          :busy="operationsQuery.isFetching.value"
+        />
       </div>
     </div>
 
@@ -479,9 +492,11 @@ function formattedDate(value: string): string {
     >
       <label class="field"
         ><span>{{ $t("profiles.wallet.asset") }}</span
-        ><SearchableSelect
+        ><RemoteCatalogSelect
           v-model="assetForm.capabilityId"
-          :options="capabilityOptions"
+          resource="wallet-assets"
+          :venue-id="profile.venue_id"
+          :params="capabilityParams"
           :placeholder="$t('profiles.wallet.selectAsset')"
           :empty-label="$t('profiles.wallet.noAssetsAvailable')"
           :disabled="assetEditing !== null"

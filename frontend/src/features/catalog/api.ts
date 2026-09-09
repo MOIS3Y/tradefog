@@ -1,6 +1,7 @@
 import { api } from "@/api/client";
 import { toApiError } from "@/api/errors";
 import type { components } from "@/api/schema";
+import type { ListParams, Page } from "@/api/pagination";
 
 export type Asset = components["schemas"]["AssetResponse"];
 export type AssetType = components["schemas"]["AssetType"];
@@ -8,16 +9,20 @@ export type AssetWrite = components["schemas"]["AssetWrite"];
 export type Pair = components["schemas"]["PairResponse"];
 export type PairWrite = components["schemas"]["PairWrite"];
 
-export async function listAssets(): Promise<Asset[]> {
-  const { data, error, response } = await api.GET("/api/v1/catalog/assets");
+export async function listAssets(query: ListParams = {}): Promise<Page<Asset>> {
+  const { data, error, response } = await api.GET("/api/v1/catalog/assets", {
+    params: { query },
+  });
   if (data === undefined) {
     throw toApiError(error, response);
   }
   return data;
 }
 
-export async function listPairs(): Promise<Pair[]> {
-  const { data, error, response } = await api.GET("/api/v1/catalog/pairs");
+export async function listPairs(query: ListParams = {}): Promise<Page<Pair>> {
+  const { data, error, response } = await api.GET("/api/v1/catalog/pairs", {
+    params: { query },
+  });
   if (data === undefined) {
     throw toApiError(error, response);
   }

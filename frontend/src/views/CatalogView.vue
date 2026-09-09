@@ -43,6 +43,7 @@ const steps = computed(() => [
     <div class="workspace catalog-workspace">
       <header class="catalog-heading">
         <h1>{{ $t("catalog.title") }}</h1>
+        <p>{{ $t("pageDescriptions.catalog") }}</p>
       </header>
 
       <ol class="catalog-path" :aria-label="$t('catalog.sequence')">

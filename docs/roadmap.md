@@ -31,6 +31,11 @@ Development is organized into two primary phases:
 After the MVP, the trade workspace may gain the deferred interactive market
 chart described in [`market-chart.md`](market-chart.md).
 
+The journal scalability refactor separates the trade list, draft creation and
+individual workspace routes. Trades and catalogs use server pagination,
+filtering and sorting; catalog selectors use remote search. Review completion
+and quality rating are independently visible and filterable in the journal.
+
 Each stage ends with a production frontend build, static checks, and a small
 set of tests for its critical user flow before the next stage begins.
 

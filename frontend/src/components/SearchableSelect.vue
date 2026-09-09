@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Check, ChevronDown } from "@lucide/vue";
+import { ref, watch } from "vue";
 import {
   ComboboxAnchor,
   ComboboxContent,
@@ -25,14 +26,43 @@ const props = defineProps<{
   placeholder: string;
   emptyLabel: string;
   disabled?: boolean;
+  remote?: boolean;
+  hasMore?: boolean;
+  busy?: boolean;
+  error?: boolean;
 }>();
 
 const emit = defineEmits<{
   "update:modelValue": [value: number | null];
+  search: [value: string];
+  open: [value: boolean];
+  "load-more": [];
+  retry: [];
 }>();
 
 function displayValue(value: unknown): string {
   return props.options.find((option) => option.value === value)?.label ?? "";
+}
+
+const isOpen = ref(false);
+const inputText = ref(displayValue(props.modelValue));
+watch(
+  () => [props.modelValue, props.options],
+  () => {
+    if (!isOpen.value) inputText.value = displayValue(props.modelValue);
+  },
+);
+function updateOpen(value: boolean): void {
+  isOpen.value = value;
+  if (!value) inputText.value = displayValue(props.modelValue);
+  else emit("search", "");
+  emit("open", value);
+}
+
+function searchInput(event: Event): void {
+  if (event.target instanceof HTMLInputElement) {
+    emit("search", event.target.value);
+  }
 }
 
 function updateValue(value: unknown): void {
@@ -46,13 +76,17 @@ function updateValue(value: unknown): void {
     :disabled="disabled"
     :reset-model-value-on-clear="true"
     open-on-click
+    :ignore-filter="remote"
+    @update:open="updateOpen"
     @update:model-value="updateValue"
   >
     <ComboboxAnchor class="tf-combobox-anchor">
       <ComboboxInput
+        v-model="inputText"
         class="tf-combobox-input"
         :display-value="displayValue"
         :placeholder="placeholder"
+        @input="searchInput"
       />
       <ComboboxTrigger class="tf-combobox-trigger" :aria-label="placeholder">
         <ChevronDown :size="16" aria-hidden="true" />
@@ -83,6 +117,23 @@ function updateValue(value: unknown): void {
               <Check :size="15" aria-hidden="true" />
             </ComboboxItemIndicator>
           </ComboboxItem>
+          <button
+            v-if="error"
+            class="button-link"
+            type="button"
+            @click.stop="emit('retry')"
+          >
+            {{ $t("pagination.retry") }}
+          </button>
+          <button
+            v-else-if="hasMore"
+            class="button-link"
+            type="button"
+            :disabled="busy"
+            @click.stop="emit('load-more')"
+          >
+            {{ $t("pagination.more") }}
+          </button>
         </ComboboxViewport>
       </ComboboxContent>
     </ComboboxPortal>

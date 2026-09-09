@@ -12,6 +12,9 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
+import PaginationControls from "@/components/PaginationControls.vue";
+import RemoteCatalogSelect from "@/components/RemoteCatalogSelect.vue";
+import { usePagination } from "@/composables/usePagination";
 import { ApiError } from "@/api/errors";
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -19,9 +22,6 @@ import EmptyState from "@/components/EmptyState.vue";
 import ErrorState from "@/components/ErrorState.vue";
 import FormDialog from "@/components/FormDialog.vue";
 import LoadingState from "@/components/LoadingState.vue";
-import SearchableSelect, {
-  type SearchableOption,
-} from "@/components/SearchableSelect.vue";
 import SortableHeader from "@/components/SortableHeader.vue";
 import { listAssets } from "@/features/catalog/api";
 import {
@@ -33,8 +33,6 @@ import {
   type VenueWalletAsset,
 } from "@/features/venues/api";
 import {
-  filterWalletAssets,
-  sortWalletAssets,
   type VisibilityFilter,
   type WalletAssetSortKey,
 } from "@/features/venues/filters";
@@ -63,36 +61,40 @@ const queryKey = computed(() => [
   props.venue.id,
   "wallet-assets",
 ]);
+const criteria = computed(() => ({
+  venue: props.venue.id,
+  q: search.value,
+  visibility: visibility.value,
+  sort: sortKey.value,
+  order: sortDirection.value,
+}));
+const pagination = usePagination(criteria);
+const { page, pageSize } = pagination;
 const query = useQuery({
-  queryKey,
-  queryFn: () => listVenueWalletAssets(props.venue.id),
+  queryKey: computed(() => [
+    ...queryKey.value,
+    criteria.value,
+    pagination.params.value,
+  ]),
+  queryFn: () =>
+    listVenueWalletAssets(props.venue.id, {
+      ...criteria.value,
+      ...pagination.params.value,
+    }),
 });
+pagination.track(computed(() => query.data.value));
 const assetsQuery = useQuery({
-  queryKey: ["catalog", "assets"],
-  queryFn: listAssets,
+  queryKey: computed(() => ["catalog", "assets", "available", props.venue.id]),
+  queryFn: () => listAssets({ page_size: 1, exclude_venue_id: props.venue.id }),
 });
-const capabilities = computed(() => query.data.value ?? []);
-const assets = computed(() => assetsQuery.data.value ?? []);
-const availableAssets = computed(() => {
-  const assigned = new Set(
-    capabilities.value.map((capability) => capability.asset.id),
-  );
-  return assets.value.filter((asset) => !assigned.has(asset.id));
+const capabilities = computed(() => query.data.value?.items ?? []);
+const availableAssets = computed(() => assetsQuery.data.value?.items ?? []);
+const assetCountQuery = useQuery({
+  queryKey: ["catalog", "assets", "count"],
+  queryFn: () => listAssets({ page_size: 1 }),
 });
-const assetOptions = computed<SearchableOption[]>(() =>
-  availableAssets.value.map((asset) => ({
-    value: asset.id,
-    label: asset.symbol,
-    detail: asset.name ?? t(`catalog.types.${asset.asset_type}`),
-  })),
-);
-const filtered = computed(() =>
-  sortWalletAssets(
-    filterWalletAssets(capabilities.value, search.value, visibility.value),
-    sortKey.value,
-    sortDirection.value,
-  ),
-);
+const hasAssets = computed(() => (assetCountQuery.data.value?.total ?? 0) > 0);
+const filtered = capabilities;
 const visibilityOptions = computed<SelectOption<VisibilityFilter>[]>(() => [
   { value: "active", label: t("venues.visibility.active") },
   { value: "archived", label: t("venues.visibility.archived") },
@@ -122,9 +124,7 @@ function showError(error: unknown, action: "save" | "delete"): void {
 const createMutation = useMutation({
   mutationFn: () => createVenueWalletAsset(props.venue.id, assetId.value ?? 0),
   onSuccess: async (capability) => {
-    await queryClient.invalidateQueries({
-      queryKey: ["catalog", "venues", capability.venue_id, "wallet-assets"],
-    });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t("venues.walletAssets.created"),
       description: capability.asset.symbol,
@@ -138,9 +138,7 @@ const statusMutation = useMutation({
   mutationFn: (capability: VenueWalletAsset) =>
     updateVenueWalletAsset(capability.id, !capability.is_active),
   onSuccess: async (capability) => {
-    await queryClient.invalidateQueries({
-      queryKey: ["catalog", "venues", capability.venue_id, "wallet-assets"],
-    });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t(
         capability.is_active
@@ -157,7 +155,7 @@ const removeMutation = useMutation({
   mutationFn: (capability: VenueWalletAsset) =>
     deleteVenueWalletAsset(capability.id),
   onSuccess: async (_, capability) => {
-    await queryClient.invalidateQueries({ queryKey: queryKey.value });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t("venues.walletAssets.deleted"),
       description: capability.asset.symbol,
@@ -168,7 +166,7 @@ const removeMutation = useMutation({
 });
 
 function openCreate(): void {
-  if (assets.value.length === 0) {
+  if (!hasAssets.value) {
     void router.push("/catalog/assets");
     return;
   }
@@ -180,7 +178,7 @@ function openCreate(): void {
 }
 
 function createLabel(): string {
-  if (assets.value.length === 0) {
+  if (!hasAssets.value) {
     return t("venues.walletAssets.addResource");
   }
   if (availableAssets.value.length === 0) {
@@ -195,7 +193,11 @@ function resetFilters(): void {
 }
 
 async function retryQueries(): Promise<void> {
-  await Promise.all([query.refetch(), assetsQuery.refetch()]);
+  await Promise.all([
+    query.refetch(),
+    assetsQuery.refetch(),
+    assetCountQuery.refetch(),
+  ]);
 }
 
 function toggleSort(key: WalletAssetSortKey): void {
@@ -227,7 +229,7 @@ function activeDirection(key: WalletAssetSortKey): SortDirection | null {
         class="button button--secondary"
         type="button"
         :disabled="
-          assets.length > 0 &&
+          hasAssets &&
           availableAssets.length === 0 &&
           !assetsQuery.isPending.value
         "
@@ -262,22 +264,32 @@ function activeDirection(key: WalletAssetSortKey): SortDirection | null {
         {{ $t("catalog.reset") }}
       </button>
       <span class="catalog-toolbar__count">
-        {{ filtered.length }} / {{ capabilities.length }}
+        {{ query.data.value?.total ?? 0 }}
       </span>
     </div>
 
     <LoadingState
-      v-if="query.isPending.value || assetsQuery.isPending.value"
+      v-if="
+        query.isPending.value ||
+        assetsQuery.isPending.value ||
+        assetCountQuery.isPending.value
+      "
       :label="$t('venues.walletAssets.loading')"
     />
     <ErrorState
-      v-else-if="query.isError.value || assetsQuery.isError.value"
+      v-else-if="
+        query.isError.value ||
+        assetsQuery.isError.value ||
+        assetCountQuery.isError.value
+      "
       :title="$t('venues.walletAssets.loadFailed')"
       :description="$t('catalog.errors.unavailable')"
       @retry="retryQueries"
     />
     <EmptyState
-      v-else-if="capabilities.length === 0"
+      v-else-if="
+        capabilities.length === 0 && !search && visibility === 'active'
+      "
       :title="$t('venues.walletAssets.emptyTitle')"
     >
       <template #icon><Coins :size="23" /></template>
@@ -405,9 +417,10 @@ function activeDirection(key: WalletAssetSortKey): SortDirection | null {
     >
       <label class="field">
         <span>{{ $t("catalog.asset.title") }}</span>
-        <SearchableSelect
+        <RemoteCatalogSelect
           v-model="assetId"
-          :options="assetOptions"
+          resource="assets"
+          :params="{ exclude_venue_id: venue.id }"
           :placeholder="$t('venues.walletAssets.selectResource')"
           :empty-label="$t('venues.walletAssets.noResources')"
         />
@@ -427,6 +440,12 @@ function activeDirection(key: WalletAssetSortKey): SortDirection | null {
       :busy="removeMutation.isPending.value"
       @update:open="!$event && (deleteTarget = null)"
       @confirm="deleteTarget && removeMutation.mutate(deleteTarget)"
+    />
+    <PaginationControls
+      v-model:page="page"
+      v-model:page-size="pageSize"
+      :total="query.data.value?.total ?? 0"
+      :busy="query.isFetching.value"
     />
   </section>
 </template>

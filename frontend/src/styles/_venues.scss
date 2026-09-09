@@ -11,9 +11,20 @@
   }
 
   .venue-directory {
+    display: flex;
+    flex-direction: column;
     padding: 0.8rem;
     border-right: 1px solid var(--tf-line-soft);
     background: rgb(8 12 17 / 28%);
+
+    > .pagination {
+      margin-top: auto;
+      padding: 0.8rem 0 0;
+    }
+  }
+
+  .venue-directory__items {
+    min-width: 0;
   }
 
   .venue-card {

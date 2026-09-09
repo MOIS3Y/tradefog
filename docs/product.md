@@ -73,7 +73,20 @@ Create Profile ──► Configure Wallet ──► Create Strategy ──► Cr
 
 ## Trade Workspace Requirements
 
-The trade workspace provides a single unified screen for the full trade lifecycle:
+The journal opens at `/trades` as a paginated, responsive table. Rows show
+date, instrument/direction, profile, strategy, lifecycle status, net P&L with
+its currency, a read-only five-star quality rating, and review completion.
+Half-stars preserve the 1–10 scale; empty stars mean no rating, never zero.
+Review completion is independent of rating. The awaiting-review queue contains
+only closed trades without a completion mark.
+
+Search, filters and sorting run on the server before pagination. Date presets,
+custom ranges, profile, strategy, direction, lifecycle, review and rating
+filters live in the URL together with page and ordering. Returning from a
+trade restores that list context. Unrated records sort last in both directions.
+
+`/trades/new` creates a draft, then opens `/trades/{id}`. The individual trade
+page loads its full record independently and provides the full lifecycle:
 
 1. **Context Selector**: Profile, Strategy, Product (`SPOT`, `PERPETUAL_FUTURE`,
    `CASH_EQUITY`), and Instrument.

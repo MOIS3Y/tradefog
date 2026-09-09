@@ -149,6 +149,9 @@ Table VenueWalletAsset {
 // ---------------------------------------------------------------------------
 
 Table TradingProfile {
+  indexes {
+    (owner_id, id) [name: 'profile_owner_idx']
+  }
   id integer [pk, increment, note: 'Primary key']
   owner_id integer [not null, note: 'Owning user; the single ownership root for all journal data below this profile']
   venue_id integer [not null, note: 'Venue this profile is bound to; the profile trades only this venue instrument and holds only its wallet assets']
@@ -212,6 +215,11 @@ Table StrategyCapital {
 }
 
 Table Trade {
+  indexes {
+    (profile_id, trade_date, id) [name: 'trade_profile_date_idx']
+    (profile_id, quality_rating, id) [name: 'trade_profile_rating_idx']
+    (profile_id, status, review_completed_at, id) [name: 'trade_profile_review_idx']
+  }
   id integer [pk, increment, note: 'Primary key']
   profile_id integer [not null, note: 'Owning profile; owner is the profile owner (single ownership root)']
   strategy_id integer [not null, note: 'Owning strategy']

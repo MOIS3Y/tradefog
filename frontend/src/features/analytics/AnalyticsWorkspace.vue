@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RemoteCatalogSelect from "@/components/RemoteCatalogSelect.vue";
 import {
   Activity,
   ArrowRight,
@@ -42,7 +43,6 @@ import {
   listProfiles,
   listStrategies,
 } from "@/features/profiles/api";
-import { listInstruments, listVenues } from "@/features/venues/api";
 import { formatDecimal, formatRoundedDecimal } from "@/utils/decimal";
 
 type Tab = "overview" | "discipline" | "money";
@@ -76,13 +76,7 @@ const profilesQuery = useQuery({
   queryKey: ["profiles"],
   queryFn: listProfiles,
 });
-const venuesQuery = useQuery({
-  queryKey: ["catalog", "venues"],
-  queryFn: listVenues,
-});
 const profiles = computed(() => profilesQuery.data.value ?? []);
-const venues = computed(() => venuesQuery.data.value ?? []);
-
 const strategiesQuery = useQuery({
   queryKey: computed(() => [
     "analytics-strategies",
@@ -105,21 +99,8 @@ const walletsQuery = useQuery({
   queryFn: async () =>
     Promise.all(profiles.value.map((profile) => getWallet(profile.id))),
 });
-const instrumentsQuery = useQuery({
-  queryKey: computed(() => [
-    "analytics-instruments",
-    venues.value.map((item) => item.id),
-  ]),
-  enabled: computed(() => venues.value.length > 0),
-  queryFn: async () =>
-    (
-      await Promise.all(venues.value.map((venue) => listInstruments(venue.id)))
-    ).flat(),
-});
-
 const strategies = computed(() => strategiesQuery.data.value ?? []);
 const wallets = computed(() => walletsQuery.data.value ?? []);
-const instruments = computed(() => instrumentsQuery.data.value ?? []);
 const profileById = computed(
   () => new Map(profiles.value.map((item) => [item.id, item])),
 );
@@ -202,71 +183,6 @@ const allocationOptions = computed<SearchableOption[]>(() =>
       }),
     ),
 );
-const scopedInstruments = computed(() =>
-  instruments.value.filter((instrument) => {
-    const profile =
-      filters.profileId === null
-        ? null
-        : profileById.value.get(filters.profileId);
-    return (
-      (profile === null ||
-        profile === undefined ||
-        instrument.venue_id === profile.venue_id) &&
-      (productChoice.value === "all" ||
-        instrument.product === productChoice.value) &&
-      (filters.pairId === null || instrument.pair.id === filters.pairId)
-    );
-  }),
-);
-const instrumentOptions = computed<SearchableOption[]>(() =>
-  scopedInstruments.value.map((instrument) => ({
-    value: instrument.id,
-    label: instrument.pair.canonical_symbol,
-    detail: `${t(`venues.products.${instrument.product}`)} · ${
-      instrument.exec_symbol
-    }${instrument.is_active ? "" : ` · ${t("analytics.filters.archived")}`}`,
-  })),
-);
-const pairOptions = computed<SearchableOption[]>(() => {
-  const pairs = new Map<number, string>();
-  for (const instrument of instruments.value) {
-    const profile =
-      filters.profileId === null
-        ? null
-        : profileById.value.get(filters.profileId);
-    if (
-      profile !== null &&
-      profile !== undefined &&
-      profile.venue_id !== instrument.venue_id
-    ) {
-      continue;
-    }
-    if (
-      productChoice.value !== "all" &&
-      instrument.product !== productChoice.value
-    ) {
-      continue;
-    }
-    pairs.set(instrument.pair.id, instrument.pair.canonical_symbol);
-  }
-  return [...pairs].map(([value, label]) => ({ value, label }));
-});
-const settlementOptions = computed<SearchableOption[]>(() => {
-  const assets = new Map<number, string>();
-  for (const wallet of wallets.value) {
-    for (const asset of wallet.assets) assets.set(asset.asset_id, asset.symbol);
-  }
-  for (const instrument of instruments.value) {
-    if (instrument.settlement_asset !== null) {
-      assets.set(
-        instrument.settlement_asset.id,
-        instrument.settlement_asset.symbol,
-      );
-    }
-  }
-  return [...assets].map(([value, label]) => ({ value, label }));
-});
-
 const customDateError = computed(() => {
   if (filters.period !== "custom") return null;
   if (!filters.dateFrom && !filters.dateTo) {
@@ -625,7 +541,7 @@ function allocationIdentity(allocationId: number): {
 }
 
 function openTrade(tradeId: number): void {
-  void router.push({ path: "/trades", query: { trade: String(tradeId) } });
+  void router.push(`/trades/${tradeId}`);
 }
 </script>
 
@@ -695,21 +611,30 @@ function openTrade(tradeId: number): void {
         :options="productOptions"
         :label="$t('analytics.filters.product')"
       />
-      <SearchableSelect
+      <RemoteCatalogSelect
         v-model="filters.pairId"
-        :options="pairOptions"
+        resource="pairs"
         :placeholder="$t('analytics.filters.allPairs')"
         :empty-label="$t('analytics.filters.noPairs')"
       />
-      <SearchableSelect
+      <RemoteCatalogSelect
         v-model="filters.instrumentId"
-        :options="instrumentOptions"
+        resource="instruments"
+        :venue-id="
+          filters.profileId
+            ? profileById.get(filters.profileId)?.venue_id
+            : undefined
+        "
+        :params="{
+          pair_id: filters.pairId ?? undefined,
+          product: productChoice === 'all' ? undefined : productChoice,
+        }"
         :placeholder="$t('analytics.filters.allInstruments')"
         :empty-label="$t('analytics.filters.noInstruments')"
       />
-      <SearchableSelect
+      <RemoteCatalogSelect
         v-model="filters.settlementAssetId"
-        :options="settlementOptions"
+        resource="assets"
         :placeholder="$t('analytics.filters.allAssets')"
         :empty-label="$t('analytics.filters.noAssets')"
       />

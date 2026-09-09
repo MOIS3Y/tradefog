@@ -197,7 +197,7 @@ export interface paths {
     };
     /**
      * List Venues
-     * @description List active venues by default, including archives when requested.
+     * @description List venues with explicit visibility, search and ordering.
      */
     get: operations["list_venues_api_v1_catalog_venues_get"];
     put?: never;
@@ -264,6 +264,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/catalog/instruments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List All Instruments
+     * @description Search instruments across venues without loading each venue list.
+     */
+    get: operations["list_all_instruments_api_v1_catalog_instruments_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/catalog/instruments/{instrument_id}": {
     parameters: {
       query?: never;
@@ -271,7 +291,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * Get Instrument
+     * @description Resolve one instrument independently of catalog pagination.
+     */
+    get: operations["get_instrument_api_v1_catalog_instruments__instrument_id__get"];
     put?: never;
     post?: never;
     /**
@@ -312,6 +336,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/catalog/wallet-assets/{capability_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Wallet Capability
+     * @description Resolve a selected wallet capability independently of its page.
+     */
+    get: operations["get_wallet_capability_api_v1_catalog_wallet_assets__capability_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/catalog/wallet-assets/{venue_wallet_asset_id}": {
     parameters: {
       query?: never;
@@ -345,7 +389,7 @@ export interface paths {
     };
     /**
      * List Profiles
-     * @description List only the authenticated user's trading profiles.
+     * @description Search and page only the authenticated user's trading profiles.
      */
     get: operations["list_profiles_api_v1_profiles_get"];
     put?: never;
@@ -1338,6 +1382,94 @@ export interface components {
      * @enum {string}
      */
     Outcome: "WIN" | "LOSS" | "BREAK_EVEN";
+    /** Page[AssetResponse] */
+    Page_AssetResponse_: {
+      /** Items */
+      items: components["schemas"]["AssetResponse"][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Page Size */
+      page_size: number;
+    };
+    /** Page[InstrumentResponse] */
+    Page_InstrumentResponse_: {
+      /** Items */
+      items: components["schemas"]["InstrumentResponse"][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Page Size */
+      page_size: number;
+    };
+    /** Page[PairResponse] */
+    Page_PairResponse_: {
+      /** Items */
+      items: components["schemas"]["PairResponse"][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Page Size */
+      page_size: number;
+    };
+    /** Page[ProfileResponse] */
+    Page_ProfileResponse_: {
+      /** Items */
+      items: components["schemas"]["ProfileResponse"][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Page Size */
+      page_size: number;
+    };
+    /** Page[TradeListItem] */
+    Page_TradeListItem_: {
+      /** Items */
+      items: components["schemas"]["TradeListItem"][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Page Size */
+      page_size: number;
+    };
+    /** Page[VenueResponse] */
+    Page_VenueResponse_: {
+      /** Items */
+      items: components["schemas"]["VenueResponse"][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Page Size */
+      page_size: number;
+    };
+    /** Page[VenueWalletAssetResponse] */
+    Page_VenueWalletAssetResponse_: {
+      /** Items */
+      items: components["schemas"]["VenueWalletAssetResponse"][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Page Size */
+      page_size: number;
+    };
+    /** Page[WalletOperationResponse] */
+    Page_WalletOperationResponse_: {
+      /** Items */
+      items: components["schemas"]["WalletOperationResponse"][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Page Size */
+      page_size: number;
+    };
     /**
      * PairPatch
      * @description Optional staff correction to either asset of a logical market.
@@ -1660,6 +1792,43 @@ export interface components {
       direction: components["schemas"]["Direction"];
       /** Description Markdown */
       description_markdown?: string | null;
+    };
+    /**
+     * TradeListItem
+     * @description Compact journal row without draft sections or snapshot payloads.
+     */
+    TradeListItem: {
+      /** Id */
+      id: number;
+      /** Profile Id */
+      profile_id: number;
+      /** Profile Name */
+      profile_name: string;
+      /** Strategy Id */
+      strategy_id: number;
+      /** Strategy Name */
+      strategy_name: string;
+      /** Venue Instrument Id */
+      venue_instrument_id: number;
+      /** Exec Symbol */
+      exec_symbol: string;
+      /** Pair Symbol */
+      pair_symbol: string;
+      /** Settlement Symbol */
+      settlement_symbol: string;
+      /**
+       * Trade Date
+       * Format: date
+       */
+      trade_date: string;
+      direction: components["schemas"]["Direction"];
+      status: components["schemas"]["TradeStatus"];
+      /** Realized Pnl */
+      realized_pnl: string | null;
+      /** Quality Rating */
+      quality_rating: number | null;
+      /** Review Completed At */
+      review_completed_at: string | null;
     };
     /**
      * TradePatch
@@ -2250,7 +2419,18 @@ export interface operations {
   list_assets_api_v1_catalog_assets_get: {
     parameters: {
       query?: {
-        asset_type?: components["schemas"]["AssetType"] | null;
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+        asset_type?: ("crypto" | "fiat" | "equity") | null;
+        exclude_venue_id?: number | null;
+        exclude_ids?: number[];
+        venue_id?: number | null;
+        pair_id?: number | null;
+        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
       };
       header?: never;
       path?: never;
@@ -2264,7 +2444,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["AssetResponse"][];
+          "application/json": components["schemas"]["Page_AssetResponse_"];
         };
       };
       /** @description Validation Error */
@@ -2408,7 +2588,20 @@ export interface operations {
   };
   list_pairs_api_v1_catalog_pairs_get: {
     parameters: {
-      query?: never;
+      query?: {
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+        asset_type?: ("crypto" | "fiat" | "equity") | null;
+        exclude_venue_id?: number | null;
+        exclude_ids?: number[];
+        venue_id?: number | null;
+        pair_id?: number | null;
+        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -2421,7 +2614,16 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["PairResponse"][];
+          "application/json": components["schemas"]["Page_PairResponse_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
@@ -2557,7 +2759,18 @@ export interface operations {
   list_venues_api_v1_catalog_venues_get: {
     parameters: {
       query?: {
-        active_only?: boolean;
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+        asset_type?: ("crypto" | "fiat" | "equity") | null;
+        exclude_venue_id?: number | null;
+        exclude_ids?: number[];
+        venue_id?: number | null;
+        pair_id?: number | null;
+        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
       };
       header?: never;
       path?: never;
@@ -2571,7 +2784,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["VenueResponse"][];
+          "application/json": components["schemas"]["Page_VenueResponse_"];
         };
       };
       /** @description Validation Error */
@@ -2716,7 +2929,18 @@ export interface operations {
   list_instruments_api_v1_catalog_venues__venue_id__instruments_get: {
     parameters: {
       query?: {
-        active_only?: boolean;
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+        asset_type?: ("crypto" | "fiat" | "equity") | null;
+        exclude_venue_id?: number | null;
+        exclude_ids?: number[];
+        venue_id?: number | null;
+        pair_id?: number | null;
+        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
       };
       header?: never;
       path: {
@@ -2732,7 +2956,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["InstrumentResponse"][];
+          "application/json": components["schemas"]["Page_InstrumentResponse_"];
         };
       };
       /** @description Validation Error */
@@ -2763,6 +2987,79 @@ export interface operations {
     responses: {
       /** @description Successful Response */
       201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InstrumentResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_all_instruments_api_v1_catalog_instruments_get: {
+    parameters: {
+      query?: {
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+        asset_type?: ("crypto" | "fiat" | "equity") | null;
+        exclude_venue_id?: number | null;
+        exclude_ids?: number[];
+        venue_id?: number | null;
+        pair_id?: number | null;
+        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_InstrumentResponse_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_instrument_api_v1_catalog_instruments__instrument_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        instrument_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
         headers: {
           [name: string]: unknown;
         };
@@ -2848,7 +3145,18 @@ export interface operations {
   list_venue_wallet_assets_api_v1_catalog_venues__venue_id__wallet_assets_get: {
     parameters: {
       query?: {
-        active_only?: boolean;
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+        asset_type?: ("crypto" | "fiat" | "equity") | null;
+        exclude_venue_id?: number | null;
+        exclude_ids?: number[];
+        venue_id?: number | null;
+        pair_id?: number | null;
+        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
       };
       header?: never;
       path: {
@@ -2864,7 +3172,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["VenueWalletAssetResponse"][];
+          "application/json": components["schemas"]["Page_VenueWalletAssetResponse_"];
         };
       };
       /** @description Validation Error */
@@ -2895,6 +3203,37 @@ export interface operations {
     responses: {
       /** @description Successful Response */
       201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VenueWalletAssetResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_wallet_capability_api_v1_catalog_wallet_assets__capability_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        capability_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
         headers: {
           [name: string]: unknown;
         };
@@ -2980,7 +3319,18 @@ export interface operations {
   list_profiles_api_v1_profiles_get: {
     parameters: {
       query?: {
-        include_archived?: boolean;
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+        asset_type?: ("crypto" | "fiat" | "equity") | null;
+        exclude_venue_id?: number | null;
+        exclude_ids?: number[];
+        venue_id?: number | null;
+        pair_id?: number | null;
+        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
       };
       header?: never;
       path?: never;
@@ -2994,7 +3344,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ProfileResponse"][];
+          "application/json": components["schemas"]["Page_ProfileResponse_"];
         };
       };
       /** @description Validation Error */
@@ -3241,7 +3591,10 @@ export interface operations {
   };
   list_wallet_operations_api_v1_profiles_wallet_assets__wallet_asset_id__operations_get: {
     parameters: {
-      query?: never;
+      query?: {
+        page?: number;
+        page_size?: number;
+      };
       header?: never;
       path: {
         wallet_asset_id: number;
@@ -3256,7 +3609,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["WalletOperationResponse"][];
+          "application/json": components["schemas"]["Page_WalletOperationResponse_"];
         };
       };
       /** @description Validation Error */
@@ -3545,9 +3898,26 @@ export interface operations {
   list_trades_api_v1_trades_get: {
     parameters: {
       query?: {
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+        asset_type?: ("crypto" | "fiat" | "equity") | null;
+        exclude_venue_id?: number | null;
+        exclude_ids?: number[];
+        venue_id?: number | null;
+        pair_id?: number | null;
+        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
         profile_id?: number | null;
         strategy_id?: number | null;
         trade_status?: components["schemas"]["TradeStatus"] | null;
+        direction?: components["schemas"]["Direction"] | null;
+        date_from?: string | null;
+        date_to?: string | null;
+        review?: "all" | "reviewed" | "unreviewed";
+        rated?: boolean | null;
       };
       header?: never;
       path?: never;
@@ -3561,7 +3931,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["TradeResponse"][];
+          "application/json": components["schemas"]["Page_TradeListItem_"];
         };
       };
       /** @description Validation Error */

@@ -23,6 +23,7 @@ import { assessChecklist } from "@/features/trades/checklist";
 import PositionRiskBar from "@/features/trades/PositionRiskBar.vue";
 import TradeAttachments from "@/features/trades/TradeAttachments.vue";
 import TradeRating from "@/features/trades/TradeRating.vue";
+import TradeTimestamps from "@/features/trades/TradeTimestamps.vue";
 import {
   calculateAtrUsage,
   calculateCapitalRemaining,
@@ -62,9 +63,6 @@ const props = defineProps<{
   profile?: Profile;
   strategy?: Strategy & { profileId?: number };
   instrument?: Instrument;
-  profiles: Profile[];
-  strategies: Array<Strategy & { profileId?: number }>;
-  instruments: Instrument[];
 }>();
 const emit = defineEmits<{ updated: [trade: Trade]; deleted: [] }>();
 const { t } = useI18n();
@@ -454,6 +452,8 @@ onBeforeUnmount(() => {
         @update:model-value="ratingMutation.mutate"
       />
     </header>
+
+    <TradeTimestamps :trade="trade" />
 
     <div class="trade-lifecycle">
       <div class="trade-lifecycle__rail">

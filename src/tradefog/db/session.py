@@ -1,6 +1,6 @@
 """Async engines and explicit transactional session boundaries."""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from typing import Protocol
 
@@ -35,12 +35,29 @@ class SQLiteConnection(Protocol):
         """Open a cursor on the adapted connection."""
         ...
 
+    def create_function(
+        self,
+        name: str,
+        nargs: int,
+        function: Callable[[str | None], str | None],
+        *,
+        deterministic: bool,
+    ) -> None:
+        """Register a deterministic scalar function on this connection."""
+        ...
+
+
+def lowercase_text(value: str | None) -> str | None:
+    """Give SQLite Unicode lowercasing for journal and catalog searches."""
+    return value.lower() if value is not None else None
+
 
 def enable_sqlite_foreign_keys(
     connection: SQLiteConnection,
     _record: object,
 ) -> None:
     """Enable referential integrity on every pooled SQLite connection."""
+    connection.create_function("lower", 1, lowercase_text, deterministic=True)
     cursor = connection.cursor()
     try:
         _ = cursor.execute("PRAGMA foreign_keys=ON")

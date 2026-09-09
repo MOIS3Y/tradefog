@@ -2,6 +2,7 @@
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -11,12 +12,54 @@ from pydantic import (
     model_validator,
 )
 
+from tradefog.api.v1.schemas.pagination import ListQuery
 from tradefog.domain.checklists import (
     AssessmentDirection,
     DirectionalValue,
     TrendRelationship,
 )
 from tradefog.domain.enums import ATRSource, Direction, TradeStatus
+
+
+class TradeListQuery(ListQuery):
+    """Server-side journal filters independent of pagination."""
+
+    order: Literal["asc", "desc"] = "desc"
+    profile_id: int | None = Field(default=None, gt=0)
+    strategy_id: int | None = Field(default=None, gt=0)
+    trade_status: TradeStatus | None = None
+    direction: Direction | None = None
+    date_from: date | None = None
+    date_to: date | None = None
+    review: Literal["all", "reviewed", "unreviewed"] = "all"
+    rated: bool | None = None
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> Self:
+        """Reject reversed date intervals rather than returning no rows."""
+        if self.date_from and self.date_to and self.date_from > self.date_to:
+            raise ValueError("date_from must not exceed date_to")
+        return self
+
+
+class TradeListItem(BaseModel):
+    """Compact journal row without draft sections or snapshot payloads."""
+
+    id: int
+    profile_id: int
+    profile_name: str
+    strategy_id: int
+    strategy_name: str
+    venue_instrument_id: int
+    exec_symbol: str
+    pair_symbol: str
+    settlement_symbol: str
+    trade_date: date
+    direction: Direction
+    status: TradeStatus
+    realized_pnl: Decimal | None
+    quality_rating: int | None
+    review_completed_at: datetime | None
 
 
 class TradeInput(BaseModel):

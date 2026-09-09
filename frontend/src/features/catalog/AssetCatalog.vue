@@ -4,6 +4,8 @@ import { computed, reactive, ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { useI18n } from "vue-i18n";
 
+import PaginationControls from "@/components/PaginationControls.vue";
+import { usePagination } from "@/composables/usePagination";
 import { ApiError } from "@/api/errors";
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -22,8 +24,6 @@ import {
   type AssetWrite,
 } from "@/features/catalog/api";
 import {
-  filterAssets,
-  sortAssets,
   type AssetSortKey,
   type SortDirection,
 } from "@/features/catalog/filters";
@@ -48,18 +48,26 @@ const form = reactive<AssetWrite>({
   asset_type: "crypto",
 });
 
+const criteria = computed(() => ({
+  q: search.value,
+  asset_type: typeFilter.value === "all" ? undefined : typeFilter.value,
+  sort: sortKey.value,
+  order: sortDirection.value,
+}));
+const pagination = usePagination(criteria);
+const { page, pageSize } = pagination;
 const query = useQuery({
-  queryKey: ["catalog", "assets"],
-  queryFn: listAssets,
+  queryKey: computed(() => [
+    "catalog",
+    "assets",
+    criteria.value,
+    pagination.params.value,
+  ]),
+  queryFn: () => listAssets({ ...criteria.value, ...pagination.params.value }),
 });
-const assets = computed(() => query.data.value ?? []);
-const filtered = computed(() =>
-  sortAssets(
-    filterAssets(assets.value, search.value, typeFilter.value),
-    sortKey.value,
-    sortDirection.value,
-  ),
-);
+pagination.track(computed(() => query.data.value));
+const assets = computed(() => query.data.value?.items ?? []);
+const filtered = assets;
 const formInvalid = computed(() => form.symbol.trim().length === 0);
 const assetTypeOptions = computed<SelectOption<AssetType>[]>(() => [
   { value: "crypto", label: t("catalog.types.crypto") },
@@ -97,10 +105,7 @@ const saveMutation = useMutation({
       ? createAsset(form)
       : updateAsset(editing.value.id, form),
   onSuccess: async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["catalog", "assets"] }),
-      queryClient.invalidateQueries({ queryKey: ["catalog", "pairs"] }),
-    ]);
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t(
         editing.value === null
@@ -116,7 +121,7 @@ const saveMutation = useMutation({
 const removeMutation = useMutation({
   mutationFn: (asset: Asset) => deleteAsset(asset.id),
   onSuccess: async (_, asset) => {
-    await queryClient.invalidateQueries({ queryKey: ["catalog", "assets"] });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t("catalog.asset.deleted"),
       description: asset.symbol,
@@ -207,9 +212,9 @@ function activeDirection(key: AssetSortKey): SortDirection | null {
       >
         {{ $t("catalog.reset") }}
       </button>
-      <span class="catalog-toolbar__count"
-        >{{ filtered.length }} / {{ assets.length }}</span
-      >
+      <span class="catalog-toolbar__count">{{
+        query.data.value?.total ?? 0
+      }}</span>
     </div>
 
     <LoadingState
@@ -223,7 +228,7 @@ function activeDirection(key: AssetSortKey): SortDirection | null {
       @retry="query.refetch()"
     />
     <EmptyState
-      v-else-if="assets.length === 0"
+      v-else-if="assets.length === 0 && !search && typeFilter === 'all'"
       :title="$t('catalog.asset.emptyTitle')"
     >
       <template #icon><Coins :size="24" /></template>
@@ -361,6 +366,12 @@ function activeDirection(key: AssetSortKey): SortDirection | null {
       :busy="removeMutation.isPending.value"
       @update:open="!$event && (deleteTarget = null)"
       @confirm="deleteTarget && removeMutation.mutate(deleteTarget)"
+    />
+    <PaginationControls
+      v-model:page="page"
+      v-model:page-size="pageSize"
+      :total="query.data.value?.total ?? 0"
+      :busy="query.isFetching.value"
     />
   </section>
 </template>

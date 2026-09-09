@@ -8,9 +8,17 @@
     h1 {
       margin: 0;
       color: var(--tf-ink-strong);
-      font-size: clamp(2.2rem, 4vw, 4rem);
-      letter-spacing: -0.055em;
-      line-height: 1;
+      font-size: clamp(1.65rem, 2.5vw, 1.875rem);
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+
+    p {
+      max-width: 760px;
+      margin: 0.5rem 0 0;
+      color: var(--tf-ink-soft);
+      font-size: 0.875rem;
+      line-height: 1.55;
     }
   }
 

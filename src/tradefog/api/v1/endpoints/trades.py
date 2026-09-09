@@ -2,14 +2,17 @@
 
 from datetime import UTC, datetime
 from decimal import Decimal, localcontext
+from typing import Annotated
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from starlette.concurrency import run_in_threadpool
 
 from tradefog.api.dependencies import CurrentUserDependency, SessionDependency
 from tradefog.api.errors import api_error, conflict, not_found
+from tradefog.api.v1.schemas.pagination import Page
 from tradefog.api.v1.schemas.trades import (
     ATRRequest,
     ATRResponse,
@@ -19,6 +22,8 @@ from tradefog.api.v1.schemas.trades import (
     SnapshotResponse,
     TradeClose,
     TradeCreate,
+    TradeListItem,
+    TradeListQuery,
     TradePatch,
     TradePlanningContextResponse,
     TradePlanRequest,
@@ -32,7 +37,9 @@ from tradefog.db.models import (
     StrategyCapital,
     Trade,
     TradeSnapshot,
+    TradingPair,
     TradingProfile,
+    TradingStrategy,
     Venue,
     VenueInstrument,
     WalletAsset,
@@ -46,6 +53,7 @@ from tradefog.domain.enums import ATRSource, TradeStatus
 from tradefog.market.service import fetch_atr_context
 from tradefog.market.types import MarketDataError
 from tradefog.services.journal import get_owned, recompute_wallet_asset
+from tradefog.services.pagination import paginate, search_text
 from tradefog.services.trades import (
     ATRDecisionContext,
     SubmissionContext,
@@ -198,27 +206,120 @@ def plan_response(
     )
 
 
-@router.get("", response_model=list[TradeResponse])
+@router.get("", response_model=Page[TradeListItem])
 async def list_trades(
     session: SessionDependency,
     user: CurrentUserDependency,
-    profile_id: int | None = None,
-    strategy_id: int | None = None,
-    trade_status: TradeStatus | None = None,
-) -> list[TradeResponse]:
+    query: Annotated[TradeListQuery, Query()],
+) -> Page[TradeListItem]:
     """List authenticated journal trades with optional cohort filters."""
-    statement = owned_select(Trade, user.id).order_by(
-        Trade.trade_date.desc(),
-        Trade.id.desc(),
+    statement = (
+        owned_select(Trade, user.id)
+        .join(
+            TradingProfile,
+            Trade.profile_id == TradingProfile.id,
+        )
+        .join(
+            TradingStrategy,
+            Trade.strategy_id == TradingStrategy.id,
+        )
+        .join(
+            VenueInstrument,
+            Trade.venue_instrument_id == VenueInstrument.id,
+        )
+        .join(TradingPair, VenueInstrument.pair_id == TradingPair.id)
+        .options(
+            selectinload(Trade.profile),
+            selectinload(Trade.strategy),
+            selectinload(Trade.venue_instrument)
+            .selectinload(
+                VenueInstrument.pair,
+            )
+            .selectinload(TradingPair.quote),
+            selectinload(Trade.venue_instrument).selectinload(
+                VenueInstrument.settlement_asset,
+            ),
+        )
     )
-    if profile_id is not None:
-        statement = statement.where(Trade.profile_id == profile_id)
-    if strategy_id is not None:
-        statement = statement.where(Trade.strategy_id == strategy_id)
-    if trade_status is not None:
-        statement = statement.where(Trade.status == trade_status)
-    trades = (await session.scalars(statement)).all()
-    return [await trade_response(session, trade) for trade in trades]
+    for column, value in (
+        (Trade.profile_id, query.profile_id),
+        (Trade.strategy_id, query.strategy_id),
+        (Trade.status, query.trade_status),
+        (Trade.direction, query.direction),
+    ):
+        if value is not None:
+            statement = statement.where(column == value)
+    if query.date_from:
+        statement = statement.where(Trade.trade_date >= query.date_from)
+    if query.date_to:
+        statement = statement.where(Trade.trade_date <= query.date_to)
+    if query.review == "reviewed":
+        statement = statement.where(Trade.review_completed_at.is_not(None))
+    elif query.review == "unreviewed":
+        statement = statement.where(
+            Trade.status == TradeStatus.CLOSED,
+            Trade.review_completed_at.is_(None),
+        )
+    if query.rated is not None:
+        statement = statement.where(
+            Trade.quality_rating.is_not(None)
+            if query.rated
+            else Trade.quality_rating.is_(None),
+        )
+    if query.q.strip():
+        statement = statement.where(
+            search_text(
+                [
+                    TradingPair.canonical_symbol,
+                    VenueInstrument.exec_symbol,
+                    TradingProfile.name,
+                    TradingStrategy.name,
+                ]
+            ).icontains(query.q.strip(), autoescape=True)
+        )
+    items, total = await paginate(
+        session,
+        statement,
+        query,
+        {
+            "trade_date": Trade.trade_date,
+            "instrument": TradingPair.canonical_symbol,
+            "profile": TradingProfile.name,
+            "strategy": TradingStrategy.name,
+            "direction": Trade.direction,
+            "status": Trade.status,
+            "quality_rating": Trade.quality_rating,
+            "review_completed_at": Trade.review_completed_at,
+        },
+        "trade_date",
+        Trade.id,
+    )
+    rows = []
+    for trade in items:
+        instrument = trade.venue_instrument
+        settlement = instrument.settlement_asset or instrument.pair.quote
+        rows.append(
+            TradeListItem(
+                id=trade.id,
+                profile_id=trade.profile_id,
+                profile_name=trade.profile.name,
+                strategy_id=trade.strategy_id,
+                strategy_name=trade.strategy.name,
+                venue_instrument_id=instrument.id,
+                exec_symbol=instrument.exec_symbol,
+                pair_symbol=instrument.pair.canonical_symbol,
+                settlement_symbol=settlement.symbol,
+                trade_date=trade.trade_date,
+                direction=trade.direction,
+                status=trade.status,
+                realized_pnl=trade.realized_pnl,
+                quality_rating=trade.quality_rating,
+                review_completed_at=trade.review_completed_at,
+            )
+        )
+    return Page(
+        items=rows, total=total, page=query.page, page_size=query.page_size
+    )
 
 
 @router.post(

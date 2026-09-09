@@ -5,15 +5,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
+import PaginationControls from "@/components/PaginationControls.vue";
+import RemoteCatalogSelect from "@/components/RemoteCatalogSelect.vue";
+import { usePagination } from "@/composables/usePagination";
 import { ApiError } from "@/api/errors";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import ErrorState from "@/components/ErrorState.vue";
 import FormDialog from "@/components/FormDialog.vue";
 import LoadingState from "@/components/LoadingState.vue";
-import SearchableSelect, {
-  type SearchableOption,
-} from "@/components/SearchableSelect.vue";
 import SortableHeader from "@/components/SortableHeader.vue";
 import {
   createPair,
@@ -24,8 +24,6 @@ import {
   type Pair,
 } from "@/features/catalog/api";
 import {
-  filterPairs,
-  sortPairs,
   type PairSortKey,
   type SortDirection,
 } from "@/features/catalog/filters";
@@ -51,46 +49,33 @@ const form = reactive<{ base_id: number | null; quote_id: number | null }>({
 
 const assetsQuery = useQuery({
   queryKey: ["catalog", "assets"],
-  queryFn: listAssets,
+  queryFn: () => listAssets({ page_size: 1 }),
 });
+const criteria = computed(() => ({
+  q: search.value,
+  sort: sortKey.value,
+  order: sortDirection.value,
+}));
+const pagination = usePagination(criteria);
+const { page, pageSize } = pagination;
 const pairsQuery = useQuery({
-  queryKey: ["catalog", "pairs"],
-  queryFn: listPairs,
+  queryKey: computed(() => [
+    "catalog",
+    "pairs",
+    criteria.value,
+    pagination.params.value,
+  ]),
+  queryFn: () => listPairs({ ...criteria.value, ...pagination.params.value }),
 });
-const assets = computed(() => assetsQuery.data.value ?? []);
-const pairs = computed(() => pairsQuery.data.value ?? []);
-const filtered = computed(() =>
-  sortPairs(
-    filterPairs(pairs.value, search.value),
-    sortKey.value,
-    sortDirection.value,
-  ),
-);
-const canCreate = computed(() => assets.value.length >= 2);
+pagination.track(computed(() => pairsQuery.data.value));
+const pairs = computed(() => pairsQuery.data.value?.items ?? []);
+const filtered = pairs;
+const canCreate = computed(() => (assetsQuery.data.value?.total ?? 0) >= 2);
 const formInvalid = computed(
   () =>
     form.base_id === null ||
     form.quote_id === null ||
     form.base_id === form.quote_id,
-);
-
-const baseOptions = computed<SearchableOption[]>(() =>
-  assets.value
-    .filter((asset) => asset.id !== form.quote_id)
-    .map((asset) => ({
-      value: asset.id,
-      label: asset.symbol,
-      detail: asset.name ?? t(`catalog.types.${asset.asset_type}`),
-    })),
-);
-const quoteOptions = computed<SearchableOption[]>(() =>
-  assets.value
-    .filter((asset) => asset.id !== form.base_id)
-    .map((asset) => ({
-      value: asset.id,
-      label: asset.symbol,
-      detail: asset.name ?? t(`catalog.types.${asset.asset_type}`),
-    })),
 );
 
 function showError(error: unknown, context: "save" | "delete"): void {
@@ -122,7 +107,7 @@ const saveMutation = useMutation({
           quote_id: form.quote_id ?? 0,
         }),
   onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: ["catalog", "pairs"] });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t(
         editing.value === null ? "catalog.pair.created" : "catalog.pair.saved",
@@ -136,7 +121,7 @@ const saveMutation = useMutation({
 const removeMutation = useMutation({
   mutationFn: (pair: Pair) => deletePair(pair.id),
   onSuccess: async (_, pair) => {
-    await queryClient.invalidateQueries({ queryKey: ["catalog", "pairs"] });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t("catalog.pair.deleted"),
       description: pair.canonical_symbol,
@@ -225,9 +210,9 @@ function activeDirection(key: PairSortKey): SortDirection | null {
       >
         {{ $t("catalog.reset") }}
       </button>
-      <span class="catalog-toolbar__count"
-        >{{ filtered.length }} / {{ pairs.length }}</span
-      >
+      <span class="catalog-toolbar__count">{{
+        pairsQuery.data.value?.total ?? 0
+      }}</span>
     </div>
 
     <LoadingState
@@ -241,7 +226,7 @@ function activeDirection(key: PairSortKey): SortDirection | null {
       @retry="retryQueries"
     />
     <EmptyState
-      v-else-if="pairs.length === 0"
+      v-else-if="pairs.length === 0 && !search"
       :title="$t('catalog.pair.emptyTitle')"
     >
       <template #icon><ArrowLeftRight :size="24" /></template>
@@ -379,9 +364,10 @@ function activeDirection(key: PairSortKey): SortDirection | null {
     >
       <label class="field">
         <span>{{ $t("catalog.pair.base") }}</span>
-        <SearchableSelect
+        <RemoteCatalogSelect
           v-model="form.base_id"
-          :options="baseOptions"
+          resource="assets"
+          :exclude-id="form.quote_id"
           :placeholder="$t('catalog.pair.selectBase')"
           :empty-label="$t('catalog.noOptions')"
         />
@@ -389,9 +375,10 @@ function activeDirection(key: PairSortKey): SortDirection | null {
       </label>
       <label class="field">
         <span>{{ $t("catalog.pair.quote") }}</span>
-        <SearchableSelect
+        <RemoteCatalogSelect
           v-model="form.quote_id"
-          :options="quoteOptions"
+          resource="assets"
+          :exclude-id="form.base_id"
           :placeholder="$t('catalog.pair.selectQuote')"
           :empty-label="$t('catalog.noOptions')"
           :disabled="form.base_id === null"
@@ -417,6 +404,12 @@ function activeDirection(key: PairSortKey): SortDirection | null {
       :busy="removeMutation.isPending.value"
       @update:open="!$event && (deleteTarget = null)"
       @confirm="deleteTarget && removeMutation.mutate(deleteTarget)"
+    />
+    <PaginationControls
+      v-model:page="page"
+      v-model:page-size="pageSize"
+      :total="pairsQuery.data.value?.total ?? 0"
+      :busy="pairsQuery.isFetching.value"
     />
   </section>
 </template>

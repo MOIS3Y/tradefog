@@ -1,9 +1,9 @@
 """Owner-scoped profile, wallet, ledger and strategy endpoints."""
 
-from collections.abc import Sequence
 from decimal import Decimal
+from typing import Annotated
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Query, Response, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
@@ -28,6 +28,7 @@ from tradefog.api.v1.schemas.journal import (
     WalletOperationResponse,
     WalletResponse,
 )
+from tradefog.api.v1.schemas.pagination import ListQuery, Page
 from tradefog.db.models import (
     StrategyCapital,
     Trade,
@@ -52,6 +53,7 @@ from tradefog.services.journal import (
     wallet_balance,
     wallet_reserved,
 )
+from tradefog.services.pagination import paginate, search_text
 
 router = APIRouter(prefix="/profiles", tags=["Journal"])
 
@@ -140,20 +142,40 @@ async def allocation_has_snapshot(
     return await session.scalar(statement) is not None
 
 
-@router.get("", response_model=list[ProfileResponse])
+@router.get("", response_model=Page[ProfileResponse])
 async def list_profiles(
     session: SessionDependency,
     user: CurrentUserDependency,
-    include_archived: bool = False,
-) -> Sequence[TradingProfile]:
-    """List only the authenticated user's trading profiles."""
-    statement = owned_select(TradingProfile, user.id).order_by(
-        TradingProfile.name,
+    query: Annotated[ListQuery, Query()],
+) -> Page[ProfileResponse]:
+    """Search and page only the authenticated user's trading profiles."""
+    statement = owned_select(TradingProfile, user.id).join(
+        Venue, Venue.id == TradingProfile.venue_id
+    )
+    if query.visibility != "all":
+        statement = statement.where(
+            TradingProfile.is_archived.is_(query.visibility == "archived")
+        )
+    if query.q.strip():
+        statement = statement.where(
+            search_text([TradingProfile.name, Venue.name]).icontains(
+                query.q.strip(), autoescape=True
+            )
+        )
+    items, total = await paginate(
+        session,
+        statement,
+        query,
+        {"name": TradingProfile.name},
+        "name",
         TradingProfile.id,
     )
-    if not include_archived:
-        statement = statement.where(TradingProfile.is_archived.is_(False))
-    return (await session.scalars(statement)).all()
+    return Page(
+        items=[ProfileResponse.model_validate(item) for item in items],
+        total=total,
+        page=query.page,
+        page_size=query.page_size,
+    )
 
 
 @router.post(
@@ -426,22 +448,37 @@ async def update_wallet_asset(
 
 @router.get(
     "/wallet-assets/{wallet_asset_id}/operations",
-    response_model=list[WalletOperationResponse],
+    response_model=Page[WalletOperationResponse],
 )
 async def list_wallet_operations(
     wallet_asset_id: int,
     session: SessionDependency,
     user: CurrentUserDependency,
-) -> Sequence[WalletOperation]:
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 25,
+) -> Page[WalletOperationResponse]:
     """List immutable ledger facts for one owned wallet asset."""
     await get_owned(session, WalletAsset, wallet_asset_id, user.id)
-    return (
-        await session.scalars(
-            owned_select(WalletOperation, user.id)
-            .where(WalletOperation.wallet_asset_id == wallet_asset_id)
-            .order_by(WalletOperation.created_at, WalletOperation.id)
+    statement = owned_select(WalletOperation, user.id).where(
+        WalletOperation.wallet_asset_id == wallet_asset_id,
+    )
+    total = await session.scalar(
+        select(func.count()).select_from(statement.subquery()),
+    )
+    items = await session.scalars(
+        statement.order_by(
+            WalletOperation.created_at.desc(),
+            WalletOperation.id.desc(),
         )
-    ).all()
+        .offset((page - 1) * page_size)
+        .limit(page_size),
+    )
+    return Page(
+        items=[WalletOperationResponse.model_validate(item) for item in items],
+        total=int(total or 0),
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.post(

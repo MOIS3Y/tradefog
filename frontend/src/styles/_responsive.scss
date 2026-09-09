@@ -298,11 +298,14 @@
     }
 
     .venue-directory {
+      border-right: 0;
+      border-bottom: 1px solid var(--tf-line-soft);
+    }
+
+    .venue-directory__items {
       display: flex;
       gap: 0.5rem;
       overflow-x: auto;
-      border-right: 0;
-      border-bottom: 1px solid var(--tf-line-soft);
     }
 
     .venue-card {
@@ -340,7 +343,12 @@
       display: block;
     }
 
-    .profile-directory,
+    .profile-directory {
+      border-right: 0;
+      border-bottom: 1px solid var(--tf-line-soft);
+    }
+
+    .profile-directory__items,
     .wallet-assets,
     .strategy-list {
       display: flex;
@@ -400,27 +408,6 @@
 
     .trade-toolbar__create {
       margin-left: 0;
-    }
-
-    .trade-console {
-      display: block;
-    }
-
-    .trade-directory {
-      display: flex;
-      gap: 0.5rem;
-      overflow-x: auto;
-      border-right: 0;
-      border-bottom: 1px solid var(--tf-line-soft);
-    }
-
-    .trade-directory__count,
-    .trade-directory__empty {
-      min-width: 150px;
-    }
-
-    .trade-card {
-      min-width: 245px;
     }
 
     .trade-detail__header,

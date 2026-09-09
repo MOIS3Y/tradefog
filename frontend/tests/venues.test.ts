@@ -14,12 +14,6 @@ import {
   type Venue,
   type VenueWalletAsset,
 } from "@/features/venues/api";
-import {
-  filterInstruments,
-  filterVenues,
-  filterWalletAssets,
-  sortInstruments,
-} from "@/features/venues/filters";
 import { formatDecimal, isPositiveDecimal } from "@/utils/decimal";
 
 const bitcoin: Asset = {
@@ -91,22 +85,6 @@ beforeEach(() => {
 });
 
 describe("venue catalog flow", () => {
-  it("filters archives and sorts venue-scoped records locally", () => {
-    expect(filterVenues([venue, archivedVenue], "byb", "all")).toEqual([venue]);
-    expect(filterVenues([venue, archivedVenue], "", "archived")).toEqual([
-      archivedVenue,
-    ]);
-    expect(filterInstruments([instrument], "BTC/USD", "active")).toEqual([
-      instrument,
-    ]);
-    expect(sortInstruments([instrument], "settlement", "desc")).toEqual([
-      instrument,
-    ]);
-    expect(filterWalletAssets([capability], "fiat", "active")).toEqual([
-      capability,
-    ]);
-  });
-
   it("formats exact decimals without insignificant zeroes", () => {
     expect(formatDecimal("0.010000000000000000")).toBe("0.01");
     expect(formatDecimal("0.000001000000000000")).toBe("0.000001");

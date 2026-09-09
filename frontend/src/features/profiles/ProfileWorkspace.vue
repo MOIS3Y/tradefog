@@ -15,6 +15,7 @@ import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
+import RemoteCatalogSelect from "@/components/RemoteCatalogSelect.vue";
 import { ApiError } from "@/api/errors";
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -22,19 +23,19 @@ import EmptyState from "@/components/EmptyState.vue";
 import ErrorState from "@/components/ErrorState.vue";
 import FormDialog from "@/components/FormDialog.vue";
 import LoadingState from "@/components/LoadingState.vue";
-import SearchableSelect, {
-  type SearchableOption,
-} from "@/components/SearchableSelect.vue";
+import PaginationControls from "@/components/PaginationControls.vue";
+import { usePagination } from "@/composables/usePagination";
 import ProfileStrategies from "@/features/profiles/ProfileStrategies.vue";
 import ProfileWallet from "@/features/profiles/ProfileWallet.vue";
 import {
   createProfile,
   deleteProfile,
-  listProfiles,
+  listProfilePage,
+  getProfile,
   updateProfile,
   type Profile,
 } from "@/features/profiles/api";
-import { listVenues } from "@/features/venues/api";
+import { listVenues, getVenue } from "@/features/venues/api";
 import { useToastStore } from "@/stores/toasts";
 
 type ProfileTab = "wallet" | "strategies";
@@ -58,54 +59,64 @@ const form = reactive({
   description: "",
 });
 
+const criteria = computed(() => ({
+  q: search.value,
+  visibility: visibility.value,
+  sort: "name",
+}));
+const pagination = usePagination(criteria);
+const { page, pageSize } = pagination;
 const profilesQuery = useQuery({
-  queryKey: ["profiles"],
-  queryFn: listProfiles,
+  queryKey: computed(() => [
+    "profiles",
+    "list",
+    criteria.value,
+    pagination.params.value,
+  ]),
+  queryFn: () =>
+    listProfilePage({ ...criteria.value, ...pagination.params.value }),
 });
+pagination.track(computed(() => profilesQuery.data.value));
 const venuesQuery = useQuery({
   queryKey: ["catalog", "venues"],
-  queryFn: listVenues,
+  queryFn: () => listVenues({ visibility: "active", page_size: 1 }),
 });
-const profiles = computed(() => profilesQuery.data.value ?? []);
-const venues = computed(() => venuesQuery.data.value ?? []);
-const activeVenues = computed(() =>
-  venues.value.filter((item) => item.is_active),
+const profiles = computed(() => profilesQuery.data.value?.items ?? []);
+const selectedQuery = useQuery({
+  queryKey: computed(() => ["profiles", "detail", selectedId.value]),
+  queryFn: () => getProfile(selectedId.value!),
+  enabled: computed(
+    () =>
+      selectedId.value !== null &&
+      !profiles.value.some((item) => item.id === selectedId.value),
+  ),
+});
+const selected = computed(
+  () =>
+    profiles.value.find((item) => item.id === selectedId.value) ??
+    selectedQuery.data.value ??
+    null,
 );
+const venueIds = computed(() => [
+  ...new Set([
+    ...profiles.value.map((item) => item.venue_id),
+    ...(selected.value ? [selected.value.venue_id] : []),
+  ]),
+]);
+const activeVenues = computed(() => venuesQuery.data.value?.items ?? []);
+const venueDetailsQuery = useQuery({
+  queryKey: computed(() => ["catalog", "profile-venues", venueIds.value]),
+  queryFn: () => Promise.all(venueIds.value.map(getVenue)),
+});
 const venueById = computed(
-  () => new Map(venues.value.map((item) => [item.id, item])),
-);
-const venueOptions = computed<SearchableOption[]>(() =>
-  activeVenues.value.map((venue) => ({
-    value: venue.id,
-    label: venue.name,
-    detail: t(`venues.providers.${venue.market_data_provider}`),
-  })),
+  () => new Map((venueDetailsQuery.data.value ?? []).map((x) => [x.id, x])),
 );
 const visibilityOptions = computed<SelectOption<Visibility>[]>(() => [
   { value: "active", label: t("profiles.visibility.active") },
   { value: "archived", label: t("profiles.visibility.archived") },
   { value: "all", label: t("profiles.visibility.all") },
 ]);
-const filtered = computed(() => {
-  const needle = search.value.trim().toLocaleLowerCase();
-  return profiles.value
-    .filter((profile) => {
-      const visible =
-        visibility.value === "all" ||
-        (visibility.value === "archived"
-          ? profile.is_archived
-          : !profile.is_archived);
-      const venue = venueById.value.get(profile.venue_id)?.name ?? "";
-      return (
-        visible &&
-        `${profile.name} ${venue}`.toLocaleLowerCase().includes(needle)
-      );
-    })
-    .sort((left, right) => left.name.localeCompare(right.name));
-});
-const selected = computed(
-  () => profiles.value.find((item) => item.id === selectedId.value) ?? null,
-);
+const filtered = profiles;
 const formInvalid = computed(
   () => form.name.trim().length === 0 || form.venue_id === null,
 );
@@ -113,6 +124,7 @@ const formInvalid = computed(
 watch(
   filtered,
   (items) => {
+    if (!profilesQuery.data.value) return;
     if (!items.some((item) => item.id === selectedId.value)) {
       selectedId.value = items[0]?.id ?? null;
     }
@@ -241,21 +253,35 @@ function openEdit(profile: Profile): void {
     </div>
 
     <LoadingState
-      v-if="profilesQuery.isPending.value || venuesQuery.isPending.value"
+      v-if="
+        profilesQuery.isPending.value ||
+        venuesQuery.isPending.value ||
+        venueDetailsQuery.isPending.value
+      "
       :label="$t('profiles.loading')"
     />
     <ErrorState
-      v-else-if="profilesQuery.isError.value || venuesQuery.isError.value"
+      v-else-if="
+        profilesQuery.isError.value ||
+        venuesQuery.isError.value ||
+        venueDetailsQuery.isError.value
+      "
       :title="$t('profiles.loadFailed')"
       :description="$t('catalog.errors.unavailable')"
       :retry-label="$t('common.retry')"
       @retry="
         profilesQuery.refetch();
         venuesQuery.refetch();
+        venueDetailsQuery.refetch();
       "
     />
     <EmptyState
-      v-else-if="profiles.length === 0"
+      v-else-if="
+        profiles.length === 0 &&
+        !search.trim() &&
+        visibility === 'all' &&
+        page === 1
+      "
       :title="$t('profiles.emptyTitle')"
       :description="
         activeVenues.length
@@ -276,27 +302,37 @@ function openEdit(profile: Profile): void {
     </EmptyState>
     <div v-else class="profile-console">
       <aside class="profile-directory" :aria-label="$t('profiles.heading')">
-        <button
-          v-for="profile in filtered"
-          :key="profile.id"
-          class="profile-card"
-          :class="{ 'profile-card--selected': profile.id === selectedId }"
-          type="button"
-          @click="selectedId = profile.id"
-        >
-          <span class="profile-card__mark"><Landmark :size="17" /></span>
-          <span class="profile-card__copy">
-            <strong>{{ profile.name }}</strong>
-            <small>{{ venueById.get(profile.venue_id)?.name }}</small>
-          </span>
-          <span
-            class="status-dot"
-            :class="{ 'status-dot--archived': profile.is_archived }"
-          ></span>
-        </button>
-        <p v-if="filtered.length === 0" class="profile-directory__empty">
-          {{ $t("catalog.noResults") }}
-        </p>
+        <div class="profile-directory__items">
+          <button
+            v-for="profile in filtered"
+            :key="profile.id"
+            class="profile-card"
+            :class="{ 'profile-card--selected': profile.id === selectedId }"
+            type="button"
+            @click="selectedId = profile.id"
+          >
+            <span class="profile-card__mark"><Landmark :size="17" /></span>
+            <span class="profile-card__copy">
+              <strong>{{ profile.name }}</strong>
+              <small>{{ venueById.get(profile.venue_id)?.name }}</small>
+            </span>
+            <span
+              class="status-dot"
+              :class="{ 'status-dot--archived': profile.is_archived }"
+            ></span>
+          </button>
+          <p v-if="filtered.length === 0" class="profile-directory__empty">
+            {{ $t("catalog.noResults") }}
+          </p>
+        </div>
+        <PaginationControls
+          hide-when-small
+          v-model:page="page"
+          v-model:page-size="pageSize"
+          compact
+          :total="profilesQuery.data.value?.total ?? 0"
+          :busy="profilesQuery.isFetching.value"
+        />
       </aside>
 
       <div v-if="selected" class="profile-detail">
@@ -400,9 +436,10 @@ function openEdit(profile: Profile): void {
       </label>
       <label class="field">
         <span>{{ $t("profiles.venue") }}</span>
-        <SearchableSelect
+        <RemoteCatalogSelect
           v-model="form.venue_id"
-          :options="venueOptions"
+          resource="venues"
+          :params="{ visibility: 'active' }"
           :placeholder="$t('profiles.selectVenue')"
           :empty-label="$t('profiles.noVenues')"
           :disabled="editing !== null"

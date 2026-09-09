@@ -280,6 +280,7 @@ class TradingProfile(PrimaryKeyMixin, Base):
     """Persist TradingProfile records from the source schema."""
 
     __tablename__: str = "TradingProfile"
+    __table_args__ = (Index("profile_owner_idx", "owner_id", "id"),)
     owner_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
     )
@@ -481,7 +482,18 @@ class Trade(PrimaryKeyMixin, Base):
     """Persist Trade records from the source schema."""
 
     __tablename__: str = "Trade"
-    __table_args__: tuple[CheckConstraint, ...] = (
+    __table_args__: tuple[Index | CheckConstraint, ...] = (
+        Index("trade_profile_date_idx", "profile_id", "trade_date", "id"),
+        Index(
+            "trade_profile_rating_idx", "profile_id", "quality_rating", "id"
+        ),
+        Index(
+            "trade_profile_review_idx",
+            "profile_id",
+            "status",
+            "review_completed_at",
+            "id",
+        ),
         CheckConstraint(
             """quality_rating IS NULL
             OR (quality_rating >= 1 AND quality_rating <= 10)""",

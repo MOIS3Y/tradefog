@@ -34,9 +34,21 @@
   }
 
   .profile-directory {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
     padding: 0.8rem;
     border-right: 1px solid var(--tf-line-soft);
     background: rgb(8 12 17 / 28%);
+
+    > .pagination {
+      margin-top: auto;
+      padding: 0.8rem 0 0;
+    }
+  }
+
+  .profile-directory__items {
+    min-width: 0;
   }
 
   .profile-card {

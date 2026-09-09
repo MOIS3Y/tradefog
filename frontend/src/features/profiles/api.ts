@@ -3,6 +3,7 @@
 import { api } from "@/api/client";
 import { toApiError } from "@/api/errors";
 import type { components } from "@/api/schema";
+import type { ListParams, Page } from "@/api/pagination";
 
 export type Profile = components["schemas"]["ProfileResponse"];
 export type ProfileCreate = components["schemas"]["ProfileCreate"];
@@ -17,10 +18,35 @@ export type StrategyCreate = components["schemas"]["StrategyCreate"];
 export type StrategyPatch = components["schemas"]["StrategyPatch"];
 export type Allocation = components["schemas"]["StrategyCapitalResponse"];
 
-export async function listProfiles(): Promise<Profile[]> {
+export async function listProfilePage(
+  params: ListParams = {},
+): Promise<Page<Profile>> {
   const { data, error, response } = await api.GET("/api/v1/profiles", {
-    params: { query: { include_archived: true } },
+    params: { query: params },
   });
+  if (data === undefined) throw toApiError(error, response);
+  return data;
+}
+
+/** Load complete options for existing profile selectors, in bounded pages. */
+export async function listProfiles(): Promise<Profile[]> {
+  const profiles: Profile[] = [];
+  let page = 1;
+  while (true) {
+    const result = await listProfilePage({ page, page_size: 100 });
+    profiles.push(...result.items);
+    if (profiles.length >= result.total || result.items.length === 0) {
+      return profiles;
+    }
+    page += 1;
+  }
+}
+
+export async function getProfile(id: number): Promise<Profile> {
+  const { data, error, response } = await api.GET(
+    "/api/v1/profiles/{profile_id}",
+    { params: { path: { profile_id: id } } },
+  );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
@@ -91,10 +117,13 @@ export async function updateWalletAsset(
   return data;
 }
 
-export async function listOperations(id: number): Promise<WalletOperation[]> {
+export async function listOperations(
+  id: number,
+  query: { page?: number; page_size?: number } = {},
+): Promise<Page<WalletOperation>> {
   const { data, error, response } = await api.GET(
     "/api/v1/profiles/wallet-assets/{wallet_asset_id}/operations",
-    { params: { path: { wallet_asset_id: id } } },
+    { params: { path: { wallet_asset_id: id }, query } },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;

@@ -2,7 +2,8 @@
 
 import { api, authenticatedFetch } from "@/api/client";
 import { toApiError } from "@/api/errors";
-import type { components } from "@/api/schema";
+import type { components, paths } from "@/api/schema";
+import type { Page } from "@/api/pagination";
 
 export type Trade = components["schemas"]["TradeResponse"];
 export type TradeCreate = components["schemas"]["TradeCreate"];
@@ -20,8 +21,25 @@ export type ATR = components["schemas"]["ATRResponse"];
 export type Attachment = components["schemas"]["AttachmentResponse"];
 export type TradeClose = components["schemas"]["TradeClose"];
 
-export async function listTrades(): Promise<Trade[]> {
-  const { data, error, response } = await api.GET("/api/v1/trades");
+export type TradeListItem = components["schemas"]["TradeListItem"];
+export type TradeListParams = NonNullable<
+  paths["/api/v1/trades"]["get"]["parameters"]["query"]
+>;
+
+export async function listTrades(
+  query: TradeListParams = {},
+): Promise<Page<TradeListItem>> {
+  const { data, error, response } = await api.GET("/api/v1/trades", {
+    params: { query },
+  });
+  if (data === undefined) throw toApiError(error, response);
+  return data;
+}
+
+export async function getTrade(id: number): Promise<Trade> {
+  const { data, error, response } = await api.GET("/api/v1/trades/{trade_id}", {
+    params: { path: { trade_id: id } },
+  });
   if (data === undefined) throw toApiError(error, response);
   return data;
 }

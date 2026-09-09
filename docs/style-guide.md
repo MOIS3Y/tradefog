@@ -8,6 +8,8 @@ accents reserved for active state, selection, and primary actions.
 
 - IBM Plex Sans is the interface face; IBM Plex Mono is limited to symbols,
   prices, ratios, compact labels, and other market data.
+- Workspace page titles use a compact 28–32 px scale and a short muted
+  description, not landing-page display typography.
 - Semantic `--tf-*` tokens define color, radii, elevation, and typography.
 - Surfaces use soft borders, rounded corners, subtle gradients, and limited
   glow. Red communicates destructive or failed actions.
@@ -19,8 +21,18 @@ accents reserved for active state, selection, and primary actions.
   with accessible labels.
 - Native selects are avoided. Fixed options use `AppSelect`; growing entity
   catalogs use `SearchableSelect`.
-- Table sorting lives in column headers and exposes `aria-sort`. Search,
-  visibility, and type filters remain client-side until server pagination.
+- Table sorting lives in column headers and exposes `aria-sort`. Catalog and
+  trade search, filtering and sorting run on the server before pagination.
+  Tables offer 25, 50 or 100 rows per page and show the filtered total.
+- Pagination uses accessible chevron buttons and a compact page-size selector.
+  Venue and profile directories keep pagination at the panel bottom on
+  desktop and below the horizontally scrolling cards on mobile. Only these
+  directories hide it when the filtered total is at most 25 and the selected
+  page size is 25; larger page sizes keep the selector available.
+- Additional trade filters collapse behind “More filters”, with an active
+  count. Reset remains visible; collapsing the panel preserves its filters.
+- Large catalog selectors search remotely and load additional pages on demand;
+  the selected identity resolves independently of the current options page.
 - Create and edit forms open in a right-side canvas. Destructive actions use a
   confirmation dialog; reversible archive actions remain visually quieter.
 - Permanent deletion is offered only for archived records. The API remains the
@@ -28,8 +40,8 @@ accents reserved for active state, selection, and primary actions.
 - Wallet operations are presented as ledger facts. Their financial fields have
   no edit affordance; note correction opens a note-only form.
 - Success and failure use stacked, dismissible toasts in the lower-right corner.
-- The trade workspace keeps cross-profile navigation in a persistent directory
-  and groups position, checklist, volatility, notes, and images by decision task.
+- The trade list provides cross-profile navigation; each trade opens on its
+  own page, grouping position, checklist, volatility, notes and images by task.
 - Lifecycle actions follow draft, pending entry, open, closed or cancelled;
   immutable snapshot values receive no edit affordance after submission.
 - ATR bars share a visible 75% marker. Exceeding it is advisory and changes the
@@ -52,6 +64,9 @@ accents reserved for active state, selection, and primary actions.
   badges rather than destructive styling.
 - Exact decimal strings are displayed without insignificant trailing zeroes and
   are never converted through JavaScript floating-point numbers.
+- Trade detail shows recorded lifecycle timestamps separately from the
+  analytical trade date. UTC timestamps render in local time with seconds,
+  localized dates and a 24-hour clock; absent events are omitted.
 - Analytics labels offer a quiet help icon. Click or keyboard activation opens
   a dismissible explanation with a concrete example; help stays hidden during
   routine use.

@@ -1,12 +1,13 @@
 """Public reference-catalog reads and staff-only catalog maintenance."""
 
 from collections.abc import Sequence
+from typing import Annotated
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 from sqlalchemy import Select, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 from sqlalchemy.sql.base import ExecutableOption
 
 from tradefog.api.dependencies import SessionDependency, StaffUserDependency
@@ -28,6 +29,7 @@ from tradefog.api.v1.schemas.catalog import (
     VenueWalletAssetWrite,
     VenueWrite,
 )
+from tradefog.api.v1.schemas.pagination import ListQuery, Page
 from tradefog.db.models import (
     Asset,
     Trade,
@@ -38,7 +40,7 @@ from tradefog.db.models import (
     VenueWalletAsset,
     WalletAsset,
 )
-from tradefog.domain.enums import AssetType
+from tradefog.services.pagination import paginate, search_text
 
 router = APIRouter(prefix="/catalog", tags=["Catalog"])
 
@@ -111,16 +113,50 @@ async def resolve_pair_assets(
     return base, quote
 
 
-@router.get("/assets", response_model=list[AssetResponse])
+@router.get("/assets", response_model=Page[AssetResponse])
 async def list_assets(
     session: SessionDependency,
-    asset_type: AssetType | None = None,
-) -> Sequence[Asset]:
+    query: Annotated[ListQuery, Query()],
+) -> Page[AssetResponse]:
     """List globally reusable assets, optionally filtered by their type."""
     statement = select(Asset).order_by(Asset.symbol)
-    if asset_type is not None:
-        statement = statement.where(Asset.asset_type == asset_type)
-    return (await session.scalars(statement)).all()
+    if query.asset_type is not None:
+        statement = statement.where(Asset.asset_type == query.asset_type)
+    if query.exclude_venue_id is not None:
+        statement = statement.where(
+            ~Asset.id.in_(
+                select(VenueWalletAsset.asset_id).where(
+                    VenueWalletAsset.venue_id == query.exclude_venue_id,
+                ),
+            )
+        )
+    if query.q.strip():
+        statement = statement.where(
+            search_text(
+                [
+                    Asset.symbol,
+                    Asset.name,
+                ]
+            ).icontains(query.q.strip(), autoescape=True)
+        )
+    items, total = await paginate(
+        session,
+        statement,
+        query,
+        {
+            "symbol": Asset.symbol,
+            "name": Asset.name,
+            "asset_type": Asset.asset_type,
+        },
+        "symbol",
+        Asset.id,
+    )
+    return Page(
+        items=[AssetResponse.model_validate(x) for x in items],
+        total=total,
+        page=query.page,
+        page_size=query.page_size,
+    )
 
 
 @router.get("/assets/{asset_id}", response_model=AssetResponse)
@@ -224,8 +260,11 @@ async def delete_asset(
     )
 
 
-@router.get("/pairs", response_model=list[PairResponse])
-async def list_pairs(session: SessionDependency) -> Sequence[TradingPair]:
+@router.get("/pairs", response_model=Page[PairResponse])
+async def list_pairs(
+    session: SessionDependency,
+    query: Annotated[ListQuery, Query()],
+) -> Page[PairResponse]:
     """List logical markets with their base and quote assets."""
     statement = (
         select(TradingPair)
@@ -234,7 +273,42 @@ async def list_pairs(session: SessionDependency) -> Sequence[TradingPair]:
             TradingPair.canonical_symbol,
         )
     )
-    return (await session.scalars(statement)).all()
+    base, quote = aliased(Asset), aliased(Asset)
+    statement = statement.join(base, TradingPair.base_id == base.id).join(
+        quote,
+        TradingPair.quote_id == quote.id,
+    )
+    if query.q.strip():
+        statement = statement.where(
+            search_text(
+                [
+                    TradingPair.canonical_symbol,
+                    base.symbol,
+                    base.name,
+                    quote.symbol,
+                    quote.name,
+                ]
+            ).icontains(query.q.strip(), autoescape=True)
+        )
+    items, total = await paginate(
+        session,
+        statement,
+        query,
+        {
+            "canonical_symbol": TradingPair.canonical_symbol,
+            "base": base.symbol,
+            "quote": quote.symbol,
+            "type_relation": search_text([base.asset_type, quote.asset_type]),
+        },
+        "canonical_symbol",
+        TradingPair.id,
+    )
+    return Page(
+        items=[PairResponse.model_validate(x) for x in items],
+        total=total,
+        page=query.page,
+        page_size=query.page_size,
+    )
 
 
 @router.get("/pairs/{pair_id}", response_model=PairResponse)
@@ -330,16 +404,44 @@ async def delete_pair(
     )
 
 
-@router.get("/venues", response_model=list[VenueResponse])
+@router.get("/venues", response_model=Page[VenueResponse])
 async def list_venues(
     session: SessionDependency,
-    active_only: bool = True,
-) -> Sequence[Venue]:
-    """List active venues by default, including archives when requested."""
+    query: Annotated[ListQuery, Query()],
+) -> Page[VenueResponse]:
+    """List venues with explicit visibility, search and ordering."""
     statement = select(Venue).order_by(Venue.name)
-    if active_only:
-        statement = statement.where(Venue.is_active)
-    return (await session.scalars(statement)).all()
+    if query.visibility != "all":
+        statement = statement.where(
+            Venue.is_active == (query.visibility == "active"),
+        )
+    if query.q.strip():
+        statement = statement.where(
+            search_text(
+                [
+                    Venue.name,
+                    Venue.description,
+                    Venue.market_data_provider,
+                ]
+            ).icontains(query.q.strip(), autoescape=True)
+        )
+    items, total = await paginate(
+        session,
+        statement,
+        query,
+        {
+            "name": Venue.name,
+            "status": Venue.is_active,
+        },
+        "name",
+        Venue.id,
+    )
+    return Page(
+        items=[VenueResponse.model_validate(x) for x in items],
+        total=total,
+        page=query.page,
+        page_size=query.page_size,
+    )
 
 
 @router.get("/venues/{venue_id}", response_model=VenueResponse)
@@ -425,24 +527,85 @@ async def delete_venue(
 
 @router.get(
     "/venues/{venue_id}/instruments",
-    response_model=list[InstrumentResponse],
+    response_model=Page[InstrumentResponse],
 )
 async def list_instruments(
     venue_id: int,
     session: SessionDependency,
-    active_only: bool = True,
-) -> Sequence[VenueInstrument]:
+    query: Annotated[ListQuery, Query()],
+) -> Page[InstrumentResponse]:
     """List executable products at a venue with their market identities."""
     await get_or_404(session, Venue, venue_id)
+    return await instrument_page(session, query, venue_id)
+
+
+@router.get("/instruments", response_model=Page[InstrumentResponse])
+async def list_all_instruments(
+    session: SessionDependency,
+    query: Annotated[ListQuery, Query()],
+) -> Page[InstrumentResponse]:
+    """Search instruments across venues without loading each venue list."""
+    return await instrument_page(session, query)
+
+
+async def instrument_page(
+    session: SessionDependency,
+    query: ListQuery,
+    venue_id: int | None = None,
+) -> Page[InstrumentResponse]:
+    """Build a bounded instrument page for tables and option searches."""
     statement = (
         select(VenueInstrument)
-        .where(VenueInstrument.venue_id == venue_id)
         .options(*instrument_options())
         .order_by(VenueInstrument.exec_symbol, VenueInstrument.product)
     )
-    if active_only:
-        statement = statement.where(VenueInstrument.is_active)
-    return (await session.scalars(statement)).all()
+    statement = statement.join(TradingPair).outerjoin(
+        Asset,
+        VenueInstrument.settlement_asset_id == Asset.id,
+    )
+    if venue_id is not None:
+        statement = statement.where(VenueInstrument.venue_id == venue_id)
+    if query.venue_id is not None:
+        statement = statement.where(VenueInstrument.venue_id == query.venue_id)
+    if query.pair_id is not None:
+        statement = statement.where(VenueInstrument.pair_id == query.pair_id)
+    if query.product is not None:
+        statement = statement.where(VenueInstrument.product == query.product)
+    if query.visibility != "all":
+        statement = statement.where(
+            VenueInstrument.is_active == (query.visibility == "active"),
+        )
+    if query.q.strip():
+        statement = statement.where(
+            search_text(
+                [
+                    VenueInstrument.exec_symbol,
+                    TradingPair.canonical_symbol,
+                    VenueInstrument.product,
+                    Asset.symbol,
+                ]
+            ).icontains(query.q.strip(), autoescape=True)
+        )
+    items, total = await paginate(
+        session,
+        statement,
+        query,
+        {
+            "exec_symbol": VenueInstrument.exec_symbol,
+            "pair": TradingPair.canonical_symbol,
+            "product": VenueInstrument.product,
+            "settlement": Asset.symbol,
+            "status": VenueInstrument.is_active,
+        },
+        "exec_symbol",
+        VenueInstrument.id,
+    )
+    return Page(
+        items=[InstrumentResponse.model_validate(x) for x in items],
+        total=total,
+        page=query.page,
+        page_size=query.page_size,
+    )
 
 
 @router.post(
@@ -476,6 +639,20 @@ async def create_instrument(
         session,
         VenueInstrument,
         instrument.id,
+        instrument_options(),
+    )
+
+
+@router.get("/instruments/{instrument_id}", response_model=InstrumentResponse)
+async def get_instrument(
+    instrument_id: int,
+    session: SessionDependency,
+) -> VenueInstrument:
+    """Resolve one instrument independently of catalog pagination."""
+    return await get_or_404(
+        session,
+        VenueInstrument,
+        instrument_id,
         instrument_options(),
     )
 
@@ -566,13 +743,13 @@ async def update_instrument(
 
 @router.get(
     "/venues/{venue_id}/wallet-assets",
-    response_model=list[VenueWalletAssetResponse],
+    response_model=Page[VenueWalletAssetResponse],
 )
 async def list_venue_wallet_assets(
     venue_id: int,
     session: SessionDependency,
-    active_only: bool = True,
-) -> Sequence[VenueWalletAsset]:
+    query: Annotated[ListQuery, Query()],
+) -> Page[VenueWalletAssetResponse]:
     """List assets that can be held in a wallet on the selected venue."""
     await get_or_404(session, Venue, venue_id)
     statement = (
@@ -581,9 +758,59 @@ async def list_venue_wallet_assets(
         .options(selectinload(VenueWalletAsset.asset))
         .order_by(VenueWalletAsset.asset_id)
     )
-    if active_only:
-        statement = statement.where(VenueWalletAsset.is_active)
-    return (await session.scalars(statement)).all()
+    statement = statement.join(Asset)
+    if query.exclude_ids:
+        statement = statement.where(
+            ~VenueWalletAsset.id.in_(query.exclude_ids)
+        )
+    if query.visibility != "all":
+        statement = statement.where(
+            VenueWalletAsset.is_active == (query.visibility == "active"),
+        )
+    if query.q.strip():
+        statement = statement.where(
+            search_text(
+                [
+                    Asset.symbol,
+                    Asset.name,
+                    Asset.asset_type,
+                ]
+            ).icontains(query.q.strip(), autoescape=True)
+        )
+    items, total = await paginate(
+        session,
+        statement,
+        query,
+        {
+            "symbol": Asset.symbol,
+            "type": Asset.asset_type,
+            "status": VenueWalletAsset.is_active,
+        },
+        "symbol",
+        VenueWalletAsset.id,
+    )
+    return Page(
+        items=[VenueWalletAssetResponse.model_validate(x) for x in items],
+        total=total,
+        page=query.page,
+        page_size=query.page_size,
+    )
+
+
+@router.get(
+    "/wallet-assets/{capability_id}", response_model=VenueWalletAssetResponse
+)
+async def get_wallet_capability(
+    capability_id: int,
+    session: SessionDependency,
+) -> VenueWalletAsset:
+    """Resolve a selected wallet capability independently of its page."""
+    return await get_or_404(
+        session,
+        VenueWalletAsset,
+        capability_id,
+        (selectinload(VenueWalletAsset.asset),),
+    )
 
 
 @router.post(

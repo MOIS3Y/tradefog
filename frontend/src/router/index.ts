@@ -48,6 +48,16 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: "/trades/new",
+    component: TradesView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/trades/:tradeId(\\d+)",
+    component: TradesView,
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/analytics",
     component: () => import("@/views/AnalyticsView.vue"),
     meta: { requiresAuth: true },

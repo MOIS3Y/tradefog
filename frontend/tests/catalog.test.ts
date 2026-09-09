@@ -10,12 +10,6 @@ import {
   type Asset,
   type Pair,
 } from "@/features/catalog/api";
-import {
-  filterAssets,
-  filterPairs,
-  sortAssets,
-  sortPairs,
-} from "@/features/catalog/filters";
 
 const bitcoin: Asset = {
   id: 1,
@@ -80,26 +74,6 @@ describe("catalog flow", () => {
     expect(onConfirm).toHaveBeenCalledOnce();
     expect(document.querySelector(".tf-confirm-dialog")).not.toBeNull();
     app.unmount();
-  });
-
-  it("filters assets and pairs locally by their visible market identity", () => {
-    expect(filterAssets([bitcoin, dollar], "bit", "all")).toEqual([bitcoin]);
-    expect(filterAssets([bitcoin, dollar], "", "fiat")).toEqual([dollar]);
-    expect(filterPairs([pair], "US Dollar")).toEqual([pair]);
-    expect(filterPairs([pair], "ETH")).toEqual([]);
-  });
-
-  it("sorts filtered catalog records without mutating query data", () => {
-    const assets = [bitcoin, dollar];
-    const pairs = [reversePair, pair];
-
-    expect(sortAssets(assets, "symbol", "desc")).toEqual([dollar, bitcoin]);
-    expect(sortPairs(pairs, "type_relation", "asc")).toEqual([
-      pair,
-      reversePair,
-    ]);
-    expect(assets).toEqual([bitcoin, dollar]);
-    expect(pairs).toEqual([reversePair, pair]);
   });
 
   it("creates catalog dependencies in order and deletes an unused pair", async () => {

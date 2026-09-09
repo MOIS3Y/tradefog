@@ -13,6 +13,9 @@ import { computed, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
+import PaginationControls from "@/components/PaginationControls.vue";
+import RemoteCatalogSelect from "@/components/RemoteCatalogSelect.vue";
+import { usePagination } from "@/composables/usePagination";
 import { ApiError } from "@/api/errors";
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -20,11 +23,8 @@ import EmptyState from "@/components/EmptyState.vue";
 import ErrorState from "@/components/ErrorState.vue";
 import FormDialog from "@/components/FormDialog.vue";
 import LoadingState from "@/components/LoadingState.vue";
-import SearchableSelect, {
-  type SearchableOption,
-} from "@/components/SearchableSelect.vue";
 import SortableHeader from "@/components/SortableHeader.vue";
-import { listAssets, listPairs } from "@/features/catalog/api";
+import { listPairs } from "@/features/catalog/api";
 import {
   createInstrument,
   deleteInstrument,
@@ -35,8 +35,6 @@ import {
   type Venue,
 } from "@/features/venues/api";
 import {
-  filterInstruments,
-  sortInstruments,
   type InstrumentSortKey,
   type VisibilityFilter,
 } from "@/features/venues/filters";
@@ -87,28 +85,36 @@ const queryKey = computed(() => [
   props.venue.id,
   "instruments",
 ]);
+const criteria = computed(() => ({
+  venue: props.venue.id,
+  q: search.value,
+  visibility: visibility.value,
+  sort: sortKey.value,
+  order: sortDirection.value,
+}));
+const pagination = usePagination(criteria);
+const { page, pageSize } = pagination;
 const query = useQuery({
-  queryKey,
-  queryFn: () => listInstruments(props.venue.id),
+  queryKey: computed(() => [
+    ...queryKey.value,
+    criteria.value,
+    pagination.params.value,
+  ]),
+  queryFn: () =>
+    listInstruments(props.venue.id, {
+      ...criteria.value,
+      ...pagination.params.value,
+    }),
 });
+pagination.track(computed(() => query.data.value));
 const pairsQuery = useQuery({
   queryKey: ["catalog", "pairs"],
-  queryFn: listPairs,
+  queryFn: () => listPairs({ page_size: 1 }),
 });
-const assetsQuery = useQuery({
-  queryKey: ["catalog", "assets"],
-  queryFn: listAssets,
-});
-const instruments = computed(() => query.data.value ?? []);
-const pairs = computed(() => pairsQuery.data.value ?? []);
-const assets = computed(() => assetsQuery.data.value ?? []);
-const filtered = computed(() =>
-  sortInstruments(
-    filterInstruments(instruments.value, search.value, visibility.value),
-    sortKey.value,
-    sortDirection.value,
-  ),
-);
+
+const instruments = computed(() => query.data.value?.items ?? []);
+const pairs = computed(() => pairsQuery.data.value?.items ?? []);
+const filtered = instruments;
 const formInvalid = computed(
   () =>
     form.pair_id === null ||
@@ -131,22 +137,6 @@ const productOptions = computed<SelectOption<ProductKind>[]>(() => [
   },
   { value: "cash_equity", label: t("venues.products.cash_equity") },
 ]);
-const pairOptions = computed<SearchableOption[]>(() =>
-  pairs.value.map((pair) => ({
-    value: pair.id,
-    label: pair.canonical_symbol,
-    detail: `${pair.base.asset_type} / ${pair.quote.asset_type}`,
-  })),
-);
-const settlementOptions = computed<SearchableOption[]>(() => [
-  { value: 0, label: t("venues.instruments.noSettlement") },
-  ...assets.value.map((asset) => ({
-    value: asset.id,
-    label: asset.symbol,
-    detail: asset.name ?? t(`catalog.types.${asset.asset_type}`),
-  })),
-]);
-
 function isPositiveDecimal(value: string): boolean {
   const parsed = Number(value);
   return value.trim().length > 0 && Number.isFinite(parsed) && parsed > 0;
@@ -203,9 +193,7 @@ const saveMutation = useMutation({
     });
   },
   onSuccess: async (instrument) => {
-    await queryClient.invalidateQueries({
-      queryKey: ["catalog", "venues", instrument.venue_id, "instruments"],
-    });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t(
         editing.value === null
@@ -222,9 +210,7 @@ const statusMutation = useMutation({
   mutationFn: (instrument: Instrument) =>
     updateInstrument(instrument.id, { is_active: !instrument.is_active }),
   onSuccess: async (instrument) => {
-    await queryClient.invalidateQueries({
-      queryKey: ["catalog", "venues", instrument.venue_id, "instruments"],
-    });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t(
         instrument.is_active
@@ -240,7 +226,7 @@ const statusMutation = useMutation({
 const removeMutation = useMutation({
   mutationFn: (instrument: Instrument) => deleteInstrument(instrument.id),
   onSuccess: async (_, instrument) => {
-    await queryClient.invalidateQueries({ queryKey: queryKey.value });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t("venues.instruments.deleted"),
       description: instrument.exec_symbol,
@@ -290,11 +276,7 @@ function resetFilters(): void {
 }
 
 async function retryQueries(): Promise<void> {
-  await Promise.all([
-    query.refetch(),
-    pairsQuery.refetch(),
-    assetsQuery.refetch(),
-  ]);
+  await Promise.all([query.refetch(), pairsQuery.refetch()]);
 }
 
 function toggleSort(key: InstrumentSortKey): void {
@@ -362,30 +344,22 @@ function activeDirection(key: InstrumentSortKey): SortDirection | null {
         {{ $t("catalog.reset") }}
       </button>
       <span class="catalog-toolbar__count">
-        {{ filtered.length }} / {{ instruments.length }}
+        {{ query.data.value?.total ?? 0 }}
       </span>
     </div>
 
     <LoadingState
-      v-if="
-        query.isPending.value ||
-        pairsQuery.isPending.value ||
-        assetsQuery.isPending.value
-      "
+      v-if="query.isPending.value || pairsQuery.isPending.value"
       :label="$t('venues.instruments.loading')"
     />
     <ErrorState
-      v-else-if="
-        query.isError.value ||
-        pairsQuery.isError.value ||
-        assetsQuery.isError.value
-      "
+      v-else-if="query.isError.value || pairsQuery.isError.value"
       :title="$t('venues.instruments.loadFailed')"
       :description="$t('catalog.errors.unavailable')"
       @retry="retryQueries"
     />
     <EmptyState
-      v-else-if="instruments.length === 0"
+      v-else-if="instruments.length === 0 && !search && visibility === 'active'"
       :title="$t('venues.instruments.emptyTitle')"
     >
       <template #icon><CandlestickChart :size="23" /></template>
@@ -565,9 +539,9 @@ function activeDirection(key: InstrumentSortKey): SortDirection | null {
     >
       <label class="field">
         <span>{{ $t("catalog.pair.title") }}</span>
-        <SearchableSelect
+        <RemoteCatalogSelect
           v-model="form.pair_id"
-          :options="pairOptions"
+          resource="pairs"
           :placeholder="$t('venues.instruments.selectPair')"
           :empty-label="$t('venues.instruments.noPairs')"
           :disabled="editing !== null"
@@ -634,9 +608,12 @@ function activeDirection(key: InstrumentSortKey): SortDirection | null {
       </div>
       <label class="field">
         <span>{{ $t("venues.instruments.settlement") }}</span>
-        <SearchableSelect
+        <RemoteCatalogSelect
           v-model="form.settlement_asset_id"
-          :options="settlementOptions"
+          resource="assets"
+          :extra-options="[
+            { value: 0, label: $t('venues.instruments.noSettlement') },
+          ]"
           :placeholder="$t('venues.instruments.selectSettlement')"
           :empty-label="$t('catalog.noOptions')"
         />
@@ -657,6 +634,12 @@ function activeDirection(key: InstrumentSortKey): SortDirection | null {
       :busy="removeMutation.isPending.value"
       @update:open="!$event && (deleteTarget = null)"
       @confirm="deleteTarget && removeMutation.mutate(deleteTarget)"
+    />
+    <PaginationControls
+      v-model:page="page"
+      v-model:page-size="pageSize"
+      :total="query.data.value?.total ?? 0"
+      :busy="query.isFetching.value"
     />
   </section>
 </template>

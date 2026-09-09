@@ -1,5 +1,114 @@
-/** Unified trade directory, decision workspace, and lifecycle controls. */
+/** Paginated journal, individual decision workspace and lifecycle controls. */
 .tf-app {
+  .journal-toolbar {
+    flex-wrap: wrap;
+    > .journal-filter-selector {
+      flex: 0 1 200px;
+      min-width: 0;
+      max-width: 100%;
+      .tf-combobox-anchor {
+        width: 100%;
+        min-height: 40px;
+      }
+      .tf-combobox-input {
+        width: 100%;
+      }
+    }
+    .tf-select-trigger {
+      min-width: 130px;
+    }
+    .journal-more,
+    .journal-reset {
+      min-height: 40px;
+      height: 40px;
+      padding: 0 0.75rem;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    .journal-more.button--active {
+      color: var(--tf-action);
+      border-color: rgb(53 217 144 / 35%);
+      background: var(--tf-action-soft);
+    }
+    .journal-reset {
+      width: 40px;
+      flex: 0 0 40px;
+      padding: 0;
+    }
+  }
+
+  .journal-table {
+    th,
+    td {
+      padding-inline: 0.8rem;
+    }
+    .catalog-tag,
+    .trade-status,
+    time {
+      white-space: nowrap;
+      justify-self: start;
+    }
+    .journal-identity {
+      display: grid;
+      gap: 0.35rem;
+    }
+    .journal-identity a {
+      white-space: nowrap;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    small {
+      color: var(--tf-ink-faint);
+      font-size: 0.65rem;
+    }
+  }
+
+  .journal-pnl {
+    font-family: var(--tf-mono);
+    white-space: nowrap;
+  }
+  .journal-stars {
+    display: inline-flex;
+    gap: 2px;
+    width: max-content;
+  }
+  .journal-star {
+    position: relative;
+    display: inline-flex;
+    color: var(--tf-ink-faint);
+    > span {
+      position: absolute;
+      inset: 0 auto 0 0;
+      overflow: hidden;
+      color: var(--tf-action);
+    }
+    > span svg {
+      fill: currentColor;
+      max-width: none;
+    }
+  }
+  .journal-back {
+    display: inline-block;
+    margin-top: 1rem;
+  }
+  .journal-create {
+    max-width: 760px;
+    margin-inline: auto;
+    padding: clamp(1rem, 3vw, 2rem);
+    > p {
+      color: var(--tf-ink-soft);
+    }
+    form {
+      display: grid;
+      gap: 1.2rem;
+    }
+  }
+  .journal-create-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
   .trade-workspace {
     width: min(100%, 1540px);
   }
@@ -57,96 +166,6 @@
     }
   }
 
-  .trade-console {
-    display: grid;
-    min-height: 720px;
-    grid-template-columns: 290px minmax(0, 1fr);
-  }
-
-  .trade-directory {
-    padding: 0.7rem;
-    border-right: 1px solid var(--tf-line-soft);
-    background: rgb(5 9 13 / 28%);
-  }
-
-  .trade-directory__count {
-    padding: 0.45rem 0.65rem 0.7rem;
-    color: var(--tf-ink-faint);
-    font: 0.65rem var(--tf-mono);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .trade-card {
-    display: grid;
-    width: 100%;
-    grid-template-columns: 34px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.65rem;
-    padding: 0.72rem 0.62rem;
-    border: 1px solid transparent;
-    border-radius: 11px;
-    color: var(--tf-ink-soft);
-    background: transparent;
-    cursor: pointer;
-    text-align: left;
-
-    &:hover {
-      border-color: var(--tf-line-soft);
-      background: rgb(53 217 144 / 3%);
-    }
-  }
-
-  .trade-card--selected {
-    border-color: rgb(53 217 144 / 23%);
-    background: linear-gradient(90deg, rgb(53 217 144 / 10%), transparent);
-  }
-
-  .trade-card__direction {
-    display: grid;
-    width: 34px;
-    height: 34px;
-    place-items: center;
-    border-radius: 10px;
-    background: var(--tf-panel-raised);
-  }
-
-  .trade-card__direction--long {
-    color: var(--tf-action);
-  }
-  .trade-card__direction--short {
-    color: var(--tf-danger);
-  }
-
-  .trade-card__identity,
-  .trade-card__meta {
-    display: grid;
-    min-width: 0;
-    gap: 0.16rem;
-  }
-
-  .trade-card__identity {
-    strong {
-      color: var(--tf-ink-strong);
-      font: 0.82rem var(--tf-mono);
-    }
-    small {
-      overflow: hidden;
-      color: var(--tf-ink-faint);
-      font-size: 0.67rem;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .trade-card__meta {
-    justify-items: end;
-    time {
-      color: var(--tf-ink-faint);
-      font: 0.61rem var(--tf-mono);
-    }
-  }
-
   .trade-status {
     padding: 0.25rem 0.42rem;
     border-radius: 999px;
@@ -175,12 +194,6 @@
     color: var(--tf-danger);
     background: rgb(241 110 118 / 9%);
   }
-  .trade-directory__empty {
-    padding: 1rem 0.65rem;
-    color: var(--tf-ink-faint);
-    font-size: 0.75rem;
-  }
-
   .trade-detail {
     min-width: 0;
   }

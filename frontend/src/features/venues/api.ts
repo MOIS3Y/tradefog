@@ -3,6 +3,7 @@
 import { api } from "@/api/client";
 import { toApiError } from "@/api/errors";
 import type { components } from "@/api/schema";
+import type { ListParams, Page } from "@/api/pagination";
 
 export type Venue = components["schemas"]["VenueResponse"];
 export type VenueWrite = components["schemas"]["VenueWrite"];
@@ -13,9 +14,9 @@ export type ProductKind = components["schemas"]["ProductKind"];
 export type VenueWalletAsset =
   components["schemas"]["VenueWalletAssetResponse"];
 
-export async function listVenues(): Promise<Venue[]> {
+export async function listVenues(query: ListParams = {}): Promise<Page<Venue>> {
   const { data, error, response } = await api.GET("/api/v1/catalog/venues", {
-    params: { query: { active_only: false } },
+    params: { query },
   });
   if (data === undefined) {
     throw toApiError(error, response);
@@ -30,6 +31,15 @@ export async function createVenue(input: VenueWrite): Promise<Venue> {
   if (data === undefined) {
     throw toApiError(error, response);
   }
+  return data;
+}
+
+export async function getVenue(id: number): Promise<Venue> {
+  const { data, error, response } = await api.GET(
+    "/api/v1/catalog/venues/{venue_id}",
+    { params: { path: { venue_id: id } } },
+  );
+  if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
@@ -57,13 +67,16 @@ export async function deleteVenue(id: number): Promise<void> {
   }
 }
 
-export async function listInstruments(venueId: number): Promise<Instrument[]> {
+export async function listInstruments(
+  venueId: number,
+  query: ListParams = {},
+): Promise<Page<Instrument>> {
   const { data, error, response } = await api.GET(
     "/api/v1/catalog/venues/{venue_id}/instruments",
     {
       params: {
         path: { venue_id: venueId },
-        query: { active_only: false },
+        query,
       },
     },
   );
@@ -113,13 +126,14 @@ export async function deleteInstrument(id: number): Promise<void> {
 
 export async function listVenueWalletAssets(
   venueId: number,
-): Promise<VenueWalletAsset[]> {
+  query: ListParams = {},
+): Promise<Page<VenueWalletAsset>> {
   const { data, error, response } = await api.GET(
     "/api/v1/catalog/venues/{venue_id}/wallet-assets",
     {
       params: {
         path: { venue_id: venueId },
-        query: { active_only: false },
+        query,
       },
     },
   );

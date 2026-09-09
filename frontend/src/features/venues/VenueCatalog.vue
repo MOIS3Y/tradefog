@@ -13,6 +13,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
+import PaginationControls from "@/components/PaginationControls.vue";
+import { usePagination } from "@/composables/usePagination";
 import { ApiError } from "@/api/errors";
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -24,12 +26,13 @@ import {
   createVenue,
   deleteVenue,
   listVenues,
+  getVenue,
   updateVenue,
   type MarketDataProvider,
   type Venue,
   type VenueWrite,
 } from "@/features/venues/api";
-import { filterVenues, type VisibilityFilter } from "@/features/venues/filters";
+import { type VisibilityFilter } from "@/features/venues/filters";
 import VenueInstruments from "@/features/venues/VenueInstruments.vue";
 import VenueWalletAssets from "@/features/venues/VenueWalletAssets.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -58,18 +61,39 @@ const form = reactive<VenueWrite>({
   is_active: true,
 });
 
+const criteria = computed(() => ({
+  q: search.value,
+  visibility: visibility.value,
+  sort: "name",
+}));
+const pagination = usePagination(criteria);
+const { page, pageSize } = pagination;
 const query = useQuery({
-  queryKey: ["catalog", "venues"],
-  queryFn: listVenues,
+  queryKey: computed(() => [
+    "catalog",
+    "venues",
+    criteria.value,
+    pagination.params.value,
+  ]),
+  queryFn: () => listVenues({ ...criteria.value, ...pagination.params.value }),
 });
-const venues = computed(() => query.data.value ?? []);
-const filtered = computed(() =>
-  filterVenues(venues.value, search.value, visibility.value).sort((a, b) =>
-    a.name.localeCompare(b.name),
+pagination.track(computed(() => query.data.value));
+const venues = computed(() => query.data.value?.items ?? []);
+const filtered = venues;
+const selectedQuery = useQuery({
+  queryKey: computed(() => ["catalog", "venues", "detail", selectedId.value]),
+  queryFn: () => getVenue(selectedId.value!),
+  enabled: computed(
+    () =>
+      selectedId.value !== null &&
+      !venues.value.some((x) => x.id === selectedId.value),
   ),
-);
+});
 const selected = computed(
-  () => venues.value.find((venue) => venue.id === selectedId.value) ?? null,
+  () =>
+    venues.value.find((venue) => venue.id === selectedId.value) ??
+    selectedQuery.data.value ??
+    null,
 );
 const formInvalid = computed(() => form.name.trim().length === 0);
 const visibilityOptions = computed<SelectOption<VisibilityFilter>[]>(() => [
@@ -87,6 +111,7 @@ const providerOptions = computed<SelectOption<MarketDataProvider>[]>(() => [
 watch(
   filtered,
   (items) => {
+    if (!query.data.value) return;
     if (!items.some((venue) => venue.id === selectedId.value)) {
       selectedId.value = items[0]?.id ?? null;
     }
@@ -123,7 +148,7 @@ const saveMutation = useMutation({
           website: form.website,
         }),
   onSuccess: async (venue) => {
-    await queryClient.invalidateQueries({ queryKey: ["catalog", "venues"] });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     selectedId.value = venue.id;
     toasts.success({
       title: t(editing.value === null ? "venues.created" : "venues.saved"),
@@ -137,7 +162,7 @@ const statusMutation = useMutation({
   mutationFn: (venue: Venue) =>
     updateVenue(venue.id, { is_active: !venue.is_active }),
   onSuccess: async (venue) => {
-    await queryClient.invalidateQueries({ queryKey: ["catalog", "venues"] });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t(venue.is_active ? "venues.restored" : "venues.archived"),
       description: venue.name,
@@ -151,7 +176,7 @@ const removeMutation = useMutation({
   mutationFn: (venue: Venue) => deleteVenue(venue.id),
   onSuccess: async (_, venue) => {
     selectedId.value = null;
-    await queryClient.invalidateQueries({ queryKey: ["catalog", "venues"] });
+    await queryClient.invalidateQueries({ queryKey: ["catalog"] });
     toasts.success({
       title: t("venues.deleted"),
       description: venue.name,
@@ -245,7 +270,7 @@ function websiteHref(website: string): string {
         {{ $t("catalog.reset") }}
       </button>
       <span class="catalog-toolbar__count">
-        {{ filtered.length }} / {{ venues.length }}
+        {{ query.data.value?.total ?? 0 }}
       </span>
     </div>
 
@@ -257,7 +282,7 @@ function websiteHref(website: string): string {
       @retry="query.refetch()"
     />
     <EmptyState
-      v-else-if="venues.length === 0"
+      v-else-if="venues.length === 0 && !search && visibility === 'active'"
       :title="$t('venues.emptyTitle')"
     >
       <template #icon><Building2 :size="24" /></template>
@@ -281,37 +306,49 @@ function websiteHref(website: string): string {
 
     <div v-else class="venue-console">
       <aside class="venue-directory" :aria-label="$t('venues.title')">
-        <button
-          v-for="venue in filtered"
-          :key="venue.id"
-          :class="[
-            'venue-card',
-            { 'venue-card--selected': venue.id === selectedId },
-          ]"
-          type="button"
-          :aria-pressed="venue.id === selectedId"
-          @click="selectedId = venue.id"
-        >
-          <span class="venue-card__mark">{{ venue.name.slice(0, 2) }}</span>
-          <span class="venue-card__copy">
-            <strong>{{ venue.name }}</strong>
-            <small>{{
-              $t(`venues.providers.${venue.market_data_provider}`)
-            }}</small>
-          </span>
-          <span
+        <div class="venue-directory__items">
+          <button
+            v-for="venue in filtered"
+            :key="venue.id"
             :class="[
-              'status-dot',
-              { 'status-dot--archived': !venue.is_active },
+              'venue-card',
+              { 'venue-card--selected': venue.id === selectedId },
             ]"
-            :title="
-              $t(venue.is_active ? 'venues.active' : 'venues.archivedState')
-            "
-          ></span>
-          <span class="sr-only">
-            {{ $t(venue.is_active ? "venues.active" : "venues.archivedState") }}
-          </span>
-        </button>
+            type="button"
+            :aria-pressed="venue.id === selectedId"
+            @click="selectedId = venue.id"
+          >
+            <span class="venue-card__mark">{{ venue.name.slice(0, 2) }}</span>
+            <span class="venue-card__copy">
+              <strong>{{ venue.name }}</strong>
+              <small>{{
+                $t(`venues.providers.${venue.market_data_provider}`)
+              }}</small>
+            </span>
+            <span
+              :class="[
+                'status-dot',
+                { 'status-dot--archived': !venue.is_active },
+              ]"
+              :title="
+                $t(venue.is_active ? 'venues.active' : 'venues.archivedState')
+              "
+            ></span>
+            <span class="sr-only">
+              {{
+                $t(venue.is_active ? "venues.active" : "venues.archivedState")
+              }}
+            </span>
+          </button>
+        </div>
+        <PaginationControls
+          hide-when-small
+          compact
+          v-model:page="page"
+          v-model:page-size="pageSize"
+          :total="query.data.value?.total ?? 0"
+          :busy="query.isFetching.value"
+        />
       </aside>
 
       <article v-if="selected" class="venue-detail">

@@ -116,7 +116,26 @@ or update an asset, pair, venue, venue instrument, or venue wallet asset.
 Unused assets and trading pairs may be deleted by staff, but deletion never
 cascades into related catalog or journal records. Referenced identities return
 a conflict instead. Venues, instruments, and wallet capabilities are retained;
-deactivation keeps them out of default active lists while preserving history.
+deactivation keeps them out of active UI lists while preserving history.
+
+Catalog collections and `GET /trades` return `{items, total, page, page_size}`.
+Wallet-operation collections use the same page envelope, with fixed ordering
+by creation time and ID descending. Pagination never limits balance queries.
+Page sizes default to 25 and are bounded at 100. Literal substring search,
+filters and allowlisted sorting execute in SQL before pagination; an ID
+tie-breaker provides stable ordering and null sort values always come last.
+Catalog clients explicitly request `visibility=active|archived|all`; the API
+default includes all records. Collection reads retain public catalog access,
+while journal rows and filtered counts remain strictly owner-scoped.
+
+The journal list returns compact `TradeListItem` rows including display
+identities, P&L currency, rating and review completion. It does not serialize
+plans, checklists or snapshots. `GET /trades/{id}` supplies the full workspace.
+Catalog selectors use paginated search and individual-record GETs, including
+instruments and wallet capabilities; `/catalog/instruments` also supports
+search across venues. Analytics and forms do not preload entire catalogs.
+Migration `0002` adds profile-owner and journal-list indexes without changing
+stored trades. Regenerate frontend OpenAPI types when changing these contracts.
 
 Catalog PATCH requests reject explicit nulls for required fields. Referenced
 asset identities and pairs used by instruments cannot be reassigned; a traded
@@ -198,6 +217,8 @@ Authenticated journal endpoints are rooted at `/api/v1/profiles` and
 record and another user's record both return the same not-found response.
 Creating a profile also creates its one-to-one wallet. Wallet balances are
 derived from signed deposit and withdrawal facts plus closed-trade net P&L.
+The profile directory uses server-side pagination, archive filtering and
+literal search across profile and venue names, with stable name/ID ordering.
 Ledger fact amounts, kinds, and timestamps cannot be patched; the dedicated
 operation-note endpoint changes only optional explanatory text.
 Pending and open snapshots derive wallet reservations; balances and

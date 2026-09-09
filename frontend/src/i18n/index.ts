@@ -1,7 +1,9 @@
 import { createI18n } from "vue-i18n";
+import { journalMessages } from "./journal";
 
 const messages = {
   en: {
+    ...journalMessages.en,
     common: {
       retry: "Try again",
       signOut: "Sign out",
@@ -34,7 +36,7 @@ const messages = {
     dashboard: {
       eyebrow: "Decision desk",
       greeting: "Good to see you, {name}.",
-      lead: "A deliberate trade begins before the order reaches the market.",
+      lead: "Your journal overview and trading workspace setup.",
       emptyTitle: "Build your trading context",
       emptyBody:
         "Start with assets and trading pairs in the shared catalog. Venues, capital, and strategies follow in the next workspaces.",
@@ -670,8 +672,7 @@ const messages = {
     },
     analytics: {
       title: "Analytics",
-      subtitle:
-        "Measure whether fixed risk rules produce a sustainable sequence of decisions.",
+      subtitle: "Trading results, risk discipline and strategy performance.",
       tradeCount: "Closed trades: {count}",
       excluded:
         "{count} trades were excluded because their risk data is incomplete.",
@@ -782,6 +783,7 @@ const messages = {
     },
   },
   ru: {
+    ...journalMessages.ru,
     common: {
       retry: "Повторить",
       signOut: "Выйти",
@@ -814,7 +816,7 @@ const messages = {
     dashboard: {
       eyebrow: "Рабочий стол",
       greeting: "Рады видеть вас, {name}.",
-      lead: "Осознанная сделка начинается до отправки заявки на рынок.",
+      lead: "Обзор журнала и настройка рабочего пространства для торговли.",
       emptyTitle: "Соберите торговый контекст",
       emptyBody:
         "Начните с ресурсов и торговых пар в общем каталоге. Затем появятся площадки, капитал и стратегии.",
@@ -1451,7 +1453,7 @@ const messages = {
     analytics: {
       title: "Аналитика",
       subtitle:
-        "Проверяйте, создают ли фиксированные правила риска устойчивую последовательность решений.",
+        "Результаты торговли, дисциплина риска и эффективность стратегий.",
       tradeCount: "Закрытых сделок: {count}",
       excluded:
         "Сделок исключено из расчёта из-за неполных данных о риске: {count}.",

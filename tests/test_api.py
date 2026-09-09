@@ -3,6 +3,8 @@
 import subprocess
 import sys
 from collections.abc import AsyncIterator, Iterator
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from pathlib import Path
 
 import jwt
@@ -11,17 +13,328 @@ from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
+from sqlalchemy import select
 
 from tradefog.api.security import decode_token, hash_password
 from tradefog.config import get_settings
 from tradefog.config.authentication import AuthenticationSettings
 from tradefog.config.database import DatabaseSettings, SQLiteSettings
 from tradefog.config.root import Settings
-from tradefog.db.models import User
+from tradefog.db.models import (
+    Asset,
+    Trade,
+    TradingPair,
+    TradingProfile,
+    TradingStrategy,
+    User,
+    Venue,
+    VenueInstrument,
+    VenueWalletAsset,
+    Wallet,
+    WalletAsset,
+    WalletOperation,
+)
 from tradefog.db.session import Database
+from tradefog.domain.enums import (
+    AssetType,
+    Direction,
+    ProductKind,
+    StrategyStatus,
+    TradeStatus,
+)
 from tradefog.main import create_app
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+async def test_profile_pages_search_filter_and_scope(
+    client: AsyncClient,
+    database_path: Path,
+) -> None:
+    """Filter all owned profiles before counting and stable pagination."""
+    database = Database(
+        DatabaseSettings(sqlite=SQLiteSettings(path=database_path))
+    )
+    async with database.session() as session:
+        owner = await session.scalar(
+            select(User).where(User.username == "alice")
+        )
+        assert owner is not None
+        venue = Venue(name="Биржа", market_data_provider="none")
+        session.add(venue)
+        await session.flush()
+        session.add_all(
+            [
+                TradingProfile(
+                    owner_id=owner.id,
+                    venue_id=venue.id,
+                    name=name,
+                    is_archived=name == "CCC",
+                )
+                for name in ("BBB", "AAA", "CCC", "A_B")
+            ]
+        )
+    await database.dispose()
+    headers = await login_headers(client, "alice", "alice-password-123")
+    path = "/api/v1/profiles"
+    for page, names in ((1, ["AAA", "A_B"]), (2, ["BBB"]), (3, [])):
+        response = await client.get(
+            path,
+            headers=headers,
+            params={
+                "page": page,
+                "page_size": 2,
+                "visibility": "active",
+                "q": "БИРЖА",
+            },
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 3
+        assert [item["name"] for item in data["items"]] == names
+    archived = await client.get(
+        path, headers=headers, params={"visibility": "archived"}
+    )
+    assert [item["name"] for item in archived.json()["items"]] == ["CCC"]
+    literal = await client.get(path, headers=headers, params={"q": "_"})
+    assert literal.json()["total"] == 1
+    other = await login_headers(client, "regular", "regular-password-123")
+    assert (await client.get(path, headers=other)).json()["total"] == 0
+    for params in ({"page": 0}, {"page_size": 101}, {"sort": "owner_id"}):
+        assert (
+            await client.get(path, headers=headers, params=params)
+        ).status_code == 422
+
+
+async def test_wallet_operation_pages_are_stable_and_private(
+    client: AsyncClient,
+    database_path: Path,
+) -> None:
+    """Page equal-time ledger facts without leaking another owner's data."""
+    database = Database(
+        DatabaseSettings(sqlite=SQLiteSettings(path=database_path))
+    )
+    async with database.session() as session:
+        owner = await session.scalar(
+            select(User).where(User.username == "alice")
+        )
+        assert owner is not None
+        asset = Asset(symbol="USD", asset_type=AssetType.FIAT)
+        venue = Venue(name="Wallet venue", market_data_provider="none")
+        session.add_all([asset, venue])
+        await session.flush()
+        capability = VenueWalletAsset(venue_id=venue.id, asset_id=asset.id)
+        profile = TradingProfile(
+            owner_id=owner.id, venue_id=venue.id, name="Ledger"
+        )
+        session.add_all([capability, profile])
+        await session.flush()
+        wallet = Wallet(profile_id=profile.id)
+        session.add(wallet)
+        await session.flush()
+        balance = WalletAsset(
+            wallet_id=wallet.id,
+            venue_wallet_asset_id=capability.id,
+            status="active",
+        )
+        session.add(balance)
+        await session.flush()
+        identifier = balance.id
+        session.add_all(
+            [
+                WalletOperation(
+                    wallet_asset_id=identifier,
+                    kind="deposit",
+                    amount=Decimal(i),
+                    created_at=datetime(2026, 9, 9, tzinfo=UTC),
+                )
+                for i in range(1, 4)
+            ]
+        )
+    await database.dispose()
+    headers = await login_headers(client, "alice", "alice-password-123")
+    path = f"/api/v1/profiles/wallet-assets/{identifier}/operations"
+    ids: list[int] = []
+    for page, amounts in ((1, [3, 2]), (2, [1]), (3, [])):
+        response = await client.get(
+            path, headers=headers, params={"page": page, "page_size": 2}
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 3
+        assert data["page"] == page
+        assert [Decimal(x["amount"]) for x in data["items"]] == amounts
+        ids.extend(x["id"] for x in data["items"])
+    assert len(set(ids)) == 3
+    for params in ({"page": 0}, {"page_size": 101}):
+        assert (
+            await client.get(path, headers=headers, params=params)
+        ).status_code == 422
+    other = await login_headers(client, "regular", "regular-password-123")
+    assert (await client.get(path, headers=other)).status_code == 404
+
+
+async def test_server_pages_filter_before_sorting_and_counting(
+    client: AsyncClient,
+) -> None:
+    """Catalog searches cover later pages and escape SQL wildcards."""
+    staff = await login_headers(client, "staff", "staff-password-123")
+    for symbol in ("CCC", "AAA", "BBB", "A_B", "A%B"):
+        response = await client.post(
+            "/api/v1/catalog/assets",
+            headers=staff,
+            json={"symbol": symbol, "asset_type": "crypto"},
+        )
+        assert response.status_code == 201
+    response = await client.get(
+        "/api/v1/catalog/assets",
+        params={"page_size": 2, "page": 2, "sort": "symbol", "order": "desc"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 5
+    assert [x["symbol"] for x in response.json()["items"]] == ["A_B", "AAA"]
+    for term in ("_", "%"):
+        result = await client.get("/api/v1/catalog/assets", params={"q": term})
+        assert result.json()["total"] == 1
+    result = await client.get("/api/v1/catalog/assets", params={"q": "ccc"})
+    assert result.json()["items"][0]["symbol"] == "CCC"
+    assert (
+        await client.get(
+            "/api/v1/catalog/assets",
+            params={"page": 99},
+        )
+    ).json()["items"] == []
+    for params in ({"sort": "password"}, {"page": 0}, {"page_size": 101}):
+        assert (
+            await client.get(
+                "/api/v1/catalog/assets",
+                params=params,
+            )
+        ).status_code == 422
+
+
+async def test_trade_pages_preserve_owner_review_and_rating_semantics(
+    client: AsyncClient,
+    database_path: Path,
+) -> None:
+    """Counts and ordering stay owner-scoped and null ratings stay last."""
+    database = Database(
+        DatabaseSettings(
+            sqlite=SQLiteSettings(path=database_path),
+        )
+    )
+    async with database.session() as session:
+        alice = await session.scalar(
+            select(User).where(User.username == "alice")
+        )
+        other = await session.scalar(
+            select(User).where(User.username == "regular")
+        )
+        assert alice is not None and other is not None
+        base = Asset(symbol="BTC", asset_type=AssetType.CRYPTO)
+        quote = Asset(symbol="USD", asset_type=AssetType.FIAT)
+        venue = Venue(name="Exchange", market_data_provider="none")
+        session.add_all([base, quote, venue])
+        await session.flush()
+        pair = TradingPair(
+            base_id=base.id, quote_id=quote.id, canonical_symbol="BTC/USD"
+        )
+        session.add(pair)
+        await session.flush()
+        instrument = VenueInstrument(
+            venue_id=venue.id,
+            pair_id=pair.id,
+            product=ProductKind.SPOT,
+            exec_symbol="BTCUSD",
+            price_step=Decimal(1),
+            qty_step=Decimal("0.01"),
+        )
+        session.add(instrument)
+        await session.flush()
+        for owner in (alice, other):
+            profile = TradingProfile(
+                owner_id=owner.id, venue_id=venue.id, name="Журнал"
+            )
+            session.add(profile)
+            await session.flush()
+            strategy = TradingStrategy(
+                profile_id=profile.id,
+                name="Breakout",
+                risk_percent=Decimal(1),
+                status=StrategyStatus.ACTIVE,
+            )
+            session.add(strategy)
+            await session.flush()
+            for rating, status, reviewed in (
+                (None, TradeStatus.DRAFT, False),
+                (None, TradeStatus.CLOSED, False),
+                (3, TradeStatus.CLOSED, False),
+                (9, TradeStatus.CLOSED, True),
+                (9, TradeStatus.OPEN, False),
+            ):
+                session.add(
+                    Trade(
+                        profile_id=profile.id,
+                        strategy_id=strategy.id,
+                        venue_instrument_id=instrument.id,
+                        trade_date=date(2026, 9, 9),
+                        direction=Direction.LONG,
+                        status=status,
+                        quality_rating=rating,
+                        review_completed_at=datetime(2026, 9, 10, tzinfo=UTC)
+                        if reviewed
+                        else None,
+                    )
+                )
+    await database.dispose()
+    headers = await login_headers(client, "alice", "alice-password-123")
+    for order, expected in (
+        ("asc", [3, 9, 9, None, None]),
+        ("desc", [9, 9, 3, None, None]),
+    ):
+        rows = []
+        for page in (1, 2, 3):
+            result = await client.get(
+                "/api/v1/trades",
+                headers=headers,
+                params={
+                    "sort": "quality_rating",
+                    "order": order,
+                    "page_size": 2,
+                    "page": page,
+                    "q": "breakout",
+                },
+            )
+            assert result.status_code == 200, result.text
+            assert result.json()["total"] == 5
+            rows.extend(result.json()["items"])
+        assert [row["quality_rating"] for row in rows] == expected
+        assert len({row["id"] for row in rows}) == 5
+        assert all("snapshot" not in row and "plan" not in row for row in rows)
+        assert all(row["settlement_symbol"] == "USD" for row in rows)
+    for params, total in (
+        ({"review": "reviewed"}, 1),
+        ({"review": "unreviewed"}, 2),
+        ({"review": "unreviewed", "rated": "false"}, 1),
+        ({"rated": "true"}, 3),
+        ({"q": "жУРнал"}, 5),
+        ({"trade_status": "open"}, 1),
+        ({"date_from": "2026-09-10"}, 0),
+    ):
+        result = await client.get(
+            "/api/v1/trades", headers=headers, params=params
+        )
+        assert result.status_code == 200, result.text
+        assert result.json()["total"] == total
+    invalid = await client.get(
+        "/api/v1/trades",
+        headers=headers,
+        params={
+            "date_from": "2026-09-10",
+            "date_to": "2026-09-01",
+        },
+    )
+    assert invalid.status_code == 422
 
 
 @pytest.fixture
@@ -365,9 +678,36 @@ async def test_catalog_is_public_read_and_staff_write(
         == capabilities.status_code
         == 200
     )
-    assert pairs.json() == [pair.json()]
-    assert instruments.json()[0]["settlement_asset"]["symbol"] == "USD"
-    assert capabilities.json()[0]["asset"]["symbol"] == "USD"
+    assert pairs.json()["items"] == [pair.json()]
+    assert (
+        instruments.json()["items"][0]["settlement_asset"]["symbol"] == "USD"
+    )
+    assert capabilities.json()["items"][0]["asset"]["symbol"] == "USD"
+    for path, columns in (
+        ("/api/v1/catalog/pairs", ("base", "quote", "type_relation")),
+        ("/api/v1/catalog/instruments", ("pair", "settlement", "status")),
+        (
+            f"/api/v1/catalog/venues/{venue.json()['id']}/wallet-assets",
+            ("type", "status"),
+        ),
+    ):
+        for column in columns:
+            ordered = await client.get(
+                path, params={"sort": column, "order": "desc"}
+            )
+            assert ordered.status_code == 200, ordered.text
+            assert ordered.json()["total"] == 1
+    detail = await client.get(
+        f"/api/v1/catalog/instruments/{instrument.json()['id']}"
+    )
+    assert detail.json()["pair"]["canonical_symbol"] == "BTC/USD"
+    available = await client.get(
+        "/api/v1/catalog/assets",
+        params={"exclude_venue_id": venue.json()["id"]},
+    )
+    assert quote.json()["id"] not in [
+        row["id"] for row in available.json()["items"]
+    ]
 
     archived = await client.patch(
         f"/api/v1/catalog/venues/{venue.json()['id']}",
@@ -375,14 +715,18 @@ async def test_catalog_is_public_read_and_staff_write(
         json={"is_active": False},
     )
     assert archived.status_code == 200
-    assert (await client.get("/api/v1/catalog/venues")).json() == []
+    assert (
+        await client.get(
+            "/api/v1/catalog/venues?visibility=active",
+        )
+    ).json()["items"] == []
     assert (
         len(
             (
                 await client.get(
-                    "/api/v1/catalog/venues?active_only=false",
+                    "/api/v1/catalog/venues?visibility=all",
                 )
-            ).json()
+            ).json()["items"]
         )
         == 1
     )
