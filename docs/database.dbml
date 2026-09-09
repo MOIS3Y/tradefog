@@ -225,7 +225,7 @@ Table Trade {
   quality_rating integer [note: 'Optional decision-quality score from 1 through 10; remains editable after submission']
   review_completed_at timestamp [note: 'Optional review completion time; closed trades only']
   realized_pnl decimal(30, 18) [note: 'Final signed net P&L when closed, in the settlement asset']
-  actual_exit_price decimal(30, 18) [note: 'Optional reference exit price']
+  actual_exit_price decimal(30, 18) [note: 'Required average exit price when the trade is closed; null beforehand']
   total_commission decimal(30, 18) [note: 'Optional total commission context']
   funding_result decimal(30, 18) [note: 'Optional signed funding context']
   submitted_at timestamp [note: 'First transition from draft to pending or directly to open']

@@ -27,6 +27,9 @@ Development is organized into two primary phases:
    including per-allocation L/W and monetary performance, then complete
    responsive, accessibility, and deployment verification.
 
+After the MVP, the trade workspace may gain the deferred interactive market
+chart described in [`market-chart.md`](market-chart.md).
+
 Each stage ends with a production frontend build, static checks, and a small
 set of tests for its critical user flow before the next stage begins.
 
