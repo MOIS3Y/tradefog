@@ -463,7 +463,7 @@ async def submit_trade(
         wallet_balance=stored_decimal(context.balance),
         wallet_reserved=stored_decimal(context.reserved_notional),
         wallet_available=stored_decimal(context.available),
-        atr_value=atr.value if atr else None,
+        atr_value=stored_decimal(atr.value) if atr else None,
         atr_source=atr.source if atr else None,
         atr_contributing_date=atr.contributing_date if atr else None,
         atr_observation_time=(

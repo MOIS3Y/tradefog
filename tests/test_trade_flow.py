@@ -1,6 +1,7 @@
 """Critical API flow from account login through trade analytics."""
 
 from collections.abc import AsyncIterator, Iterator
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from tradefog.config.database import DatabaseSettings, SQLiteSettings
 from tradefog.config.root import Settings
 from tradefog.db.models import User
 from tradefog.main import create_app
+from tradefog.market.types import ATRContext
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -92,6 +94,7 @@ async def authenticated_headers(
 
 async def test_complete_trade_lifecycle_updates_capital_and_analytics(
     flow_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The primary journal workflow preserves risk and produces analytics."""
     staff = await authenticated_headers(
@@ -127,7 +130,10 @@ async def test_complete_trade_lifecycle_updates_capital_and_analytics(
     venue_response = await flow_client.post(
         "/api/v1/catalog/venues",
         headers=staff,
-        json={"name": "Test Exchange"},
+        json={
+            "name": "Test Exchange",
+            "market_data_provider": "binance",
+        },
     )
     assert pair_response.status_code == venue_response.status_code == 201
     pair_id = pair_response.json()["id"]
@@ -279,6 +285,35 @@ async def test_complete_trade_lifecycle_updates_capital_and_analytics(
     assert atr_response.json()["source"] == "manual"
     assert Decimal(atr_response.json()["session_range_percent"]) == Decimal(50)
 
+    precise_atr = Decimal("40.0000000000000000000000001")
+
+    def precise_atr_context(
+        provider: str,
+        symbol: str,
+        *,
+        product_kind: str = "spot",
+        trade_date: date | None = None,
+    ) -> ATRContext:
+        """Return an automatic ATR whose scale exceeds snapshot storage."""
+        _ = provider, symbol, product_kind, trade_date
+        return ATRContext(
+            atr_value=precise_atr,
+            contributing_date=date(2026, 9, 7),
+            candles=[],
+        )
+
+    monkeypatch.setattr(
+        "tradefog.api.v1.endpoints.trades.fetch_atr_context",
+        precise_atr_context,
+    )
+    automatic_atr_response = await flow_client.post(
+        f"/api/v1/trades/{trade_id}/atr",
+        headers=trader,
+        json={},
+    )
+    assert automatic_atr_response.status_code == 200
+    assert Decimal(automatic_atr_response.json()["value"]) == precise_atr
+
     context_response = await flow_client.get(
         f"/api/v1/trades/{trade_id}/plan-context",
         headers=trader,
@@ -351,7 +386,7 @@ async def test_complete_trade_lifecycle_updates_capital_and_analytics(
     draft_context = reopened_draft.json()
     assert draft_context["plan"] == plan
     assert draft_context["checklist"]["market_sentiment"] == "POSITIVE"
-    assert Decimal(draft_context["atr"]["value"]) == Decimal(40)
+    assert Decimal(draft_context["atr"]["value"]) == precise_atr
 
     submitted_response = await flow_client.post(
         f"/api/v1/trades/{trade_id}/submit",
@@ -375,7 +410,7 @@ async def test_complete_trade_lifecycle_updates_capital_and_analytics(
         100
     )
     assert Decimal(submitted["snapshot"]["wallet_available"]) == Decimal(10000)
-    assert Decimal(submitted["snapshot"]["atr_value"]) == Decimal(40)
+    assert submitted["snapshot"]["atr_value"] == "40.000000000000000000"
 
     locked_strategy_rules = await flow_client.patch(
         f"/api/v1/profiles/strategies/{strategy_id}",
