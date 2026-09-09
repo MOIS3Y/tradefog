@@ -23,9 +23,10 @@ Development is organized into two primary phases:
 6. **Trade Workspace**: Implement drafts, checklist, ATR, position planning,
    lifecycle transitions, frozen allocation identity and timestamps, notes,
    attachments, and a ten-point quality rating.
-7. **Analytics & Release**: Implement filters and analytical visualizations,
-   including per-allocation L/W and monetary performance, then complete
-   responsive, accessibility, and deployment verification.
+7. **Analytics**: Implement filters and analytical visualizations, including
+   per-allocation L/W and monetary performance.
+8. **Release Verification**: Complete the responsive and accessibility pass,
+   deployment documentation, and production verification when scheduled.
 
 After the MVP, the trade workspace may gain the deferred interactive market
 chart described in [`market-chart.md`](market-chart.md).
@@ -33,5 +34,5 @@ chart described in [`market-chart.md`](market-chart.md).
 Each stage ends with a production frontend build, static checks, and a small
 set of tests for its critical user flow before the next stage begins.
 
-Stages 1 through 5 are complete. Stage 6 is in final domain-alignment and
-verification before analytics work begins.
+Stages 1 through 6 are complete. Stage 7 is in visual verification. Stage 8
+remains deferred until release preparation is scheduled.

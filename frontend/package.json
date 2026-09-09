@@ -19,6 +19,7 @@
     "@lucide/vue": "^1.42.0",
     "@tanstack/vue-query": "^5.90.0",
     "decimal.js": "^10.6.0",
+    "echarts": "^6.1.0",
     "openapi-fetch": "^0.15.0",
     "photoswipe": "^5.4.4",
     "pinia": "^3.0.0",

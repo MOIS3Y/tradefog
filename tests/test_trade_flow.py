@@ -505,6 +505,7 @@ async def test_complete_trade_lifecycle_updates_capital_and_analytics(
     assert analytics_response.status_code == 200, analytics_response.text
     analytics = analytics_response.json()
     assert analytics["closed_trade_count"] == 1
+    assert analytics["reviewed_trade_count"] == 0
     assert analytics["win_count"] == 1
     assert Decimal(analytics["win_rate_percent"]) == Decimal(100)
     assert Decimal(analytics["net_result_r"]) == Decimal(3)
@@ -575,6 +576,13 @@ async def test_complete_trade_lifecycle_updates_capital_and_analytics(
     )
     assert review_response.status_code == 200
     assert review_response.json()["review_completed_at"] is not None
+
+    reviewed_analytics_response = await flow_client.get(
+        "/api/v1/analytics",
+        headers=trader,
+    )
+    assert reviewed_analytics_response.status_code == 200
+    assert reviewed_analytics_response.json()["reviewed_trade_count"] == 1
 
     await flow_client.patch(
         f"/api/v1/catalog/instruments/{instrument_id}",

@@ -47,6 +47,11 @@ const routes: RouteRecordRaw[] = [
     component: TradesView,
     meta: { requiresAuth: true },
   },
+  {
+    path: "/analytics",
+    component: () => import("@/views/AnalyticsView.vue"),
+    meta: { requiresAuth: true },
+  },
   { path: "/login", component: LoginView, meta: { guestOnly: true } },
   { path: "/:pathMatch(.*)*", component: NotFoundView },
 ];

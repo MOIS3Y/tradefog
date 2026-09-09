@@ -88,6 +88,7 @@ class AnalyticsResponse(BaseModel):
     """Comprehensive metrics for one owner-scoped closed-trade cohort."""
 
     closed_trade_count: int
+    reviewed_trade_count: int
     excluded_trade_count: int
     win_count: int
     loss_count: int

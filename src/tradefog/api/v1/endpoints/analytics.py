@@ -145,6 +145,7 @@ async def get_analytics(
         )
 
     closed_trades: list[ClosedTradeResult] = []
+    reviewed_trade_count = 0
     excluded_trade_count = 0
     for (
         trade,
@@ -187,6 +188,8 @@ async def get_analytics(
                 quality_rating=trade.quality_rating,
             )
         )
+        if trade.review_completed_at is not None:
+            reviewed_trade_count += 1
 
     analytics = calculate_trade_analytics(closed_trades)
     discipline_rewards = {trade.reward_multiple for trade in closed_trades}
@@ -264,6 +267,7 @@ async def get_analytics(
     ]
     return AnalyticsResponse(
         closed_trade_count=analytics.closed_trade_count,
+        reviewed_trade_count=reviewed_trade_count,
         excluded_trade_count=excluded_trade_count,
         win_count=analytics.win_count,
         loss_count=analytics.loss_count,

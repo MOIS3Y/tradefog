@@ -42,6 +42,8 @@ different currencies without mixing monetary units.
 - **Streaks**: Maximum consecutive winning and losing trades.
 - **Average Quality Rating**: Mean of available optional integer ratings from
   `1` through `10`; unrated trades do not become zero-rated observations.
+- **Review Coverage**: Count of closed trades with a completed post-trade
+  review. Unreviewed closed trades remain in financial and quality metrics.
 
 ### 3. Strategy Discipline Trajectory (L/W)
 

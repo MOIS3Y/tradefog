@@ -994,6 +994,8 @@ export interface components {
     AnalyticsResponse: {
       /** Closed Trade Count */
       closed_trade_count: number;
+      /** Reviewed Trade Count */
+      reviewed_trade_count: number;
       /** Excluded Trade Count */
       excluded_trade_count: number;
       /** Win Count */

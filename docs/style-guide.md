@@ -52,6 +52,9 @@ accents reserved for active state, selection, and primary actions.
   badges rather than destructive styling.
 - Exact decimal strings are displayed without insignificant trailing zeroes and
   are never converted through JavaScript floating-point numbers.
+- Analytics labels offer a quiet help icon. Click or keyboard activation opens
+  a dismissible explanation with a concrete example; help stays hidden during
+  routine use.
 
 ## Responsive Behavior
 

@@ -17,6 +17,8 @@ when the compiled SPA is embedded or extended.
 - `_catalog.scss` — shared catalog tables and navigation.
 - `_venues.scss` — venue directory, details, instruments, and wallet assets.
 - `_profiles.scss` — profiles, wallet ledger, strategies, and allocations.
+- `_analytics.scss` — filters, performance trajectories, and allocation
+  results.
 - `_responsive.scss` — breakpoint-specific overrides, ordered from wide to
   narrow.
 

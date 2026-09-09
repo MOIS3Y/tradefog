@@ -131,6 +131,33 @@
     .wallet-summary {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .analytics-filterbar,
+    .analytics-advanced {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .analytics-filterbar .icon-button {
+      justify-self: start;
+    }
+
+    .analytics-detail-grid,
+    .analytics-kpis {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .analytics-kpi:nth-child(3) {
+      border-left: 0;
+      border-top: 1px solid var(--tf-line-soft);
+    }
+
+    .analytics-kpi:nth-child(4) {
+      border-top: 1px solid var(--tf-line-soft);
+    }
+
+    .analytics-money-layout {
+      grid-template-columns: 1fr;
+    }
   }
 }
 
@@ -431,6 +458,64 @@
 
     .trade-journal-grid {
       grid-template-columns: 1fr;
+    }
+
+    .analytics-filterbar,
+    .analytics-advanced,
+    .analytics-datebar,
+    .analytics-kpis,
+    .analytics-detail-grid,
+    .analytics-money-metrics {
+      grid-template-columns: 1fr;
+    }
+
+    .analytics-filterbar__more {
+      width: 100%;
+    }
+
+    .analytics-filterbar .icon-button {
+      justify-self: end;
+    }
+
+    .analytics-tabs {
+      overflow-x: auto;
+    }
+
+    .analytics-tab {
+      flex: 1 0 auto;
+    }
+
+    .analytics-kpi {
+      min-height: 96px;
+      border-top: 1px solid var(--tf-line-soft);
+      border-left: 0;
+    }
+
+    .analytics-kpi:first-child {
+      border-top: 0;
+    }
+
+    .analytics-panel__header,
+    .analytics-discipline-legend {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .analytics-discipline-legend strong {
+      margin-left: 0;
+    }
+
+    .analytics-chart {
+      height: 320px;
+    }
+
+    .analytics-money-metrics > div {
+      border-top: 1px solid var(--tf-line-soft);
+      border-left: 0;
+    }
+
+    .analytics-money-metrics > div:first-child {
+      border-top: 0;
     }
   }
 }

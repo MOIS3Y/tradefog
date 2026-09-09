@@ -9,7 +9,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import { ApiError } from "@/api/errors";
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
@@ -36,10 +36,16 @@ type Period = "all" | "week" | "month" | "quarter" | "custom";
 type StatusFilter = TradeStatus | "all";
 
 const { t } = useI18n();
+const route = useRoute();
 const router = useRouter();
 const queryClient = useQueryClient();
 const toasts = useToastStore();
-const selectedId = ref<number | null>(null);
+const requestedTradeId = Number(route.query.trade);
+const selectedId = ref<number | null>(
+  Number.isInteger(requestedTradeId) && requestedTradeId > 0
+    ? requestedTradeId
+    : null,
+);
 const search = ref("");
 const statusFilter = ref<StatusFilter>("all");
 const period = ref<Period>("all");
