@@ -450,6 +450,13 @@ async def test_complete_trade_lifecycle_updates_capital_and_analytics(
     assert open_response.json()["status"] == "open"
     assert open_response.json()["opened_at"] is not None
 
+    missing_exit_response = await flow_client.post(
+        f"/api/v1/trades/{trade_id}/close",
+        headers=trader,
+        json={"realized_pnl": "300"},
+    )
+    assert missing_exit_response.status_code == 422
+
     close_response = await flow_client.post(
         f"/api/v1/trades/{trade_id}/close",
         headers=trader,

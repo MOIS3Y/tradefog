@@ -39,7 +39,6 @@ export interface LocalPositionPlan {
   planned_risk_percent: string;
   target_risk_amount: string;
   planned_risk_amount: string;
-  risk_utilization_percent: string;
   planned_notional: string;
   allocation_capital: string;
   already_reserved_risk: string;
@@ -98,13 +97,30 @@ export function calculateCapitalRemaining(
   return exactString(decimal(available).sub(notional));
 }
 
-/** Return how much of target 1R the executable position actually uses. */
-export function calculateRiskUtilization(
-  actual: string | null | undefined,
-  target: string | null | undefined,
+/** Return the executable profit at the strategy's fixed reward multiple. */
+export function calculatePlannedProfit(
+  risk: string | null | undefined,
+  rewardMultiple: string | number | null | undefined,
 ): string {
-  if (!actual || !target || decimal(target).isZero()) return "0";
-  return exactString(decimal(actual).div(target).mul(100));
+  if (!risk || rewardMultiple === null || rewardMultiple === undefined) {
+    return "0";
+  }
+  return exactString(decimal(risk).mul(rewardMultiple));
+}
+
+/** Return target distance as a percentage of ATR, when ATR is usable. */
+export function calculateAtrUsage(
+  targetDistance: string | null | undefined,
+  atrValue: string | null | undefined,
+): string | null {
+  if (!targetDistance || !atrValue) return null;
+  try {
+    const atr = decimal(atrValue);
+    if (!atr.isPositive()) return null;
+    return exactString(decimal(targetDistance).div(atr).mul(100));
+  } catch {
+    return null;
+  }
 }
 
 /** Calculate the same executable plan as the backend without a network hop. */
@@ -166,18 +182,9 @@ export function calculateLocalPosition(
   }
 
   const actualRisk = quantity.mul(distance);
-  const riskUtilization = actualRisk.div(targetRisk).mul(100);
   const capitalRemaining = decimal(context.wallet_available).sub(notional);
   const riskAvailable = decimal(context.remaining_risk_capacity);
-  let atrPercent: Decimal | null = null;
-  if (atrValue) {
-    try {
-      const atr = decimal(atrValue);
-      if (atr.isPositive()) atrPercent = targetDistance.div(atr).mul(100);
-    } catch {
-      atrPercent = null;
-    }
-  }
+  const atrPercent = calculateAtrUsage(exactString(targetDistance), atrValue);
 
   return {
     planned_entry: exactString(entry),
@@ -190,7 +197,6 @@ export function calculateLocalPosition(
     planned_risk_percent: context.planned_risk_percent,
     target_risk_amount: exactString(targetRisk),
     planned_risk_amount: exactString(actualRisk),
-    risk_utilization_percent: exactString(riskUtilization),
     planned_notional: exactString(notional),
     allocation_capital: context.allocation_capital,
     already_reserved_risk: context.already_reserved_risk,
@@ -203,9 +209,8 @@ export function calculateLocalPosition(
     capital_sufficient:
       capitalRemaining.gte(0) && targetRisk.lte(riskAvailable),
     atr_value: atrValue ?? null,
-    take_profit_atr_percent:
-      atrPercent === null ? null : exactString(atrPercent),
-    fits_atr_limit: atrPercent === null ? null : atrPercent.lte(75),
+    take_profit_atr_percent: atrPercent,
+    fits_atr_limit: atrPercent === null ? null : decimal(atrPercent).lte(75),
     atr_limit_percent: "75",
   };
 }

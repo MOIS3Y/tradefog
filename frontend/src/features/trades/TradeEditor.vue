@@ -24,9 +24,10 @@ import PositionRiskBar from "@/features/trades/PositionRiskBar.vue";
 import TradeAttachments from "@/features/trades/TradeAttachments.vue";
 import TradeRating from "@/features/trades/TradeRating.vue";
 import {
+  calculateAtrUsage,
   calculateCapitalRemaining,
   calculateLocalPosition,
-  calculateRiskUtilization,
+  calculatePlannedProfit,
   calculateTargetRisk,
   LocalPlanningError,
   normalizeToStep,
@@ -50,6 +51,7 @@ import {
 import type { Instrument } from "@/features/venues/api";
 import { useToastStore } from "@/stores/toasts";
 import {
+  compareDecimal,
   formatDecimal,
   formatRoundedDecimal,
   isPositiveDecimal,
@@ -154,14 +156,43 @@ const targetRisk = computed(() =>
         props.trade.snapshot?.planned_risk_percent,
       ),
 );
-const riskUtilization = computed(() =>
-  localPlan.value
-    ? localPlan.value.risk_utilization_percent
-    : calculateRiskUtilization(
-        props.trade.snapshot?.planned_risk_amount,
-        targetRisk.value,
-      ),
+const plannedProfit = computed(() =>
+  calculatePlannedProfit(
+    activePlan.value?.planned_risk_amount,
+    activePlan.value?.reward_multiple ?? props.strategy?.reward_multiple,
+  ),
 );
+const targetAtrPercent = computed(
+  () =>
+    localPlan.value?.take_profit_atr_percent ??
+    calculateAtrUsage(
+      activePlan.value?.take_profit_distance,
+      props.trade.atr?.value ?? props.trade.snapshot?.atr_value,
+    ),
+);
+const settlementSymbol = computed(
+  () =>
+    props.instrument?.settlement_asset?.symbol ??
+    props.instrument?.pair.quote.symbol ??
+    "",
+);
+const targetAtrExceeded = computed(
+  () =>
+    targetAtrPercent.value !== null &&
+    compareDecimal(targetAtrPercent.value, "75") > 0,
+);
+const resultTone = computed(() => {
+  const value = props.trade.realized_pnl;
+  if (!value || formatDecimal(value) === "0") return "neutral";
+  return value.startsWith("-") ? "loss" : "profit";
+});
+const realizedPnlDisplay = computed(() => {
+  const value = props.trade.realized_pnl;
+  if (value === null) return "";
+  const formatted = formatDecimal(value);
+  if (formatted === "0") return formatted;
+  return `${formatted.startsWith("-") ? "" : "+"}${formatted}`;
+});
 const capitalRemaining = computed(() =>
   localPlan.value
     ? localPlan.value.capital_remaining
@@ -272,6 +303,19 @@ function handleManualSessionRangeInput(event: Event): void {
   manualSessionRange.value = eventValue(event);
 }
 
+function handleCloseExitInput(event: Event): void {
+  closeForm.actual_exit_price = eventValue(event);
+}
+
+function normalizeCloseExit(): void {
+  const step = props.instrument?.price_step;
+  if (!step) return;
+  closeForm.actual_exit_price = normalizeToStep(
+    closeForm.actual_exit_price,
+    step,
+  );
+}
+
 async function persistChanges(): Promise<Trade> {
   let trade = await updateTrade(props.trade.id, {
     description_markdown: notes.value || null,
@@ -334,7 +378,7 @@ const closeMutation = useMutation({
   mutationFn: () =>
     closeTrade(props.trade.id, {
       realized_pnl: closeForm.realized_pnl,
-      actual_exit_price: closeForm.actual_exit_price || null,
+      actual_exit_price: closeForm.actual_exit_price,
       total_commission: closeForm.total_commission || null,
       funding_result: closeForm.funding_result || null,
     }),
@@ -562,14 +606,14 @@ onBeforeUnmount(() => {
         </div>
         <PositionRiskBar
           v-if="activePlan"
+          :direction="direction"
           :entry="activePlan.planned_entry ?? entry"
           :stop="activePlan.planned_stop ?? stop"
           :target="activePlan.planned_take_profit ?? target"
           :stop-distance="activePlan.stop_distance ?? '0'"
           :target-distance="activePlan.take_profit_distance ?? '0'"
-          :reward-multiple="
-            activePlan.reward_multiple ?? strategy?.reward_multiple ?? '1'
-          "
+          :exit-price="trade.actual_exit_price"
+          :realized-pnl="trade.realized_pnl"
         />
         <p v-if="planError" class="inline-warning">{{ planError }}</p>
         <div v-if="activePlan" class="position-summary">
@@ -586,7 +630,17 @@ onBeforeUnmount(() => {
             ><strong>{{
               formatRoundedDecimal(activePlan.planned_risk_amount ?? "0", 4)
             }}</strong
-            ><em>{{ formatRoundedDecimal(riskUtilization, 2) }}%</em>
+            ><em>{{
+              $t("trades.plan.riskLimit", {
+                limit: formatDecimal(targetRisk),
+                asset: settlementSymbol,
+              })
+            }}</em>
+          </div>
+          <div>
+            <small>{{ $t("trades.plan.profit") }}</small
+            ><strong>{{ formatRoundedDecimal(plannedProfit, 4) }}</strong
+            ><em>{{ settlementSymbol }}</em>
           </div>
           <div>
             <small>{{ $t("trades.plan.notional") }}</small
@@ -604,6 +658,31 @@ onBeforeUnmount(() => {
             <small>{{ $t("trades.plan.capitalRemaining") }}</small
             ><strong>{{ formatDecimal(capitalRemaining) }}</strong>
           </div>
+        </div>
+        <div
+          v-if="trade.status === 'closed' && trade.realized_pnl !== null"
+          class="trade-result"
+        >
+          <div>
+            <small>{{ $t("trades.result.title") }}</small>
+            <strong :class="`trade-result__value--${resultTone}`">
+              {{ realizedPnlDisplay }} {{ settlementSymbol }}
+            </strong>
+          </div>
+          <dl>
+            <div v-if="trade.actual_exit_price !== null">
+              <dt>{{ $t("trades.close.exit") }}</dt>
+              <dd>{{ formatDecimal(trade.actual_exit_price) }}</dd>
+            </div>
+            <div v-if="trade.total_commission !== null">
+              <dt>{{ $t("trades.close.commission") }}</dt>
+              <dd>{{ formatDecimal(trade.total_commission) }}</dd>
+            </div>
+            <div v-if="trade.funding_result !== null">
+              <dt>{{ $t("trades.close.funding") }}</dt>
+              <dd>{{ formatDecimal(trade.funding_result) }}</dd>
+            </div>
+          </dl>
         </div>
         <div
           v-if="localPlan && !localPlan.capital_sufficient"
@@ -709,24 +788,19 @@ onBeforeUnmount(() => {
             <div class="atr-bar__label">
               <span>{{ $t("trades.atr.target") }}</span
               ><strong
-                >{{
-                  formatRoundedDecimal(
-                    localPlan?.take_profit_atr_percent ?? "0",
-                    2,
-                  )
-                }}%</strong
+                >{{ formatRoundedDecimal(targetAtrPercent ?? "0", 2) }}%</strong
               >
             </div>
             <div
               class="atr-bar"
               :class="{
-                'atr-bar--exceeded': localPlan?.fits_atr_limit === false,
+                'atr-bar--exceeded': targetAtrExceeded,
               }"
             >
               <i class="atr-bar__limit"></i
               ><span
                 :style="{
-                  width: cssPercent(localPlan?.take_profit_atr_percent),
+                  width: cssPercent(targetAtrPercent),
                 }"
               ></span>
             </div>
@@ -881,19 +955,48 @@ onBeforeUnmount(() => {
     :submit-label="$t('trades.actions.closeTrade')"
     :cancel-label="$t('common.cancel')"
     :busy="closeMutation.isPending.value"
-    :invalid="closeForm.realized_pnl.trim() === ''"
+    :invalid="
+      closeForm.realized_pnl.trim() === '' ||
+      !isPositiveDecimal(closeForm.actual_exit_price)
+    "
     @submit="closeMutation.mutate()"
   >
     <label class="field"
       ><span>{{ $t("trades.close.pnl") }}</span
       ><input v-model="closeForm.realized_pnl" inputmode="decimal" required
     /></label>
+    <div class="close-price-presets">
+      <span>{{ $t("trades.close.quickPrice") }}</span>
+      <button
+        type="button"
+        @click="closeForm.actual_exit_price = formatDecimal(stop)"
+      >
+        {{ $t("trades.plan.stop") }}
+      </button>
+      <button
+        type="button"
+        @click="closeForm.actual_exit_price = formatDecimal(entry)"
+      >
+        {{ $t("trades.plan.entry") }}
+      </button>
+      <button
+        type="button"
+        @click="closeForm.actual_exit_price = formatDecimal(target)"
+      >
+        {{ $t("trades.plan.target") }}
+      </button>
+    </div>
     <div class="form-grid form-grid--two">
       <label class="field"
         ><span>{{ $t("trades.close.exit") }}</span
         ><input
-          v-model="closeForm.actual_exit_price"
-          inputmode="decimal" /></label
+          :value="closeForm.actual_exit_price"
+          type="number"
+          :step="instrument?.price_step ?? 'any'"
+          @input="handleCloseExitInput"
+          @blur="normalizeCloseExit"
+          @keydown.enter="normalizeCloseExit"
+          required /></label
       ><label class="field"
         ><span>{{ $t("trades.close.commission") }}</span
         ><input v-model="closeForm.total_commission" inputmode="decimal"

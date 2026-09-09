@@ -25,9 +25,9 @@ export function formatDecimal(value: string): string {
     : `${normalizedSign}${integer}`;
 }
 
-/** Return whether an exact decimal string represents a value above zero. */
-export function isPositiveDecimal(value: string): boolean {
-  const normalized = value.trim();
+/** Return whether an exact decimal input represents a value above zero. */
+export function isPositiveDecimal(value: string | number): boolean {
+  const normalized = String(value).trim();
   return /^\d+(\.\d+)?$/.test(normalized) && /[1-9]/.test(normalized);
 }
 

@@ -13,9 +13,12 @@ import {
 } from "@/features/trades/api";
 import { assessChecklist } from "@/features/trades/checklist";
 import {
+  calculateAtrUsage,
   calculateLocalPosition,
+  calculatePlannedProfit,
   normalizeToStep,
 } from "@/features/trades/planning";
+import { calculatePositionScale } from "@/features/trades/positionScale";
 import { formatRoundedDecimal } from "@/utils/decimal";
 
 const trade: Trade = {
@@ -107,9 +110,32 @@ describe("trade lifecycle client", () => {
     expect(plan.planned_risk_amount).toBe("8.4");
     expect(plan.target_risk_amount).toBe("10");
     expect(plan.capital_remaining).toBe("9720");
+    expect(calculatePlannedProfit("8.4", 3)).toBe("25.2");
+    expect(calculateAtrUsage("15", "40")).toBe("37.5");
     expect(normalizeToStep("100.005", "0.01")).toBe("100.01");
     expect(formatRoundedDecimal("123.456789012345678", 2)).toBe("123.46");
     expect(formatRoundedDecimal("0.004", 2)).toBe("0");
+  });
+
+  it("maps long, short, and out-of-range exits onto a readable scale", () => {
+    const long = calculatePositionScale("long", "100", "95", "115", "110");
+    const short = calculatePositionScale("short", "100", "105", "85", "90");
+    const moderate = calculatePositionScale("long", "100", "95", "115", "120");
+    const extreme = calculatePositionScale("long", "100", "95", "115", "200");
+
+    expect(long).toMatchObject({ stop: 0, entry: 25, target: 100, exit: 75 });
+    expect(short).toMatchObject({ stop: 0, entry: 25, target: 100, exit: 75 });
+    expect(moderate).toMatchObject({
+      stop: 0,
+      entry: 20,
+      target: 80,
+      exit: 100,
+      exitOverflow: null,
+    });
+    expect(extreme.exitOverflow).toBe("profit");
+    expect(extreme.exit).toBe(100);
+    expect(extreme.entry).toBeCloseTo(16.67, 2);
+    expect(extreme.target).toBeCloseTo(66.67, 2);
   });
 
   it("keeps target-based planning and lifecycle actions explicit", async () => {

@@ -562,6 +562,8 @@ const messages = {
         risk: "Risk, 1R",
         targetRisk: "Target 1R",
         actualRisk: "Position risk",
+        riskLimit: "of {limit} {asset}",
+        profit: "Position profit",
         notional: "Notional",
         available: "Available",
         capitalRemaining: "Available after opening",
@@ -635,11 +637,15 @@ const messages = {
       },
       close: {
         title: "Close the trade",
-        body: "Record the signed net result and optional execution facts.",
+        body: "Record the signed net result and the average execution price.",
         pnl: "Realized P&L",
         exit: "Exit price",
+        quickPrice: "Use planned level",
         commission: "Total commission",
         funding: "Funding result",
+      },
+      result: {
+        title: "Trade result",
       },
       confirm: {
         deleteTitle: "Delete this draft?",
@@ -1230,6 +1236,8 @@ const messages = {
         risk: "Риск, 1R",
         targetRisk: "Целевой 1R",
         actualRisk: "Риск позиции",
+        riskLimit: "из {limit} {asset}",
+        profit: "Профит позиции",
         notional: "Размер позиции",
         available: "Доступно",
         capitalRemaining: "Останется после открытия",
@@ -1301,11 +1309,15 @@ const messages = {
       },
       close: {
         title: "Закрыть сделку",
-        body: "Укажите итоговый результат со знаком и необязательные данные исполнения.",
+        body: "Укажите итоговый результат со знаком и среднюю цену исполнения.",
         pnl: "Реализованный P&L",
         exit: "Цена выхода",
+        quickPrice: "Взять плановый уровень",
         commission: "Общая комиссия",
         funding: "Результат фандинга",
+      },
+      result: {
+        title: "Результат сделки",
       },
       confirm: {
         deleteTitle: "Удалить черновик?",

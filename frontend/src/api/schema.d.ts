@@ -1627,13 +1627,13 @@ export interface components {
     };
     /**
      * TradeClose
-     * @description Record final signed net P&L and optional execution context.
+     * @description Record final signed net P&L and execution context.
      */
     TradeClose: {
       /** Realized Pnl */
       realized_pnl: number | string;
       /** Actual Exit Price */
-      actual_exit_price?: number | string | null;
+      actual_exit_price: number | string;
       /** Total Commission */
       total_commission?: number | string | null;
       /** Funding Result */

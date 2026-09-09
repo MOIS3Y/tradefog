@@ -463,6 +463,24 @@
       grid-template-columns: 1fr;
     }
 
+    .trade-result {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .trade-result dl {
+      flex-wrap: wrap;
+    }
+
+    .close-price-presets {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .close-price-presets > span {
+      margin-right: 0;
+    }
+
     .position-summary div {
       border-right: 0;
       border-bottom: 1px solid var(--tf-line-soft);

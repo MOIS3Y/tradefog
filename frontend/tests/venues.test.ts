@@ -20,7 +20,7 @@ import {
   filterWalletAssets,
   sortInstruments,
 } from "@/features/venues/filters";
-import { formatDecimal } from "@/utils/decimal";
+import { formatDecimal, isPositiveDecimal } from "@/utils/decimal";
 
 const bitcoin: Asset = {
   id: 1,
@@ -116,6 +116,7 @@ describe("venue catalog flow", () => {
     expect(formatDecimal("12345678901234567890.0100")).toBe(
       "12345678901234567890.01",
     );
+    expect(isPositiveDecimal(79701)).toBe(true);
   });
 
   it("creates and updates the venue execution configuration", async () => {

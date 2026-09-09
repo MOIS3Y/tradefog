@@ -517,56 +517,63 @@
     border-radius: 12px;
     background: rgb(7 11 15 / 31%);
   }
-  .position-risk-map__labels,
-  .position-risk-map__bar,
-  .position-risk-map__entry {
-    display: grid;
-  }
   .position-risk-map__labels {
-    display: flex;
-    justify-content: space-between;
+    position: relative;
+    height: 36px;
   }
-  .position-risk-map__labels > span {
+  .position-risk-map__price {
+    position: absolute;
     display: grid;
     gap: 0.1rem;
+    white-space: nowrap;
+    transition: left 260ms ease;
   }
-  .position-risk-map__labels small {
+  .position-risk-map__price--stop {
+    text-align: left;
+    transform: translateX(0);
+  }
+  .position-risk-map__price--target {
+    text-align: right;
+    transform: translateX(-100%);
+  }
+  .position-risk-map__price small {
     color: var(--tf-ink-faint);
     font-size: 0.59rem;
   }
-  .position-risk-map__labels strong,
-  .position-risk-map__labels em,
-  .position-risk-map__entry strong {
+  .position-risk-map__price strong,
+  .position-risk-map__price em {
     font-family: var(--tf-mono);
     font-style: normal;
   }
-  .position-risk-map__labels strong {
+  .position-risk-map__price strong {
     color: var(--tf-ink);
     font-size: 0.72rem;
   }
-  .position-risk-map__labels em {
+  .position-risk-map__price em {
     font-size: 0.59rem;
   }
-  .position-risk-map__stop {
-    text-align: left;
-  }
-  .position-risk-map__stop em {
+  .position-risk-map__price--stop em {
     color: var(--tf-danger);
   }
-  .position-risk-map__target {
-    text-align: right;
-  }
-  .position-risk-map__target em {
+  .position-risk-map__price--target em {
     color: var(--tf-action);
   }
   .position-risk-map__bar {
     position: relative;
     height: 10px;
     margin-top: 0.55rem;
+    border-radius: 999px;
+    background: var(--tf-line-soft);
+  }
+  .position-risk-map__loss,
+  .position-risk-map__reward {
+    position: absolute;
+    inset-block: 0;
+    transition:
+      left 260ms ease,
+      width 260ms ease;
   }
   .position-risk-map__loss {
-    grid-row: 1;
-    grid-column: 1;
     border-radius: 999px 0 0 999px;
     background: linear-gradient(
       90deg,
@@ -575,39 +582,111 @@
     );
   }
   .position-risk-map__reward {
-    grid-row: 1;
-    grid-column: 2;
     border-radius: 0 999px 999px 0;
     background: linear-gradient(90deg, var(--tf-action), rgb(53 217 144 / 20%));
   }
-  .position-risk-map__bar i {
-    position: relative;
-    width: 14px;
-    height: 14px;
-    grid-row: 1;
-    grid-column: 2;
-    align-self: center;
-    justify-self: start;
-    border: 2px solid var(--tf-ink-strong);
+  .position-risk-map__entry-marker,
+  .position-risk-map__exit-marker {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 0;
     border-radius: 50%;
+    cursor: help;
+    transition: left 260ms ease;
+    transform: translate(-50%, -50%);
+  }
+  .position-risk-map__entry-marker {
+    border: 2px solid var(--tf-ink-strong);
     background: #e8b85f;
     box-shadow: 0 0 14px rgb(232 184 95 / 32%);
-    transform: translateX(-50%);
   }
-  .position-risk-map__entry span {
-    grid-column: 1;
+  .position-risk-map__exit-marker {
+    background: transparent;
   }
-  .position-risk-map__entry strong {
-    grid-row: 1;
-    grid-column: 2;
-    justify-self: start;
-    padding: 0.42rem 0 0 0.7rem;
-    color: #e8b85f;
-    font-size: 0.62rem;
+  .position-risk-map__exit-marker > span {
+    position: absolute;
+    inset: 2px;
+    border: 2px solid var(--tf-ink-strong);
+    border-radius: 3px;
+    transform: rotate(45deg);
+  }
+  .position-risk-map__exit-marker--profit > span {
+    background: var(--tf-action);
+    box-shadow: 0 0 12px rgb(53 217 144 / 38%);
+  }
+  .position-risk-map__exit-marker--loss > span {
+    background: var(--tf-danger);
+    box-shadow: 0 0 12px rgb(241 110 118 / 38%);
+  }
+  .position-risk-map__exit-marker--neutral > span {
+    background: var(--tf-ink-soft);
+  }
+  .position-risk-map__exit-marker--edge-loss {
+    transform: translate(0, -50%);
+  }
+  .position-risk-map__exit-marker--edge-profit {
+    transform: translate(-100%, -50%);
+  }
+  .position-risk-map__entry-marker::after,
+  .position-risk-map__exit-marker::after {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    z-index: 4;
+    width: max-content;
+    max-width: min(240px, 70vw);
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--tf-line);
+    border-radius: 7px;
+    color: var(--tf-ink-strong);
+    background: var(--tf-panel-raised);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
+    content: attr(data-tooltip);
+    font: 0.62rem var(--tf-mono);
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    transition:
+      opacity 120ms ease,
+      transform 120ms ease;
+    transform: translate(-50%, -3px);
+  }
+  .position-risk-map__entry-marker:hover::after,
+  .position-risk-map__entry-marker:focus-visible::after,
+  .position-risk-map__exit-marker:hover::after,
+  .position-risk-map__exit-marker:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  .position-risk-map__entry-marker:focus-visible,
+  .position-risk-map__exit-marker:focus-visible {
+    outline: 2px solid rgb(53 217 144 / 55%);
+    outline-offset: 4px;
+  }
+  .position-risk-map__exit-marker--edge-loss::after {
+    left: 0;
+    transform: translate(0, -3px);
+  }
+  .position-risk-map__exit-marker--edge-loss:hover::after,
+  .position-risk-map__exit-marker--edge-loss:focus-visible::after {
+    transform: translate(0, 0);
+  }
+  .position-risk-map__exit-marker--edge-profit::after {
+    right: 0;
+    left: auto;
+    transform: translate(0, -3px);
+  }
+  .position-risk-map__exit-marker--edge-profit:hover::after,
+  .position-risk-map__exit-marker--edge-profit:focus-visible::after {
+    transform: translate(0, 0);
   }
   .position-summary {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     margin-top: 1rem;
     border: 1px solid var(--tf-line-soft);
     border-radius: 11px;
@@ -615,6 +694,8 @@
   }
   .position-summary div {
     display: grid;
+    grid-template-rows: minmax(2.4em, auto) auto minmax(0.7rem, auto);
+    align-content: start;
     gap: 0.25rem;
     padding: 0.7rem;
     border-right: 1px solid var(--tf-line-soft);
@@ -625,6 +706,14 @@
   .position-summary small {
     color: var(--tf-ink-faint);
     font-size: 0.61rem;
+    line-height: 1.2;
+  }
+  .position-summary strong,
+  .position-summary em {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .position-summary strong {
     color: var(--tf-ink-strong);
@@ -637,6 +726,81 @@
   }
   .position-summary .is-negative strong {
     color: var(--tf-danger);
+  }
+  .trade-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.8rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--tf-line-soft);
+    border-radius: 11px;
+    background: linear-gradient(90deg, rgb(53 217 144 / 5%), transparent 58%);
+  }
+  .trade-result > div {
+    display: grid;
+    gap: 0.2rem;
+  }
+  .trade-result small,
+  .trade-result dt {
+    color: var(--tf-ink-faint);
+    font-size: 0.61rem;
+  }
+  .trade-result strong,
+  .trade-result dd {
+    margin: 0;
+    font-family: var(--tf-mono);
+  }
+  .trade-result strong {
+    font-size: 1rem;
+  }
+  .trade-result__value--profit {
+    color: var(--tf-action);
+  }
+  .trade-result__value--loss {
+    color: var(--tf-danger);
+  }
+  .trade-result__value--neutral {
+    color: var(--tf-ink-strong);
+  }
+  .trade-result dl {
+    display: flex;
+    gap: 1.4rem;
+    margin: 0;
+  }
+  .trade-result dl div {
+    display: grid;
+    gap: 0.2rem;
+  }
+  .trade-result dd {
+    color: var(--tf-ink);
+    font-size: 0.7rem;
+  }
+  .close-price-presets {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .close-price-presets > span {
+    margin-right: auto;
+    color: var(--tf-ink-faint);
+    font-size: 0.68rem;
+  }
+  .close-price-presets button {
+    min-height: 30px;
+    padding: 0 0.65rem;
+    border: 1px solid var(--tf-line);
+    border-radius: 8px;
+    color: var(--tf-ink-soft);
+    background: var(--tf-panel-soft);
+    cursor: pointer;
+    font: 0.62rem var(--tf-mono);
+  }
+  .close-price-presets button:hover,
+  .close-price-presets button:focus-visible {
+    border-color: rgb(53 217 144 / 35%);
+    color: var(--tf-action);
   }
   .inline-warning {
     color: var(--tf-danger);

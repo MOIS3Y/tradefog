@@ -191,11 +191,10 @@ class TradePlanResponse(BaseModel):
 
 
 class TradeClose(TradeInput):
-    """Record final signed net P&L and optional execution context."""
+    """Record final signed net P&L and execution context."""
 
     realized_pnl: Decimal = Field(max_digits=30, decimal_places=18)
-    actual_exit_price: Decimal | None = Field(
-        default=None,
+    actual_exit_price: Decimal = Field(
         gt=0,
         max_digits=30,
         decimal_places=18,
