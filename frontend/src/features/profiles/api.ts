@@ -106,65 +106,79 @@ export async function createWalletAsset(
 }
 
 export async function updateWalletAsset(
+  profileId: number,
   id: number,
   input: components["schemas"]["WalletAssetPatch"],
 ): Promise<WalletAsset> {
   const { data, error, response } = await api.PATCH(
-    "/api/v1/profiles/wallet-assets/{wallet_asset_id}",
-    { params: { path: { wallet_asset_id: id } }, body: input },
+    "/api/v1/profiles/{profile_id}/wallet/assets/{wallet_asset_id}",
+    {
+      params: { path: { profile_id: profileId, wallet_asset_id: id } },
+      body: input,
+    },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
 export async function listOperations(
-  id: number,
+  profileId: number,
   query: { page?: number; page_size?: number } = {},
 ): Promise<Page<WalletOperation>> {
   const { data, error, response } = await api.GET(
-    "/api/v1/profiles/wallet-assets/{wallet_asset_id}/operations",
-    { params: { path: { wallet_asset_id: id }, query } },
+    "/api/v1/profiles/{profile_id}/wallet/operations",
+    { params: { path: { profile_id: profileId }, query } },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
 export async function createOperation(
-  id: number,
+  profileId: number,
   input: components["schemas"]["WalletOperationCreate"],
 ): Promise<WalletOperation> {
   const { data, error, response } = await api.POST(
-    "/api/v1/profiles/wallet-assets/{wallet_asset_id}/operations",
-    { params: { path: { wallet_asset_id: id } }, body: input },
+    "/api/v1/profiles/{profile_id}/wallet/operations",
+    { params: { path: { profile_id: profileId } }, body: input },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
 export async function updateOperationNote(
+  profileId: number,
   id: number,
   note: string | null,
 ): Promise<WalletOperation> {
   const { data, error, response } = await api.PATCH(
-    "/api/v1/profiles/wallet-operations/{operation_id}",
-    { params: { path: { operation_id: id } }, body: { note } },
+    "/api/v1/profiles/{profile_id}/wallet/operations/{operation_id}",
+    {
+      params: { path: { profile_id: profileId, operation_id: id } },
+      body: { note },
+    },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
 export async function listStrategies(profileId: number): Promise<Strategy[]> {
-  const { data, error, response } = await api.GET(
-    "/api/v1/profiles/{profile_id}/strategies",
-    {
-      params: {
-        path: { profile_id: profileId },
-        query: { include_archived: true },
+  const items: Strategy[] = [];
+  let page = 1;
+  for (;;) {
+    const { data, error, response } = await api.GET(
+      "/api/v1/profiles/{profile_id}/strategies",
+      {
+        params: {
+          path: { profile_id: profileId },
+          query: { page, page_size: 100, visibility: "all" },
+        },
       },
-    },
-  );
-  if (data === undefined) throw toApiError(error, response);
-  return data;
+    );
+    if (data === undefined) throw toApiError(error, response);
+    items.push(...data.items);
+    if (items.length >= data.total || !data.items.length) return items;
+    page++;
+  }
 }
 
 export async function createStrategy(
@@ -180,34 +194,42 @@ export async function createStrategy(
 }
 
 export async function updateStrategy(
+  profileId: number,
   id: number,
   input: StrategyPatch,
 ): Promise<Strategy> {
   const { data, error, response } = await api.PATCH(
-    "/api/v1/profiles/strategies/{strategy_id}",
-    { params: { path: { strategy_id: id } }, body: input },
+    "/api/v1/profiles/{profile_id}/strategies/{strategy_id}",
+    {
+      params: { path: { profile_id: profileId, strategy_id: id } },
+      body: input,
+    },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
-export async function deleteStrategy(id: number): Promise<void> {
+export async function deleteStrategy(
+  profileId: number,
+  id: number,
+): Promise<void> {
   const { error, response } = await api.DELETE(
-    "/api/v1/profiles/strategies/{strategy_id}",
-    { params: { path: { strategy_id: id } } },
+    "/api/v1/profiles/{profile_id}/strategies/{strategy_id}",
+    { params: { path: { profile_id: profileId, strategy_id: id } } },
   );
   if (!response.ok) throw toApiError(error, response);
 }
 
 export async function createAllocation(
+  profileId: number,
   strategyId: number,
   walletAssetId: number,
   capital: string,
 ): Promise<Allocation> {
   const { data, error, response } = await api.POST(
-    "/api/v1/profiles/strategies/{strategy_id}/allocations",
+    "/api/v1/profiles/{profile_id}/strategies/{strategy_id}/allocations",
     {
-      params: { path: { strategy_id: strategyId } },
+      params: { path: { profile_id: profileId, strategy_id: strategyId } },
       body: { wallet_asset_id: walletAssetId, capital },
     },
   );
@@ -216,12 +238,23 @@ export async function createAllocation(
 }
 
 export async function updateAllocation(
+  profileId: number,
+  strategyId: number,
   id: number,
   input: components["schemas"]["StrategyCapitalPatch"],
 ): Promise<Allocation> {
   const { data, error, response } = await api.PATCH(
-    "/api/v1/profiles/allocations/{allocation_id}",
-    { params: { path: { allocation_id: id } }, body: input },
+    "/api/v1/profiles/{profile_id}/strategies/{strategy_id}/allocations/{allocation_id}",
+    {
+      params: {
+        path: {
+          profile_id: profileId,
+          strategy_id: strategyId,
+          allocation_id: id,
+        },
+      },
+      body: input,
+    },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;

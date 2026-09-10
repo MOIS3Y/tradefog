@@ -1,9 +1,11 @@
 import { createI18n } from "vue-i18n";
 import { journalMessages } from "./journal";
+import { profileMarketMessages } from "@/features/profiles/messages";
 
 const messages = {
   en: {
     ...journalMessages.en,
+    profileMarket: profileMarketMessages.en,
     common: {
       retry: "Try again",
       signOut: "Sign out",
@@ -39,7 +41,7 @@ const messages = {
       lead: "Your journal overview and trading workspace setup.",
       emptyTitle: "Build your trading context",
       emptyBody:
-        "Start with assets and trading pairs in the shared catalog. Venues, capital, and strategies follow in the next workspaces.",
+        "Create a Bybit or manual profile, set up its instruments, then fund your virtual wallet and allocate capital to a strategy.",
       connection: "API connected",
       staff: "Staff access",
       user: "Personal journal",
@@ -302,7 +304,8 @@ const messages = {
       venue: "Venue",
       selectVenue: "Find an active venue",
       noVenues: "No active venues",
-      venueHint: "Only active venues can accept new profiles.",
+      venueHint:
+        "Bybit imports market specifications; manual keeps all setup local. Both use virtual wallets.",
       venueLocked: "The venue cannot be changed after profile creation.",
       profileDescription: "Description",
       search: "Search profiles or venues",
@@ -358,13 +361,13 @@ const messages = {
         loadFailed: "Wallet could not be loaded",
         emptyTitle: "The wallet has no assets",
         emptyBody:
-          "Add an asset supported by this venue, then record the initial deposit.",
+          "Set up instruments and assets in the Venue tab, then add a wallet asset and record a virtual deposit.",
         addAsset: "Add asset",
         noAssetsAvailable: "No assets available",
         addAssetTitle: "Add wallet asset",
         editAssetTitle: "Edit wallet asset",
         addAssetBody:
-          "Only active wallet capabilities from the profile venue are available.",
+          "Select an active asset owned by this profile. This does not read or change an exchange balance.",
         asset: "Asset",
         selectAsset: "Find a wallet asset",
         riskFloor: "Deposit floor",
@@ -784,6 +787,7 @@ const messages = {
   },
   ru: {
     ...journalMessages.ru,
+    profileMarket: profileMarketMessages.ru,
     common: {
       retry: "Повторить",
       signOut: "Выйти",
@@ -819,7 +823,7 @@ const messages = {
       lead: "Обзор журнала и настройка рабочего пространства для торговли.",
       emptyTitle: "Соберите торговый контекст",
       emptyBody:
-        "Начните с ресурсов и торговых пар в общем каталоге. Затем появятся площадки, капитал и стратегии.",
+        "Создайте профиль Bybit или ручной площадки, настройте инструменты, пополните виртуальный кошелёк и выделите капитал стратегии.",
       connection: "API подключено",
       staff: "Доступ сотрудника",
       user: "Личный журнал",
@@ -1081,7 +1085,8 @@ const messages = {
       venue: "Площадка",
       selectVenue: "Найти активную площадку",
       noVenues: "Активных площадок нет",
-      venueHint: "Новые профили можно создавать только на активных площадках.",
+      venueHint:
+        "Bybit загружает спецификации рынка, ручная площадка работает без подключения. Оба режима используют виртуальный кошелёк.",
       venueLocked: "После создания профиля площадку изменить нельзя.",
       profileDescription: "Описание",
       search: "Поиск профилей или площадок",
@@ -1136,13 +1141,13 @@ const messages = {
         loadFailed: "Не удалось загрузить кошелёк",
         emptyTitle: "В кошельке нет ресурсов",
         emptyBody:
-          "Добавьте поддерживаемый площадкой ресурс и зафиксируйте первый депозит.",
+          "Настройте инструменты и активы на вкладке площадки, затем добавьте актив в кошелёк и внесите виртуальный депозит.",
         addAsset: "Добавить ресурс",
         noAssetsAvailable: "Нет доступных ресурсов",
         addAssetTitle: "Добавить ресурс кошелька",
         editAssetTitle: "Изменить ресурс кошелька",
         addAssetBody:
-          "Доступны только активные ресурсы кошелька, настроенные на площадке профиля.",
+          "Выберите актив этого профиля. Баланс реальной биржи не запрашивается и не изменяется.",
         asset: "Ресурс",
         selectAsset: "Найти ресурс кошелька",
         riskFloor: "Порог депозита",

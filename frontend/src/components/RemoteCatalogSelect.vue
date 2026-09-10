@@ -5,21 +5,17 @@ import { useI18n } from "vue-i18n";
 import { authenticatedFetch } from "@/api/client";
 import { toApiError } from "@/api/errors";
 import type { Page, ListParams } from "@/api/pagination";
-import type { Asset, Pair } from "@/features/catalog/api";
-import type {
-  Instrument,
-  Venue,
-  VenueWalletAsset,
-} from "@/features/venues/api";
+import type { Asset, Instrument } from "@/features/profiles/marketApi";
 import SearchableSelect, {
   type SearchableOption,
 } from "@/components/SearchableSelect.vue";
 
-type Item = Asset | Pair | Instrument | Venue | VenueWalletAsset;
+type Item = Asset | Instrument;
 const props = defineProps<{
   modelValue: number | null;
-  resource: "assets" | "pairs" | "venues" | "instruments" | "wallet-assets";
-  venueId?: number;
+  resource: "assets" | "instruments";
+  profileId?: number;
+  excludeIds?: number[];
   params?: ListParams;
   excludeId?: number | null;
   placeholder: string;
@@ -40,10 +36,8 @@ watch(search, (value) => {
   }, 250);
 });
 onBeforeUnmount(() => clearTimeout(timer));
-const collection = computed(() =>
-  props.venueId && ["instruments", "wallet-assets"].includes(props.resource)
-    ? `/api/v1/catalog/venues/${props.venueId}/${props.resource}`
-    : `/api/v1/catalog/${props.resource}`,
+const collection = computed(
+  () => `/api/v1/profiles/${props.profileId}/${props.resource}`,
 );
 
 async function read<T>(
@@ -67,14 +61,15 @@ async function read<T>(
 
 const query = useInfiniteQuery({
   queryKey: computed(() => [
-    "catalog",
+    "profile-market",
+    props.profileId,
     props.resource,
     "options",
     collection.value,
     props.params,
     debounced.value,
   ]),
-  enabled: computed(() => open.value && !props.disabled),
+  enabled: computed(() => open.value && !!props.profileId && !props.disabled),
   initialPageParam: 1,
   queryFn: ({ pageParam }) =>
     read<Page<Item>>(collection.value, {
@@ -88,37 +83,34 @@ const query = useInfiniteQuery({
 });
 const selectedQuery = useQuery({
   queryKey: computed(() => [
-    "catalog",
+    "profile-market",
+    props.profileId,
     "option",
     props.resource,
     props.modelValue,
   ]),
-  enabled: computed(() => props.modelValue !== null && props.modelValue > 0),
-  queryFn: () =>
-    read<Item>(`/api/v1/catalog/${props.resource}/${props.modelValue}`),
+  enabled: computed(
+    () =>
+      !!props.profileId && props.modelValue !== null && props.modelValue > 0,
+  ),
+  queryFn: () => read<Item>(`${collection.value}/${props.modelValue}`),
 });
 function option(item: Item): SearchableOption {
   if ("exec_symbol" in item)
     return {
       value: item.id,
-      label: item.pair.canonical_symbol,
-      detail: `${item.exec_symbol} · ${t(`venues.products.${item.product}`)}`,
+      label: item.exec_symbol,
+      detail: t(`venues.products.${item.product}`),
+      disabled:
+        props.params?.visibility === "active" &&
+        (!item.is_active || item.is_archived),
     };
-  if ("canonical_symbol" in item)
-    return { value: item.id, label: item.canonical_symbol };
-  if ("asset" in item)
-    return {
-      value: item.id,
-      label: item.asset.symbol,
-      detail: item.asset.name ?? undefined,
-    };
-  if ("symbol" in item)
-    return {
-      value: item.id,
-      label: item.symbol,
-      detail: item.name ?? undefined,
-    };
-  return { value: item.id, label: item.name };
+  return {
+    value: item.id,
+    label: item.symbol,
+    detail: item.name ?? undefined,
+    disabled: props.params?.visibility === "active" && !item.is_active,
+  };
 }
 const options = computed(() => {
   const items = query.data.value?.pages.flatMap((page) => page.items) ?? [];
@@ -126,7 +118,13 @@ const options = computed(() => {
   const all = [...(props.extraOptions ?? []), ...items.map(option)];
   return [
     ...new Map(
-      all.filter((x) => x.value !== props.excludeId).map((x) => [x.value, x]),
+      all
+        .filter(
+          (x) =>
+            x.value !== props.excludeId &&
+            !props.excludeIds?.includes(x.value as number),
+        )
+        .map((x) => [x.value, x]),
     ).values(),
   ];
 });

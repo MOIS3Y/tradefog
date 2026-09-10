@@ -14,30 +14,31 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@fontsource/ibm-plex-mono": "^5.2.0",
-    "@fontsource/ibm-plex-sans": "^5.2.0",
-    "@lucide/vue": "^1.42.0",
-    "@tanstack/vue-query": "^5.90.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@lucide/vue": "^1.44.0",
+    "@tanstack/vue-query": "^5.102.8",
     "decimal.js": "^10.6.0",
     "echarts": "^6.1.0",
-    "openapi-fetch": "^0.15.0",
+    "klinecharts": "^10.0.3",
+    "openapi-fetch": "^0.17.0",
     "photoswipe": "^5.4.4",
-    "pinia": "^3.0.0",
-    "reka-ui": "^2.6.0",
-    "vue": "^3.5.0",
-    "vue-i18n": "^11.0.0",
-    "vue-router": "^4.6.0"
+    "pinia": "^4.0.3",
+    "reka-ui": "^2.10.4",
+    "vue": "^3.5.42",
+    "vue-i18n": "^11.4.10",
+    "vue-router": "^5.3.1"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@vitejs/plugin-vue": "^6.0.0",
-    "jsdom": "^27.0.0",
-    "openapi-typescript": "^7.10.0",
-    "prettier": "^3.0.0",
-    "sass": "^1.86.0",
-    "typescript": "^5.0.0",
-    "vite": "^7.0.0",
-    "vitest": "^3.2.0",
-    "vue-tsc": "^3.0.0"
+    "@types/node": "^22.20.2",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "jsdom": "^30.0.1",
+    "openapi-typescript": "^7.13.0",
+    "prettier": "^3.9.6",
+    "sass": "^1.104.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0",
+    "vue-tsc": "^3.3.11"
   }
 }

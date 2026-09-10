@@ -6,7 +6,7 @@ import {
 } from "vue-router";
 
 import { useAuthStore } from "@/stores/auth";
-import CatalogView from "@/views/CatalogView.vue";
+
 import DashboardView from "@/views/DashboardView.vue";
 import LoginView from "@/views/LoginView.vue";
 import NotFoundView from "@/views/NotFoundView.vue";
@@ -15,28 +15,6 @@ import TradesView from "@/views/TradesView.vue";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", component: DashboardView, meta: { requiresAuth: true } },
-  {
-    path: "/catalog",
-    redirect: "/catalog/assets",
-  },
-  {
-    path: "/catalog/assets",
-    component: CatalogView,
-    props: { section: "assets" },
-    meta: { requiresAuth: true },
-  },
-  {
-    path: "/catalog/pairs",
-    component: CatalogView,
-    props: { section: "pairs" },
-    meta: { requiresAuth: true },
-  },
-  {
-    path: "/catalog/venues",
-    component: CatalogView,
-    props: { section: "venues" },
-    meta: { requiresAuth: true },
-  },
   {
     path: "/profiles",
     component: ProfilesView,

@@ -1,5 +1,16 @@
 /** Paginated journal, individual decision workspace and lifecycle controls. */
 .tf-app {
+  .position-buyback {
+    border-left: 2px solid var(--tf-type-equity);
+    padding: 0.35rem 0.65rem;
+    color: var(--tf-ink-soft);
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+  .position-summary--reserves {
+    border-top: 1px solid var(--tf-line-soft);
+  }
+
   .journal-toolbar {
     flex-wrap: wrap;
     > .journal-filter-selector {
@@ -699,7 +710,7 @@
   }
   .position-summary {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     margin-top: 1rem;
     border: 1px solid var(--tf-line-soft);
     border-radius: 11px;
@@ -1175,5 +1186,49 @@
   .trade-review span {
     color: var(--tf-ink-faint);
     font-size: 0.69rem;
+  }
+
+  .trade-market-workspace {
+    min-width: 0;
+    container-type: inline-size;
+    &__position {
+      min-width: 0;
+    }
+    &--enabled {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+  }
+  @media (min-width: 1280px) {
+    .trade-market-workspace--enabled {
+      grid-template-columns: minmax(0, 1fr) 310px;
+      .position-fields {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .direction-switch {
+        display: grid;
+      }
+      .position-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .position-summary div {
+        grid-template-rows: auto auto auto;
+        border: 0;
+        padding: 0.65rem 0.5rem;
+      }
+      .position-summary {
+        margin-top: 0.8rem;
+        border-top: 1px solid var(--tf-line-soft);
+      }
+      .position-summary strong {
+        font-size: 0.9rem;
+      }
+      .trade-market-workspace__position {
+        padding-left: 1.25rem;
+        border-left: 1px solid var(--tf-line-soft);
+      }
+    }
   }
 }

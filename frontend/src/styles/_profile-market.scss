@@ -1,0 +1,78 @@
+/** Profile-owned market setup, using the journal's existing visual tokens. */
+.tf-app {
+  .profile-market {
+    min-width: 0;
+    .profile-panel__header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-bottom: 1rem;
+      h4 {
+        margin: 0 0 0.35rem;
+      }
+      p {
+        max-width: 65ch;
+        margin: 0;
+        color: var(--tf-ink-soft);
+        font-size: 0.8rem;
+      }
+      .button {
+        flex-shrink: 0;
+      }
+    }
+    .table-scroll {
+      overflow-x: auto;
+    }
+    .catalog-table td small {
+      display: block;
+      margin-top: 0.3rem;
+      color: var(--tf-ink-soft);
+      font-size: 0.7rem;
+    }
+    .table-actions {
+      min-width: 125px;
+      .icon-action {
+        display: inline-grid;
+      }
+      white-space: nowrap;
+      text-align: right;
+    }
+    .catalog-tag {
+      white-space: nowrap;
+    }
+  }
+  .profile-market__imports {
+    max-height: 320px;
+    overflow: auto;
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-sm);
+  }
+  .profile-market__import {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem;
+    border-bottom: 1px solid var(--tf-line-soft);
+    cursor: pointer;
+    input {
+      width: auto;
+      accent-color: var(--tf-action);
+    }
+    small {
+      display: block;
+      color: var(--tf-ink-soft);
+    }
+    &:has(input:checked) {
+      background: var(--tf-action-soft);
+    }
+  }
+  @media (max-width: 620px) {
+    .profile-market .profile-panel__header {
+      flex-direction: column;
+    }
+    .profile-market .profile-toolbar {
+      flex-wrap: wrap;
+    }
+  }
+}

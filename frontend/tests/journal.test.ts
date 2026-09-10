@@ -182,6 +182,7 @@ describe("paginated journal", () => {
     });
     app = createApp(RemoteCatalogSelect, {
       modelValue: 999,
+      profileId: 8,
       resource: "assets",
       placeholder: "Asset",
       emptyLabel: "No assets",
@@ -190,6 +191,6 @@ describe("paginated journal", () => {
     await vi.waitFor(() =>
       expect(document.querySelector("input")?.value).toBe("LATE"),
     );
-    expect(paths).toEqual(["/api/v1/catalog/assets/999"]);
+    expect(paths).toEqual(["/api/v1/profiles/8/assets/999"]);
   });
 });

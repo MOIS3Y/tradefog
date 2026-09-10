@@ -1,0 +1,265 @@
+/** Market analysis panels, namespaced with the application stylesheet. */
+.tf-app {
+  .market-book__modes {
+    display: flex;
+    gap: 0.2rem;
+    padding: 0.3rem 0.65rem;
+    button {
+      flex: 1;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--tf-ink-soft);
+      font: inherit;
+      font-size: 0.65rem;
+      padding: 0.3rem;
+      cursor: pointer;
+      &.active {
+        border-color: var(--tf-line);
+        color: var(--tf-ink);
+        background: var(--tf-panel-raised);
+      }
+    }
+  }
+  .market-book__row {
+    position: relative;
+    isolation: isolate;
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 0 auto;
+      width: var(--depth-width, 0%);
+      z-index: -1;
+      background: var(--tf-action-soft);
+    }
+  }
+  .market-book__asks .market-book__row::before {
+    background: color-mix(in srgb, var(--tf-danger) 16%, transparent);
+  }
+
+  .market-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 230px;
+    min-width: 0;
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-sm);
+    background: var(--tf-canvas);
+    overflow: hidden;
+    &--single {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    &__header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      min-height: 48px;
+      padding: 0.4rem 0.65rem;
+      border-bottom: 1px solid var(--tf-line-soft);
+      strong {
+        margin-right: auto;
+        font: 0.75rem var(--tf-mono);
+      }
+    }
+    .icon-action {
+      width: 30px;
+      height: 30px;
+      min-height: 30px;
+      flex-shrink: 0;
+      position: relative;
+    }
+    &__status,
+    &__warning {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      justify-content: space-between;
+      margin: 0;
+      padding: 0.45rem 0.65rem;
+      color: var(--tf-ink-soft);
+      font-size: 0.62rem;
+    }
+    &__warning {
+      color: var(--tf-type-equity);
+    }
+    button:focus-visible,
+    a:focus-visible {
+      outline: 2px solid var(--tf-action);
+      outline-offset: -2px;
+    }
+  }
+  .market-panel .market-panel__header .tf-select-trigger {
+    width: 78px;
+    min-width: 0;
+    flex: 0 0 78px;
+    min-height: 30px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.7rem;
+  }
+  .market-panel .market-text-button {
+    border: 0;
+    padding: 0.35rem;
+    background: transparent;
+    color: var(--tf-ink-soft);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.65rem;
+    &:hover {
+      color: var(--tf-ink-strong);
+    }
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+  .market-panel .market-chart__type .tf-select-trigger {
+    width: 100px;
+  }
+  .market-chart:fullscreen {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: max(0.5rem, env(safe-area-inset-top))
+      max(0.5rem, env(safe-area-inset-right))
+      max(0.5rem, env(safe-area-inset-bottom))
+      max(0.5rem, env(safe-area-inset-left));
+    background: var(--tf-canvas);
+    overflow: auto;
+    .market-chart__plot {
+      flex: 1;
+      min-height: 120px;
+    }
+    .market-chart__canvas {
+      position: absolute;
+      inset: 0;
+      height: 100%;
+    }
+  }
+  .market-chart {
+    min-width: 0;
+    &__toolbar,
+    &__confirmation {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.2rem;
+      padding: 0.25rem 0.5rem;
+      border-bottom: 1px solid var(--tf-line-soft);
+    }
+    &__toolbar small {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      font-size: 9px;
+    }
+    &__confirmation {
+      font-size: 0.7rem;
+    }
+    &__plot {
+      position: relative;
+    }
+    &__canvas {
+      height: 540px;
+      width: 100%;
+      touch-action: none;
+    }
+    &__loading {
+      position: absolute;
+      inset: 40% 1rem auto;
+      margin: 0;
+      padding: 0.7rem;
+      text-align: center;
+      background: var(--tf-canvas);
+      color: var(--tf-ink-soft);
+      font-size: 0.75rem;
+    }
+  }
+  .market-book {
+    min-width: 0;
+    border-left: 1px solid var(--tf-line);
+    &__toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      min-height: 48px;
+      padding: 0.7rem;
+      border: 0;
+      border-bottom: 1px solid var(--tf-line-soft);
+      background: transparent;
+      color: var(--tf-ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.75rem;
+    }
+    &__caption {
+      margin: 0;
+      padding: 0.3rem 0.65rem;
+      color: var(--tf-ink-soft);
+      font-size: 0.6rem;
+    }
+    &__labels,
+    &__row {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr 1fr;
+      gap: 0.35rem;
+      padding: 0 0.65rem;
+      text-align: right;
+      font: 0.6rem/13px var(--tf-mono);
+    }
+    &__labels {
+      padding-top: 0.25rem;
+      padding-bottom: 0.25rem;
+      color: var(--tf-ink-soft);
+    }
+    &__row span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    &__row:hover {
+      background: var(--tf-panel-raised);
+    }
+    &__asks .market-book__row > :first-child {
+      color: var(--tf-danger);
+    }
+    &__bids .market-book__row > :first-child {
+      color: var(--tf-action);
+    }
+    &__spread {
+      display: flex;
+      justify-content: space-between;
+      margin: 0.25rem 0;
+      padding: 0.5rem 0.65rem;
+      border-block: 1px solid var(--tf-line-soft);
+      color: var(--tf-ink-soft);
+      font: 0.65rem var(--tf-mono);
+      strong {
+        color: var(--tf-ink);
+      }
+    }
+  }
+  @container (max-width: 650px) {
+    .market-panel__header strong {
+      flex-basis: 100%;
+    }
+    .market-panel {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .market-chart__canvas {
+      height: 360px;
+    }
+    .market-book {
+      border-left: 0;
+      border-top: 1px solid var(--tf-line);
+    }
+    .market-book__row {
+      line-height: 17px;
+    }
+    .market-book__depth {
+      max-height: 360px;
+      overflow: auto;
+    }
+  }
+}

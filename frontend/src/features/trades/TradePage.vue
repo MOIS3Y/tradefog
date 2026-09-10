@@ -3,8 +3,8 @@ import { computed, reactive, watch } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { api } from "@/api/client";
-import { ApiError, toApiError } from "@/api/errors";
+import { getAsset, getInstrument } from "@/features/profiles/marketApi";
+import { ApiError } from "@/api/errors";
 import AppSelect from "@/components/AppSelect.vue";
 import SearchableSelect from "@/components/SearchableSelect.vue";
 import RemoteCatalogSelect from "@/components/RemoteCatalogSelect.vue";
@@ -48,7 +48,7 @@ const trade = computed(() => tradeQuery.data.value);
 const form = reactive({
   profile_id: null as number | null,
   strategy_id: null as number | null,
-  venue_instrument_id: null as number | null,
+  instrument_id: null as number | null,
   trade_date: new Date().toISOString().slice(0, 10),
   direction: "long" as Direction,
 });
@@ -73,18 +73,29 @@ const strategy = computed(() =>
 );
 const instrumentQuery = useQuery({
   queryKey: computed(() => [
-    "catalog",
+    "profile-market",
+    trade.value?.profile_id,
     "instrument",
-    trade.value?.venue_instrument_id,
+    trade.value?.instrument_id,
   ]),
   enabled: computed(() => !creating.value && !!trade.value),
+  queryFn: () =>
+    getInstrument(trade.value!.profile_id, trade.value!.instrument_id),
+});
+const assetsQuery = useQuery({
+  queryKey: computed(() => [
+    "profile-market",
+    profile.value?.id,
+    "trade-assets",
+    instrumentQuery.data.value?.id,
+  ]),
+  enabled: computed(() => !!instrumentQuery.data.value && !!profile.value),
   queryFn: async () => {
-    const { data, error, response } = await api.GET(
-      "/api/v1/catalog/instruments/{instrument_id}",
-      { params: { path: { instrument_id: trade.value!.venue_instrument_id } } },
-    );
-    if (!data) throw toApiError(error, response);
-    return data;
+    const i = instrumentQuery.data.value!;
+    return Promise.all([
+      getAsset(i.profile_id, i.base_asset_id),
+      getAsset(i.profile_id, i.quote_asset_id),
+    ]);
   },
 });
 const profileOptions = computed(() =>
@@ -107,14 +118,14 @@ watch(
   () => form.profile_id,
   () => {
     form.strategy_id = null;
-    form.venue_instrument_id = null;
+    form.instrument_id = null;
   },
 );
 const invalid = computed(
   () =>
     !form.profile_id ||
     !form.strategy_id ||
-    !form.venue_instrument_id ||
+    !form.instrument_id ||
     !form.trade_date,
 );
 const create = useMutation({
@@ -123,7 +134,7 @@ const create = useMutation({
       ...form,
       profile_id: form.profile_id!,
       strategy_id: form.strategy_id!,
-      venue_instrument_id: form.venue_instrument_id!,
+      instrument_id: form.instrument_id!,
     }),
   onSuccess: async (value) => {
     client.setQueryData(["trades", "detail", value.id], value);
@@ -166,7 +177,7 @@ async function deleted(): Promise<void> {
     <EmptyState
       v-else-if="!profileOptions.length"
       :title="$t('trades.fields.noProfiles')"
-      :body="$t('journal.setup')"
+      :description="$t('journal.setup')"
       ><RouterLink class="button button--primary" to="/profiles">{{
         $t("trades.fields.profile")
       }}</RouterLink></EmptyState
@@ -204,9 +215,9 @@ async function deleted(): Promise<void> {
       <label class="field"
         ><span>{{ $t("trades.fields.instrument") }}</span
         ><RemoteCatalogSelect
-          v-model="form.venue_instrument_id"
+          v-model="form.instrument_id"
           resource="instruments"
-          :venue-id="profile?.venue_id"
+          :profile-id="profile?.id"
           :params="{ visibility: 'active' }"
           :disabled="!profile"
           :placeholder="$t('trades.fields.selectInstrument')"
@@ -243,7 +254,7 @@ async function deleted(): Promise<void> {
           tradeQuery.error.value.status === 404)
       "
       :title="$t('notFound.title')"
-      :body="$t('notFound.body')"
+      :description="$t('notFound.body')"
     />
     <LoadingState
       v-else-if="
@@ -274,6 +285,8 @@ async function deleted(): Promise<void> {
         :profile="profile"
         :strategy="strategy"
         :instrument="instrumentQuery.data.value"
+        :base="assetsQuery.data.value?.[0]"
+        :quote="assetsQuery.data.value?.[1]"
         @updated="updated"
         @deleted="deleted"
       />

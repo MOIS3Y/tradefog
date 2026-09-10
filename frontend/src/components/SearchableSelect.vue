@@ -18,6 +18,7 @@ export interface SearchableOption {
   value: number;
   label: string;
   detail?: string;
+  disabled?: boolean;
 }
 
 const props = defineProps<{
@@ -107,6 +108,7 @@ function updateValue(value: unknown): void {
             :key="option.value"
             class="tf-combobox-item"
             :value="option.value"
+            :disabled="option.disabled"
             :text-value="`${option.label} ${option.detail ?? ''}`"
           >
             <span>

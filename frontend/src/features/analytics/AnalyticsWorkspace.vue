@@ -67,7 +67,6 @@ const filters = reactive<AnalyticsFilters>({
   strategyId: null,
   product: null,
   instrumentId: null,
-  pairId: null,
   settlementAssetId: null,
   strategyCapitalId: null,
 });
@@ -216,18 +215,13 @@ watch(
     filters.strategyId = null;
     filters.strategyCapitalId = null;
     filters.instrumentId = null;
+    filters.settlementAssetId = null;
   },
 );
 watch(
   () => filters.strategyId,
   () => {
     filters.strategyCapitalId = null;
-  },
-);
-watch(
-  () => filters.pairId,
-  () => {
-    filters.instrumentId = null;
   },
 );
 watch(
@@ -260,7 +254,6 @@ function resetFilters(): void {
     strategyId: null,
     product: null,
     instrumentId: null,
-    pairId: null,
     settlementAssetId: null,
     strategyCapitalId: null,
   });
@@ -612,29 +605,18 @@ function openTrade(tradeId: number): void {
         :label="$t('analytics.filters.product')"
       />
       <RemoteCatalogSelect
-        v-model="filters.pairId"
-        resource="pairs"
-        :placeholder="$t('analytics.filters.allPairs')"
-        :empty-label="$t('analytics.filters.noPairs')"
-      />
-      <RemoteCatalogSelect
         v-model="filters.instrumentId"
         resource="instruments"
-        :venue-id="
-          filters.profileId
-            ? profileById.get(filters.profileId)?.venue_id
-            : undefined
-        "
-        :params="{
-          pair_id: filters.pairId ?? undefined,
-          product: productChoice === 'all' ? undefined : productChoice,
-        }"
+        :profile-id="filters.profileId ?? undefined"
+        :disabled="!filters.profileId"
         :placeholder="$t('analytics.filters.allInstruments')"
         :empty-label="$t('analytics.filters.noInstruments')"
       />
       <RemoteCatalogSelect
         v-model="filters.settlementAssetId"
         resource="assets"
+        :profile-id="filters.profileId ?? undefined"
+        :disabled="!filters.profileId"
         :placeholder="$t('analytics.filters.allAssets')"
         :empty-label="$t('analytics.filters.noAssets')"
       />

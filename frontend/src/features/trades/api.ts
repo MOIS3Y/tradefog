@@ -105,7 +105,7 @@ export async function refreshATR(
 
 export async function previewPlan(id: number, input: PlanInput): Promise<Plan> {
   const { data, error, response } = await api.POST(
-    "/api/v1/trades/{trade_id}/plan",
+    "/api/v1/trades/{trade_id}/plan/preview",
     { params: { path: { trade_id: id } }, body: input },
   );
   if (data === undefined) throw toApiError(error, response);
@@ -114,14 +114,17 @@ export async function previewPlan(id: number, input: PlanInput): Promise<Plan> {
 
 export async function getPlanningContext(id: number): Promise<PlanningContext> {
   const { data, error, response } = await api.GET(
-    "/api/v1/trades/{trade_id}/plan-context",
+    "/api/v1/trades/{trade_id}/planning-context",
     { params: { path: { trade_id: id } } },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
-export async function savePlan(id: number, input: PlanInput): Promise<Trade> {
+export async function savePlan(
+  id: number,
+  input: components["schemas"]["TradePlanSave"],
+): Promise<Trade> {
   const { data, error, response } = await api.PUT(
     "/api/v1/trades/{trade_id}/plan",
     { params: { path: { trade_id: id } }, body: input },

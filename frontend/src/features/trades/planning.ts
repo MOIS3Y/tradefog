@@ -49,6 +49,9 @@ export interface LocalPositionPlan {
   wallet_available: string;
   capital_remaining: string;
   capital_sufficient: boolean;
+  inventory_required: string;
+  inventory_available: string;
+  settlement_required: string;
   atr_value: string | null;
   take_profit_atr_percent: string | null;
   fits_atr_limit: boolean | null;
@@ -182,7 +185,13 @@ export function calculateLocalPosition(
   }
 
   const actualRisk = quantity.mul(distance);
-  const capitalRemaining = decimal(context.wallet_available).sub(notional);
+  const buyback =
+    direction === "short" && ["spot", "cash_equity"].includes(context.product);
+  const settlementRequired = buyback ? actualRisk : notional;
+  const inventoryRequired = buyback ? quantity : decimal("0");
+  const capitalRemaining = decimal(context.wallet_available).sub(
+    settlementRequired,
+  );
   const riskAvailable = decimal(context.remaining_risk_capacity);
   const atrPercent = calculateAtrUsage(exactString(targetDistance), atrValue);
 
@@ -207,7 +216,14 @@ export function calculateLocalPosition(
     wallet_available: context.wallet_available,
     capital_remaining: exactString(capitalRemaining),
     capital_sufficient:
-      capitalRemaining.gte(0) && targetRisk.lte(riskAvailable),
+      capitalRemaining.gte(0) &&
+      targetRisk.lte(riskAvailable) &&
+      (!buyback ||
+        (context.inventory_wallet_asset_id !== null &&
+          inventoryRequired.lte(context.inventory_available))),
+    inventory_required: exactString(inventoryRequired),
+    inventory_available: context.inventory_available,
+    settlement_required: exactString(settlementRequired),
     atr_value: atrValue ?? null,
     take_profit_atr_percent: atrPercent,
     fits_atr_limit: atrPercent === null ? null : decimal(atrPercent).lte(75),

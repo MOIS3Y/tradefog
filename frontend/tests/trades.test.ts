@@ -25,7 +25,7 @@ const trade: Trade = {
   id: 21,
   profile_id: 3,
   strategy_id: 7,
-  venue_instrument_id: 11,
+  instrument_id: 11,
   trade_date: "2026-09-08",
   status: "draft",
   direction: "long",
@@ -51,6 +51,21 @@ const trade: Trade = {
     trend_relationship: "UNASSESSED",
     agrees_with_trade: null,
   },
+  preparation: {
+    planned_entry: null,
+    planned_stop: null,
+    market_sentiment: null,
+    information_background: null,
+    global_daily_direction: null,
+    local_daily_movement: null,
+    atr_value: null,
+    atr_source: null,
+    atr_contributing_date: null,
+    atr_observation_time: null,
+    atr_stale: false,
+    observed_session_range: null,
+  },
+  reservations: [],
   plan: null,
   atr: null,
   snapshot: null,
@@ -102,6 +117,12 @@ describe("trade lifecycle client", () => {
       wallet_reserved: "0",
       wallet_available: "10000",
       deposit_floor_breach: false,
+      product: "spot",
+      direction: "long",
+      base_asset_id: 1,
+      settlement_asset_id: 2,
+      inventory_wallet_asset_id: 4,
+      inventory_available: "10",
     };
     const plan = calculateLocalPosition(context, "long", "100", "97", "20");
 
@@ -110,6 +131,47 @@ describe("trade lifecycle client", () => {
     expect(plan.planned_risk_amount).toBe("8.4");
     expect(plan.target_risk_amount).toBe("10");
     expect(plan.capital_remaining).toBe("9720");
+    const shortContext = {
+      ...context,
+      quantity_step: "0.001",
+      wallet_available: "20",
+      inventory_available: "1",
+    };
+    const short = calculateLocalPosition(shortContext, "short", "100", "110");
+    expect(short).toMatchObject({
+      capital_remaining: "10",
+      capital_sufficient: true,
+      inventory_required: "1",
+      settlement_required: "10",
+    });
+    expect(
+      calculateLocalPosition(
+        { ...shortContext, inventory_available: "0.9" },
+        "short",
+        "100",
+        "110",
+      ).capital_sufficient,
+    ).toBe(false);
+    expect(
+      calculateLocalPosition(
+        { ...shortContext, inventory_wallet_asset_id: null },
+        "short",
+        "100",
+        "110",
+      ).capital_sufficient,
+    ).toBe(false);
+    expect(
+      calculateLocalPosition(
+        { ...shortContext, product: "perpetual_future" },
+        "short",
+        "100",
+        "110",
+      ),
+    ).toMatchObject({
+      capital_remaining: "-80",
+      capital_sufficient: false,
+      inventory_required: "0",
+    });
     expect(calculatePlannedProfit("8.4", 3)).toBe("25.2");
     expect(calculateAtrUsage("15", "40")).toBe("37.5");
     expect(normalizeToStep("100.005", "0.01")).toBe("100.01");
@@ -172,6 +234,12 @@ describe("trade lifecycle client", () => {
       submitted_at: "2026-09-08T12:15:00Z",
       snapshot: {
         id: 31,
+        instrument_symbol: "BTCUSDT",
+        instrument_product: "spot",
+        price_step: "0.01",
+        qty_step: "0.001",
+        min_qty: null,
+        min_notional: null,
         strategy_capital_id: 17,
         settlement_asset_id: 5,
         planned_entry: "100",
@@ -225,7 +293,7 @@ describe("trade lifecycle client", () => {
     await createTrade({
       profile_id: 3,
       strategy_id: 7,
-      venue_instrument_id: 11,
+      instrument_id: 11,
       trade_date: "2026-09-08",
       direction: "long",
     });

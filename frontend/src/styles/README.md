@@ -13,9 +13,11 @@ when the compiled SPA is embedded or extended.
 - `_feedback.scss` — dialogs, confirmations, and toast notifications.
 - `_auth.scss` — authentication and entry-screen composition.
 - `_trades.scss` — trade navigation, lifecycle, and decision workspace.
+- `_market-chart.scss` — optional chart, drawing controls, and order book.
 - `_shell.scss` — signed-in navigation shell and workspace cards.
 - `_catalog.scss` — shared catalog tables and navigation.
 - `_venues.scss` — venue directory, details, instruments, and wallet assets.
+- `_profile-market.scss` — profile-local asset/instrument setup and imports.
 - `_profiles.scss` — profiles, wallet ledger, strategies, and allocations.
 - `_analytics.scss` — filters, performance trajectories, and allocation
   results.

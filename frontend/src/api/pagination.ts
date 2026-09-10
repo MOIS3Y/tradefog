@@ -9,5 +9,5 @@ export interface Page<T> {
 }
 
 export type ListParams = NonNullable<
-  paths["/api/v1/catalog/assets"]["get"]["parameters"]["query"]
+  paths["/api/v1/profiles/{profile_id}/assets"]["get"]["parameters"]["query"]
 >;

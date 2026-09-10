@@ -170,7 +170,7 @@ const saveMutation = useMutation({
       reward_multiple: Number(strategyForm.rewardMultiple),
     };
     return editing.value
-      ? updateStrategy(editing.value.id, input)
+      ? updateStrategy(props.profile.id, editing.value.id, input)
       : createStrategy(props.profile.id, input);
   },
   onSuccess: async (strategy) => {
@@ -191,7 +191,9 @@ const saveMutation = useMutation({
 
 const statusMutation = useMutation({
   mutationFn: (strategy: Strategy) =>
-    updateStrategy(strategy.id, { is_archived: !strategy.is_archived }),
+    updateStrategy(props.profile.id, strategy.id, {
+      is_archived: !strategy.is_archived,
+    }),
   onSuccess: async (strategy) => {
     await refresh();
     statusTarget.value = null;
@@ -208,7 +210,8 @@ const statusMutation = useMutation({
 });
 
 const removeMutation = useMutation({
-  mutationFn: (strategy: Strategy) => deleteStrategy(strategy.id),
+  mutationFn: (strategy: Strategy) =>
+    deleteStrategy(props.profile.id, strategy.id),
   onSuccess: async (_, strategy) => {
     selectedId.value = null;
     await refresh();
@@ -224,10 +227,16 @@ const removeMutation = useMutation({
 const allocationMutation = useMutation({
   mutationFn: () =>
     allocationEditing.value
-      ? updateAllocation(allocationEditing.value.id, {
-          capital: allocationForm.capital,
-        })
+      ? updateAllocation(
+          props.profile.id,
+          selected.value!.id,
+          allocationEditing.value.id,
+          {
+            capital: allocationForm.capital,
+          },
+        )
       : createAllocation(
+          props.profile.id,
           selected.value?.id ?? 0,
           allocationForm.walletAssetId ?? 0,
           allocationForm.capital,
@@ -249,7 +258,9 @@ const allocationMutation = useMutation({
 
 const allocationStatusMutation = useMutation({
   mutationFn: (allocation: Allocation) =>
-    updateAllocation(allocation.id, { is_archived: !allocation.is_archived }),
+    updateAllocation(props.profile.id, selected.value!.id, allocation.id, {
+      is_archived: !allocation.is_archived,
+    }),
   onSuccess: async () => {
     await refresh();
     allocationStatusTarget.value = null;

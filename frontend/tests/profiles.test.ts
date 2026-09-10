@@ -13,7 +13,7 @@ import { isPositiveDecimal } from "@/utils/decimal";
 
 const profile: Profile = {
   id: 8,
-  venue_id: 3,
+  venue_type: "bybit",
   name: "Bybit Main",
   description: null,
   is_archived: false,
@@ -64,16 +64,17 @@ describe("profile setup flow", () => {
     );
 
     await createProfile({
-      venue_id: profile.venue_id,
+      venue_type: profile.venue_type,
       name: profile.name,
       description: null,
     });
-    await createOperation(operation.wallet_asset_id, {
+    await createOperation(profile.id, {
+      wallet_asset_id: operation.wallet_asset_id,
       kind: "deposit",
       amount: "1000.000000000000000000",
       note: null,
     });
-    await updateOperationNote(operation.id, "Initial capital");
+    await updateOperationNote(profile.id, operation.id, "Initial capital");
     await deleteProfile(profile.id);
 
     expect(requests.map((request) => request.method)).toEqual([
@@ -86,7 +87,7 @@ describe("profile setup flow", () => {
       note: "Initial capital",
     });
     expect(new URL(requests[1]?.url ?? "").pathname).toBe(
-      `/api/v1/profiles/wallet-assets/${operation.wallet_asset_id}/operations`,
+      `/api/v1/profiles/${profile.id}/wallet/operations`,
     );
   });
 });

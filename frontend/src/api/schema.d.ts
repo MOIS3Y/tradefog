@@ -81,10 +81,14 @@ export interface paths {
     delete?: never;
     options?: never;
     head?: never;
-    patch?: never;
+    /**
+     * Update Current User
+     * @description Edit only the authenticated user's optional contact fields.
+     */
+    patch: operations["update_current_user_api_v1_auth_me_patch"];
     trace?: never;
   };
-  "/api/v1/catalog/assets": {
+  "/api/v1/profiles/{profile_id}/assets": {
     parameters: {
       query?: never;
       header?: never;
@@ -93,22 +97,22 @@ export interface paths {
     };
     /**
      * List Assets
-     * @description List globally reusable assets, optionally filtered by their type.
+     * @description Search only assets belonging to the requested owned profile.
      */
-    get: operations["list_assets_api_v1_catalog_assets_get"];
+    get: operations["list_assets_api_v1_profiles__profile_id__assets_get"];
     put?: never;
     /**
      * Create Asset
-     * @description Create a new staff-managed shared asset identity.
+     * @description Create manual metadata, never a virtual balance.
      */
-    post: operations["create_asset_api_v1_catalog_assets_post"];
+    post: operations["create_asset_api_v1_profiles__profile_id__assets_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/catalog/assets/{asset_id}": {
+  "/api/v1/profiles/{profile_id}/assets/{asset_id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -117,130 +121,26 @@ export interface paths {
     };
     /**
      * Get Asset
-     * @description Return one shared asset by its installation-wide identifier.
+     * @description Resolve an asset without exposing other profiles.
      */
-    get: operations["get_asset_api_v1_catalog_assets__asset_id__get"];
+    get: operations["get_asset_api_v1_profiles__profile_id__assets__asset_id__get"];
     put?: never;
     post?: never;
     /**
      * Delete Asset
-     * @description Delete an unused asset without cascading into catalog history.
+     * @description Remove only an inactive unreferenced asset.
      */
-    delete: operations["delete_asset_api_v1_catalog_assets__asset_id__delete"];
+    delete: operations["delete_asset_api_v1_profiles__profile_id__assets__asset_id__delete"];
     options?: never;
     head?: never;
     /**
      * Update Asset
-     * @description Apply selected staff corrections to a shared asset.
+     * @description Edit labels and local availability without changing historical identity.
      */
-    patch: operations["update_asset_api_v1_catalog_assets__asset_id__patch"];
+    patch: operations["update_asset_api_v1_profiles__profile_id__assets__asset_id__patch"];
     trace?: never;
   };
-  "/api/v1/catalog/pairs": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * List Pairs
-     * @description List logical markets with their base and quote assets.
-     */
-    get: operations["list_pairs_api_v1_catalog_pairs_get"];
-    put?: never;
-    /**
-     * Create Pair
-     * @description Create a logical market and derive its canonical BASE/QUOTE symbol.
-     */
-    post: operations["create_pair_api_v1_catalog_pairs_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/catalog/pairs/{pair_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get Pair
-     * @description Return one logical market with both constituent assets.
-     */
-    get: operations["get_pair_api_v1_catalog_pairs__pair_id__get"];
-    put?: never;
-    post?: never;
-    /**
-     * Delete Pair
-     * @description Delete an unused pair without cascading into venue instruments.
-     */
-    delete: operations["delete_pair_api_v1_catalog_pairs__pair_id__delete"];
-    options?: never;
-    head?: never;
-    /**
-     * Update Pair
-     * @description Correct pair assets and regenerate their canonical symbol.
-     */
-    patch: operations["update_pair_api_v1_catalog_pairs__pair_id__patch"];
-    trace?: never;
-  };
-  "/api/v1/catalog/venues": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * List Venues
-     * @description List venues with explicit visibility, search and ordering.
-     */
-    get: operations["list_venues_api_v1_catalog_venues_get"];
-    put?: never;
-    /**
-     * Create Venue
-     * @description Create a staff-managed execution venue.
-     */
-    post: operations["create_venue_api_v1_catalog_venues_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/catalog/venues/{venue_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get Venue
-     * @description Return one exchange or broker destination.
-     */
-    get: operations["get_venue_api_v1_catalog_venues__venue_id__get"];
-    put?: never;
-    post?: never;
-    /**
-     * Delete Venue
-     * @description Delete an archived venue with no catalog or journal references.
-     */
-    delete: operations["delete_venue_api_v1_catalog_venues__venue_id__delete"];
-    options?: never;
-    head?: never;
-    /**
-     * Update Venue
-     * @description Apply selected staff updates, including soft deactivation, to a venue.
-     */
-    patch: operations["update_venue_api_v1_catalog_venues__venue_id__patch"];
-    trace?: never;
-  };
-  "/api/v1/catalog/venues/{venue_id}/instruments": {
+  "/api/v1/profiles/{profile_id}/instruments": {
     parameters: {
       query?: never;
       header?: never;
@@ -249,42 +149,22 @@ export interface paths {
     };
     /**
      * List Instruments
-     * @description List executable products at a venue with their market identities.
+     * @description Page selected instruments, never the whole exchange catalog.
      */
-    get: operations["list_instruments_api_v1_catalog_venues__venue_id__instruments_get"];
+    get: operations["list_instruments_api_v1_profiles__profile_id__instruments_get"];
     put?: never;
     /**
      * Create Instrument
-     * @description Add executable order rules for an existing venue and logical pair.
+     * @description Import Bybit metadata or validate an explicit manual specification.
      */
-    post: operations["create_instrument_api_v1_catalog_venues__venue_id__instruments_post"];
+    post: operations["create_instrument_api_v1_profiles__profile_id__instruments_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/catalog/instruments": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * List All Instruments
-     * @description Search instruments across venues without loading each venue list.
-     */
-    get: operations["list_all_instruments_api_v1_catalog_instruments_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/catalog/instruments/{instrument_id}": {
+  "/api/v1/profiles/{profile_id}/instruments/{instrument_id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -293,70 +173,26 @@ export interface paths {
     };
     /**
      * Get Instrument
-     * @description Resolve one instrument independently of catalog pagination.
+     * @description Resolve an instrument within its exact profile.
      */
-    get: operations["get_instrument_api_v1_catalog_instruments__instrument_id__get"];
+    get: operations["get_instrument_api_v1_profiles__profile_id__instruments__instrument_id__get"];
     put?: never;
     post?: never;
     /**
      * Delete Instrument
-     * @description Delete an archived instrument that has never been used by a trade.
+     * @description Delete only an archived instrument without trade history.
      */
-    delete: operations["delete_instrument_api_v1_catalog_instruments__instrument_id__delete"];
+    delete: operations["delete_instrument_api_v1_profiles__profile_id__instruments__instrument_id__delete"];
     options?: never;
     head?: never;
     /**
      * Update Instrument
-     * @description Update venue execution parameters without deleting historical identity.
+     * @description Keep exchange-owned rules read-only while allowing local archives.
      */
-    patch: operations["update_instrument_api_v1_catalog_instruments__instrument_id__patch"];
+    patch: operations["update_instrument_api_v1_profiles__profile_id__instruments__instrument_id__patch"];
     trace?: never;
   };
-  "/api/v1/catalog/venues/{venue_id}/wallet-assets": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * List Venue Wallet Assets
-     * @description List assets that can be held in a wallet on the selected venue.
-     */
-    get: operations["list_venue_wallet_assets_api_v1_catalog_venues__venue_id__wallet_assets_get"];
-    put?: never;
-    /**
-     * Create Venue Wallet Asset
-     * @description Mark an existing asset as wallet-capable for a venue.
-     */
-    post: operations["create_venue_wallet_asset_api_v1_catalog_venues__venue_id__wallet_assets_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/catalog/wallet-assets/{capability_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get Wallet Capability
-     * @description Resolve a selected wallet capability independently of its page.
-     */
-    get: operations["get_wallet_capability_api_v1_catalog_wallet_assets__capability_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/catalog/wallet-assets/{venue_wallet_asset_id}": {
+  "/api/v1/profiles/{profile_id}/instruments/{instrument_id}/refresh": {
     parameters: {
       query?: never;
       header?: never;
@@ -365,19 +201,15 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    post?: never;
     /**
-     * Delete Venue Wallet Asset
-     * @description Delete an archived wallet capability absent from profile wallets.
+     * Refresh Instrument
+     * @description Update supported source metadata without repurposing the instrument.
      */
-    delete: operations["delete_venue_wallet_asset_api_v1_catalog_wallet_assets__venue_wallet_asset_id__delete"];
+    post: operations["refresh_instrument_api_v1_profiles__profile_id__instruments__instrument_id__refresh_post"];
+    delete?: never;
     options?: never;
     head?: never;
-    /**
-     * Update Venue Wallet Asset
-     * @description Enable or archive a venue settlement capability without deleting it.
-     */
-    patch: operations["update_venue_wallet_asset_api_v1_catalog_wallet_assets__venue_wallet_asset_id__patch"];
+    patch?: never;
     trace?: never;
   };
   "/api/v1/profiles": {
@@ -459,7 +291,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List Wallet Assets
+     * @description Search and page owned wallet denominations independently.
+     */
+    get: operations["list_wallet_assets_api_v1_profiles__profile_id__wallet_assets_get"];
     put?: never;
     /**
      * Create Wallet Asset
@@ -472,7 +308,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/profiles/wallet-assets/{wallet_asset_id}": {
+  "/api/v1/profiles/{profile_id}/wallet/assets/{wallet_asset_id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -489,10 +325,10 @@ export interface paths {
      * Update Wallet Asset
      * @description Edit a risk floor or archive an unused zero-balance wallet asset.
      */
-    patch: operations["update_wallet_asset_api_v1_profiles_wallet_assets__wallet_asset_id__patch"];
+    patch: operations["update_wallet_asset_api_v1_profiles__profile_id__wallet_assets__wallet_asset_id__patch"];
     trace?: never;
   };
-  "/api/v1/profiles/wallet-assets/{wallet_asset_id}/operations": {
+  "/api/v1/profiles/{profile_id}/wallet/operations": {
     parameters: {
       query?: never;
       header?: never;
@@ -503,20 +339,20 @@ export interface paths {
      * List Wallet Operations
      * @description List immutable ledger facts for one owned wallet asset.
      */
-    get: operations["list_wallet_operations_api_v1_profiles_wallet_assets__wallet_asset_id__operations_get"];
+    get: operations["list_wallet_operations_api_v1_profiles__profile_id__wallet_operations_get"];
     put?: never;
     /**
      * Create Wallet Operation
      * @description Append a deposit or withdrawal to an active wallet asset.
      */
-    post: operations["create_wallet_operation_api_v1_profiles_wallet_assets__wallet_asset_id__operations_post"];
+    post: operations["create_wallet_operation_api_v1_profiles__profile_id__wallet_operations_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/profiles/wallet-operations/{operation_id}": {
+  "/api/v1/profiles/{profile_id}/wallet/operations/{operation_id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -533,7 +369,7 @@ export interface paths {
      * Update Wallet Operation Note
      * @description Correct an operation note without changing its financial fact.
      */
-    patch: operations["update_wallet_operation_note_api_v1_profiles_wallet_operations__operation_id__patch"];
+    patch: operations["update_wallet_operation_note_api_v1_profiles__profile_id__wallet_operations__operation_id__patch"];
     trace?: never;
   };
   "/api/v1/profiles/{profile_id}/strategies": {
@@ -545,7 +381,7 @@ export interface paths {
     };
     /**
      * List Strategies
-     * @description List strategies and allocations belonging to one owned profile.
+     * @description Search and page strategies before loading their allocations.
      */
     get: operations["list_strategies_api_v1_profiles__profile_id__strategies_get"];
     put?: never;
@@ -560,51 +396,59 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/profiles/strategies/{strategy_id}": {
+  "/api/v1/profiles/{profile_id}/strategies/{strategy_id}": {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * Get Strategy
+     * @description Return a strategy only within its owning profile.
+     */
+    get: operations["get_strategy_api_v1_profiles__profile_id__strategies__strategy_id__get"];
     put?: never;
     post?: never;
     /**
      * Delete Strategy
      * @description Delete an archived strategy that has no trade history.
      */
-    delete: operations["delete_strategy_api_v1_profiles_strategies__strategy_id__delete"];
+    delete: operations["delete_strategy_api_v1_profiles__profile_id__strategies__strategy_id__delete"];
     options?: never;
     head?: never;
     /**
      * Update Strategy
      * @description Edit strategy rules while preserving frozen snapshot history.
      */
-    patch: operations["update_strategy_api_v1_profiles_strategies__strategy_id__patch"];
+    patch: operations["update_strategy_api_v1_profiles__profile_id__strategies__strategy_id__patch"];
     trace?: never;
   };
-  "/api/v1/profiles/strategies/{strategy_id}/allocations": {
+  "/api/v1/profiles/{profile_id}/strategies/{strategy_id}/allocations": {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List Allocations
+     * @description Page allocations within their exact owning strategy and profile.
+     */
+    get: operations["list_allocations_api_v1_profiles__profile_id__strategies__strategy_id__allocations_get"];
     put?: never;
     /**
      * Create Allocation
      * @description Allocate available wallet capital to an active strategy.
      */
-    post: operations["create_allocation_api_v1_profiles_strategies__strategy_id__allocations_post"];
+    post: operations["create_allocation_api_v1_profiles__profile_id__strategies__strategy_id__allocations_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/profiles/allocations/{allocation_id}": {
+  "/api/v1/profiles/{profile_id}/strategies/{strategy_id}/allocations/{allocation_id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -621,7 +465,7 @@ export interface paths {
      * Update Allocation
      * @description Edit unlocked capital or archive a strategy allocation.
      */
-    patch: operations["update_allocation_api_v1_profiles_allocations__allocation_id__patch"];
+    patch: operations["update_allocation_api_v1_profiles__profile_id__strategies__strategy_id__allocations__allocation_id__patch"];
     trace?: never;
   };
   "/api/v1/trades": {
@@ -716,6 +560,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/trades/{trade_id}/plan/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Preview Trade Plan
+     * @description Calculate an executable plan without persisting a snapshot.
+     */
+    post: operations["preview_trade_plan_api_v1_trades__trade_id__plan_preview_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/trades/{trade_id}/planning-context": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Trade Plan Context
+     * @description Return stable exact inputs for a responsive local draft calculator.
+     */
+    get: operations["get_trade_plan_context_api_v1_trades__trade_id__planning_context_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/trades/{trade_id}/plan": {
     parameters: {
       query?: never;
@@ -729,30 +613,6 @@ export interface paths {
      * @description Persist editable entry and stop values in a draft context.
      */
     put: operations["save_trade_plan_api_v1_trades__trade_id__plan_put"];
-    /**
-     * Preview Trade Plan
-     * @description Calculate an executable plan without persisting a snapshot.
-     */
-    post: operations["preview_trade_plan_api_v1_trades__trade_id__plan_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/trades/{trade_id}/plan-context": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get Trade Plan Context
-     * @description Return stable exact inputs for a responsive local draft calculator.
-     */
-    get: operations["get_trade_plan_context_api_v1_trades__trade_id__plan_context_get"];
-    put?: never;
     post?: never;
     delete?: never;
     options?: never;
@@ -944,6 +804,126 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/venues": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Venues
+     * @description List built-in integration choices, not user-owned catalog rows.
+     */
+    get: operations["list_venues_api_v1_venues_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/venues/{venue_type}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Venue Capabilities
+     * @description Describe optional functionality for one integration.
+     */
+    get: operations["venue_capabilities_api_v1_venues__venue_type__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/venues/{venue_type}/public/instruments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Instruments
+     * @description Browse supported upstream instruments without database writes.
+     */
+    get: operations["instruments_api_v1_venues__venue_type__public_instruments_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/venues/{venue_type}/public/instruments/{symbol}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Instrument
+     * @description Resolve exact metadata for one selected executable instrument.
+     */
+    get: operations["instrument_api_v1_venues__venue_type__public_instruments__symbol__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/venues/{venue_type}/public/klines": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Klines
+     * @description Fetch chronological OHLCV; before is an exclusive UTC-ms boundary.
+     */
+    get: operations["klines_api_v1_venues__venue_type__public_klines_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/venues/{venue_type}/public/orderbook": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Orderbook
+     * @description Fetch a current depth snapshot independently of trade state.
+     */
+    get: operations["orderbook_api_v1_venues__venue_type__public_orderbook_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1096,27 +1076,30 @@ export interface components {
     AssessmentDirection: "SHORT" | "NEUTRAL" | "LONG";
     /**
      * AssetPatch
-     * @description Optional staff edits to an existing asset.
+     * @description Edit presentation or availability without repurposing identity.
      */
     AssetPatch: {
-      /** Symbol */
-      symbol?: string | null;
       /** Name */
       name?: string | null;
-      asset_type?: components["schemas"]["AssetType"] | null;
+      /** Is Active */
+      is_active?: boolean | null;
     };
     /**
      * AssetResponse
-     * @description Shared asset identity returned by catalog endpoints.
+     * @description One asset owned by the profile.
      */
     AssetResponse: {
       /** Id */
       id: number;
+      /** Profile Id */
+      profile_id: number;
       /** Symbol */
       symbol: string;
       /** Name */
       name: string | null;
       asset_type: components["schemas"]["AssetType"];
+      /** Is Active */
+      is_active: boolean;
     };
     /**
      * AssetType
@@ -1126,7 +1109,7 @@ export interface components {
     AssetType: "crypto" | "equity" | "fiat";
     /**
      * AssetWrite
-     * @description Staff-managed attributes for a shared asset.
+     * @description Create a manual asset in one profile.
      */
     AssetWrite: {
       /** Symbol */
@@ -1186,6 +1169,48 @@ export interface components {
     Body_upload_attachment_api_v1_trades__trade_id__attachments_post: {
       /** Upload */
       upload: string;
+    };
+    /**
+     * BookLevel
+     * @description Resting quantity in base units at an exact price.
+     */
+    BookLevel: {
+      /** Price */
+      price: string;
+      /** Size */
+      size: string;
+    };
+    /**
+     * Candle
+     * @description One candle identified by its UTC opening time in milliseconds.
+     */
+    Candle: {
+      /** Timestamp */
+      timestamp: number;
+      /** Open */
+      open: string;
+      /** High */
+      high: string;
+      /** Low */
+      low: string;
+      /** Close */
+      close: string;
+      /** Volume */
+      volume: string;
+      /** Turnover */
+      turnover?: string | null;
+    };
+    /**
+     * CandlePage
+     * @description Ascending candle history with an exclusive backward cursor.
+     */
+    CandlePage: {
+      /** Bars */
+      bars: components["schemas"]["Candle"][];
+      /** Has More */
+      has_more: boolean;
+      /** Received At */
+      received_at: number;
     };
     /**
      * CandleResponse
@@ -1280,13 +1305,22 @@ export interface components {
       version: string;
     };
     /**
+     * InstrumentPage
+     * @description Provider page of supported instruments; never imports implicitly.
+     */
+    InstrumentPage: {
+      /** Items */
+      items: components["schemas"]["InstrumentSpec"][];
+      /** Next Cursor */
+      next_cursor?: string | null;
+    };
+    /**
      * InstrumentPatch
-     * @description Optional staff edits to an executable venue market.
+     * @description Update editable metadata; identity remains immutable.
      */
     InstrumentPatch: {
-      product?: components["schemas"]["ProductKind"] | null;
-      /** Exec Symbol */
-      exec_symbol?: string | null;
+      /** Name */
+      name?: string | null;
       /** Price Step */
       price_step?: number | string | null;
       /** Qty Step */
@@ -1295,24 +1329,31 @@ export interface components {
       min_qty?: number | string | null;
       /** Min Notional */
       min_notional?: number | string | null;
-      /** Settlement Asset Id */
-      settlement_asset_id?: number | null;
       /** Is Active */
       is_active?: boolean | null;
+      /** Is Archived */
+      is_archived?: boolean | null;
     };
     /**
      * InstrumentResponse
-     * @description Executable venue market and its order-size rules.
+     * @description Normalized profile instrument with exact execution rules.
      */
     InstrumentResponse: {
       /** Id */
       id: number;
-      /** Venue Id */
-      venue_id: number;
-      pair: components["schemas"]["PairResponse"];
-      product: components["schemas"]["ProductKind"];
+      /** Profile Id */
+      profile_id: number;
       /** Exec Symbol */
       exec_symbol: string;
+      /** Name */
+      name: string | null;
+      product: components["schemas"]["ProductKind"];
+      /** Base Asset Id */
+      base_asset_id: number;
+      /** Quote Asset Id */
+      quote_asset_id: number;
+      /** Settlement Asset Id */
+      settlement_asset_id: number;
       /** Price Step */
       price_step: string;
       /** Qty Step */
@@ -1321,42 +1362,65 @@ export interface components {
       min_qty: string | null;
       /** Min Notional */
       min_notional: string | null;
-      settlement_asset: components["schemas"]["AssetResponse"] | null;
+      /** Metadata Updated At */
+      metadata_updated_at: string | null;
+      /** Is Active */
+      is_active: boolean;
+      /** Is Archived */
+      is_archived: boolean;
+    };
+    /**
+     * InstrumentSpec
+     * @description Supported executable instrument metadata suitable for import.
+     */
+    InstrumentSpec: {
+      /** Symbol */
+      symbol: string;
+      product: components["schemas"]["MarketProduct"];
+      /** Base */
+      base: string;
+      /** Quote */
+      quote: string;
+      /** Settlement */
+      settlement: string;
+      /** Price Step */
+      price_step: string;
+      /** Qty Step */
+      qty_step: string;
+      /** Min Qty */
+      min_qty?: string | null;
+      /** Min Notional */
+      min_notional?: string | null;
       /** Is Active */
       is_active: boolean;
     };
     /**
      * InstrumentWrite
-     * @description Staff input for a venue-specific executable market.
+     * @description Symbol-only import for Bybit, complete specification for manual.
      */
     InstrumentWrite: {
-      /** Pair Id */
-      pair_id: number;
-      product: components["schemas"]["ProductKind"];
       /** Exec Symbol */
       exec_symbol: string;
+      product: components["schemas"]["ProductKind"];
+      /** Name */
+      name?: string | null;
+      /** Base Asset Id */
+      base_asset_id?: number | null;
+      /** Quote Asset Id */
+      quote_asset_id?: number | null;
+      /** Settlement Asset Id */
+      settlement_asset_id?: number | null;
       /** Price Step */
-      price_step: number | string;
+      price_step?: number | string | null;
       /** Qty Step */
-      qty_step: number | string;
+      qty_step?: number | string | null;
       /** Min Qty */
       min_qty?: number | string | null;
       /** Min Notional */
       min_notional?: number | string | null;
-      /** Settlement Asset Id */
-      settlement_asset_id?: number | null;
-      /**
-       * Is Active
-       * @default true
-       */
-      is_active: boolean;
     };
-    /**
-     * MarketDataProvider
-     * @description Provider for on-demand market candles and ATR context.
-     * @enum {string}
-     */
-    MarketDataProvider: "none" | "bybit" | "binance" | "yfinance";
+    /** @enum {string} */
+    MarketProduct: "spot" | "perpetual_future";
     /**
      * MonetaryTrajectoryPointResponse
      * @description One realized result in a single allocation's settlement asset.
@@ -1375,6 +1439,20 @@ export interface components {
       realized_pnl: string;
       /** Cumulative Pnl */
       cumulative_pnl: string;
+    };
+    /**
+     * OrderBook
+     * @description Independent book snapshot, not an atomic pair with candles.
+     */
+    OrderBook: {
+      /** Timestamp */
+      timestamp: number;
+      /** Received At */
+      received_at: number;
+      /** Bids */
+      bids: components["schemas"]["BookLevel"][];
+      /** Asks */
+      asks: components["schemas"]["BookLevel"][];
     };
     /**
      * Outcome
@@ -1404,10 +1482,10 @@ export interface components {
       /** Page Size */
       page_size: number;
     };
-    /** Page[PairResponse] */
-    Page_PairResponse_: {
+    /** Page[ProfileResponse] */
+    Page_ProfileResponse_: {
       /** Items */
-      items: components["schemas"]["PairResponse"][];
+      items: components["schemas"]["ProfileResponse"][];
       /** Total */
       total: number;
       /** Page */
@@ -1415,10 +1493,21 @@ export interface components {
       /** Page Size */
       page_size: number;
     };
-    /** Page[ProfileResponse] */
-    Page_ProfileResponse_: {
+    /** Page[StrategyCapitalResponse] */
+    Page_StrategyCapitalResponse_: {
       /** Items */
-      items: components["schemas"]["ProfileResponse"][];
+      items: components["schemas"]["StrategyCapitalResponse"][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Page Size */
+      page_size: number;
+    };
+    /** Page[StrategyResponse] */
+    Page_StrategyResponse_: {
+      /** Items */
+      items: components["schemas"]["StrategyResponse"][];
       /** Total */
       total: number;
       /** Page */
@@ -1437,21 +1526,10 @@ export interface components {
       /** Page Size */
       page_size: number;
     };
-    /** Page[VenueResponse] */
-    Page_VenueResponse_: {
+    /** Page[WalletAssetResponse] */
+    Page_WalletAssetResponse_: {
       /** Items */
-      items: components["schemas"]["VenueResponse"][];
-      /** Total */
-      total: number;
-      /** Page */
-      page: number;
-      /** Page Size */
-      page_size: number;
-    };
-    /** Page[VenueWalletAssetResponse] */
-    Page_VenueWalletAssetResponse_: {
-      /** Items */
-      items: components["schemas"]["VenueWalletAssetResponse"][];
+      items: components["schemas"]["WalletAssetResponse"][];
       /** Total */
       total: number;
       /** Page */
@@ -1471,36 +1549,29 @@ export interface components {
       page_size: number;
     };
     /**
-     * PairPatch
-     * @description Optional staff correction to either asset of a logical market.
+     * PreparationResponse
+     * @description Typed inputs retained even when the plan is incomplete.
      */
-    PairPatch: {
-      /** Base Id */
-      base_id?: number | null;
-      /** Quote Id */
-      quote_id?: number | null;
-    };
-    /**
-     * PairResponse
-     * @description Logical base/quote market including both shared asset identities.
-     */
-    PairResponse: {
-      /** Id */
-      id: number;
-      base: components["schemas"]["AssetResponse"];
-      quote: components["schemas"]["AssetResponse"];
-      /** Canonical Symbol */
-      canonical_symbol: string;
-    };
-    /**
-     * PairWrite
-     * @description Staff input identifying the two sides of a logical market.
-     */
-    PairWrite: {
-      /** Base Id */
-      base_id: number;
-      /** Quote Id */
-      quote_id: number;
+    PreparationResponse: {
+      /** Planned Entry */
+      planned_entry: string | null;
+      /** Planned Stop */
+      planned_stop: string | null;
+      market_sentiment: components["schemas"]["DirectionalValue"] | null;
+      information_background: components["schemas"]["DirectionalValue"] | null;
+      global_daily_direction: components["schemas"]["DirectionalValue"] | null;
+      local_daily_movement: components["schemas"]["DirectionalValue"] | null;
+      /** Atr Value */
+      atr_value: string | null;
+      atr_source: components["schemas"]["ATRSource"] | null;
+      /** Atr Contributing Date */
+      atr_contributing_date: string | null;
+      /** Atr Observation Time */
+      atr_observation_time: string | null;
+      /** Atr Stale */
+      atr_stale: boolean;
+      /** Observed Session Range */
+      observed_session_range: string | null;
     };
     /**
      * ProductKind
@@ -1513,8 +1584,7 @@ export interface components {
      * @description Create a venue-bound trading workspace.
      */
     ProfileCreate: {
-      /** Venue Id */
-      venue_id: number;
+      venue_type: components["schemas"]["VenueType"];
       /** Name */
       name: string;
       /** Description */
@@ -1539,8 +1609,7 @@ export interface components {
     ProfileResponse: {
       /** Id */
       id: number;
-      /** Venue Id */
-      venue_id: number;
+      venue_type: components["schemas"]["VenueType"];
       /** Name */
       name: string;
       /** Description */
@@ -1570,6 +1639,22 @@ export interface components {
       refresh_token: string;
     };
     /**
+     * ReservationResponse
+     * @description Exact required amount and availability of one virtual denomination.
+     */
+    ReservationResponse: {
+      /** Wallet Asset Id */
+      wallet_asset_id: number | null;
+      /** Asset Id */
+      asset_id: number;
+      /** Purpose */
+      purpose: string;
+      /** Amount */
+      amount: string;
+      /** Available */
+      available: string;
+    };
+    /**
      * SnapshotResponse
      * @description Immutable financial and volatility context frozen at submission.
      */
@@ -1580,6 +1665,18 @@ export interface components {
       strategy_capital_id: number;
       /** Settlement Asset Id */
       settlement_asset_id: number;
+      /** Instrument Symbol */
+      instrument_symbol: string;
+      /** Instrument Product */
+      instrument_product: string;
+      /** Price Step */
+      price_step: string;
+      /** Qty Step */
+      qty_step: string;
+      /** Min Qty */
+      min_qty: string | null;
+      /** Min Notional */
+      min_notional: string | null;
       /** Planned Entry */
       planned_entry: string;
       /** Planned Stop */
@@ -1636,6 +1733,18 @@ export interface components {
        * @description Return the absolute frozen entry-to-target distance.
        */
       readonly take_profit_distance: string | null;
+    };
+    /**
+     * StoredReservationResponse
+     * @description Immutable requirements retained after release.
+     */
+    StoredReservationResponse: {
+      /** Wallet Asset Id */
+      wallet_asset_id: number;
+      /** Purpose */
+      purpose: string;
+      /** Amount */
+      amount: string;
     };
     /**
      * StrategyCapitalCreate
@@ -1782,8 +1891,8 @@ export interface components {
       profile_id: number;
       /** Strategy Id */
       strategy_id: number;
-      /** Venue Instrument Id */
-      venue_instrument_id: number;
+      /** Instrument Id */
+      instrument_id: number;
       /**
        * Trade Date
        * Format: date
@@ -1808,8 +1917,8 @@ export interface components {
       strategy_id: number;
       /** Strategy Name */
       strategy_name: string;
-      /** Venue Instrument Id */
-      venue_instrument_id: number;
+      /** Instrument Id */
+      instrument_id: number;
       /** Exec Symbol */
       exec_symbol: string;
       /** Pair Symbol */
@@ -1837,8 +1946,8 @@ export interface components {
     TradePatch: {
       /** Strategy Id */
       strategy_id?: number | null;
-      /** Venue Instrument Id */
-      venue_instrument_id?: number | null;
+      /** Instrument Id */
+      instrument_id?: number | null;
       /** Trade Date */
       trade_date?: string | null;
       direction?: components["schemas"]["Direction"] | null;
@@ -1874,6 +1983,8 @@ export interface components {
     TradePlanResponse: {
       /** Planned Entry */
       planned_entry: string;
+      /** Reservations */
+      reservations: components["schemas"]["ReservationResponse"][];
       /** Planned Stop */
       planned_stop: string;
       /** Planned Take Profit */
@@ -1925,6 +2036,16 @@ export interface components {
       atr_limit_percent: string;
     };
     /**
+     * TradePlanSave
+     * @description Persist partial anchors without inventing missing numeric values.
+     */
+    TradePlanSave: {
+      /** Planned Entry */
+      planned_entry?: number | string | null;
+      /** Planned Stop */
+      planned_stop?: number | string | null;
+    };
+    /**
      * TradePlanningContextResponse
      * @description Stable inputs required for a local draft position calculation.
      */
@@ -1959,6 +2080,17 @@ export interface components {
       wallet_available: string;
       /** Deposit Floor Breach */
       deposit_floor_breach: boolean;
+      /** Product */
+      product: string;
+      direction: components["schemas"]["Direction"];
+      /** Base Asset Id */
+      base_asset_id: number;
+      /** Settlement Asset Id */
+      settlement_asset_id: number;
+      /** Inventory Wallet Asset Id */
+      inventory_wallet_asset_id: number | null;
+      /** Inventory Available */
+      inventory_available: string;
     };
     /**
      * TradeResponse
@@ -1969,10 +2101,13 @@ export interface components {
       id: number;
       /** Profile Id */
       profile_id: number;
+      preparation: components["schemas"]["PreparationResponse"];
+      /** Reservations */
+      reservations: components["schemas"]["StoredReservationResponse"][];
       /** Strategy Id */
       strategy_id: number;
-      /** Venue Instrument Id */
-      venue_instrument_id: number;
+      /** Instrument Id */
+      instrument_id: number;
       /**
        * Trade Date
        * Format: date
@@ -2078,6 +2213,18 @@ export interface components {
      */
     TrendRelationship: "UNASSESSED" | "ALIGNED" | "MIXED" | "DIVERGENT";
     /**
+     * UserPatch
+     * @description Only self-service contact metadata; never privilege or credentials.
+     */
+    UserPatch: {
+      /** First Name */
+      first_name?: string | null;
+      /** Last Name */
+      last_name?: string | null;
+      /** Email */
+      email?: string | null;
+    };
+    /**
      * UserResponse
      * @description Safe public account representation without authentication material.
      */
@@ -2090,6 +2237,22 @@ export interface components {
       is_staff: boolean;
       /** Is Active */
       is_active: boolean;
+      /** First Name */
+      first_name: string | null;
+      /** Last Name */
+      last_name: string | null;
+      /** Email */
+      email: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
     };
     /** ValidationError */
     ValidationError: {
@@ -2105,97 +2268,45 @@ export interface components {
       ctx?: Record<string, never>;
     };
     /**
-     * VenuePatch
-     * @description Optional staff edits to a venue.
+     * VenueCapabilities
+     * @description Declarative functionality; manual does not require a provider.
      */
-    VenuePatch: {
-      /** Name */
-      name?: string | null;
-      market_data_provider?: components["schemas"]["MarketDataProvider"] | null;
-      /** Description */
-      description?: string | null;
-      /** Website */
-      website?: string | null;
-      /** Is Active */
-      is_active?: boolean | null;
-    };
-    /**
-     * VenueResponse
-     * @description Exchange or broker destination in the shared catalog.
-     */
-    VenueResponse: {
-      /** Id */
-      id: number;
+    VenueCapabilities: {
+      /** Code */
+      code: string;
       /** Name */
       name: string;
-      market_data_provider: components["schemas"]["MarketDataProvider"];
-      /** Description */
-      description: string | null;
-      /** Website */
-      website: string | null;
-      /** Is Active */
-      is_active: boolean;
-    };
-    /**
-     * VenueWalletAssetPatch
-     * @description Optional staff edit to a venue wallet capability.
-     */
-    VenueWalletAssetPatch: {
-      /** Is Active */
-      is_active?: boolean | null;
-    };
-    /**
-     * VenueWalletAssetResponse
-     * @description An asset allowed as a balance or settlement asset at a venue.
-     */
-    VenueWalletAssetResponse: {
-      /** Id */
-      id: number;
-      /** Venue Id */
-      venue_id: number;
-      asset: components["schemas"]["AssetResponse"];
-      /** Is Active */
-      is_active: boolean;
-    };
-    /**
-     * VenueWalletAssetWrite
-     * @description Staff input connecting an asset to a venue's wallet capability.
-     */
-    VenueWalletAssetWrite: {
-      /** Asset Id */
-      asset_id: number;
+      /** Instruments */
+      instruments: boolean;
+      /** Candles */
+      candles: boolean;
+      /** Orderbook */
+      orderbook: boolean;
+      /** Automatic Atr */
+      automatic_atr: boolean;
+      /** Products */
+      products: string[];
+      /** Timeframes */
+      timeframes: string[];
       /**
-       * Is Active
-       * @default true
+       * Refresh Ms
+       * @default 1000
        */
-      is_active: boolean;
+      refresh_ms: number;
     };
     /**
-     * VenueWrite
-     * @description Staff-managed venue attributes.
+     * VenueType
+     * @description Fixed integration choice, independent of user-owned profiles.
+     * @enum {string}
      */
-    VenueWrite: {
-      /** Name */
-      name: string;
-      /** @default none */
-      market_data_provider: components["schemas"]["MarketDataProvider"];
-      /** Description */
-      description?: string | null;
-      /** Website */
-      website?: string | null;
-      /**
-       * Is Active
-       * @default true
-       */
-      is_active: boolean;
-    };
+    VenueType: "manual" | "bybit";
     /**
      * WalletAssetCreate
      * @description Add one active venue capability to a profile wallet.
      */
     WalletAssetCreate: {
-      /** Venue Wallet Asset Id */
-      venue_wallet_asset_id: number;
+      /** Asset Id */
+      asset_id: number;
       /** Risk Stop Capital */
       risk_stop_capital?: number | string | null;
     };
@@ -2216,8 +2327,6 @@ export interface components {
     WalletAssetResponse: {
       /** Id */
       id: number;
-      /** Venue Wallet Asset Id */
-      venue_wallet_asset_id: number;
       /** Asset Id */
       asset_id: number;
       /** Symbol */
@@ -2249,6 +2358,8 @@ export interface components {
      * @description Append a positive deposit or withdrawal request.
      */
     WalletOperationCreate: {
+      /** Wallet Asset Id */
+      wallet_asset_id: number;
       kind: components["schemas"]["WalletOperationKind"];
       /** Amount */
       amount: number | string;
@@ -2416,7 +2527,40 @@ export interface operations {
       };
     };
   };
-  list_assets_api_v1_catalog_assets_get: {
+  update_current_user_api_v1_auth_me_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UserPatch"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_assets_api_v1_profiles__profile_id__assets_get: {
     parameters: {
       query?: {
         page?: number;
@@ -2425,15 +2569,11 @@ export interface operations {
         sort?: string | null;
         order?: "asc" | "desc";
         visibility?: "all" | "active" | "archived";
-        asset_type?: ("crypto" | "fiat" | "equity") | null;
-        exclude_venue_id?: number | null;
-        exclude_ids?: number[];
-        venue_id?: number | null;
-        pair_id?: number | null;
-        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
       };
       header?: never;
-      path?: never;
+      path: {
+        profile_id: number;
+      };
       cookie?: never;
     };
     requestBody?: never;
@@ -2458,11 +2598,13 @@ export interface operations {
       };
     };
   };
-  create_asset_api_v1_catalog_assets_post: {
+  create_asset_api_v1_profiles__profile_id__assets_post: {
     parameters: {
       query?: never;
       header?: never;
-      path?: never;
+      path: {
+        profile_id: number;
+      };
       cookie?: never;
     };
     requestBody: {
@@ -2491,11 +2633,12 @@ export interface operations {
       };
     };
   };
-  get_asset_api_v1_catalog_assets__asset_id__get: {
+  get_asset_api_v1_profiles__profile_id__assets__asset_id__get: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         asset_id: number;
       };
       cookie?: never;
@@ -2522,11 +2665,12 @@ export interface operations {
       };
     };
   };
-  delete_asset_api_v1_catalog_assets__asset_id__delete: {
+  delete_asset_api_v1_profiles__profile_id__assets__asset_id__delete: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         asset_id: number;
       };
       cookie?: never;
@@ -2551,11 +2695,12 @@ export interface operations {
       };
     };
   };
-  update_asset_api_v1_catalog_assets__asset_id__patch: {
+  update_asset_api_v1_profiles__profile_id__assets__asset_id__patch: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         asset_id: number;
       };
       cookie?: never;
@@ -2586,7 +2731,7 @@ export interface operations {
       };
     };
   };
-  list_pairs_api_v1_catalog_pairs_get: {
+  list_instruments_api_v1_profiles__profile_id__instruments_get: {
     parameters: {
       query?: {
         page?: number;
@@ -2595,356 +2740,10 @@ export interface operations {
         sort?: string | null;
         order?: "asc" | "desc";
         visibility?: "all" | "active" | "archived";
-        asset_type?: ("crypto" | "fiat" | "equity") | null;
-        exclude_venue_id?: number | null;
-        exclude_ids?: number[];
-        venue_id?: number | null;
-        pair_id?: number | null;
-        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["Page_PairResponse_"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_pair_api_v1_catalog_pairs_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["PairWrite"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["PairResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_pair_api_v1_catalog_pairs__pair_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        pair_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["PairResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  delete_pair_api_v1_catalog_pairs__pair_id__delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        pair_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_pair_api_v1_catalog_pairs__pair_id__patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        pair_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["PairPatch"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["PairResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_venues_api_v1_catalog_venues_get: {
-    parameters: {
-      query?: {
-        page?: number;
-        page_size?: number;
-        q?: string;
-        sort?: string | null;
-        order?: "asc" | "desc";
-        visibility?: "all" | "active" | "archived";
-        asset_type?: ("crypto" | "fiat" | "equity") | null;
-        exclude_venue_id?: number | null;
-        exclude_ids?: number[];
-        venue_id?: number | null;
-        pair_id?: number | null;
-        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["Page_VenueResponse_"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_venue_api_v1_catalog_venues_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["VenueWrite"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["VenueResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_venue_api_v1_catalog_venues__venue_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        venue_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["VenueResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  delete_venue_api_v1_catalog_venues__venue_id__delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        venue_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_venue_api_v1_catalog_venues__venue_id__patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        venue_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["VenuePatch"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["VenueResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_instruments_api_v1_catalog_venues__venue_id__instruments_get: {
-    parameters: {
-      query?: {
-        page?: number;
-        page_size?: number;
-        q?: string;
-        sort?: string | null;
-        order?: "asc" | "desc";
-        visibility?: "all" | "active" | "archived";
-        asset_type?: ("crypto" | "fiat" | "equity") | null;
-        exclude_venue_id?: number | null;
-        exclude_ids?: number[];
-        venue_id?: number | null;
-        pair_id?: number | null;
-        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
       };
       header?: never;
       path: {
-        venue_id: number;
+        profile_id: number;
       };
       cookie?: never;
     };
@@ -2970,12 +2769,12 @@ export interface operations {
       };
     };
   };
-  create_instrument_api_v1_catalog_venues__venue_id__instruments_post: {
+  create_instrument_api_v1_profiles__profile_id__instruments_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
-        venue_id: number;
+        profile_id: number;
       };
       cookie?: never;
     };
@@ -3005,53 +2804,12 @@ export interface operations {
       };
     };
   };
-  list_all_instruments_api_v1_catalog_instruments_get: {
-    parameters: {
-      query?: {
-        page?: number;
-        page_size?: number;
-        q?: string;
-        sort?: string | null;
-        order?: "asc" | "desc";
-        visibility?: "all" | "active" | "archived";
-        asset_type?: ("crypto" | "fiat" | "equity") | null;
-        exclude_venue_id?: number | null;
-        exclude_ids?: number[];
-        venue_id?: number | null;
-        pair_id?: number | null;
-        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["Page_InstrumentResponse_"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_instrument_api_v1_catalog_instruments__instrument_id__get: {
+  get_instrument_api_v1_profiles__profile_id__instruments__instrument_id__get: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         instrument_id: number;
       };
       cookie?: never;
@@ -3078,11 +2836,12 @@ export interface operations {
       };
     };
   };
-  delete_instrument_api_v1_catalog_instruments__instrument_id__delete: {
+  delete_instrument_api_v1_profiles__profile_id__instruments__instrument_id__delete: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         instrument_id: number;
       };
       cookie?: never;
@@ -3107,11 +2866,12 @@ export interface operations {
       };
     };
   };
-  update_instrument_api_v1_catalog_instruments__instrument_id__patch: {
+  update_instrument_api_v1_profiles__profile_id__instruments__instrument_id__patch: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         instrument_id: number;
       };
       cookie?: never;
@@ -3142,25 +2902,13 @@ export interface operations {
       };
     };
   };
-  list_venue_wallet_assets_api_v1_catalog_venues__venue_id__wallet_assets_get: {
+  refresh_instrument_api_v1_profiles__profile_id__instruments__instrument_id__refresh_post: {
     parameters: {
-      query?: {
-        page?: number;
-        page_size?: number;
-        q?: string;
-        sort?: string | null;
-        order?: "asc" | "desc";
-        visibility?: "all" | "active" | "archived";
-        asset_type?: ("crypto" | "fiat" | "equity") | null;
-        exclude_venue_id?: number | null;
-        exclude_ids?: number[];
-        venue_id?: number | null;
-        pair_id?: number | null;
-        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
-      };
+      query?: never;
       header?: never;
       path: {
-        venue_id: number;
+        profile_id: number;
+        instrument_id: number;
       };
       cookie?: never;
     };
@@ -3172,137 +2920,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["Page_VenueWalletAssetResponse_"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_venue_wallet_asset_api_v1_catalog_venues__venue_id__wallet_assets_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        venue_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["VenueWalletAssetWrite"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["VenueWalletAssetResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_wallet_capability_api_v1_catalog_wallet_assets__capability_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        capability_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["VenueWalletAssetResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  delete_venue_wallet_asset_api_v1_catalog_wallet_assets__venue_wallet_asset_id__delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        venue_wallet_asset_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_venue_wallet_asset_api_v1_catalog_wallet_assets__venue_wallet_asset_id__patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        venue_wallet_asset_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["VenueWalletAssetPatch"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["VenueWalletAssetResponse"];
+          "application/json": components["schemas"]["InstrumentResponse"];
         };
       };
       /** @description Validation Error */
@@ -3325,12 +2943,6 @@ export interface operations {
         sort?: string | null;
         order?: "asc" | "desc";
         visibility?: "all" | "active" | "archived";
-        asset_type?: ("crypto" | "fiat" | "equity") | null;
-        exclude_venue_id?: number | null;
-        exclude_ids?: number[];
-        venue_id?: number | null;
-        pair_id?: number | null;
-        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
       };
       header?: never;
       path?: never;
@@ -3519,6 +3131,44 @@ export interface operations {
       };
     };
   };
+  list_wallet_assets_api_v1_profiles__profile_id__wallet_assets_get: {
+    parameters: {
+      query?: {
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+      };
+      header?: never;
+      path: {
+        profile_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_WalletAssetResponse_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   create_wallet_asset_api_v1_profiles__profile_id__wallet_assets_post: {
     parameters: {
       query?: never;
@@ -3554,11 +3204,12 @@ export interface operations {
       };
     };
   };
-  update_wallet_asset_api_v1_profiles_wallet_assets__wallet_asset_id__patch: {
+  update_wallet_asset_api_v1_profiles__profile_id__wallet_assets__wallet_asset_id__patch: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         wallet_asset_id: number;
       };
       cookie?: never;
@@ -3589,7 +3240,7 @@ export interface operations {
       };
     };
   };
-  list_wallet_operations_api_v1_profiles_wallet_assets__wallet_asset_id__operations_get: {
+  list_wallet_operations_api_v1_profiles__profile_id__wallet_operations_get: {
     parameters: {
       query?: {
         page?: number;
@@ -3597,7 +3248,7 @@ export interface operations {
       };
       header?: never;
       path: {
-        wallet_asset_id: number;
+        profile_id: number;
       };
       cookie?: never;
     };
@@ -3623,12 +3274,12 @@ export interface operations {
       };
     };
   };
-  create_wallet_operation_api_v1_profiles_wallet_assets__wallet_asset_id__operations_post: {
+  create_wallet_operation_api_v1_profiles__profile_id__wallet_operations_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
-        wallet_asset_id: number;
+        profile_id: number;
       };
       cookie?: never;
     };
@@ -3658,11 +3309,12 @@ export interface operations {
       };
     };
   };
-  update_wallet_operation_note_api_v1_profiles_wallet_operations__operation_id__patch: {
+  update_wallet_operation_note_api_v1_profiles__profile_id__wallet_operations__operation_id__patch: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         operation_id: number;
       };
       cookie?: never;
@@ -3696,7 +3348,12 @@ export interface operations {
   list_strategies_api_v1_profiles__profile_id__strategies_get: {
     parameters: {
       query?: {
-        include_archived?: boolean;
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
       };
       header?: never;
       path: {
@@ -3712,7 +3369,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["StrategyResponse"][];
+          "application/json": components["schemas"]["Page_StrategyResponse_"];
         };
       };
       /** @description Validation Error */
@@ -3761,11 +3418,44 @@ export interface operations {
       };
     };
   };
-  delete_strategy_api_v1_profiles_strategies__strategy_id__delete: {
+  get_strategy_api_v1_profiles__profile_id__strategies__strategy_id__get: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
+        strategy_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StrategyResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_strategy_api_v1_profiles__profile_id__strategies__strategy_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        profile_id: number;
         strategy_id: number;
       };
       cookie?: never;
@@ -3790,11 +3480,12 @@ export interface operations {
       };
     };
   };
-  update_strategy_api_v1_profiles_strategies__strategy_id__patch: {
+  update_strategy_api_v1_profiles__profile_id__strategies__strategy_id__patch: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         strategy_id: number;
       };
       cookie?: never;
@@ -3825,11 +3516,51 @@ export interface operations {
       };
     };
   };
-  create_allocation_api_v1_profiles_strategies__strategy_id__allocations_post: {
+  list_allocations_api_v1_profiles__profile_id__strategies__strategy_id__allocations_get: {
+    parameters: {
+      query?: {
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+      };
+      header?: never;
+      path: {
+        profile_id: number;
+        strategy_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_StrategyCapitalResponse_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_allocation_api_v1_profiles__profile_id__strategies__strategy_id__allocations_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         strategy_id: number;
       };
       cookie?: never;
@@ -3860,11 +3591,13 @@ export interface operations {
       };
     };
   };
-  update_allocation_api_v1_profiles_allocations__allocation_id__patch: {
+  update_allocation_api_v1_profiles__profile_id__strategies__strategy_id__allocations__allocation_id__patch: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
+        strategy_id: number;
         allocation_id: number;
       };
       cookie?: never;
@@ -3904,12 +3637,6 @@ export interface operations {
         sort?: string | null;
         order?: "asc" | "desc";
         visibility?: "all" | "active" | "archived";
-        asset_type?: ("crypto" | "fiat" | "equity") | null;
-        exclude_venue_id?: number | null;
-        exclude_ids?: number[];
-        venue_id?: number | null;
-        pair_id?: number | null;
-        product?: ("spot" | "perpetual_future" | "cash_equity") | null;
         profile_id?: number | null;
         strategy_id?: number | null;
         trade_status?: components["schemas"]["TradeStatus"] | null;
@@ -4143,42 +3870,7 @@ export interface operations {
       };
     };
   };
-  save_trade_plan_api_v1_trades__trade_id__plan_put: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        trade_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["TradePlanRequest-Input"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TradeResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  preview_trade_plan_api_v1_trades__trade_id__plan_post: {
+  preview_trade_plan_api_v1_trades__trade_id__plan_preview_post: {
     parameters: {
       query?: never;
       header?: never;
@@ -4213,7 +3905,7 @@ export interface operations {
       };
     };
   };
-  get_trade_plan_context_api_v1_trades__trade_id__plan_context_get: {
+  get_trade_plan_context_api_v1_trades__trade_id__planning_context_get: {
     parameters: {
       query?: never;
       header?: never;
@@ -4231,6 +3923,41 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["TradePlanningContextResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  save_trade_plan_api_v1_trades__trade_id__plan_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        trade_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TradePlanSave"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TradeResponse"];
         };
       };
       /** @description Validation Error */
@@ -4421,7 +4148,6 @@ export interface operations {
         strategy_id?: number | null;
         product?: components["schemas"]["ProductKind"] | null;
         instrument_id?: number | null;
-        pair_id?: number | null;
         settlement_asset_id?: number | null;
         strategy_capital_id?: number | null;
       };
@@ -4565,6 +4291,198 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_venues_api_v1_venues_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VenueCapabilities"][];
+        };
+      };
+    };
+  };
+  venue_capabilities_api_v1_venues__venue_type__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        venue_type: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VenueCapabilities"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  instruments_api_v1_venues__venue_type__public_instruments_get: {
+    parameters: {
+      query: {
+        product: "spot" | "perpetual_future";
+        symbol?: string | null;
+        cursor?: string | null;
+      };
+      header?: never;
+      path: {
+        venue_type: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InstrumentPage"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  instrument_api_v1_venues__venue_type__public_instruments__symbol__get: {
+    parameters: {
+      query: {
+        product: "spot" | "perpetual_future";
+      };
+      header?: never;
+      path: {
+        venue_type: string;
+        symbol: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InstrumentSpec"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  klines_api_v1_venues__venue_type__public_klines_get: {
+    parameters: {
+      query: {
+        symbol: string;
+        product: "spot" | "perpetual_future";
+        timeframe: "1m" | "5m" | "15m" | "1h" | "4h" | "1d" | "1w" | "1M";
+        limit?: number;
+        before?: number | null;
+      };
+      header?: never;
+      path: {
+        venue_type: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CandlePage"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  orderbook_api_v1_venues__venue_type__public_orderbook_get: {
+    parameters: {
+      query: {
+        symbol: string;
+        product: "spot" | "perpetual_future";
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        venue_type: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OrderBook"];
+        };
       };
       /** @description Validation Error */
       422: {

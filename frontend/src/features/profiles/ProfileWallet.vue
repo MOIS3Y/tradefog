@@ -34,7 +34,7 @@ import {
   type WalletOperation,
   type WalletOperationKind,
 } from "@/features/profiles/api";
-import { listVenueWalletAssets } from "@/features/venues/api";
+import { listAssets } from "@/features/profiles/marketApi";
 import { useToastStore } from "@/stores/toasts";
 import { formatDecimal, isPositiveDecimal } from "@/utils/decimal";
 
@@ -64,20 +64,13 @@ const walletQuery = useQuery({
 });
 const capabilitiesQuery = useQuery({
   queryKey: computed(() => [
-    "catalog",
-    "venues",
-    props.profile.venue_id,
-    "wallet-assets",
-    walletQuery.data.value?.assets.map((x) => x.venue_wallet_asset_id),
+    "profile-market",
+    props.profile.id,
+    "assets",
+    "wallet-options",
   ]),
   queryFn: () =>
-    listVenueWalletAssets(props.profile.venue_id, {
-      visibility: "active",
-      page_size: 1,
-      exclude_ids:
-        walletQuery.data.value?.assets.map((x) => x.venue_wallet_asset_id) ??
-        [],
-    }),
+    listAssets(props.profile.id, { visibility: "active", page_size: 1 }),
 });
 const assets = computed(() => walletQuery.data.value?.assets ?? []);
 const selected = computed(
@@ -91,17 +84,15 @@ const availableCapabilities = computed(
 );
 const capabilityParams = computed(() => ({
   visibility: "active" as const,
-  exclude_ids: assetEditing.value
-    ? []
-    : assets.value.map((x) => x.venue_wallet_asset_id),
+  excludeIds: assetEditing.value ? [] : assets.value.map((x) => x.asset_id),
 }));
 const operationsKey = computed(() => [
   "profiles",
   "wallet-assets",
-  selected.value?.id,
+  props.profile.id,
   "operations",
 ]);
-const operationPagination = usePagination(computed(() => selected.value?.id));
+const operationPagination = usePagination(computed(() => props.profile.id));
 const { page: operationPage, pageSize: operationPageSize } =
   operationPagination;
 const operationsQuery = useQuery({
@@ -110,7 +101,7 @@ const operationsQuery = useQuery({
     operationPagination.params.value,
   ]),
   queryFn: () =>
-    listOperations(selected.value?.id ?? 0, operationPagination.params.value),
+    listOperations(props.profile.id, operationPagination.params.value),
   enabled: computed(() => selected.value !== null),
 });
 operationPagination.track(computed(() => operationsQuery.data.value));
@@ -162,11 +153,11 @@ async function refreshWallet(): Promise<void> {
 const addAssetMutation = useMutation({
   mutationFn: () =>
     assetEditing.value
-      ? updateWalletAsset(assetEditing.value.id, {
+      ? updateWalletAsset(props.profile.id, assetEditing.value.id, {
           risk_stop_capital: assetForm.floor || null,
         })
       : createWalletAsset(props.profile.id, {
-          venue_wallet_asset_id: assetForm.capabilityId ?? 0,
+          asset_id: assetForm.capabilityId ?? 0,
           risk_stop_capital: assetForm.floor || null,
         }),
   onSuccess: async (asset) => {
@@ -187,7 +178,9 @@ const addAssetMutation = useMutation({
 
 const assetStatusMutation = useMutation({
   mutationFn: (asset: WalletAsset) =>
-    updateWalletAsset(asset.id, { is_archived: !asset.is_archived }),
+    updateWalletAsset(props.profile.id, asset.id, {
+      is_archived: !asset.is_archived,
+    }),
   onSuccess: async (asset) => {
     await refreshWallet();
     archiveTarget.value = null;
@@ -205,7 +198,8 @@ const assetStatusMutation = useMutation({
 
 const operationMutation = useMutation({
   mutationFn: () =>
-    createOperation(selected.value?.id ?? 0, {
+    createOperation(props.profile.id, {
+      wallet_asset_id: selected.value!.id,
       kind: operationForm.kind,
       amount: operationForm.amount,
       note: operationForm.note || null,
@@ -221,7 +215,11 @@ const operationMutation = useMutation({
 
 const noteMutation = useMutation({
   mutationFn: () =>
-    updateOperationNote(operationTarget.value?.id ?? 0, note.value || null),
+    updateOperationNote(
+      props.profile.id,
+      operationTarget.value?.id ?? 0,
+      note.value || null,
+    ),
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: operationsKey.value });
     noteDialogOpen.value = false;
@@ -233,7 +231,7 @@ const noteMutation = useMutation({
 function openAssetDialog(asset: WalletAsset | null = null): void {
   assetEditing.value = asset;
   Object.assign(assetForm, {
-    capabilityId: asset?.venue_wallet_asset_id ?? null,
+    capabilityId: asset?.asset_id ?? null,
     floor: asset?.risk_stop_capital
       ? formatDecimal(asset.risk_stop_capital)
       : "",
@@ -353,7 +351,7 @@ function formattedDate(value: string): string {
         <header class="ledger-panel__header">
           <div>
             <span class="section-label">{{ selected.symbol }}</span>
-            <h5>{{ $t("profiles.wallet.operations") }}</h5>
+            <h5>{{ $t("profileMarket.ledger") }}</h5>
           </div>
           <div class="profile-detail__actions">
             <button
@@ -448,6 +446,10 @@ function formattedDate(value: string): string {
             >
               {{ operation.kind === "deposit" ? "+" : ""
               }}{{ formatDecimal(operation.amount) }}
+              {{
+                assets.find((asset) => asset.id === operation.wallet_asset_id)
+                  ?.symbol
+              }}
             </strong>
             <button
               class="icon-action"
@@ -494,9 +496,10 @@ function formattedDate(value: string): string {
         ><span>{{ $t("profiles.wallet.asset") }}</span
         ><RemoteCatalogSelect
           v-model="assetForm.capabilityId"
-          resource="wallet-assets"
-          :venue-id="profile.venue_id"
-          :params="capabilityParams"
+          resource="assets"
+          :profile-id="profile.id"
+          :params="{ visibility: 'active' }"
+          :exclude-ids="capabilityParams.excludeIds"
           :placeholder="$t('profiles.wallet.selectAsset')"
           :empty-label="$t('profiles.wallet.noAssetsAvailable')"
           :disabled="assetEditing !== null"

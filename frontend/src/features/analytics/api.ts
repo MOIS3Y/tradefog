@@ -16,7 +16,6 @@ export interface AnalyticsFilters {
   strategyId: number | null;
   product: ProductKind | null;
   instrumentId: number | null;
-  pairId: number | null;
   settlementAssetId: number | null;
   strategyCapitalId: number | null;
 }
@@ -36,7 +35,6 @@ export async function getAnalytics(
         strategy_id: filters.strategyId ?? undefined,
         product: filters.product ?? undefined,
         instrument_id: filters.instrumentId ?? undefined,
-        pair_id: filters.pairId ?? undefined,
         settlement_asset_id: filters.settlementAssetId ?? undefined,
         strategy_capital_id: filters.strategyCapitalId ?? undefined,
       },

@@ -7,8 +7,8 @@ import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
 const { t } = useI18n();
 const steps = [
-  "dashboard.stepCatalog",
   "dashboard.stepProfile",
+  "profileMarket.setupStep",
   "dashboard.stepStrategy",
   "dashboard.stepTrade",
 ] as const;

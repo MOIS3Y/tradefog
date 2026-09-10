@@ -5,37 +5,9 @@ import { reloadTokens } from "@/api/tokens";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import {
   createAsset,
-  createPair,
-  deletePair,
-  type Asset,
-  type Pair,
-} from "@/features/catalog/api";
-
-const bitcoin: Asset = {
-  id: 1,
-  symbol: "BTC",
-  name: "Bitcoin",
-  asset_type: "crypto",
-};
-const dollar: Asset = {
-  id: 2,
-  symbol: "USD",
-  name: "US Dollar",
-  asset_type: "fiat",
-};
-const pair: Pair = {
-  id: 3,
-  base: bitcoin,
-  quote: dollar,
-  canonical_symbol: "BTC/USD",
-};
-const reversePair: Pair = {
-  id: 4,
-  base: dollar,
-  quote: bitcoin,
-  canonical_symbol: "USD/BTC",
-};
-
+  createInstrument,
+  deleteInstrument,
+} from "@/features/profiles/marketApi";
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -76,11 +48,11 @@ describe("catalog flow", () => {
     app.unmount();
   });
 
-  it("creates catalog dependencies in order and deletes an unused pair", async () => {
+  it("creates manual profile dependencies and deletes an unused instrument", async () => {
     const responses = [
-      jsonResponse(bitcoin, 201),
-      jsonResponse(dollar, 201),
-      jsonResponse(pair, 201),
+      jsonResponse({ id: 1, symbol: "BTC" }, 201),
+      jsonResponse({ id: 2, symbol: "USD" }, 201),
+      jsonResponse({ id: 3, exec_symbol: "BTCUSD" }, 201),
       new Response(null, { status: 204 }),
     ];
     const requests: Request[] = [];
@@ -90,12 +62,31 @@ describe("catalog flow", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await createAsset({ symbol: "BTC", name: "Bitcoin", asset_type: "crypto" });
-    await createAsset({ symbol: "USD", name: "US Dollar", asset_type: "fiat" });
-    const created = await createPair({ base_id: 1, quote_id: 2 });
-    await deletePair(created.id);
+    await createAsset(8, {
+      symbol: "BTC",
+      name: "Bitcoin",
+      asset_type: "crypto",
+    });
+    await createAsset(8, {
+      symbol: "USD",
+      name: "US Dollar",
+      asset_type: "fiat",
+    });
+    const created = await createInstrument(8, {
+      exec_symbol: "BTCUSD",
+      product: "spot",
+      base_asset_id: 1,
+      quote_asset_id: 2,
+      settlement_asset_id: 2,
+      price_step: "0.01",
+      qty_step: "0.001",
+    });
+    await deleteInstrument(8, created.id);
 
-    expect(created.canonical_symbol).toBe("BTC/USD");
+    expect(created.exec_symbol).toBe("BTCUSD");
+    expect(new URL(requests[2]!.url).pathname).toBe(
+      "/api/v1/profiles/8/instruments",
+    );
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(requests[2]?.method).toBe("POST");
     expect(requests[3]?.method).toBe("DELETE");

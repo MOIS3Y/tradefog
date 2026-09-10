@@ -13,9 +13,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
 
-import RemoteCatalogSelect from "@/components/RemoteCatalogSelect.vue";
+import ProfileMarket from "@/features/profiles/ProfileMarket.vue";
 import { ApiError } from "@/api/errors";
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -35,26 +34,26 @@ import {
   updateProfile,
   type Profile,
 } from "@/features/profiles/api";
-import { listVenues, getVenue } from "@/features/venues/api";
+import { listVenues, type VenueType } from "@/features/profiles/marketApi";
 import { useToastStore } from "@/stores/toasts";
 
-type ProfileTab = "wallet" | "strategies";
+type ProfileTab = "market" | "wallet" | "strategies";
 type Visibility = "active" | "archived" | "all";
 
 const { t } = useI18n();
-const router = useRouter();
+
 const queryClient = useQueryClient();
 const toasts = useToastStore();
 const search = ref("");
 const visibility = ref<Visibility>("active");
 const selectedId = ref<number | null>(null);
-const activeTab = ref<ProfileTab>("wallet");
+const activeTab = ref<ProfileTab>("market");
 const dialogOpen = ref(false);
 const editing = ref<Profile | null>(null);
 const statusTarget = ref<Profile | null>(null);
 const deleteTarget = ref<Profile | null>(null);
 const form = reactive({
-  venue_id: null as number | null,
+  venue_type: "bybit" as VenueType,
   name: "",
   description: "",
 });
@@ -78,8 +77,8 @@ const profilesQuery = useQuery({
 });
 pagination.track(computed(() => profilesQuery.data.value));
 const venuesQuery = useQuery({
-  queryKey: ["catalog", "venues"],
-  queryFn: () => listVenues({ visibility: "active", page_size: 1 }),
+  queryKey: ["venue-capabilities"],
+  queryFn: listVenues,
 });
 const profiles = computed(() => profilesQuery.data.value?.items ?? []);
 const selectedQuery = useQuery({
@@ -97,19 +96,11 @@ const selected = computed(
     selectedQuery.data.value ??
     null,
 );
-const venueIds = computed(() => [
-  ...new Set([
-    ...profiles.value.map((item) => item.venue_id),
-    ...(selected.value ? [selected.value.venue_id] : []),
-  ]),
-]);
-const activeVenues = computed(() => venuesQuery.data.value?.items ?? []);
-const venueDetailsQuery = useQuery({
-  queryKey: computed(() => ["catalog", "profile-venues", venueIds.value]),
-  queryFn: () => Promise.all(venueIds.value.map(getVenue)),
-});
-const venueById = computed(
-  () => new Map((venueDetailsQuery.data.value ?? []).map((x) => [x.id, x])),
+const venueOptions = computed(() =>
+  (venuesQuery.data.value ?? []).map((v) => ({
+    value: v.code as VenueType,
+    label: v.code === "manual" ? t("profileMarket.manual") : v.name,
+  })),
 );
 const visibilityOptions = computed<SelectOption<Visibility>[]>(() => [
   { value: "active", label: t("profiles.visibility.active") },
@@ -118,7 +109,7 @@ const visibilityOptions = computed<SelectOption<Visibility>[]>(() => [
 ]);
 const filtered = profiles;
 const formInvalid = computed(
-  () => form.name.trim().length === 0 || form.venue_id === null,
+  () => form.name.trim().length === 0 || !form.venue_type,
 );
 
 watch(
@@ -147,7 +138,7 @@ const saveMutation = useMutation({
   mutationFn: () =>
     editing.value === null
       ? createProfile({
-          venue_id: form.venue_id ?? 0,
+          venue_type: form.venue_type,
           name: form.name,
           description: form.description || null,
         })
@@ -195,19 +186,15 @@ const removeMutation = useMutation({
 });
 
 function openCreate(): void {
-  if (activeVenues.value.length === 0) {
-    void router.push("/catalog/venues");
-    return;
-  }
   editing.value = null;
-  Object.assign(form, { venue_id: null, name: "", description: "" });
+  Object.assign(form, { venue_type: "bybit", name: "", description: "" });
   dialogOpen.value = true;
 }
 
 function openEdit(profile: Profile): void {
   editing.value = profile;
   Object.assign(form, {
-    venue_id: profile.venue_id,
+    venue_type: profile.venue_type,
     name: profile.name,
     description: profile.description ?? "",
   });
@@ -229,9 +216,7 @@ function openEdit(profile: Profile): void {
       </div>
       <button class="button button--primary" type="button" @click="openCreate">
         <Plus :size="17" aria-hidden="true" />
-        {{
-          activeVenues.length ? $t("profiles.create") : $t("profiles.addVenue")
-        }}
+        {{ $t("profiles.create") }}
       </button>
     </header>
 
@@ -253,26 +238,17 @@ function openEdit(profile: Profile): void {
     </div>
 
     <LoadingState
-      v-if="
-        profilesQuery.isPending.value ||
-        venuesQuery.isPending.value ||
-        venueDetailsQuery.isPending.value
-      "
+      v-if="profilesQuery.isPending.value || venuesQuery.isPending.value"
       :label="$t('profiles.loading')"
     />
     <ErrorState
-      v-else-if="
-        profilesQuery.isError.value ||
-        venuesQuery.isError.value ||
-        venueDetailsQuery.isError.value
-      "
+      v-else-if="profilesQuery.isError.value || venuesQuery.isError.value"
       :title="$t('profiles.loadFailed')"
       :description="$t('catalog.errors.unavailable')"
       :retry-label="$t('common.retry')"
       @retry="
         profilesQuery.refetch();
         venuesQuery.refetch();
-        venueDetailsQuery.refetch();
       "
     />
     <EmptyState
@@ -283,11 +259,7 @@ function openEdit(profile: Profile): void {
         page === 1
       "
       :title="$t('profiles.emptyTitle')"
-      :description="
-        activeVenues.length
-          ? $t('profiles.emptyBody')
-          : $t('profiles.noVenueBody')
-      "
+      :description="$t('profiles.emptyBody')"
     >
       <button
         class="button button--secondary"
@@ -295,9 +267,7 @@ function openEdit(profile: Profile): void {
         @click="openCreate"
       >
         <Plus :size="16" />
-        {{
-          activeVenues.length ? $t("profiles.create") : $t("profiles.addVenue")
-        }}
+        {{ $t("profiles.create") }}
       </button>
     </EmptyState>
     <div v-else class="profile-console">
@@ -314,7 +284,11 @@ function openEdit(profile: Profile): void {
             <span class="profile-card__mark"><Landmark :size="17" /></span>
             <span class="profile-card__copy">
               <strong>{{ profile.name }}</strong>
-              <small>{{ venueById.get(profile.venue_id)?.name }}</small>
+              <small>{{
+                profile.venue_type === "bybit"
+                  ? "Bybit"
+                  : $t("profileMarket.manual")
+              }}</small>
             </span>
             <span
               class="status-dot"
@@ -339,7 +313,9 @@ function openEdit(profile: Profile): void {
         <header class="profile-detail__header">
           <div>
             <span class="profile-detail__venue">{{
-              venueById.get(selected.venue_id)?.name
+              selected.venue_type === "bybit"
+                ? "Bybit"
+                : $t("profileMarket.manual")
             }}</span>
             <div class="profile-detail__title-row">
               <h3>{{ selected.name }}</h3>
@@ -400,6 +376,13 @@ function openEdit(profile: Profile): void {
         <nav class="profile-tabs" :aria-label="$t('profiles.sections')">
           <button
             type="button"
+            :class="{ 'profile-tabs__button--active': activeTab === 'market' }"
+            @click="activeTab = 'market'"
+          >
+            <Landmark :size="16" />{{ $t("profiles.venue") }}
+          </button>
+          <button
+            type="button"
             :class="{ 'profile-tabs__button--active': activeTab === 'wallet' }"
             @click="activeTab = 'wallet'"
           >
@@ -415,8 +398,17 @@ function openEdit(profile: Profile): void {
             <BriefcaseBusiness :size="16" />{{ $t("profiles.strategies.tab") }}
           </button>
         </nav>
-        <ProfileWallet v-if="activeTab === 'wallet'" :profile="selected" />
-        <ProfileStrategies v-else :profile="selected" />
+        <ProfileMarket
+          v-if="activeTab === 'market'"
+          :key="selected.id"
+          :profile="selected"
+        />
+        <ProfileWallet
+          v-else-if="activeTab === 'wallet'"
+          :key="selected.id"
+          :profile="selected"
+        />
+        <ProfileStrategies v-else :key="selected.id" :profile="selected" />
       </div>
     </div>
 
@@ -436,12 +428,10 @@ function openEdit(profile: Profile): void {
       </label>
       <label class="field">
         <span>{{ $t("profiles.venue") }}</span>
-        <RemoteCatalogSelect
-          v-model="form.venue_id"
-          resource="venues"
-          :params="{ visibility: 'active' }"
-          :placeholder="$t('profiles.selectVenue')"
-          :empty-label="$t('profiles.noVenues')"
+        <AppSelect
+          v-model="form.venue_type"
+          :options="venueOptions"
+          :label="$t('profiles.venue')"
           :disabled="editing !== null"
         />
         <small>{{

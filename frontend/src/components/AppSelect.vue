@@ -22,6 +22,7 @@ defineProps<{
   modelValue: Value;
   options: SelectOption<Value>[];
   label: string;
+  portalTo?: string | HTMLElement;
 }>();
 
 const emit = defineEmits<{
@@ -43,7 +44,7 @@ function updateValue(value: unknown): void {
         <ChevronDown :size="15" aria-hidden="true" />
       </SelectIcon>
     </SelectTrigger>
-    <SelectPortal to=".tf-app">
+    <SelectPortal :to="portalTo ?? '.tf-app'">
       <SelectContent
         class="tf-select-content"
         position="popper"

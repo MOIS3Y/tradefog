@@ -16,11 +16,7 @@ const navigationOpen = ref(false);
 
 const navigation = computed(() => [
   { label: t("nav.overview"), path: "/", active: route.path === "/" },
-  {
-    label: t("nav.catalog"),
-    path: "/catalog/assets",
-    active: route.path.startsWith("/catalog"),
-  },
+
   {
     label: t("nav.profiles"),
     path: "/profiles",

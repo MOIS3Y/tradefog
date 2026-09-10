@@ -164,7 +164,6 @@ describe("analytics presentation", () => {
       strategyId: null,
       product: "spot",
       instrumentId: null,
-      pairId: 5,
       settlementAssetId: null,
       strategyCapitalId: 7,
     });
@@ -176,7 +175,7 @@ describe("analytics presentation", () => {
     expect(url.searchParams.get("profile_id")).toBe("3");
     expect(url.searchParams.get("strategy_id")).toBeNull();
     expect(url.searchParams.get("product")).toBe("spot");
-    expect(url.searchParams.get("pair_id")).toBe("5");
+    expect(url.searchParams.has("pair_id")).toBe(false);
     expect(url.searchParams.get("strategy_capital_id")).toBe("7");
   });
 });
