@@ -4,9 +4,10 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
@@ -15,6 +16,10 @@ from tradefog.api import api_router
 from tradefog.config import Settings, get_settings
 from tradefog.db.session import Database
 from tradefog.logging import setup_logging
+from tradefog.market.contracts import MarketFailure
+from tradefog.market.providers.bybit_public import BybitPublic
+from tradefog.market.public_service import PublicMarketService
+from tradefog.market.transport import MarketTransport
 
 
 @asynccontextmanager
@@ -25,7 +30,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     database = Database(settings.database)
     app.state.database = database
     try:
-        yield
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(10, connect=5, pool=1),
+            limits=httpx.Limits(
+                max_connections=8, max_keepalive_connections=8
+            ),
+            follow_redirects=False,
+        ) as market_client:
+            app.state.market = PublicMarketService(
+                {
+                    "bybit": BybitPublic(MarketTransport(market_client)),
+                }
+            )
+            yield
     finally:
         await database.dispose()
 
@@ -41,6 +58,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = app_settings
+
+    @app.exception_handler(MarketFailure)
+    async def market_failure_handler(
+        _request: object,
+        error: MarketFailure,
+    ) -> JSONResponse:
+        """Expose a safe market error and propagate the upstream cooldown."""
+        return JSONResponse(
+            status_code=error.status,
+            content={"detail": {"code": error.code, "message": str(error)}},
+            headers={"Retry-After": str(error.retry_after)}
+            if error.retry_after
+            else None,
+        )
 
     # Configure CORS
     if app_settings.application.cors_origins:

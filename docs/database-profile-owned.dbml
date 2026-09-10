@@ -1,0 +1,356 @@
+// TARGET SCHEMA FOR REVIEW: Bybit/manual profiles and virtual funds only.
+// Review artifact; docs/database.dbml remains the implemented source of truth.
+// No migrations, private credentials, exchange balances or candle persistence.
+//
+// Venue is a fixed integration choice on TradingProfile, not a catalog entity.
+// Bybit imports metadata on demand for selected instruments/assets only.
+// Manual profiles use user-entered metadata. Neither mode imports money.
+// Owner authorization always follows TradingProfile.owner_id.
+//
+// CROSS-REFERENCE INVARIANTS (must be enforced by the future implementation):
+// Instrument base, quote and settlement assets belong to its own profile.
+// WalletAsset.asset belongs to Wallet.profile.
+// StrategyCapital wallet and strategy belong to the same profile.
+// Trade instrument and strategy belong to Trade.profile.
+// Snapshot allocation belongs to Trade.strategy; its wallet asset equals the
+// instrument settlement asset. Snapshot settlement asset belongs to that profile.
+// Reservation wallet assets belong to the trade profile. Funding/loss buffers
+// use the settlement wallet asset; inventory uses the instrument base asset.
+// Simple foreign keys below express identity, NOT these cross-profile checks.
+//
+// HISTORY:
+// Profile venue_type cannot change once assets/instruments/wallet activity exist.
+// Asset identity (profile, symbol, type) and instrument identity (profile,
+// product, symbol, base, quote, settlement) cannot be repurposed after use.
+// Archive referenced identities; do not cascade-delete journal history.
+// Updated execution limits affect new planning only; snapshots stay immutable.
+// V1 monetary reports are partitioned by profile and settlement asset.
+// Cross-profile comparisons use dimensionless R, not implicit currency sums.
+//
+// ACCOUNTING AND LIFECYCLE:
+// Draft -> pending_entry/open freezes snapshot and reservations atomically.
+// Only draft/pending_entry can be cancelled. Open trades must be closed with
+// actual exit price and net P&L, even for an early exit or stop slippage.
+// Reservation checks and funding withdrawals must serialize competing writes.
+// Closing atomically releases effective reservations and accounts net P&L once.
+// Actual losses may exceed the loss buffer and make virtual balance negative;
+// this must not prevent recording a real close. Warn and block new unfunded plans.
+// Spot long reserves quantity * entry in quote. Linear perpetual reserves the
+// same notional in settlement currency (virtual 1x, not exchange margin).
+// Spot short means sale of OWNED inventory followed by full-quantity buyback:
+// reserve quantity in base plus quantity * (stop - entry) in quote.
+// No second strategy allocation in base is required, but free inventory is.
+// Sale proceeds are not credited as spendable funds. Inventory stays in the
+// virtual balance but is reserved until full buyback; only net P&L changes quote.
+// Fees/funding are informational components of net P&L, never deducted twice.
+// Partial quantities, borrowing, exchange execution and actual holdings sync
+// are outside this version. A loss buffer is not a guaranteed maximum loss.
+
+Enum venue_type {
+  bybit
+  manual
+}
+
+Enum asset_type {
+  crypto
+  equity
+  fiat
+}
+
+Enum product_kind {
+  spot
+  perpetual_future
+  cash_equity
+}
+
+Enum atr_source {
+  auto
+  manual
+}
+
+Enum trade_status {
+  draft
+  pending_entry
+  open
+  closed
+  cancelled
+}
+
+Enum direction {
+  long
+  short
+}
+
+Enum strategy_status {
+  active
+  at_risk
+  risk_stopped
+}
+
+Enum wallet_asset_status {
+  active
+  at_risk
+  risk_stopped
+}
+
+Enum wallet_operation_kind {
+  deposit
+  withdrawal
+}
+
+Enum reservation_purpose {
+  position_funding
+  inventory
+  loss_buffer
+}
+
+Enum checklist_answer {
+  NEGATIVE
+  NEUTRAL
+  POSITIVE
+}
+
+Table users {
+  id integer [pk, increment]
+  username varchar(150) [unique, not null]
+  password varchar(128) [not null, note: 'Hashed password']
+  first_name varchar(150) [note: 'Optional given name']
+  last_name varchar(150) [note: 'Optional family name']
+  email varchar(254) [note: 'Optional nonunique contact address; not a verified identity or login']
+  created_at timestamp [default: `now()`, not null]
+  updated_at timestamp [default: `now()`, not null, note: 'UTC time updated by the application on user changes']
+  is_staff boolean [default: false, not null, note: 'Account administration only; no shared market catalog']
+  is_active boolean [default: true, not null]
+}
+
+Table TradingProfile {
+  id integer [pk, increment]
+  owner_id integer [not null, note: 'Single ownership root for profile data']
+  venue_type venue_type [not null, note: 'Fixed supported integration: bybit or manual']
+  name varchar(128) [not null, note: 'User label, e.g. Bybit Main or MOEX via broker']
+  description text
+  is_archived boolean [default: false, not null]
+  Note: 'User-owned trading workspace. Multiple profiles of either type are allowed. Bybit uses public metadata and market data without a key. Manual uses user-entered metadata and ATR. Both use independent virtual capital; neither represents an exchange account balance.'
+  indexes {
+    (owner_id, id) [name: 'profile_owner_idx']
+  }
+}
+
+Table TradingAsset {
+  id integer [pk, increment]
+  profile_id integer [not null]
+  symbol varchar(32) [not null, note: 'Normalized symbol, unique within this profile']
+  name varchar(255)
+  asset_type asset_type [not null]
+  is_active boolean [default: true, not null]
+  Note: 'Only assets selected for this profile. Bybit metadata is filled from public instrument data; manual metadata is entered by the user. A referenced asset is retained even when inactive. No global asset catalog and no external balance.'
+  indexes {
+    (profile_id, symbol) [unique, name: 'profile_asset_symbol_idx']
+  }
+}
+
+Table TradingInstrument {
+  id integer [pk, increment]
+  profile_id integer [not null]
+  base_asset_id integer [not null]
+  quote_asset_id integer [not null]
+  settlement_asset_id integer [not null, note: 'Explicit in both modes; equals quote for supported spot/cash and linear products']
+  product product_kind [not null]
+  exec_symbol varchar(64) [not null, note: 'Exchange symbol or manual market identifier']
+  name varchar(255) [note: 'Optional readable instrument name']
+  price_step decimal(30, 18) [not null, note: 'Positive executable price increment']
+  qty_step decimal(30, 18) [not null, note: 'Positive executable quantity increment; quantity in base-asset units']
+  min_qty decimal(30, 18) [note: 'Optional positive minimum order quantity']
+  min_notional decimal(30, 18) [note: 'Optional positive minimum order notional']
+  metadata_updated_at timestamp [note: 'UTC time of successful metadata import; null for manual instruments']
+  is_active boolean [default: true, not null, note: 'Source availability; a delisted instrument remains in history']
+  is_archived boolean [default: false, not null, note: 'User archive choice; metadata refresh never overrides it']
+  Note: 'Profile-owned executable instrument; replaces TradingPair and VenueInstrument. Bybit selected instruments import their metadata and required assets, not the entire exchange catalog. V1 Bybit supports spot and supported linear perpetuals only. Manual supports the existing product kinds, not arbitrary contract multipliers. No automatic candles or order book for manual.'
+  indexes {
+    (profile_id, product, exec_symbol) [unique, name: 'profile_instrument_symbol_idx', note: 'Same exchange symbol may exist in spot and perpetual markets']
+  }
+}
+
+Table Wallet {
+  id integer [pk, increment]
+  profile_id integer [unique, not null]
+  Note: 'One virtual wallet per profile, created with the profile. Identical accounting in Bybit and manual; no API credentials or exchange balance synchronization.'
+}
+
+Table WalletAsset {
+  id integer [pk, increment]
+  wallet_id integer [not null]
+  asset_id integer [not null, note: 'TradingAsset belonging to the wallet profile']
+  risk_stop_capital decimal(30, 18) [note: 'Optional nonnegative advisory floor for this wallet asset, not a global symbol']
+  status wallet_asset_status [not null, note: 'Derived and recomputed from virtual deposit health']
+  is_archived boolean [default: false, not null]
+  Note: 'One virtual denomination in a profile wallet. User selects a profile asset and records virtual funding. Balance is derived from wallet operations and closed-trade net P&L; reservations from pending/open snapshots. No exchange balance is imported. Displaying a future exchange balance must not modify this accounting.'
+  indexes {
+    (wallet_id, asset_id) [unique, name: 'wallet_asset_asset_idx']
+  }
+}
+
+Table WalletOperation {
+  id integer [pk, increment]
+  wallet_asset_id integer [not null]
+  kind wallet_operation_kind [not null]
+  amount decimal(30, 18) [not null, note: 'Signed virtual movement: positive deposit, negative withdrawal; never zero']
+  note varchar(255)
+  created_at timestamp [default: `now()`, not null, note: 'UTC operation time']
+  Note: 'User-recorded virtual funding in both modes. Initial funding is a deposit; exchange asset metadata never creates funds. Kind, amount and time are immutable; note may be edited. Closed-trade P&L is accounted from trades, not duplicated as a wallet operation.'
+}
+
+Table TradingStrategy {
+  id integer [pk, increment, note: 'Primary key']
+  profile_id integer [not null, note: 'Owning profile; the strategy is a tool of the profile, not a shared catalog record']
+  name varchar(128) [not null, note: 'Strategy name, e.g. Easy']
+  description text [note: 'Strategy description']
+  risk_percent decimal(10, 6) [not null, note: 'Risk percent from 0.01 through 100 of the per-asset allocation capital per trade']
+  reward_multiple decimal(10, 6) [not null, default: 3, note: 'Whole reward multiple from 3 through 100; the canonical left side is always 1, so 3 means 1:3']
+  status strategy_status [not null, note: 'The worst status among its active StrategyCapital wallet assets']
+  is_archived boolean [default: false, not null, note: 'Soft-archived strategy; hidden from active strategy views']
+  Note: 'Edge layer: the fixed risk and reward coefficients of a strategy cohort. Ownership is scoped transitively through TradingProfile.owner. Capital lives per asset in StrategyCapital, so one strategy is reused across every wallet asset it allocates.'
+}
+
+Table StrategyCapital {
+  id integer [pk, increment, note: 'Primary key']
+  strategy_id integer [not null, note: 'Owning strategy']
+  wallet_asset_id integer [not null, note: 'Wallet asset this allocation commits to; must belong to the same profile wallet as the strategy']
+  capital decimal(30, 18) [not null, note: 'Fixed risk base for this asset; locked after the first submitted trade settling in it. New rows may be added when another asset becomes available.']
+  is_archived boolean [default: false, not null, note: 'Soft-archived allocation; preserves historical trades while preventing new trades in this asset']
+  Note: 'Allocation layer: fixed capital per wallet asset that a strategy commits. risk_amount = capital * risk_percent / 100. Ownership is scoped transitively through the strategy and profile.'
+  indexes {
+    (strategy_id, wallet_asset_id) [unique, name: 'strategy_capital_strategy_wallet_asset_idx', note: 'One allocation per strategy and wallet asset']
+  }
+}
+
+Table Trade {
+  indexes {
+    (profile_id, trade_date, id) [name: 'trade_profile_date_idx']
+    (profile_id, quality_rating, id) [name: 'trade_profile_rating_idx']
+    (profile_id, status, review_completed_at, id) [name: 'trade_profile_review_idx']
+  }
+  id integer [pk, increment, note: 'Primary key']
+  profile_id integer [not null, note: 'Owning profile; owner is the profile owner (single ownership root)']
+  strategy_id integer [not null, note: 'Owning strategy']
+  instrument_id integer [not null, note: 'TradingInstrument in this trade profile']
+  trade_date date [not null, note: 'Descriptive planning or entry date; realized-performance periods use closed_at']
+  status trade_status [not null, note: 'Draft, pending, open, closed, or cancelled']
+  direction direction [not null, note: 'Long or short; spot short means owned-asset sale with full buyback, never borrowing; locked after submission']
+  description_markdown text [note: 'Evolving Markdown description in any state']
+
+  quality_rating integer [note: 'Optional decision-quality score from 1 through 10; remains editable after submission']
+  review_completed_at timestamp [note: 'Optional review completion time; closed trades only']
+  realized_pnl decimal(30, 18) [note: 'Final signed net P&L when closed, in the settlement asset']
+  actual_exit_price decimal(30, 18) [note: 'Required average exit price when the trade is closed; null beforehand']
+  total_commission decimal(30, 18) [note: 'Optional total commission context']
+  funding_result decimal(30, 18) [note: 'Optional signed funding context']
+  submitted_at timestamp [note: 'First transition from draft to pending or directly to open']
+  opened_at timestamp [note: 'When the position was marked open']
+  closed_at timestamp [note: 'When P&L was realized; source of truth for realized-performance periods']
+  cancelled_at timestamp [note: 'When a draft or pending-entry trade was cancelled; open trades cannot be cancelled']
+  created_at timestamp [default: `now()`, not null, note: 'Creation time']
+  Note: 'Working journal record and lifecycle. Ownership is scoped transitively through TradingProfile.owner. The instrument settlement asset must match the asset of one StrategyCapital of the strategy. Decision context is frozen into TradeSnapshot on the draft-to-pending or draft-to-open transition; Trade working fields are locked from then on.'
+}
+
+Table TradePreparation {
+  trade_id integer [pk, not null, note: 'Exactly one preparation record created with each Trade']
+  planned_entry decimal(30, 18) [note: 'Nullable positive input; required to submit']
+  planned_stop decimal(30, 18) [note: 'Nullable positive input; direction-dependent validation on submission']
+  market_sentiment checklist_answer
+  information_background checklist_answer
+  global_daily_direction checklist_answer
+  local_daily_movement checklist_answer
+  atr_value decimal(30, 18) [note: 'Optional positive ATR; source/date/time required when present']
+  atr_source atr_source
+  atr_contributing_date date
+  atr_observation_time timestamp
+  atr_stale boolean [default: false, not null]
+  observed_session_range decimal(30, 18) [note: 'Optional nonnegative session range']
+  Note: 'Typed decision inputs replace Trade.draft_context. Incomplete preparation is valid; derived TP, quantity, checklist scores and ATR percentages are calculated, not stored here. Updated only while draft; retained and locked after submission or cancellation. Changing the instrument or analytical date clears related ATR. Submission atomically produces the final TradeSnapshot and reservations.'
+}
+
+Table TradeSnapshot {
+  id integer [pk, increment, note: 'Primary key']
+  trade_id integer [unique, not null, note: 'One write-once snapshot per trade']
+  strategy_capital_id integer [not null, note: 'Exact immutable allocation cohort used by this trade']
+  settlement_asset_id integer [not null, note: 'Frozen monetary denomination for P&L and analytics']
+  instrument_symbol varchar(64) [not null, note: 'Frozen execution symbol']
+  instrument_product product_kind [not null, note: 'Frozen market product']
+  price_step decimal(30, 18) [not null, note: 'Execution tick used at submission; later metadata refresh cannot alter history']
+  qty_step decimal(30, 18) [not null, note: 'Quantity increment used at submission']
+  min_qty decimal(30, 18) [note: 'Minimum quantity used at submission']
+  min_notional decimal(30, 18) [note: 'Minimum notional used at submission']
+  planned_entry decimal(30, 18) [not null, note: 'Frozen planned entry price']
+  planned_stop decimal(30, 18) [not null, note: 'Frozen planned stop price']
+  planned_take_profit decimal(30, 18) [note: 'Frozen take profit, derived at the reward multiple']
+  quantity decimal(30, 18) [note: 'Frozen position quantity']
+  reward_multiple decimal(10, 6) [note: 'Frozen reward multiple from the strategy']
+  planned_risk_percent decimal(10, 6) [note: 'Frozen risk percent from the strategy']
+  planned_risk_amount decimal(30, 18) [note: 'Executable risk = quantity * absolute entry-stop distance, no greater than allocation_capital * risk_percent / 100 after quantity rounding']
+  planned_notional decimal(30, 18) [note: 'Frozen quantity * entry at virtual 1x; informational, not the universal source of reservations']
+  allocation_capital decimal(30, 18) [note: 'Frozen StrategyCapital.capital for the settlement asset']
+  risk_stop_capital decimal(30, 18) [note: 'Frozen WalletAsset.risk_stop_capital']
+  already_reserved_risk decimal(30, 18) [note: 'Frozen risk already reserved by other trades of the same strategy and asset']
+  remaining_risk_capacity decimal(30, 18) [note: 'Frozen remaining risk capacity for the strategy and asset']
+  deposit_floor_breach boolean [note: 'Frozen deposit-floor breach state']
+  wallet_balance decimal(30, 18) [note: 'Frozen settlement wallet balance before this trade reserves funds']
+  wallet_reserved decimal(30, 18) [note: 'Frozen existing reservations in the settlement wallet asset, across all purposes']
+  wallet_available decimal(30, 18) [note: 'Frozen settlement balance minus existing reservations']
+  atr_value decimal(30, 18) [note: 'Frozen ATR value']
+  atr_source atr_source [note: 'AUTO from live provider candles, or MANUAL entered value']
+  atr_contributing_date date [note: 'Last date contributing to the ATR snapshot']
+  atr_observation_time timestamp [note: 'When the ATR context was observed']
+  atr_stale boolean [note: 'True if the snapshot context is stale']
+  created_at timestamp [default: `now()`, not null, note: 'Write-once creation time']
+  Note: 'Immutable decision context written atomically on the draft-to-pending or draft-to-open transition together with TradeReservation rows. Ownership is scoped transitively through the trade and its profile. Full-position close preserves the plan and records the actual result on Trade.'
+}
+
+Table TradeReservation {
+  id integer [pk, increment]
+  trade_snapshot_id integer [not null, note: 'Immutable submission snapshot owning this reservation']
+  wallet_asset_id integer [not null, note: 'Exact wallet denomination held; must belong to the trade profile']
+  purpose reservation_purpose [not null]
+  amount decimal(30, 18) [not null, note: 'Strictly positive frozen amount in units of the referenced wallet asset']
+  Note: 'Immutable requirements, not a money movement. Spot long and virtual 1x perpetual have one position_funding row. Spot sale with buyback has an inventory row for base quantity and a loss_buffer row for planned quote loss. Rows count toward reserved balance only while their trade is pending_entry or open; close/cancel preserves rows without a separate mutable release flag. No reservation rows for drafts. Withdrawal and submission checks use the sum across ALL purposes.'
+  indexes {
+    (trade_snapshot_id, purpose) [unique, name: 'reservation_snapshot_purpose_idx']
+    (wallet_asset_id, trade_snapshot_id) [name: 'reservation_wallet_snapshot_idx']
+  }
+}
+
+Table Attachment {
+  id integer [pk, increment, note: 'Primary key']
+  trade_id integer [not null, note: 'Owning trade; owner scoped through its profile']
+  storage_key varchar(255) [unique, not null, note: 'Server-generated relative path below the private media root']
+  original_name varchar(255) [not null, note: 'Sanitized client filename for display and download']
+  content_type varchar(127) [not null, note: 'Verified supported image media type']
+  size_bytes integer [not null, note: 'Exact stored payload size']
+  created_at timestamp [default: `now()`, not null, note: 'Upload time']
+  Note: 'Private trade image metadata. Files live outside the database and are served only after owner authorization.'
+}
+
+// Relations. See mandatory same-profile invariants at the top of this file.
+Ref: TradingProfile.owner_id > users.id
+Ref: TradingAsset.profile_id > TradingProfile.id
+Ref: TradingInstrument.profile_id > TradingProfile.id
+Ref: TradingInstrument.base_asset_id > TradingAsset.id
+Ref: TradingInstrument.quote_asset_id > TradingAsset.id
+Ref: TradingInstrument.settlement_asset_id > TradingAsset.id
+Ref: Wallet.profile_id > TradingProfile.id
+Ref: WalletAsset.wallet_id > Wallet.id
+Ref: WalletAsset.asset_id > TradingAsset.id
+Ref: WalletOperation.wallet_asset_id > WalletAsset.id
+Ref: TradingStrategy.profile_id > TradingProfile.id
+Ref: StrategyCapital.strategy_id > TradingStrategy.id
+Ref: StrategyCapital.wallet_asset_id > WalletAsset.id
+Ref: Trade.profile_id > TradingProfile.id
+Ref: Trade.strategy_id > TradingStrategy.id
+Ref: Trade.instrument_id > TradingInstrument.id
+Ref: TradeSnapshot.trade_id > Trade.id
+Ref: TradePreparation.trade_id - Trade.id
+Ref: TradeSnapshot.strategy_capital_id > StrategyCapital.id
+Ref: TradeSnapshot.settlement_asset_id > TradingAsset.id
+Ref: TradeReservation.trade_snapshot_id > TradeSnapshot.id
+Ref: TradeReservation.wallet_asset_id > WalletAsset.id
+Ref: Attachment.trade_id > Trade.id

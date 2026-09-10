@@ -62,6 +62,12 @@ container includes both artifacts, and FastAPI serves the compiled SPA. A
 reverse proxy and TLS termination remain deployment concerns outside the
 container.
 
+The optional `features/market-chart` module obtains public Bybit candles and
+order-book snapshots directly from the browser. Provider adapters and polling
+are isolated from journal API state and calculations. It uses lazy-loaded
+KLineCharts and local browser annotations; snapshots reuse private journal
+attachments. Server-side ATR is unchanged. See [Market Chart](market-chart.md).
+
 The optional `[frontend] path` setting identifies the directory containing
 `index.html` and compiled assets. When it is unset or invalid, the headless API
 remains available and frontend requests return a safe not-found response.

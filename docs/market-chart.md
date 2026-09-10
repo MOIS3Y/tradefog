@@ -2,7 +2,8 @@
 
 ## Status and Purpose
 
-Planned frontend feature for market analysis inside the trade workspace.
+Implemented optional frontend feature for market analysis in the trade
+workspace.
 The first increment supports Bybit charts and order books, reducing the need
 to switch between Tradefog and the exchange. It is not a tick-accurate trading
 terminal or an authoritative source for financial calculations.
@@ -14,10 +15,18 @@ outside this scope.
 
 ## Module Boundary and Providers
 
-Isolate components, normalized types, polling, provider adapters, and styles
-in `features/market-chart`. Load the core `klinecharts` package lazily.
+Components, normalized types, polling, and provider adapters live in
+`features/market-chart`. The core `klinecharts` package loads lazily.
+Market panel styles live in `styles/_market-chart.scss`; trade workspace
+layout lives in `styles/_trades.scss`. Both use the common stylesheet entry
+point and the `.tf-app` namespace.
 The trade page supplies instrument context; the module never changes position
 inputs or participates in saving the trade.
+
+`trades/TradeMarketWorkspace.vue` is the removable integration bridge. It
+resolves venue context and supplies the existing attachment-upload callback;
+its default slot contains the unchanged position form. Replacing that bridge
+with its slot content restores the ordinary workspace.
 
 A frontend adapter registry declares supported market types, timeframes,
 chart and order-book capabilities separately, refresh policy, and exchange
@@ -41,6 +50,12 @@ order-book prices and quantities.
 
 Use Tradefog's dark surfaces, semantic tokens, IBM Plex fonts, compact
 controls, and restrained motion. Avoid flashing prices and a separate theme.
+Chart numbers group thousands with a non-breaking space, not a comma;
+Display precision comes from significant decimal places in received OHLC
+and volume values, ignoring trailing zeros. It can grow when loading older
+history or new candles, but never shrinks during a chart's lifetime. Catalog
+price/quantity steps apply only to order planning; no instrument-metadata
+request is needed for the chart.
 
 ```text
 Wide screen with market support:
@@ -60,6 +75,10 @@ Without market support:
 - Use one position form: vertical beside the market, horizontal when it fills
   the available width. Preserve Long/Short, SL -> Entry -> derived TP,
   validation, and lifecycle locking. Do not draw trade levels on the chart.
+- The chart toolbar switches between candles, OHLC bars, and a line with
+  area fill without fetching data again. Full screen includes only the chart
+  and its controls, preserving the canvas and drawings. Escape or the same
+  button exits; unsupported browser requests show a local explanation.
 - Unsupported capabilities leave no empty columns or large placeholders.
   Without market support, the ordinary trade page remains complete.
 - At intermediate widths move parameters below the market block. On mobile
@@ -79,7 +98,7 @@ cross-tab coordination is needed in the first increment.
 - Load history on initialization, timeframe changes, and backward scrolling.
   Offer multiple adapter-supported timeframes from the first release.
 - For Bybit, request recent candles and the visible book in parallel, then
-  wait five seconds after the cycle finishes before repeating. This is one
+  wait one second after the cycle finishes before repeating. This is one
   refresh cycle, not an atomic exchange snapshot; track freshness separately.
 - Show 20 bid and 20 ask levels with price, size, cumulative size, and spread.
   The book is always current, including when viewing a closed trade or an
@@ -90,7 +109,7 @@ cross-tab coordination is needed in the first increment.
   and disposal. Pause while the page/module is hidden; do not poll a collapsed
   book. Refresh on return and reconcile any missed candles after a pause.
 - Retain last successful data on errors and mark delayed panels as stale.
-  Back off transient failures from 5 to 10, 20, 40, then 60 seconds; successful
+  Back off transient failures to 10, 20, 40, then 60 seconds; successful
   recovery restores normal cadence. Honor provider rate-limit cooldowns
   separately. Reload resets local backoff, not an exchange-side ban.
 - Keep loading and failures local to each panel, without clearing usable
@@ -103,8 +122,9 @@ of selected drawings, and clear-all. Drawings never modify the saved position.
 A custom Long/Short Position drawing is deferred.
 
 Retain a bounded, versioned set of drawings locally in the browser, scoped to
-user, trade, and instrument. Store supported types, time/price anchors, and
-allowed styles, not library runtime objects. Preserve drawings across
+user, trade, and instrument. Store supported types and time/price anchors,
+not library runtime objects; apply theme styles on restoration. Preserve
+drawings across
 timeframe changes, reloads, and trade closure. Local storage is best-effort:
 clearing browser data loses drawings; they are not synchronized across
 devices or included in server backups. Separate storage access from rendering
@@ -119,6 +139,11 @@ retry without clearing drawings. No new attachment storage is needed.
 The first feature includes the Bybit adapter, multi-timeframe chart, REST
 order book, responsive position layout, basic drawings with local retention,
 and screenshot attachment. No backend migrations are needed.
+
+Focused frontend tests cover adapters, refresh lifecycle, local storage,
+incremental canvas updates, snapshot retries, and unsupported-provider fallback.
+Chrome verification covers direct Bybit browser requests, wide/mobile layouts,
+provider failures, and drawing retention through timeframe changes and reloads.
 
 Test normalization, history boundaries, incremental updates, cancellation,
 hidden-page polling, backoff, drawing restoration, and screenshot upload.

@@ -51,6 +51,10 @@ accents reserved for active state, selection, and primary actions.
   places entry at the exact `1:R` boundary.
 - Trade notes and screenshots share one journal module. Private image blobs
   open in a keyboard-accessible full-screen gallery and are revoked locally.
+- Supported markets add chart, current order book, and position parameters
+  side by side on wide screens. Mobile stacks them in that order, with a
+  collapsible book. Unsupported providers retain the full-width position form.
+  Market errors never disable journal controls; drawings are browser-local.
 
 ## Content and States
 
