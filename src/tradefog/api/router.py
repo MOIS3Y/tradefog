@@ -6,8 +6,8 @@ from tradefog.api.v1.endpoints import (
     analytics,
     attachments,
     auth,
-    catalog,
     health,
+    instruments,
     profiles,
     trades,
     venues,
@@ -18,7 +18,7 @@ api_router = APIRouter()
 # Include version 1 endpoints
 api_router.include_router(health.router, prefix="/v1")
 api_router.include_router(auth.router, prefix="/v1")
-api_router.include_router(catalog.router, prefix="/v1")
+api_router.include_router(instruments.router, prefix="/v1")
 api_router.include_router(profiles.router, prefix="/v1")
 api_router.include_router(trades.router, prefix="/v1")
 api_router.include_router(analytics.router, prefix="/v1")

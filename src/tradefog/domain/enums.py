@@ -26,13 +26,19 @@ class ATRSource(StrEnum):
     MANUAL = "manual"
 
 
-class MarketDataProvider(StrEnum):
-    """Provider for on-demand market candles and ATR context."""
+class VenueType(StrEnum):
+    """Fixed integration choice, independent of user-owned profiles."""
 
-    NONE = "none"
+    MANUAL = "manual"
     BYBIT = "bybit"
-    BINANCE = "binance"
-    YFINANCE = "yfinance"
+
+
+class ReservationPurpose(StrEnum):
+    """Denomination-aware funding requirement frozen with a trade."""
+
+    POSITION_FUNDING = "position_funding"
+    INVENTORY = "inventory"
+    LOSS_BUFFER = "loss_buffer"
 
 
 class TradeStatus(StrEnum):

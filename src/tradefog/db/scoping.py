@@ -1,7 +1,7 @@
 """Fail-closed owner-scoped selects for every journal entity.
 
 Callers must obtain owner_id from authentication, never from request data.
-Shared catalog and user models are intentionally unsupported here.
+User accounts are intentionally unsupported here; they are authentication roots.
 """
 
 from sqlalchemy import Select, select
@@ -11,7 +11,10 @@ from tradefog.db.models import (
     Attachment,
     StrategyCapital,
     Trade,
+    TradeReservation,
     TradeSnapshot,
+    TradingAsset,
+    TradingInstrument,
     TradingProfile,
     TradingStrategy,
     Wallet,
@@ -21,6 +24,9 @@ from tradefog.db.models import (
 
 type JournalModel = (
     Attachment
+    | TradingAsset
+    | TradingInstrument
+    | TradeReservation
     | TradingProfile
     | Wallet
     | WalletAsset
@@ -52,6 +58,11 @@ def owned_select[Model: JournalModel](
     )
     trades = select(Trade.id).where(Trade.profile_id.in_(profiles))
     predicates: dict[type[JournalModel], ColumnElement[bool]] = {
+        TradingAsset: TradingAsset.profile_id.in_(profiles),
+        TradingInstrument: TradingInstrument.profile_id.in_(profiles),
+        TradeReservation: TradeReservation.trade_snapshot_id.in_(
+            select(TradeSnapshot.id).where(TradeSnapshot.trade_id.in_(trades))
+        ),
         Attachment: Attachment.trade_id.in_(trades),
         TradingProfile: TradingProfile.owner_id == owner_id,
         Wallet: Wallet.profile_id.in_(profiles),

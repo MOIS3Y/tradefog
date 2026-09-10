@@ -15,7 +15,7 @@ class Page[T](BaseModel):
 
 
 class ListQuery(BaseModel):
-    """Shared controls for catalog lists and remote option searches."""
+    """Shared controls for profile collections and option searches."""
 
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=25, ge=1, le=100)
@@ -23,9 +23,3 @@ class ListQuery(BaseModel):
     sort: str | None = None
     order: Literal["asc", "desc"] = "asc"
     visibility: Literal["all", "active", "archived"] = "all"
-    asset_type: Literal["crypto", "fiat", "equity"] | None = None
-    exclude_venue_id: int | None = Field(default=None, gt=0)
-    exclude_ids: list[int] = Field(default_factory=list, max_length=1000)
-    venue_id: int | None = Field(default=None, gt=0)
-    pair_id: int | None = Field(default=None, gt=0)
-    product: Literal["spot", "perpetual_future", "cash_equity"] | None = None

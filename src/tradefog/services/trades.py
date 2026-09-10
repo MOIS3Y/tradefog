@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation, localcontext
-from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,13 +11,12 @@ from tradefog.api.errors import api_error, conflict, not_found
 from tradefog.db.models import (
     StrategyCapital,
     Trade,
+    TradeReservation,
     TradeSnapshot,
-    TradingPair,
+    TradingAsset,
+    TradingInstrument,
     TradingProfile,
     TradingStrategy,
-    Venue,
-    VenueInstrument,
-    VenueWalletAsset,
     Wallet,
     WalletAsset,
 )
@@ -32,7 +30,13 @@ from tradefog.domain.checklists import (
     ChecklistAnswers,
     calculate_checklist_assessment,
 )
-from tradefog.domain.enums import ATRSource, TradeStatus
+from tradefog.domain.enums import (
+    ATRSource,
+    Direction,
+    ProductKind,
+    ReservationPurpose,
+    TradeStatus,
+)
 from tradefog.services.journal import wallet_balance, wallet_reserved
 
 
@@ -41,7 +45,7 @@ class PlanningContext:
     """Stable strategy, instrument and capital inputs for position sizing."""
 
     strategy: TradingStrategy
-    instrument: VenueInstrument
+    instrument: TradingInstrument
     allocation: StrategyCapital
     wallet_asset: WalletAsset
     settlement_asset_id: int
@@ -71,6 +75,19 @@ class SubmissionContext:
     remaining_risk_capacity: Decimal
     remaining_risk_after_plan: Decimal
     atr: "ATRDecisionContext | None"
+    instrument: TradingInstrument
+    reservations: list["ReservationRequirement"]
+
+
+@dataclass(frozen=True, slots=True)
+class ReservationRequirement:
+    """An exact asset requirement and its current available balance."""
+
+    wallet_asset_id: int
+    asset_id: int
+    purpose: ReservationPurpose
+    amount: Decimal
+    available: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,38 +103,21 @@ class ATRDecisionContext:
     session_range_percent: Decimal | None = None
 
 
-def decimal_from_context(value: object) -> Decimal | None:
-    """Parse a persisted JSON decimal without accepting lossy float values."""
-    if isinstance(value, str):
-        try:
-            return Decimal(value)
-        except ArithmeticError:
-            return None
-    return value if isinstance(value, Decimal) else None
-
-
 def checklist_payload(trade: Trade) -> dict[str, object]:
-    """Build the current checklist and assessment response payload."""
-    raw = trade.draft_context.get("checklist", {})
-    values = cast(dict[str, object], raw) if isinstance(raw, dict) else {}
-    answers = ChecklistAnswers(
-        market_sentiment=cast(str | None, values.get("market_sentiment")),
-        information_background=cast(
-            str | None,
-            values.get("information_background"),
-        ),
-        global_daily_direction=cast(
-            str | None,
-            values.get("global_daily_direction"),
-        ),
-        local_daily_movement=cast(
-            str | None,
-            values.get("local_daily_movement"),
-        ),
-    )
+    """Assess typed preparation inputs without deserializing JSON."""
+    preparation = trade.preparation
+    values = {
+        field: getattr(preparation, field)
+        for field in (
+            "market_sentiment",
+            "information_background",
+            "global_daily_direction",
+            "local_daily_movement",
+        )
+    }
+    answers = ChecklistAnswers(**values)
     assessment = calculate_checklist_assessment(
-        answers,
-        trade_direction=trade.direction.value,
+        answers, trade_direction=trade.direction.value
     )
     return {
         **values,
@@ -133,38 +133,31 @@ def checklist_payload(trade: Trade) -> dict[str, object]:
 
 
 def atr_from_context(trade: Trade) -> ATRDecisionContext | None:
-    """Deserialize the draft's latest ATR context when available."""
-    raw = trade.draft_context.get("atr")
-    if not isinstance(raw, dict):
-        return None
-    values = cast(dict[str, object], raw)
-    value = decimal_from_context(values.get("value"))
-    contributing = values.get("contributing_date")
-    observed = values.get("observation_time")
-    source = values.get("source")
+    """Read typed ATR facts and calculate derived session percentage."""
+    p = trade.preparation
     if (
-        value is None
-        or not isinstance(contributing, str)
-        or not isinstance(observed, str)
-        or not isinstance(source, str)
+        p.atr_value is None
+        or p.atr_source is None
+        or p.atr_contributing_date is None
+        or p.atr_observation_time is None
     ):
         return None
-    try:
-        return ATRDecisionContext(
-            value=value,
-            source=ATRSource(source),
-            contributing_date=date.fromisoformat(contributing),
-            observation_time=datetime.fromisoformat(observed),
-            stale=bool(values.get("stale", False)),
-            observed_session_range=decimal_from_context(
-                values.get("observed_session_range"),
-            ),
-            session_range_percent=decimal_from_context(
-                values.get("session_range_percent"),
-            ),
+    with localcontext() as context:
+        context.prec = 96
+        percent = (
+            p.observed_session_range / p.atr_value * 100
+            if p.observed_session_range is not None
+            else None
         )
-    except (ValueError, TypeError):
-        return None
+    return ATRDecisionContext(
+        value=p.atr_value,
+        source=p.atr_source,
+        contributing_date=p.atr_contributing_date,
+        observation_time=p.atr_observation_time,
+        stale=p.atr_stale,
+        observed_session_range=p.observed_session_range,
+        session_range_percent=percent,
+    )
 
 
 async def validate_trade_identity(
@@ -173,11 +166,8 @@ async def validate_trade_identity(
     strategy_id: int,
     instrument_id: int,
     owner_id: int,
-) -> tuple[TradingStrategy, VenueInstrument]:
+) -> tuple[TradingStrategy, TradingInstrument]:
     """Validate profile ownership and same-profile/same-venue references."""
-    venue = await session.get(Venue, profile.venue_id)
-    if venue is None or not venue.is_active:
-        api_error(422, "invalid_venue", "An active profile venue is required")
     strategy = await session.scalar(
         owned_select(TradingStrategy, owner_id).where(
             TradingStrategy.id == strategy_id,
@@ -188,11 +178,12 @@ async def validate_trade_identity(
         api_error(
             422, "invalid_strategy", "An active profile strategy is required"
         )
-    instrument = await session.get(VenueInstrument, instrument_id)
+    instrument = await session.get(TradingInstrument, instrument_id)
     if (
         instrument is None
         or not instrument.is_active
-        or instrument.venue_id != profile.venue_id
+        or instrument.profile_id != profile.id
+        or instrument.is_archived
     ):
         api_error(
             422,
@@ -210,20 +201,14 @@ async def settlement_allocation(
     for_update: bool = True,
 ) -> tuple[StrategyCapital, WalletAsset]:
     """Resolve the active allocation matching the instrument settlement asset."""
-    instrument = await session.get(VenueInstrument, trade.venue_instrument_id)
+    instrument = await session.get(TradingInstrument, trade.instrument_id)
     if instrument is None:
-        not_found("VenueInstrument")
+        not_found("TradingInstrument")
     settlement_id = instrument.settlement_asset_id
-    if settlement_id is None:
-        settlement_id = await session.scalar(
-            select(TradingPair.quote_id).where(
-                TradingPair.id == instrument.pair_id,
-            )
-        )
     wallet = await session.scalar(
         select(Wallet).where(Wallet.profile_id == trade.profile_id)
     )
-    if settlement_id is None or wallet is None:
+    if wallet is None:
         conflict("Instrument has no resolvable settlement wallet asset")
     statement = (
         select(StrategyCapital, WalletAsset)
@@ -231,21 +216,16 @@ async def settlement_allocation(
             WalletAsset,
             WalletAsset.id == StrategyCapital.wallet_asset_id,
         )
-        .join(
-            VenueWalletAsset,
-            VenueWalletAsset.id == WalletAsset.venue_wallet_asset_id,
-        )
         .where(
             StrategyCapital.strategy_id == trade.strategy_id,
             WalletAsset.wallet_id == wallet.id,
-            VenueWalletAsset.asset_id == settlement_id,
+            WalletAsset.asset_id == settlement_id,
         )
     )
     if active_only:
         statement = statement.where(
             StrategyCapital.is_archived.is_(False),
             WalletAsset.is_archived.is_(False),
-            VenueWalletAsset.is_active.is_(True),
         )
     if for_update:
         statement = statement.with_for_update()
@@ -332,9 +312,16 @@ async def prepare_submission(
         )
     except PositionPlanError as error:
         api_error(422, "invalid_position_plan", error.message)
-    if enforce_capital and plan.notional > planning.available:
-        conflict(
-            "Wallet has insufficient available balance for planned notional"
+    reservations = await reservation_requirements(
+        session, trade, planning, plan
+    )
+    if enforce_capital and any(
+        row.amount > row.available for row in reservations
+    ):
+        api_error(
+            409,
+            "insufficient_reserves",
+            "Insufficient available inventory or settlement funds",
         )
     return SubmissionContext(
         plan=plan,
@@ -352,6 +339,8 @@ async def prepare_submission(
             planning.remaining_risk_capacity - plan.planned_risk_amount
         ),
         atr=planning.atr,
+        instrument=planning.instrument,
+        reservations=reservations,
     )
 
 
@@ -365,24 +354,18 @@ async def prepare_planning_context(
     if trade.status != TradeStatus.DRAFT:
         conflict("Only a draft trade can be submitted")
     strategy = await session.get(TradingStrategy, trade.strategy_id)
-    instrument = await session.get(VenueInstrument, trade.venue_instrument_id)
+    instrument = await session.get(TradingInstrument, trade.instrument_id)
     if strategy is None or instrument is None:
         conflict("Trade references are no longer available")
     profile = await session.get(TradingProfile, trade.profile_id)
-    venue = (
-        await session.get(Venue, profile.venue_id)
-        if profile is not None
-        else None
-    )
     if (
         strategy.is_archived
         or not instrument.is_active
         or profile is None
         or profile.is_archived
-        or venue is None
-        or not venue.is_active
         or strategy.profile_id != profile.id
-        or instrument.venue_id != profile.venue_id
+        or instrument.profile_id != profile.id
+        or instrument.is_archived
     ):
         conflict("Archived trade references cannot be submitted")
     allocation, wallet_asset = await settlement_allocation(
@@ -390,12 +373,18 @@ async def prepare_planning_context(
         trade,
         for_update=for_update,
     )
-    capability = await session.get(
-        VenueWalletAsset,
-        wallet_asset.venue_wallet_asset_id,
-    )
-    if capability is None:
-        conflict("Settlement wallet capability is no longer available")
+    for asset_id in {
+        instrument.base_asset_id,
+        instrument.quote_asset_id,
+        instrument.settlement_asset_id,
+    }:
+        asset = await session.get(TradingAsset, asset_id)
+        if (
+            asset is None
+            or not asset.is_active
+            or asset.profile_id != trade.profile_id
+        ):
+            conflict("Instrument assets are unavailable in this profile")
     balance = await wallet_balance(session, wallet_asset)
     wallet_reserved_amount = await wallet_reserved(session, wallet_asset)
     available = balance - wallet_reserved_amount
@@ -411,7 +400,7 @@ async def prepare_planning_context(
         instrument=instrument,
         allocation=allocation,
         wallet_asset=wallet_asset,
-        settlement_asset_id=capability.asset_id,
+        settlement_asset_id=wallet_asset.asset_id,
         balance=balance,
         reserved_notional=wallet_reserved_amount,
         available=available,
@@ -438,6 +427,12 @@ async def submit_trade(
         trade_id=trade.id,
         strategy_capital_id=context.allocation.id,
         settlement_asset_id=context.settlement_asset_id,
+        instrument_symbol=context.instrument.exec_symbol,
+        instrument_product=context.instrument.product,
+        price_step=context.instrument.price_step,
+        qty_step=context.instrument.qty_step,
+        min_qty=context.instrument.min_qty,
+        min_notional=context.instrument.min_notional,
         planned_entry=entry,
         planned_stop=stop,
         planned_take_profit=stored_decimal(context.plan.take_profit),
@@ -478,4 +473,67 @@ async def submit_trade(
     if target_status == TradeStatus.OPEN:
         trade.opened_at = now
     await session.flush()
+    session.add_all(
+        [
+            TradeReservation(
+                trade_snapshot_id=snapshot.id,
+                wallet_asset_id=row.wallet_asset_id,
+                purpose=row.purpose,
+                amount=stored_decimal(row.amount),
+            )
+            for row in context.reservations
+        ]
+    )
+    await session.flush()
     return snapshot
+
+
+async def reservation_requirements(
+    session: AsyncSession,
+    trade: Trade,
+    planning: PlanningContext,
+    plan: PositionPlan,
+) -> list[ReservationRequirement]:
+    """Require owned inventory plus a quote loss buffer for cash buybacks."""
+    buyback = (
+        trade.direction == Direction.SHORT
+        and planning.instrument.product
+        in (ProductKind.SPOT, ProductKind.CASH_EQUITY)
+    )
+    money = plan.planned_risk_amount if buyback else plan.notional
+    rows = [
+        ReservationRequirement(
+            wallet_asset_id=planning.wallet_asset.id,
+            asset_id=planning.wallet_asset.asset_id,
+            purpose=ReservationPurpose.LOSS_BUFFER
+            if buyback
+            else ReservationPurpose.POSITION_FUNDING,
+            amount=stored_decimal(money),
+            available=planning.available,
+        )
+    ]
+    if buyback:
+        inventory = await session.scalar(
+            select(WalletAsset)
+            .join(Wallet)
+            .where(
+                Wallet.profile_id == trade.profile_id,
+                WalletAsset.asset_id == planning.instrument.base_asset_id,
+                WalletAsset.is_archived.is_(False),
+            )
+        )
+        available = Decimal(0)
+        if inventory is not None:
+            available = await wallet_balance(
+                session, inventory
+            ) - await wallet_reserved(session, inventory)
+        rows.append(
+            ReservationRequirement(
+                wallet_asset_id=inventory.id if inventory else 0,
+                asset_id=planning.instrument.base_asset_id,
+                purpose=ReservationPurpose.INVENTORY,
+                amount=stored_decimal(plan.quantity),
+                available=available,
+            )
+        )
+    return rows

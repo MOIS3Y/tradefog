@@ -57,7 +57,7 @@ def sanitized_filename(filename: str | None, extension: str) -> str:
     stem = name.rsplit(".", maxsplit=1)[0].strip(". ")
     name = f"{stem or 'attachment'}{extension}"
     if len(name) > 255:
-        name = f"{name[:255 - len(extension)]}{extension}"
+        name = f"{name[: 255 - len(extension)]}{extension}"
     return name
 
 
@@ -67,7 +67,8 @@ def attachment_path(media_root: Path, storage_key: str) -> Path:
     candidate = (root / storage_key).resolve()
     if not candidate.is_relative_to(root):
         raise AttachmentStorageError(
-            "invalid_storage_key", "Attachment storage key is invalid",
+            "invalid_storage_key",
+            "Attachment storage key is invalid",
         )
     return candidate
 

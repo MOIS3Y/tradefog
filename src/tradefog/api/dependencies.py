@@ -5,6 +5,7 @@ from typing import Annotated, cast
 
 from fastapi import Depends, Request, status
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradefog.api.errors import api_error
@@ -20,6 +21,11 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     """Provide a transaction committed before the response is sent."""
     database = cast(Database, request.app.state.database)
     async with database.session() as session:
+        if (
+            request.method not in ("GET", "HEAD", "OPTIONS")
+            and session.bind.dialect.name == "sqlite"
+        ):
+            await session.execute(text("BEGIN IMMEDIATE"))
         yield session
 
 
@@ -51,7 +57,10 @@ async def get_current_user(
             "invalid_credentials",
             "Could not validate credentials",
         )
-    user = await session.get(User, subject)
+    statement = select(User).where(User.id == subject)
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        statement = statement.with_for_update()
+    user = await session.scalar(statement)
     if user is None or not user.is_active:
         api_error(
             status.HTTP_401_UNAUTHORIZED,
@@ -65,7 +74,7 @@ CurrentUserDependency = Annotated[User, Depends(get_current_user)]
 
 
 async def get_staff_user(user: CurrentUserDependency) -> User:
-    """Require the shared-catalog staff role for a mutation endpoint."""
+    """Require the administrative role without granting journal ownership."""
     if not user.is_staff:
         api_error(
             status.HTTP_403_FORBIDDEN,

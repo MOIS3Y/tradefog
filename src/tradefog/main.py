@@ -116,7 +116,11 @@ def configure_frontend(app: FastAPI, path: Path | None) -> None:
     @app.get("/{frontend_path:path}", include_in_schema=False)
     async def serve_frontend(frontend_path: str) -> FileResponse:
         """Serve SPA navigation while leaving missing static files as 404."""
-        if Path(frontend_path).suffix:
+        if (
+            frontend_path == "api"
+            or frontend_path.startswith("api/")
+            or Path(frontend_path).suffix
+        ):
             raise HTTPException(status_code=404, detail="Not Found")
         return FileResponse(index, headers={"Cache-Control": "no-cache"})
 

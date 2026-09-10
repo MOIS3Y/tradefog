@@ -1,6 +1,8 @@
 """Transport models for account and token endpoints."""
 
-from pydantic import BaseModel, ConfigDict, Field
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserResponse(BaseModel):
@@ -12,6 +14,26 @@ class UserResponse(BaseModel):
     username: str
     is_staff: bool
     is_active: bool
+    first_name: str | None
+    last_name: str | None
+    email: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class UserPatch(BaseModel):
+    """Only self-service contact metadata; never privilege or credentials."""
+
+    model_config = ConfigDict(extra="forbid")
+    first_name: str | None = Field(default=None, max_length=150)
+    last_name: str | None = Field(default=None, max_length=150)
+    email: EmailStr | None = Field(default=None, max_length=254)
+
+    @field_validator("first_name", "last_name", "email", mode="before")
+    @classmethod
+    def trim_optional(cls, value: object) -> object:
+        """Normalize blank optional fields to absence."""
+        return value.strip() or None if isinstance(value, str) else value
 
 
 class TokenResponse(BaseModel):

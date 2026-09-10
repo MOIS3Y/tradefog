@@ -50,7 +50,7 @@ class TradeListItem(BaseModel):
     profile_name: str
     strategy_id: int
     strategy_name: str
-    venue_instrument_id: int
+    instrument_id: int
     exec_symbol: str
     pair_symbol: str
     settlement_symbol: str
@@ -95,7 +95,7 @@ class TradeCreate(TradeInput):
 
     profile_id: int = Field(gt=0)
     strategy_id: int = Field(gt=0)
-    venue_instrument_id: int = Field(gt=0)
+    instrument_id: int = Field(gt=0)
     trade_date: date
     direction: Direction
     description_markdown: str | None = None
@@ -105,7 +105,7 @@ class TradePatch(TradeInput):
     """Edit a draft identity or evolving journal metadata."""
 
     strategy_id: int | None = Field(default=None, gt=0)
-    venue_instrument_id: int | None = Field(default=None, gt=0)
+    instrument_id: int | None = Field(default=None, gt=0)
     trade_date: date | None = None
     direction: Direction | None = None
     description_markdown: str | None = None
@@ -184,6 +184,35 @@ class TradePlanRequest(TradeInput):
     planned_stop: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
 
 
+class TradePlanSave(TradeInput):
+    """Persist partial anchors without inventing missing numeric values."""
+
+    planned_entry: Decimal | None = Field(
+        default=None, gt=0, max_digits=30, decimal_places=18
+    )
+    planned_stop: Decimal | None = Field(
+        default=None, gt=0, max_digits=30, decimal_places=18
+    )
+
+
+class PreparationResponse(BaseModel):
+    """Typed inputs retained even when the plan is incomplete."""
+
+    model_config = ConfigDict(from_attributes=True)
+    planned_entry: Decimal | None
+    planned_stop: Decimal | None
+    market_sentiment: DirectionalValue | None
+    information_background: DirectionalValue | None
+    global_daily_direction: DirectionalValue | None
+    local_daily_movement: DirectionalValue | None
+    atr_value: Decimal | None
+    atr_source: ATRSource | None
+    atr_contributing_date: date | None
+    atr_observation_time: datetime | None
+    atr_stale: bool
+    observed_session_range: Decimal | None
+
+
 class TradePlanningContextResponse(BaseModel):
     """Stable inputs required for a local draft position calculation."""
 
@@ -202,12 +231,38 @@ class TradePlanningContextResponse(BaseModel):
     wallet_reserved: Decimal
     wallet_available: Decimal
     deposit_floor_breach: bool
+    product: str
+    direction: Direction
+    base_asset_id: int
+    settlement_asset_id: int
+    inventory_wallet_asset_id: int | None
+    inventory_available: Decimal
+
+
+class ReservationResponse(BaseModel):
+    """Exact required amount and availability of one virtual denomination."""
+
+    wallet_asset_id: int | None
+    asset_id: int
+    purpose: str
+    amount: Decimal
+    available: Decimal
+
+
+class StoredReservationResponse(BaseModel):
+    """Immutable requirements retained after release."""
+
+    model_config = ConfigDict(from_attributes=True)
+    wallet_asset_id: int
+    purpose: str
+    amount: Decimal
 
 
 class TradePlanResponse(BaseModel):
     """Executable plan and current capital context before submission."""
 
     planned_entry: Decimal
+    reservations: list[ReservationResponse]
     planned_stop: Decimal
     planned_take_profit: Decimal
     stop_distance: Decimal
@@ -269,6 +324,12 @@ class SnapshotResponse(BaseModel):
     id: int
     strategy_capital_id: int
     settlement_asset_id: int
+    instrument_symbol: str
+    instrument_product: str
+    price_step: Decimal
+    qty_step: Decimal
+    min_qty: Decimal | None
+    min_notional: Decimal | None
     planned_entry: Decimal
     planned_stop: Decimal
     planned_take_profit: Decimal | None
@@ -312,8 +373,10 @@ class TradeResponse(BaseModel):
 
     id: int
     profile_id: int
+    preparation: PreparationResponse
+    reservations: list[StoredReservationResponse]
     strategy_id: int
-    venue_instrument_id: int
+    instrument_id: int
     trade_date: date
     status: TradeStatus
     direction: Direction

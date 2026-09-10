@@ -6,7 +6,8 @@ from alembic import context
 from sqlalchemy.engine import Connection
 
 from tradefog.config import get_settings
-from tradefog.db.models import Base
+from tradefog.db import models  # noqa: F401
+from tradefog.db.base import Base
 from tradefog.db.session import create_engine, database_url
 
 

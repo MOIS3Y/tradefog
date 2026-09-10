@@ -5,13 +5,12 @@ from decimal import Decimal, localcontext
 from typing import Annotated
 
 from fastapi import APIRouter, Query, status
-from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from starlette.concurrency import run_in_threadpool
 
 from tradefog.api.dependencies import CurrentUserDependency, SessionDependency
 from tradefog.api.errors import api_error, conflict, not_found
+from tradefog.api.v1.endpoints.venues import MarketDependency
 from tradefog.api.v1.schemas.pagination import Page
 from tradefog.api.v1.schemas.trades import (
     ATRRequest,
@@ -19,7 +18,10 @@ from tradefog.api.v1.schemas.trades import (
     CandleResponse,
     ChecklistResponse,
     ChecklistWrite,
+    PreparationResponse,
+    ReservationResponse,
     SnapshotResponse,
+    StoredReservationResponse,
     TradeClose,
     TradeCreate,
     TradeListItem,
@@ -28,6 +30,7 @@ from tradefog.api.v1.schemas.trades import (
     TradePlanningContextResponse,
     TradePlanRequest,
     TradePlanResponse,
+    TradePlanSave,
     TradeResponse,
     TradeReview,
     TradeSubmit,
@@ -36,12 +39,13 @@ from tradefog.db.models import (
     Attachment,
     StrategyCapital,
     Trade,
+    TradePreparation,
+    TradeReservation,
     TradeSnapshot,
-    TradingPair,
+    TradingInstrument,
     TradingProfile,
     TradingStrategy,
-    Venue,
-    VenueInstrument,
+    Wallet,
     WalletAsset,
 )
 from tradefog.db.scoping import owned_select
@@ -50,9 +54,12 @@ from tradefog.domain.checklists import (
     calculate_checklist_assessment,
 )
 from tradefog.domain.enums import ATRSource, TradeStatus
-from tradefog.market.service import fetch_atr_context
-from tradefog.market.types import MarketDataError
-from tradefog.services.journal import get_owned, recompute_wallet_asset
+from tradefog.services.journal import (
+    get_owned,
+    recompute_wallet_asset,
+    wallet_balance,
+    wallet_reserved,
+)
 from tradefog.services.pagination import paginate, search_text
 from tradefog.services.trades import (
     ATRDecisionContext,
@@ -69,17 +76,6 @@ from tradefog.services.trades import (
 router = APIRouter(prefix="/trades", tags=["Trades"])
 
 
-def store_draft_section(
-    trade: Trade,
-    name: str,
-    value: dict[str, object],
-) -> None:
-    """Replace a JSON section so SQLAlchemy reliably detects the mutation."""
-    context = dict(trade.draft_context)
-    context[name] = value
-    trade.draft_context = context
-
-
 def atr_response(context: ATRDecisionContext) -> ATRResponse:
     """Convert persisted ATR facts into their transport representation."""
     return ATRResponse(
@@ -94,16 +90,13 @@ def atr_response(context: ATRDecisionContext) -> ATRResponse:
 
 
 def saved_plan(trade: Trade) -> TradePlanRequest | None:
-    """Deserialize the saved plan and reject malformed draft JSON."""
-    raw = trade.draft_context.get("plan")
-    if raw is None:
+    """Read optional typed entry and stop inputs."""
+    p = trade.preparation
+    if p.planned_entry is None or p.planned_stop is None:
         return None
-    if not isinstance(raw, dict):
-        api_error(422, "invalid_draft_context", "Saved trade plan is invalid")
-    try:
-        return TradePlanRequest.model_validate(raw)
-    except ValidationError:
-        api_error(422, "invalid_draft_context", "Saved trade plan is invalid")
+    return TradePlanRequest(
+        planned_entry=p.planned_entry, planned_stop=p.planned_stop
+    )
 
 
 async def trade_response(
@@ -115,11 +108,23 @@ async def trade_response(
         select(TradeSnapshot).where(TradeSnapshot.trade_id == trade.id)
     )
     atr = atr_from_context(trade)
+    reservations = (
+        await session.scalars(
+            select(TradeReservation)
+            .join(TradeSnapshot)
+            .where(TradeSnapshot.trade_id == trade.id)
+        )
+    ).all()
     return TradeResponse(
         id=trade.id,
         profile_id=trade.profile_id,
+        preparation=PreparationResponse.model_validate(trade.preparation),
+        reservations=[
+            StoredReservationResponse.model_validate(row)
+            for row in reservations
+        ],
         strategy_id=trade.strategy_id,
-        venue_instrument_id=trade.venue_instrument_id,
+        instrument_id=trade.instrument_id,
         trade_date=trade.trade_date,
         status=trade.status,
         direction=trade.direction,
@@ -194,13 +199,23 @@ def plan_response(
         wallet_reserved=stored_decimal(context.reserved_notional),
         wallet_available=stored_decimal(context.available),
         capital_remaining=stored_decimal(
-            context.available - context.plan.notional,
+            context.available - context.reservations[0].amount,
         ),
         capital_sufficient=(
-            context.plan.notional <= context.available
+            all(row.amount <= row.available for row in context.reservations)
             and context.target_risk_amount <= context.remaining_risk_capacity
         ),
         atr_value=context.atr.value if context.atr else None,
+        reservations=[
+            ReservationResponse(
+                wallet_asset_id=row.wallet_asset_id or None,
+                asset_id=row.asset_id,
+                purpose=row.purpose,
+                amount=row.amount,
+                available=row.available,
+            )
+            for row in context.reservations
+        ],
         take_profit_atr_percent=atr_percent,
         fits_atr_limit=fits_atr_limit,
     )
@@ -224,20 +239,20 @@ async def list_trades(
             Trade.strategy_id == TradingStrategy.id,
         )
         .join(
-            VenueInstrument,
-            Trade.venue_instrument_id == VenueInstrument.id,
+            TradingInstrument,
+            Trade.instrument_id == TradingInstrument.id,
         )
-        .join(TradingPair, VenueInstrument.pair_id == TradingPair.id)
         .options(
             selectinload(Trade.profile),
             selectinload(Trade.strategy),
-            selectinload(Trade.venue_instrument)
-            .selectinload(
-                VenueInstrument.pair,
-            )
-            .selectinload(TradingPair.quote),
-            selectinload(Trade.venue_instrument).selectinload(
-                VenueInstrument.settlement_asset,
+            selectinload(Trade.instrument).selectinload(
+                TradingInstrument.quote_asset
+            ),
+            selectinload(Trade.instrument).selectinload(
+                TradingInstrument.base_asset
+            ),
+            selectinload(Trade.instrument).selectinload(
+                TradingInstrument.settlement_asset,
             ),
         )
     )
@@ -270,8 +285,8 @@ async def list_trades(
         statement = statement.where(
             search_text(
                 [
-                    TradingPair.canonical_symbol,
-                    VenueInstrument.exec_symbol,
+                    TradingInstrument.exec_symbol,
+                    TradingInstrument.exec_symbol,
                     TradingProfile.name,
                     TradingStrategy.name,
                 ]
@@ -283,7 +298,7 @@ async def list_trades(
         query,
         {
             "trade_date": Trade.trade_date,
-            "instrument": TradingPair.canonical_symbol,
+            "instrument": TradingInstrument.exec_symbol,
             "profile": TradingProfile.name,
             "strategy": TradingStrategy.name,
             "direction": Trade.direction,
@@ -296,8 +311,8 @@ async def list_trades(
     )
     rows = []
     for trade in items:
-        instrument = trade.venue_instrument
-        settlement = instrument.settlement_asset or instrument.pair.quote
+        instrument = trade.instrument
+        settlement = instrument.settlement_asset
         rows.append(
             TradeListItem(
                 id=trade.id,
@@ -305,9 +320,9 @@ async def list_trades(
                 profile_name=trade.profile.name,
                 strategy_id=trade.strategy_id,
                 strategy_name=trade.strategy.name,
-                venue_instrument_id=instrument.id,
+                instrument_id=instrument.id,
                 exec_symbol=instrument.exec_symbol,
-                pair_symbol=instrument.pair.canonical_symbol,
+                pair_symbol=f"{instrument.base_asset.symbol}/{instrument.quote_asset.symbol}",
                 settlement_symbol=settlement.symbol,
                 trade_date=trade.trade_date,
                 direction=trade.direction,
@@ -346,17 +361,17 @@ async def create_trade(
         session,
         profile,
         request.strategy_id,
-        request.venue_instrument_id,
+        request.instrument_id,
         user.id,
     )
     trade = Trade(
         profile_id=profile.id,
         strategy_id=request.strategy_id,
-        venue_instrument_id=request.venue_instrument_id,
+        instrument_id=request.instrument_id,
         trade_date=request.trade_date,
         status=TradeStatus.DRAFT,
         direction=request.direction,
-        draft_context={},
+        preparation=TradePreparation(),
         description_markdown=request.description_markdown,
     )
     session.add(trade)
@@ -422,7 +437,7 @@ async def update_trade(
     values = request.model_dump(exclude_unset=True)
     draft_only = {
         "strategy_id",
-        "venue_instrument_id",
+        "instrument_id",
         "trade_date",
         "direction",
     }
@@ -439,9 +454,18 @@ async def update_trade(
             session,
             profile,
             values.get("strategy_id", trade.strategy_id),
-            values.get("venue_instrument_id", trade.venue_instrument_id),
+            values.get("instrument_id", trade.instrument_id),
             user.id,
         )
+    if any(
+        field in values and values[field] != getattr(trade, field)
+        for field in ("instrument_id", "trade_date")
+    ):
+        p = trade.preparation
+        p.atr_value = p.atr_source = p.atr_contributing_date = (
+            p.atr_observation_time
+        ) = p.observed_session_range = None
+        p.atr_stale = False
     for field, value in values.items():
         setattr(trade, field, value)
     await session.flush()
@@ -465,8 +489,9 @@ async def update_checklist(
     )
     if trade.status != TradeStatus.DRAFT:
         conflict("Checklist is locked after trade submission")
-    answers = request.model_dump(mode="json")
-    store_draft_section(trade, "checklist", answers)
+    answers = request.model_dump()
+    for field, value in answers.items():
+        setattr(trade.preparation, field, value)
     assessment = calculate_checklist_assessment(
         ChecklistAnswers(**answers),
         trade_direction=trade.direction.value,
@@ -488,6 +513,7 @@ async def update_checklist(
 @router.post("/{trade_id}/atr", response_model=ATRResponse)
 async def refresh_atr(
     trade_id: int,
+    market: MarketDependency,
     request: ATRRequest,
     session: SessionDependency,
     user: CurrentUserDependency,
@@ -496,6 +522,8 @@ async def refresh_atr(
     trade = await get_owned(session, Trade, trade_id, user.id)
     if trade.status != TradeStatus.DRAFT:
         conflict("ATR context is locked after trade submission")
+    requested_instrument_id = trade.instrument_id
+    requested_trade_date = trade.trade_date
     if request.value is not None:
         if (
             request.contributing_date is not None
@@ -526,8 +554,8 @@ async def refresh_atr(
         )
     else:
         instrument = await session.get(
-            VenueInstrument,
-            trade.venue_instrument_id,
+            TradingInstrument,
+            trade.instrument_id,
         )
         profile = await get_owned(
             session,
@@ -535,25 +563,24 @@ async def refresh_atr(
             trade.profile_id,
             user.id,
         )
-        venue = await session.get(Venue, profile.venue_id)
-        if instrument is None or venue is None:
+        if instrument is None:
             not_found("Trade market context")
-        if venue.market_data_provider.value == "none":
+        if profile.venue_type.value == "manual":
             api_error(
                 422,
                 "manual_atr_required",
-                "Venue has no automatic market data provider",
+                "Manual profiles require an ATR value",
             )
-        try:
-            context = await run_in_threadpool(
-                fetch_atr_context,
-                venue.market_data_provider.value,
-                instrument.exec_symbol,
-                product_kind=instrument.product.value,
-                trade_date=trade.trade_date,
+        if instrument.product.value not in ("spot", "perpetual_future"):
+            api_error(
+                422, "unsupported_product", "No automatic ATR for this product"
             )
-        except MarketDataError as error:
-            api_error(503, "market_data_unavailable", str(error))
+        context = await market.atr(
+            profile.venue_type.value,
+            instrument.exec_symbol,
+            instrument.product.value,
+            trade.trade_date,
+        )
         response = ATRResponse(
             value=context.atr_value,
             source=ATRSource.AUTO,
@@ -583,32 +610,23 @@ async def refresh_atr(
         not_found("Trade")
     if locked_trade.status != TradeStatus.DRAFT:
         conflict("ATR context is locked after trade submission")
-    store_draft_section(
-        locked_trade,
-        "atr",
-        {
-            "value": str(response.value),
-            "source": response.source.value,
-            "contributing_date": response.contributing_date.isoformat(),
-            "observation_time": response.observation_time.isoformat(),
-            "stale": response.stale,
-            "observed_session_range": (
-                str(response.observed_session_range)
-                if response.observed_session_range is not None
-                else None
-            ),
-            "session_range_percent": (
-                str(response.session_range_percent)
-                if response.session_range_percent is not None
-                else None
-            ),
-        },
-    )
+    if (
+        locked_trade.instrument_id != requested_instrument_id
+        or locked_trade.trade_date != requested_trade_date
+    ):
+        conflict("Trade context changed during ATR request")
+    p = locked_trade.preparation
+    p.atr_value = response.value
+    p.atr_source = response.source
+    p.atr_contributing_date = response.contributing_date
+    p.atr_observation_time = response.observation_time.replace(tzinfo=None)
+    p.atr_stale = response.stale
+    p.observed_session_range = response.observed_session_range
     await session.flush()
     return response
 
 
-@router.post("/{trade_id}/plan", response_model=TradePlanResponse)
+@router.post("/{trade_id}/plan/preview", response_model=TradePlanResponse)
 async def preview_trade_plan(
     trade_id: int,
     request: TradePlanRequest,
@@ -638,7 +656,7 @@ async def preview_trade_plan(
 
 
 @router.get(
-    "/{trade_id}/plan-context",
+    "/{trade_id}/planning-context",
     response_model=TradePlanningContextResponse,
 )
 async def get_trade_plan_context(
@@ -653,7 +671,28 @@ async def get_trade_plan_context(
         trade,
         for_update=False,
     )
+    inventory = await session.scalar(
+        select(WalletAsset)
+        .join(Wallet)
+        .where(
+            Wallet.profile_id == trade.profile_id,
+            WalletAsset.asset_id == context.instrument.base_asset_id,
+            WalletAsset.is_archived.is_(False),
+        )
+    )
+    inventory_available = (
+        await wallet_balance(session, inventory)
+        - await wallet_reserved(session, inventory)
+        if inventory is not None
+        else Decimal(0)
+    )
     return TradePlanningContextResponse(
+        product=context.instrument.product.value,
+        direction=trade.direction,
+        base_asset_id=context.instrument.base_asset_id,
+        settlement_asset_id=context.settlement_asset_id,
+        inventory_wallet_asset_id=inventory.id if inventory else None,
+        inventory_available=inventory_available,
         price_step=context.instrument.price_step,
         quantity_step=context.instrument.qty_step,
         minimum_quantity=context.instrument.min_qty,
@@ -680,7 +719,7 @@ async def get_trade_plan_context(
 @router.put("/{trade_id}/plan", response_model=TradeResponse)
 async def save_trade_plan(
     trade_id: int,
-    request: TradePlanRequest,
+    request: TradePlanSave,
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradeResponse:
@@ -694,14 +733,16 @@ async def save_trade_plan(
     )
     if trade.status != TradeStatus.DRAFT:
         conflict("Plan is locked after trade submission")
-    await prepare_submission(
-        session,
-        trade,
-        request.planned_entry,
-        request.planned_stop,
-        enforce_capital=False,
-    )
-    store_draft_section(trade, "plan", request.model_dump(mode="json"))
+    trade.preparation.planned_entry = request.planned_entry
+    trade.preparation.planned_stop = request.planned_stop
+    if request.planned_entry is not None and request.planned_stop is not None:
+        await prepare_submission(
+            session,
+            trade,
+            request.planned_entry,
+            request.planned_stop,
+            enforce_capital=False,
+        )
     await session.flush()
     return await trade_response(session, trade)
 
@@ -777,7 +818,6 @@ async def cancel_trade(
     if trade.status not in (
         TradeStatus.DRAFT,
         TradeStatus.PENDING_ENTRY,
-        TradeStatus.OPEN,
     ):
         conflict("Trade cannot be cancelled from its current state")
     trade.status = TradeStatus.CANCELLED

@@ -146,7 +146,11 @@ async def delete_attachment(
 ) -> Response:
     """Delete owned attachment metadata and its private file."""
     item = await get_owned(
-        session, Attachment, attachment_id, user.id, for_update=True,
+        session,
+        Attachment,
+        attachment_id,
+        user.id,
+        for_update=True,
     )
     try:
         path = attachment_path(media_root(request), item.storage_key)

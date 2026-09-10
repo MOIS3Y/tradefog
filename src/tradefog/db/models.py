@@ -3,10 +3,8 @@
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any
 
 from sqlalchemy import (
-    JSON,
     Boolean,
     CheckConstraint,
     Date,
@@ -18,43 +16,25 @@ from sqlalchemy import (
     Text,
     false,
     func,
-    text,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from tradefog.db.base import Base, PrimaryKeyMixin
 from tradefog.db.types import ExactDecimal
+from tradefog.domain.checklists import DirectionalValue
 from tradefog.domain.enums import (
     AssetType,
     ATRSource,
     Direction,
-    MarketDataProvider,
     ProductKind,
+    ReservationPurpose,
     StrategyStatus,
     TradeStatus,
+    VenueType,
     WalletAssetStatus,
     WalletOperationKind,
 )
-
-__all__ = [
-    "Asset",
-    "Attachment",
-    "Base",
-    "StrategyCapital",
-    "Trade",
-    "TradeSnapshot",
-    "TradingPair",
-    "TradingProfile",
-    "TradingStrategy",
-    "User",
-    "Venue",
-    "VenueInstrument",
-    "VenueWalletAsset",
-    "Wallet",
-    "WalletAsset",
-    "WalletOperation",
-]
 
 
 def enum_values(members: type[StrEnum]) -> list[str]:
@@ -78,6 +58,15 @@ class User(PrimaryKeyMixin, Base):
     """Persist users records from the source schema."""
 
     __tablename__: str = "users"
+    first_name: Mapped[str | None] = mapped_column(String(150))
+    last_name: Mapped[str | None] = mapped_column(String(150))
+    email: Mapped[str | None] = mapped_column(String(254))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
     username: Mapped[str] = mapped_column(
         String(150),
         unique=True,
@@ -97,12 +86,16 @@ class User(PrimaryKeyMixin, Base):
     )
 
 
-class Asset(PrimaryKeyMixin, Base):
-    """Persist Asset records from the source schema."""
+class TradingAsset(PrimaryKeyMixin, Base):
+    """Persist TradingAsset records from the source schema."""
 
-    __tablename__: str = "Asset"
+    __tablename__: str = "TradingAsset"
+    profile_id: Mapped[int] = mapped_column(ForeignKey("TradingProfile.id"))
+    is_active: Mapped[bool] = mapped_column(
+        default=True, server_default=true()
+    )
     __table_args__: tuple[Index | CheckConstraint, ...] = (
-        Index("asset_symbol_idx", "symbol", unique=True),
+        Index("profile_asset_symbol_idx", "profile_id", "symbol", unique=True),
         CheckConstraint(
             "symbol = upper(trim(symbol))", name="normalized_symbol"
         ),
@@ -118,161 +111,59 @@ class Asset(PrimaryKeyMixin, Base):
     )
 
 
-class TradingPair(PrimaryKeyMixin, Base):
-    """Persist TradingPair records from the source schema."""
+class TradingInstrument(PrimaryKeyMixin, Base):
+    """Profile-owned executable instrument, imported or entered manually."""
 
-    __tablename__: str = "TradingPair"
-    __table_args__: tuple[Index | CheckConstraint, ...] = (
+    __tablename__ = "TradingInstrument"
+    __table_args__ = (
         Index(
-            "trading_pair_base_quote_idx", "base_id", "quote_id", unique=True
-        ),
-    )
-    base_id: Mapped[int] = mapped_column(
-        ForeignKey("Asset.id"),
-    )
-    quote_id: Mapped[int] = mapped_column(
-        ForeignKey("Asset.id"),
-    )
-    canonical_symbol: Mapped[str] = mapped_column(
-        String(32),
-        unique=True,
-    )
-
-    base: Mapped[Asset] = relationship(
-        foreign_keys=[base_id],
-        lazy="raise",
-    )
-    quote: Mapped[Asset] = relationship(
-        foreign_keys=[quote_id],
-        lazy="raise",
-    )
-
-
-class Venue(PrimaryKeyMixin, Base):
-    """Persist Venue records from the source schema."""
-
-    __tablename__: str = "Venue"
-    __table_args__: tuple[Index | CheckConstraint, ...] = (
-        Index("venue_name_idx", "name", unique=True),
-    )
-    name: Mapped[str] = mapped_column(
-        String(128),
-    )
-    market_data_provider: Mapped[MarketDataProvider] = mapped_column(
-        enum_type(MarketDataProvider, "market_data_provider"),
-        default=MarketDataProvider.NONE,
-        server_default="none",
-    )
-    description: Mapped[str | None] = mapped_column(
-        Text,
-    )
-    website: Mapped[str | None] = mapped_column(
-        String(255),
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        server_default=true(),
-    )
-
-
-class VenueInstrument(PrimaryKeyMixin, Base):
-    """Persist VenueInstrument records from the source schema."""
-
-    __tablename__: str = "VenueInstrument"
-    __table_args__: tuple[Index | CheckConstraint, ...] = (
-        Index(
-            "venue_instrument_venue_pair_product_idx",
-            "venue_id",
-            "pair_id",
+            "profile_instrument_symbol_idx",
+            "profile_id",
             "product",
-            unique=True,
-        ),
-        Index(
-            "venue_instrument_venue_exec_symbol_idx",
-            "venue_id",
             "exec_symbol",
             unique=True,
         ),
-    )
-    venue_id: Mapped[int] = mapped_column(
-        ForeignKey("Venue.id"),
-    )
-    pair_id: Mapped[int] = mapped_column(
-        ForeignKey("TradingPair.id"),
-    )
-    product: Mapped[ProductKind] = mapped_column(
-        enum_type(ProductKind, "product_kind"),
-    )
-    exec_symbol: Mapped[str] = mapped_column(
-        String(64),
-    )
-    price_step: Mapped[Decimal] = mapped_column(
-        ExactDecimal(30, 18),
-    )
-    qty_step: Mapped[Decimal] = mapped_column(
-        ExactDecimal(30, 18),
-    )
-    min_qty: Mapped[Decimal | None] = mapped_column(
-        ExactDecimal(30, 18),
-    )
-    min_notional: Mapped[Decimal | None] = mapped_column(
-        ExactDecimal(30, 18),
-    )
-    settlement_asset_id: Mapped[int | None] = mapped_column(
-        ForeignKey("Asset.id"),
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        server_default=true(),
-    )
-
-    venue: Mapped[Venue] = relationship(
-        foreign_keys=[venue_id],
-        lazy="raise",
-    )
-    pair: Mapped[TradingPair] = relationship(
-        foreign_keys=[pair_id],
-        lazy="raise",
-    )
-    settlement_asset: Mapped[Asset | None] = relationship(
-        foreign_keys=[settlement_asset_id],
-        lazy="raise",
-    )
-
-
-class VenueWalletAsset(PrimaryKeyMixin, Base):
-    """Persist VenueWalletAsset records from the source schema."""
-
-    __tablename__: str = "VenueWalletAsset"
-    __table_args__: tuple[Index | CheckConstraint, ...] = (
-        Index(
-            "venue_wallet_asset_venue_asset_idx",
-            "venue_id",
-            "asset_id",
-            unique=True,
+        CheckConstraint(
+            "base_asset_id != quote_asset_id",
+            name="distinct_instrument_assets",
+        ),
+        CheckConstraint(
+            "CAST(price_step AS NUMERIC) > 0", name="positive_price_step"
+        ),
+        CheckConstraint(
+            "CAST(qty_step AS NUMERIC) > 0", name="positive_qty_step"
         ),
     )
-    venue_id: Mapped[int] = mapped_column(
-        ForeignKey("Venue.id"),
+    profile_id: Mapped[int] = mapped_column(ForeignKey("TradingProfile.id"))
+    base_asset_id: Mapped[int] = mapped_column(ForeignKey("TradingAsset.id"))
+    quote_asset_id: Mapped[int] = mapped_column(ForeignKey("TradingAsset.id"))
+    settlement_asset_id: Mapped[int] = mapped_column(
+        ForeignKey("TradingAsset.id")
     )
-    asset_id: Mapped[int] = mapped_column(
-        ForeignKey("Asset.id"),
+    product: Mapped[ProductKind] = mapped_column(
+        enum_type(ProductKind, "product_kind")
     )
+    exec_symbol: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str | None] = mapped_column(String(255))
+    price_step: Mapped[Decimal] = mapped_column(ExactDecimal(30, 18))
+    qty_step: Mapped[Decimal] = mapped_column(ExactDecimal(30, 18))
+    min_qty: Mapped[Decimal | None] = mapped_column(ExactDecimal(30, 18))
+    min_notional: Mapped[Decimal | None] = mapped_column(ExactDecimal(30, 18))
+    metadata_updated_at: Mapped[datetime | None] = mapped_column(DateTime)
     is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        server_default=true(),
+        default=True, server_default=true()
     )
-
-    venue: Mapped[Venue] = relationship(
-        foreign_keys=[venue_id],
-        lazy="raise",
+    is_archived: Mapped[bool] = mapped_column(
+        default=False, server_default=false()
     )
-    asset: Mapped[Asset] = relationship(
-        foreign_keys=[asset_id],
-        lazy="raise",
+    base_asset: Mapped[TradingAsset] = relationship(
+        foreign_keys=[base_asset_id], lazy="raise"
+    )
+    quote_asset: Mapped[TradingAsset] = relationship(
+        foreign_keys=[quote_asset_id], lazy="raise"
+    )
+    settlement_asset: Mapped[TradingAsset] = relationship(
+        foreign_keys=[settlement_asset_id], lazy="raise"
     )
 
 
@@ -284,8 +175,8 @@ class TradingProfile(PrimaryKeyMixin, Base):
     owner_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
     )
-    venue_id: Mapped[int] = mapped_column(
-        ForeignKey("Venue.id"),
+    venue_type: Mapped[VenueType] = mapped_column(
+        enum_type(VenueType, "venue_type")
     )
     name: Mapped[str] = mapped_column(
         String(128),
@@ -301,10 +192,6 @@ class TradingProfile(PrimaryKeyMixin, Base):
 
     owner: Mapped[User] = relationship(
         foreign_keys=[owner_id],
-        lazy="raise",
-    )
-    venue: Mapped[Venue] = relationship(
-        foreign_keys=[venue_id],
         lazy="raise",
     )
 
@@ -330,17 +217,17 @@ class WalletAsset(PrimaryKeyMixin, Base):
     __tablename__: str = "WalletAsset"
     __table_args__: tuple[Index | CheckConstraint, ...] = (
         Index(
-            "wallet_asset_wallet_venue_asset_idx",
+            "wallet_asset_asset_idx",
             "wallet_id",
-            "venue_wallet_asset_id",
+            "asset_id",
             unique=True,
         ),
     )
     wallet_id: Mapped[int] = mapped_column(
         ForeignKey("Wallet.id"),
     )
-    venue_wallet_asset_id: Mapped[int] = mapped_column(
-        ForeignKey("VenueWalletAsset.id"),
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey("TradingAsset.id"),
     )
     risk_stop_capital: Mapped[Decimal | None] = mapped_column(
         ExactDecimal(30, 18),
@@ -358,8 +245,8 @@ class WalletAsset(PrimaryKeyMixin, Base):
         foreign_keys=[wallet_id],
         lazy="raise",
     )
-    venue_wallet_asset: Mapped[VenueWalletAsset] = relationship(
-        foreign_keys=[venue_wallet_asset_id],
+    asset: Mapped[TradingAsset] = relationship(
+        foreign_keys=[asset_id],
         lazy="raise",
     )
 
@@ -506,8 +393,8 @@ class Trade(PrimaryKeyMixin, Base):
     strategy_id: Mapped[int] = mapped_column(
         ForeignKey("TradingStrategy.id"),
     )
-    venue_instrument_id: Mapped[int] = mapped_column(
-        ForeignKey("VenueInstrument.id"),
+    instrument_id: Mapped[int] = mapped_column(
+        ForeignKey("TradingInstrument.id"),
     )
     trade_date: Mapped[date] = mapped_column(
         Date,
@@ -518,10 +405,10 @@ class Trade(PrimaryKeyMixin, Base):
     direction: Mapped[Direction] = mapped_column(
         enum_type(Direction, "direction"),
     )
-    draft_context: Mapped[dict[str, Any]] = mapped_column(
-        JSON,
-        default=dict,
-        server_default=text("'{}'"),
+    preparation: Mapped["TradePreparation"] = relationship(
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        single_parent=True,
     )
     description_markdown: Mapped[str | None] = mapped_column(
         Text,
@@ -559,8 +446,8 @@ class Trade(PrimaryKeyMixin, Base):
         foreign_keys=[strategy_id],
         lazy="raise",
     )
-    venue_instrument: Mapped[VenueInstrument] = relationship(
-        foreign_keys=[venue_instrument_id],
+    instrument: Mapped[TradingInstrument] = relationship(
+        foreign_keys=[instrument_id],
         lazy="raise",
     )
 
@@ -577,8 +464,16 @@ class TradeSnapshot(PrimaryKeyMixin, Base):
         ForeignKey("StrategyCapital.id"),
     )
     settlement_asset_id: Mapped[int] = mapped_column(
-        ForeignKey("Asset.id"),
+        ForeignKey("TradingAsset.id"),
     )
+    instrument_symbol: Mapped[str] = mapped_column(String(64))
+    instrument_product: Mapped[ProductKind] = mapped_column(
+        enum_type(ProductKind, "snapshot_product_kind")
+    )
+    price_step: Mapped[Decimal] = mapped_column(ExactDecimal(30, 18))
+    qty_step: Mapped[Decimal] = mapped_column(ExactDecimal(30, 18))
+    min_qty: Mapped[Decimal | None] = mapped_column(ExactDecimal(30, 18))
+    min_notional: Mapped[Decimal | None] = mapped_column(ExactDecimal(30, 18))
     planned_entry: Mapped[Decimal] = mapped_column(
         ExactDecimal(30, 18),
     )
@@ -655,7 +550,7 @@ class TradeSnapshot(PrimaryKeyMixin, Base):
         foreign_keys=[strategy_capital_id],
         lazy="raise",
     )
-    settlement_asset: Mapped[Asset] = relationship(
+    settlement_asset: Mapped[TradingAsset] = relationship(
         foreign_keys=[settlement_asset_id],
         lazy="raise",
     )
@@ -690,4 +585,88 @@ class Attachment(PrimaryKeyMixin, Base):
     trade: Mapped[Trade] = relationship(
         foreign_keys=[trade_id],
         lazy="raise",
+    )
+
+
+class TradePreparation(Base):
+    """Typed nullable draft inputs retained and locked after submission."""
+
+    __tablename__ = "TradePreparation"
+    trade_id: Mapped[int] = mapped_column(
+        ForeignKey("Trade.id"), primary_key=True
+    )
+    planned_entry: Mapped[Decimal | None] = mapped_column(ExactDecimal(30, 18))
+    planned_stop: Mapped[Decimal | None] = mapped_column(ExactDecimal(30, 18))
+    market_sentiment: Mapped[DirectionalValue | None] = mapped_column(
+        enum_type(DirectionalValue, "market_sentiment")
+    )
+    information_background: Mapped[DirectionalValue | None] = mapped_column(
+        enum_type(DirectionalValue, "information_background")
+    )
+    global_daily_direction: Mapped[DirectionalValue | None] = mapped_column(
+        enum_type(DirectionalValue, "global_daily_direction")
+    )
+    local_daily_movement: Mapped[DirectionalValue | None] = mapped_column(
+        enum_type(DirectionalValue, "local_daily_movement")
+    )
+    atr_value: Mapped[Decimal | None] = mapped_column(ExactDecimal(30, 18))
+    atr_source: Mapped[ATRSource | None] = mapped_column(
+        enum_type(ATRSource, "preparation_atr_source")
+    )
+    atr_contributing_date: Mapped[date | None] = mapped_column(Date)
+    atr_observation_time: Mapped[datetime | None] = mapped_column(DateTime)
+    atr_stale: Mapped[bool] = mapped_column(
+        default=False, server_default=false()
+    )
+    observed_session_range: Mapped[Decimal | None] = mapped_column(
+        ExactDecimal(30, 18)
+    )
+    __table_args__ = (
+        CheckConstraint(
+            "planned_entry IS NULL OR CAST(planned_entry AS NUMERIC) > 0",
+            name="positive_preparation_entry",
+        ),
+        CheckConstraint(
+            "planned_stop IS NULL OR CAST(planned_stop AS NUMERIC) > 0",
+            name="positive_preparation_stop",
+        ),
+        CheckConstraint(
+            "observed_session_range IS NULL OR CAST(observed_session_range AS NUMERIC) >= 0",
+            name="nonnegative_session_range",
+        ),
+        CheckConstraint(
+            "(atr_value IS NULL AND atr_source IS NULL AND atr_contributing_date IS NULL AND atr_observation_time IS NULL AND observed_session_range IS NULL) OR "
+            + "(atr_value IS NOT NULL AND CAST(atr_value AS NUMERIC) > 0 AND atr_source IS NOT NULL AND atr_contributing_date IS NOT NULL AND atr_observation_time IS NOT NULL)",
+            name="complete_preparation_atr",
+        ),
+    )
+
+
+class TradeReservation(PrimaryKeyMixin, Base):
+    """Immutable requirements active only while the trade is pending/open."""
+
+    __tablename__ = "TradeReservation"
+    trade_snapshot_id: Mapped[int] = mapped_column(
+        ForeignKey("TradeSnapshot.id")
+    )
+    wallet_asset_id: Mapped[int] = mapped_column(ForeignKey("WalletAsset.id"))
+    purpose: Mapped[ReservationPurpose] = mapped_column(
+        enum_type(ReservationPurpose, "reservation_purpose")
+    )
+    amount: Mapped[Decimal] = mapped_column(ExactDecimal(30, 18))
+    __table_args__ = (
+        Index(
+            "reservation_snapshot_purpose_idx",
+            "trade_snapshot_id",
+            "purpose",
+            unique=True,
+        ),
+        Index(
+            "reservation_wallet_snapshot_idx",
+            "wallet_asset_id",
+            "trade_snapshot_id",
+        ),
+        CheckConstraint(
+            "CAST(amount AS NUMERIC) > 0", name="positive_reservation"
+        ),
     )

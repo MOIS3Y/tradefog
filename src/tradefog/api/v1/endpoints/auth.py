@@ -22,6 +22,7 @@ from tradefog.api.security import (
 from tradefog.api.v1.schemas.auth import (
     RefreshRequest,
     TokenResponse,
+    UserPatch,
     UserResponse,
 )
 from tradefog.config.authentication import AuthenticationSettings
@@ -89,4 +90,16 @@ async def refresh(
 @router.get("/me", response_model=UserResponse)
 async def current_user(user: CurrentUserDependency) -> User:
     """Return the active account represented by the access token."""
+    return user
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_current_user(
+    request: UserPatch, session: SessionDependency, user: CurrentUserDependency
+) -> User:
+    """Edit only the authenticated user's optional contact fields."""
+    for field, value in request.model_dump(exclude_unset=True).items():
+        setattr(user, field, value)
+    await session.flush()
+    await session.refresh(user)
     return user

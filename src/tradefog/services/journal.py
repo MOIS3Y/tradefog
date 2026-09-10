@@ -9,9 +9,9 @@ from tradefog.api.errors import conflict, not_found
 from tradefog.db.models import (
     StrategyCapital,
     Trade,
+    TradeReservation,
     TradeSnapshot,
     TradingStrategy,
-    VenueWalletAsset,
     Wallet,
     WalletAsset,
     WalletOperation,
@@ -51,12 +51,6 @@ async def wallet_balance(
             )
         )
     ).all()
-    capability = await session.get(
-        VenueWalletAsset,
-        wallet_asset.venue_wallet_asset_id,
-    )
-    if capability is None:
-        return sum(operations, Decimal(0))
     profile_id = await session.scalar(
         select(Wallet.profile_id).where(Wallet.id == wallet_asset.wallet_id)
     )
@@ -68,7 +62,7 @@ async def wallet_balance(
                 Trade.profile_id == profile_id,
                 Trade.status == TradeStatus.CLOSED,
                 Trade.realized_pnl.is_not(None),
-                TradeSnapshot.settlement_asset_id == capability.asset_id,
+                TradeSnapshot.settlement_asset_id == wallet_asset.asset_id,
             )
         )
     ).all()
@@ -83,29 +77,23 @@ async def wallet_reserved(
     wallet_asset: WalletAsset,
 ) -> Decimal:
     """Derive reserved notional for pending and open trades in this asset."""
-    capability = await session.get(
-        VenueWalletAsset,
-        wallet_asset.venue_wallet_asset_id,
-    )
-    profile_id = await session.scalar(
-        select(Wallet.profile_id).where(Wallet.id == wallet_asset.wallet_id)
-    )
-    if capability is None or profile_id is None:
-        return Decimal(0)
     amounts = (
         await session.scalars(
-            select(TradeSnapshot.planned_notional)
+            select(TradeReservation.amount)
+            .join(
+                TradeSnapshot,
+                TradeSnapshot.id == TradeReservation.trade_snapshot_id,
+            )
             .join(Trade, Trade.id == TradeSnapshot.trade_id)
             .where(
-                Trade.profile_id == profile_id,
+                TradeReservation.wallet_asset_id == wallet_asset.id,
                 Trade.status.in_(
                     (TradeStatus.PENDING_ENTRY, TradeStatus.OPEN)
                 ),
-                TradeSnapshot.settlement_asset_id == capability.asset_id,
             )
         )
     ).all()
-    return sum((value for value in amounts if value is not None), Decimal(0))
+    return sum(amounts, Decimal(0))
 
 
 async def allocated_capital(

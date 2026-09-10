@@ -179,10 +179,13 @@ async def test_public_routes_still_require_tradefog_auth(
         )
     )
     app = create_app(settings)
-    async with app.router.lifespan_context(app), httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://test",
+        ) as client,
+    ):
         response = await client.get("/api/v1/venues")
     assert response.status_code == 401
 

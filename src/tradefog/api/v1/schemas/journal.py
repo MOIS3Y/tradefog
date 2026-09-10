@@ -13,6 +13,7 @@ from pydantic import (
 
 from tradefog.domain.enums import (
     StrategyStatus,
+    VenueType,
     WalletAssetStatus,
     WalletOperationKind,
 )
@@ -27,7 +28,7 @@ class JournalInput(BaseModel):
 class ProfileCreate(JournalInput):
     """Create a venue-bound trading workspace."""
 
-    venue_id: int = Field(gt=0)
+    venue_type: VenueType
     name: str = Field(min_length=1, max_length=128)
     description: str | None = None
 
@@ -76,7 +77,7 @@ class ProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    venue_id: int
+    venue_type: VenueType
     name: str
     description: str | None
     is_archived: bool
@@ -85,7 +86,7 @@ class ProfileResponse(BaseModel):
 class WalletAssetCreate(JournalInput):
     """Add one active venue capability to a profile wallet."""
 
-    venue_wallet_asset_id: int = Field(gt=0)
+    asset_id: int = Field(gt=0)
     risk_stop_capital: Decimal | None = Field(
         default=None,
         ge=0,
@@ -118,7 +119,6 @@ class WalletAssetResponse(BaseModel):
     """Wallet asset with exact derived balance and reservations."""
 
     id: int
-    venue_wallet_asset_id: int
     asset_id: int
     symbol: str
     balance: Decimal
@@ -142,6 +142,7 @@ class WalletResponse(BaseModel):
 class WalletOperationCreate(JournalInput):
     """Append a positive deposit or withdrawal request."""
 
+    wallet_asset_id: int = Field(gt=0)
     kind: WalletOperationKind
     amount: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
     note: str | None = Field(default=None, max_length=255)

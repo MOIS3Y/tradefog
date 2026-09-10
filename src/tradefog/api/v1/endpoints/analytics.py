@@ -18,13 +18,12 @@ from tradefog.api.v1.schemas.analytics import (
     TrajectoryPointResponse,
 )
 from tradefog.db.models import (
-    Asset,
     StrategyCapital,
     Trade,
     TradeSnapshot,
-    TradingPair,
+    TradingAsset,
+    TradingInstrument,
     TradingProfile,
-    VenueInstrument,
 )
 from tradefog.db.scoping import owned_select
 from tradefog.domain.analytics import (
@@ -48,7 +47,6 @@ async def get_analytics(
     strategy_id: int | None = None,
     product: ProductKind | None = None,
     instrument_id: int | None = None,
-    pair_id: int | None = None,
     settlement_asset_id: int | None = None,
     strategy_capital_id: int | None = None,
 ) -> AnalyticsResponse:
@@ -96,18 +94,19 @@ async def get_analytics(
         .add_columns(
             TradeSnapshot,
             TradingProfile.name,
-            TradingPair.canonical_symbol,
-            VenueInstrument.product,
-            Asset.symbol,
+            TradingInstrument.exec_symbol,
+            TradingInstrument.product,
+            TradingAsset.symbol,
         )
         .join(TradeSnapshot, TradeSnapshot.trade_id == Trade.id)
         .join(TradingProfile, TradingProfile.id == Trade.profile_id)
         .join(
-            VenueInstrument,
-            VenueInstrument.id == Trade.venue_instrument_id,
+            TradingInstrument,
+            TradingInstrument.id == Trade.instrument_id,
         )
-        .join(TradingPair, TradingPair.id == VenueInstrument.pair_id)
-        .join(Asset, Asset.id == TradeSnapshot.settlement_asset_id)
+        .join(
+            TradingAsset, TradingAsset.id == TradeSnapshot.settlement_asset_id
+        )
         .where(
             Trade.status == TradeStatus.CLOSED,
             Trade.realized_pnl.is_not(None),
@@ -130,11 +129,9 @@ async def get_analytics(
     if strategy_id is not None:
         statement = statement.where(Trade.strategy_id == strategy_id)
     if product is not None:
-        statement = statement.where(VenueInstrument.product == product)
+        statement = statement.where(TradingInstrument.product == product)
     if instrument_id is not None:
-        statement = statement.where(Trade.venue_instrument_id == instrument_id)
-    if pair_id is not None:
-        statement = statement.where(VenueInstrument.pair_id == pair_id)
+        statement = statement.where(Trade.instrument_id == instrument_id)
     if settlement_asset_id is not None:
         statement = statement.where(
             TradeSnapshot.settlement_asset_id == settlement_asset_id,
