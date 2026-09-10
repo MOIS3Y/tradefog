@@ -1,123 +1,138 @@
 # Market Chart
 
-## Status
+## Status and Purpose
 
-Deferred until the MVP is complete. This document records the intended
-direction and does not expand the current release scope.
+Planned frontend feature for market analysis inside the trade workspace.
+The first increment supports Bybit charts and order books, reducing the need
+to switch between Tradefog and the exchange. It is not a tick-accurate trading
+terminal or an authoritative source for financial calculations.
 
-## Purpose
+The standalone API remains independent. ATR fetching, calculations, snapshots,
+and trade lifecycle rules stay unchanged. No general market-data endpoint,
+server candle cache, Redis, or task queue is required. Automated trading is
+outside this scope.
 
-The trade workspace may include an interactive candlestick chart powered by
-the core `klinecharts` package. The chart supports planning and review; it is
-not an execution terminal and never becomes authoritative for financial
-calculations or trade state.
+## Module Boundary and Providers
 
-The chart should:
+Isolate components, normalized types, polling, provider adapters, and styles
+in `features/market-chart`. Load the core `klinecharts` package lazily.
+The trade page supplies instrument context; the module never changes position
+inputs or participates in saving the trade.
 
-- show historical candles for the selected venue instrument;
-- support provider-compatible timeframes;
-- display Entry, Stop Loss, Take Profit, actual Exit, and later current price;
-- allow temporary drawing and annotations;
-- export the visible chart and attach it to the trade as a screenshot;
-- remain visually consistent with the Tradefog dark interface.
+A frontend adapter registry declares supported market types, timeframes,
+chart and order-book capabilities separately, refresh policy, and exchange
+instrument links. The venue's configured provider identifies the source, but
+server-side ATR support does not imply frontend chart support. Initially
+support Bybit spot and linear perpetual instruments. Adding a provider should
+require an adapter, registration, and tests, not changes to the position form
+or market components.
 
-## Architecture
+Public REST requests go directly from the browser to the provider, without
+exchange keys, Tradefog credentials, or private trade data. Verify browser
+CORS and network accessibility for each adapter. Do not silently substitute
+another venue or add a backend proxy fallback. Provide an "Open in Bybit" link.
 
-The frontend must not call Binance, Bybit, Yahoo Finance, or another market
-provider directly. KLineChart receives normalized data from a dedicated
-Tradefog market-data API, which delegates to the existing provider layer.
+Normalize candles in ascending order with UTC millisecond timestamps and
+decimal-string OHLC values; volume and turnover may be absent. Convert to
+numbers only at the visualization boundary. Preserve decimal precision in
+order-book prices and quantities.
+
+## Layout and Styling
+
+Use Tradefog's dark surfaces, semantic tokens, IBM Plex fonts, compact
+controls, and restrained motion. Avoid flashing prices and a separate theme.
 
 ```text
-KLineChart
-    |
-    v
-Tradefog candles API
-    |
-    v
-Market-data service
-    |
-    +-- Binance
-    +-- Bybit
-    +-- Yahoo Finance
+Wide screen with market support:
+[ Chart                  | Order book | Position parameters ]
+[ Existing position risk bar and calculation summary        ]
+[ Checklist | ATR ]
+[ Journal and review ]
+
+Without market support:
+[ Long / Short                                              ]
+[ SL                 | Entry              | Calculated TP    ]
+[ Existing position risk bar and calculation summary        ]
+[ Checklist | ATR ]
+[ Journal and review ]
 ```
 
-The existing trade ATR endpoint remains focused on ATR decision context. It
-must not become the general chart data source, although both features may
-reuse the same provider adapters and candle types internally.
+- Use one position form: vertical beside the market, horizontal when it fills
+  the available width. Preserve Long/Short, SL -> Entry -> derived TP,
+  validation, and lifecycle locking. Do not draw trade levels on the chart.
+- Unsupported capabilities leave no empty columns or large placeholders.
+  Without market support, the ordinary trade page remains complete.
+- At intermediate widths move parameters below the market block. On mobile
+  use chart -> collapsible order book -> parameters -> position risk bar.
+  Never insert parameters between the chart and order book.
+- A supported provider's network error stays inside its panel; it must not
+  switch to the unsupported layout or block journal work.
+- Removing the optional module restores the ordinary layout without changing
+  trade logic, financial calculations, or API contracts.
 
-## Market-Data Contract
+## Loading and Refresh
 
-Add an authenticated, read-only endpoint for candles of a concrete
-`VenueInstrument`. It should accept a timeframe, a time boundary, and a
-bounded limit so KLineChart can initialize and request older or newer data.
+Use REST for history, recent candles, and order-book snapshots. Keep loaded
+history in page memory; no persistent quote cache, WebSocket connection, or
+cross-tab coordination is needed in the first increment.
 
-The response should contain chronologically ordered candles with:
+- Load history on initialization, timeframe changes, and backward scrolling.
+  Offer multiple adapter-supported timeframes from the first release.
+- For Bybit, request recent candles and the visible book in parallel, then
+  wait five seconds after the cycle finishes before repeating. This is one
+  refresh cycle, not an atomic exchange snapshot; track freshness separately.
+- Show 20 bid and 20 ask levels with price, size, cumulative size, and spread.
+  The book is always current, including when viewing a closed trade or an
+  historical chart period. Do not imply historical liquidity or tick accuracy.
+- Merge candles by opening time without recreating the chart. Preserve zoom
+  and viewport during refresh and history loading.
+- Do not overlap refresh cycles. Abort obsolete requests on context changes
+  and disposal. Pause while the page/module is hidden; do not poll a collapsed
+  book. Refresh on return and reconcile any missed candles after a pause.
+- Retain last successful data on errors and mark delayed panels as stale.
+  Back off transient failures from 5 to 10, 20, 40, then 60 seconds; successful
+  recovery restores normal cadence. Honor provider rate-limit cooldowns
+  separately. Reload resets local backoff, not an exchange-side ban.
+- Keep loading and failures local to each panel, without clearing usable
+  data or blocking trade editing.
 
-- millisecond timestamp;
-- open, high, low, and close as decimal strings;
-- optional volume and turnover as decimal strings;
-- source and observation metadata where useful.
+## Drawing and Screenshots
 
-The backend validates ownership-safe access, resolves the configured venue
-provider and execution symbol, and normalizes provider-specific intervals.
-Unsupported periods and unavailable providers return explicit domain errors.
-Provider timeouts or failures affect only the chart and never prevent work on
-the rest of the trade.
+Provide horizontal levels and rays, trend segments and sloped rays, deletion
+of selected drawings, and clear-all. Drawings never modify the saved position.
+A custom Long/Short Position drawing is deferred.
 
-Use a short-lived backend cache and coalesce identical concurrent requests.
-This protects external providers from repeated chart initialization, scrolling,
-and multiple browser tabs even in a small self-hosted installation.
+Retain a bounded, versioned set of drawings locally in the browser, scoped to
+user, trade, and instrument. Store supported types, time/price anchors, and
+allowed styles, not library runtime objects. Preserve drawings across
+timeframe changes, reloads, and trade closure. Local storage is best-effort:
+clearing browser data loses drawings; they are not synchronized across
+devices or included in server backups. Separate storage access from rendering
+so an API-backed implementation can be added later.
 
-## Frontend Behavior
+"Save snapshot to journal" exports the visible chart including drawings and
+uploads the image through existing private attachments. Failed uploads allow
+retry without clearing drawings. No new attachment storage is needed.
 
-- Load KLineChart lazily with the trade chart component so it does not enlarge
-  the initial application bundle.
-- Convert decimal strings to chart numbers only at the visualization boundary.
-  Tradefog calculations and persisted values remain exact decimals.
-- Expose only periods supported by the selected provider and instrument.
-- Show a quiet unavailable state when a venue has no market-data provider.
-- Keep loading and provider errors local to the chart module.
-- Stop background activity when the chart is hidden or the browser tab is not
-  visible.
+## Delivery and Verification
 
-Entry, Stop Loss, and Take Profit overlays come from the editable draft or the
-immutable trade snapshot. Exit appears after closure. These system overlays
-are visually distinct from user drawings and cannot be moved after the trade
-leaves the draft state.
+The first feature includes the Bybit adapter, multi-timeframe chart, REST
+order book, responsive position layout, basic drawings with local retention,
+and screenshot attachment. No backend migrations are needed.
 
-## Live Updates
+Test normalization, history boundaries, incremental updates, cancellation,
+hidden-page polling, backoff, drawing restoration, and screenshot upload.
+Verify browser CORS, desktop/mobile layouts, unsupported providers, and
+unchanged trade operations when the module is absent or fails.
 
-The first implementation is historical and daily only. A later increment may
-update the current candle through infrequent polling, initially every 15 to 30
-seconds. Polling is opt-in, limited to open trades, paused for hidden tabs, and
-stopped when the component is destroyed.
-
-WebSocket subscriptions may replace polling later without changing the chart
-component contract. Provider-specific streaming details remain behind the
-backend market-data boundary.
-
-## Drawings and Screenshots
-
-User overlays are initially ephemeral. The user may draw on the chart, export
-the visible chart including overlays, convert the result to a `Blob` or `File`,
-and upload it through the existing private trade attachment endpoint.
-
-Persisting editable drawings is a separate future capability. If required,
-overlay definitions should be serialized as owner-scoped trade data rather
-than embedded in notes or treated as authoritative trade parameters.
-
-## Delivery Increments
-
-1. Add the general candles API and a lazy-loaded daily read-only chart with
-   unavailable, loading, and error states and locked trade-level overlays.
-2. Add supported timeframe selection and optional polling of the current
-   candle.
-3. Add drawing tools and one-action screenshot attachment.
-4. Consider persisted editable overlays and WebSocket updates only after the
-   preceding workflow proves useful.
+Owner-scoped server storage of editable annotations is a separate later
+feature, not server market-data ingestion. WebSocket updates and additional
+provider adapters are independent future increments.
 
 ## References
 
-- [Data integration](https://klinecharts.com/en-US/guide/data-integration)
-- [KLineChart overlays](https://klinecharts.com/en-US/guide/overlay.html)
-- [KLineChart repository](https://github.com/klinecharts/KLineChart)
+- [KLineChart data integration](https://klinecharts.com/en-US/guide/data-integration)
+- [KLineChart overlays](https://klinecharts.com/en-US/guide/overlay)
+- [Bybit candles](https://bybit-exchange.github.io/docs/v5/market/kline)
+- [Bybit order book](https://bybit-exchange.github.io/docs/v5/market/orderbook)
+- [Bybit rate limits](https://bybit-exchange.github.io/docs/v5/rate-limit)
