@@ -128,6 +128,11 @@ accents reserved for active state, selection, and primary actions.
 
 ## Responsive Behavior
 
+- Above 920 px, the main sidebar can collapse from 252 px to a 72 px icon
+  rail. The browser remembers this preference; mobile navigation retains full
+  labels. Compact controls expose accessible names and hover/focus tooltips.
+  Width transitions respect reduced motion and resize existing charts without
+  recreating their canvases or drawings.
 - Desktop tables become labeled record cards below 620 px.
 - Split workspaces stack on small screens, with horizontal entity selectors
   where preserving context is useful.

@@ -1,9 +1,72 @@
 /** Authenticated application shell and overview workspace. */
+@media (min-width: 921px) {
+  .tf-app .app-frame.app-frame--collapsed {
+    grid-template-columns: 72px minmax(0, 1fr);
+
+    .sidebar {
+      padding-inline: 0.5rem;
+    }
+
+    .sidebar__heading {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .wordmark {
+      padding: 0;
+    }
+
+    .sidebar__label,
+    .position-diagram,
+    .account-card__identity {
+      display: none;
+    }
+
+    .primary-nav {
+      margin-top: 1.5rem;
+    }
+
+    .nav-item {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      gap: 0;
+      padding-inline: 0;
+    }
+
+    .account-card {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      gap: 0.5rem;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+
+    .sign-out {
+      display: grid;
+      grid-column: 1;
+      width: 44px;
+      height: 44px;
+      justify-self: center;
+      place-items: center;
+      border-radius: var(--tf-radius-sm);
+    }
+
+    .sign-out__icon {
+      display: block;
+    }
+  }
+}
+
 .tf-app {
   .app-frame {
     display: grid;
     min-height: 100vh;
     grid-template-columns: 252px minmax(0, 1fr);
+    transition: grid-template-columns 180ms ease;
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
     background:
       radial-gradient(circle at 88% 0%, rgb(32 117 84 / 9%), transparent 28rem),
       var(--tf-canvas);
@@ -22,6 +85,48 @@
     .wordmark {
       padding: 0 0.55rem;
     }
+  }
+
+  .sidebar__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem;
+  }
+
+  .sidebar__toggle {
+    display: grid;
+    flex-shrink: 0;
+    width: 32px;
+    height: 36px;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: var(--tf-radius-sm);
+    color: var(--tf-ink-soft);
+    background: transparent;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--tf-action);
+      background: var(--tf-action-soft);
+    }
+  }
+
+  .sidebar-tooltip {
+    z-index: 50;
+    max-width: 240px;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-sm);
+    color: var(--tf-ink);
+    background: var(--tf-panel-raised);
+    box-shadow: var(--tf-shadow);
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+  }
+
+  .sign-out__icon {
+    display: none;
   }
 
   .position-diagram {
@@ -110,7 +215,7 @@
   .nav-item {
     display: grid;
     min-height: 45px;
-    grid-template-columns: 7px 1fr;
+    grid-template-columns: 19px minmax(0, 1fr);
     align-items: center;
     gap: 0.72rem;
     padding: 0 0.78rem;
@@ -126,17 +231,14 @@
     background: linear-gradient(90deg, rgb(53 217 144 / 12%), transparent);
     box-shadow: inset 0 0 18px rgb(53 217 144 / 3%);
 
-    .nav-item__marker {
-      background: var(--tf-action);
-      box-shadow: 0 0 9px var(--tf-action);
+    .nav-item__icon {
+      color: var(--tf-action);
     }
   }
 
-  .nav-item__marker {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: currentColor;
+  .nav-item:hover {
+    color: var(--tf-ink);
+    background-color: var(--tf-action-soft);
   }
 
   .sidebar__footer {
@@ -167,6 +269,11 @@
     background: var(--tf-action-soft);
     font-family: var(--tf-mono);
     font-size: 0.68rem;
+
+    &:focus-visible {
+      outline: 2px solid var(--tf-action);
+      outline-offset: 3px;
+    }
   }
 
   .account-card__identity {

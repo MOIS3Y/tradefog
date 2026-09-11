@@ -1,6 +1,8 @@
 /** EN translations: shell. */
 export default {
   nav: {
+    collapse: "Collapse sidebar",
+    expand: "Expand sidebar",
     overview: "Overview",
     catalog: "Catalog",
     profiles: "Profiles",

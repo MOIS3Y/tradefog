@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
 import BrandMark from "@/components/BrandMark.vue";
-import { Settings } from "@lucide/vue";
+import {
+  Settings,
+  LayoutDashboard,
+  WalletCards,
+  ArrowLeftRight,
+  ChartNoAxesCombined,
+  PanelLeftClose,
+  PanelLeftOpen,
+  LogOut,
+} from "@lucide/vue";
+import { TooltipProvider } from "reka-ui";
+import SidebarTooltip from "@/components/SidebarTooltip.vue";
 import PositionDiagram from "@/components/PositionDiagram.vue";
 import { useAuthStore } from "@/stores/auth";
 
@@ -13,22 +24,69 @@ const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const navigationOpen = ref(false);
+const storageKey = "tradefog.sidebar.collapsed";
+
+/** Restore the local layout preference without requiring browser storage. */
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(storageKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
+const collapsed = ref(readCollapsed());
+const desktopQuery = window.matchMedia?.("(min-width: 921px)");
+const desktop = ref(desktopQuery?.matches ?? true);
+const compact = computed(() => collapsed.value && desktop.value);
+const toggleLabel = computed(() =>
+  t(collapsed.value ? "nav.expand" : "nav.collapse"),
+);
+
+/** Keep desktop tooltips independent from the mobile menu. */
+function updateDesktop(): void {
+  desktop.value = desktopQuery?.matches ?? true;
+  navigationOpen.value = false;
+}
+
+/** Persist only a presentation preference; storage errors are harmless. */
+function toggleCollapsed(): void {
+  collapsed.value = !collapsed.value;
+  try {
+    localStorage.setItem(storageKey, String(collapsed.value));
+  } catch {
+    // The current session can still use the chosen layout.
+  }
+}
+
+onMounted(() => desktopQuery?.addEventListener("change", updateDesktop));
+onBeforeUnmount(() =>
+  desktopQuery?.removeEventListener("change", updateDesktop),
+);
 
 const navigation = computed(() => [
-  { label: t("nav.overview"), path: "/", active: route.path === "/" },
+  {
+    label: t("nav.overview"),
+    icon: LayoutDashboard,
+    path: "/",
+    active: route.path === "/",
+  },
 
   {
     label: t("nav.profiles"),
+    icon: WalletCards,
     path: "/profiles",
     active: route.path.startsWith("/profiles"),
   },
   {
     label: t("nav.trades"),
+    icon: ArrowLeftRight,
     path: "/trades",
     active: route.path.startsWith("/trades"),
   },
   {
     label: t("nav.analytics"),
+    icon: ChartNoAxesCombined,
     path: "/analytics",
     active: route.path.startsWith("/analytics"),
   },
@@ -63,77 +121,137 @@ function closeNavigation(): void {
 </script>
 
 <template>
-  <div class="app-frame">
-    <header class="mobile-header">
-      <a class="wordmark" href="/" aria-label="Tradefog home">
-        <BrandMark />
-        <span>Tradefog</span>
-      </a>
-      <button
-        class="icon-button"
-        type="button"
-        :aria-expanded="navigationOpen"
-        aria-controls="primary-navigation"
-        @click="navigationOpen = !navigationOpen"
+  <TooltipProvider :delay-duration="250">
+    <div class="app-frame" :class="{ 'app-frame--collapsed': collapsed }">
+      <header class="mobile-header">
+        <a class="wordmark" href="/" aria-label="Tradefog home">
+          <BrandMark />
+          <span>Tradefog</span>
+        </a>
+        <button
+          class="icon-button"
+          type="button"
+          :aria-expanded="navigationOpen"
+          aria-controls="primary-navigation"
+          @click="navigationOpen = !navigationOpen"
+        >
+          <span class="menu-lines" aria-hidden="true"></span>
+          <span class="sr-only">{{ $t("common.menu") }}</span>
+        </button>
+      </header>
+
+      <aside
+        id="primary-navigation"
+        class="sidebar"
+        :class="{ 'sidebar--open': navigationOpen }"
       >
-        <span class="menu-lines" aria-hidden="true"></span>
-        <span class="sr-only">{{ $t("common.menu") }}</span>
-      </button>
-    </header>
-
-    <aside
-      id="primary-navigation"
-      class="sidebar"
-      :class="{ 'sidebar--open': navigationOpen }"
-    >
-      <a class="wordmark wordmark--desktop" href="/" aria-label="Tradefog home">
-        <BrandMark />
-        <span>Tradefog</span>
-      </a>
-
-      <PositionDiagram />
-
-      <nav class="primary-nav" aria-label="Primary navigation">
-        <component
-          v-for="item in navigation"
-          :key="item.label"
-          :is="item.path ? 'RouterLink' : 'div'"
-          :to="item.path"
-          class="nav-item"
-          :class="{ 'nav-item--active': item.active }"
-          :aria-current="item.active ? 'page' : undefined"
-          @click="item.path && closeNavigation()"
-        >
-          <span class="nav-item__marker" aria-hidden="true"></span>
-          <span>{{ item.label }}</span>
-        </component>
-      </nav>
-
-      <div class="sidebar__footer">
-        <RouterLink
-          to="/settings"
-          class="account-settings-link"
-          :aria-current="route.path === '/settings' ? 'page' : undefined"
-          @click="closeNavigation"
-        >
-          <Settings :size="17" aria-hidden="true" />
-          {{ t("settings.title") }}
-        </RouterLink>
-        <div class="account-card">
-          <span class="account-card__avatar">{{ initials }}</span>
-          <span class="account-card__identity">
-            <strong>{{ auth.user?.username }}</strong>
-            <small :title="accountCaption">{{ accountCaption }}</small>
-          </span>
-          <button class="sign-out" type="button" @click="signOut">
-            {{ $t("common.signOut") }}
-          </button>
+        <div class="sidebar__heading">
+          <a
+            class="wordmark wordmark--desktop"
+            href="/"
+            aria-label="Tradefog home"
+          >
+            <BrandMark />
+            <span class="sidebar__label">Tradefog</span>
+          </a>
+          <SidebarTooltip :label="toggleLabel" :disabled="!compact">
+            <button
+              class="sidebar__toggle"
+              type="button"
+              :aria-label="toggleLabel"
+              :aria-expanded="!collapsed"
+              aria-controls="sidebar-navigation"
+              @click="toggleCollapsed"
+            >
+              <component
+                :is="collapsed ? PanelLeftOpen : PanelLeftClose"
+                :size="18"
+                aria-hidden="true"
+              />
+            </button>
+          </SidebarTooltip>
         </div>
-      </div>
-    </aside>
 
-    <main class="app-content">
-      <slot />
-    </main>
-  </div>
+        <PositionDiagram />
+
+        <nav
+          id="sidebar-navigation"
+          class="primary-nav"
+          :aria-label="t('common.menu')"
+        >
+          <SidebarTooltip
+            v-for="item in navigation"
+            :key="item.path"
+            :label="item.label"
+            :disabled="!compact"
+          >
+            <RouterLink
+              :to="item.path"
+              :aria-label="item.label"
+              class="nav-item"
+              :class="{ 'nav-item--active': item.active }"
+              :aria-current="item.active ? 'page' : undefined"
+              @click="item.path && closeNavigation()"
+            >
+              <component
+                :is="item.icon"
+                :size="19"
+                class="nav-item__icon"
+                aria-hidden="true"
+              />
+              <span class="sidebar__label">{{ item.label }}</span>
+            </RouterLink>
+          </SidebarTooltip>
+        </nav>
+
+        <div class="sidebar__footer">
+          <SidebarTooltip :label="t('settings.title')" :disabled="!compact">
+            <RouterLink
+              to="/settings"
+              :aria-label="t('settings.title')"
+              class="nav-item account-settings-link"
+              :class="{ 'nav-item--active': route.path === '/settings' }"
+              :aria-current="route.path === '/settings' ? 'page' : undefined"
+              @click="closeNavigation"
+            >
+              <Settings :size="19" class="nav-item__icon" aria-hidden="true" />
+              <span class="sidebar__label">{{ t("settings.title") }}</span>
+            </RouterLink>
+          </SidebarTooltip>
+          <div class="account-card">
+            <SidebarTooltip
+              :label="auth.user?.username ?? initials"
+              :disabled="!compact"
+            >
+              <span
+                class="account-card__avatar"
+                :tabindex="compact ? 0 : undefined"
+                :aria-label="auth.user?.username ?? initials"
+                >{{ initials }}</span
+              >
+            </SidebarTooltip>
+            <span class="account-card__identity">
+              <strong>{{ auth.user?.username }}</strong>
+              <small :title="accountCaption">{{ accountCaption }}</small>
+            </span>
+            <SidebarTooltip :label="t('common.signOut')" :disabled="!compact">
+              <button
+                class="sign-out"
+                type="button"
+                :aria-label="t('common.signOut')"
+                @click="signOut"
+              >
+                <LogOut class="sign-out__icon" :size="18" aria-hidden="true" />
+                <span class="sidebar__label">{{ $t("common.signOut") }}</span>
+              </button>
+            </SidebarTooltip>
+          </div>
+        </div>
+      </aside>
+
+      <main class="app-content">
+        <slot />
+      </main>
+    </div>
+  </TooltipProvider>
 </template>

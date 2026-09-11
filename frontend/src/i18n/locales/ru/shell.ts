@@ -1,6 +1,8 @@
 /** RU translations: shell. */
 export default {
   nav: {
+    collapse: "Свернуть панель",
+    expand: "Развернуть панель",
     overview: "Обзор",
     catalog: "Каталог",
     profiles: "Профили",
