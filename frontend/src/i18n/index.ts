@@ -674,7 +674,15 @@ const messages = {
           "At the current risk, quantity is below the allowed step or instrument minimum. Check risk, stop and instrument settings.",
         notionalBelowMinimum:
           "The position is below the instrument minimum notional.",
+        allocationRequired:
+          "Position sizing requires an active {asset} allocation for this strategy. Fund the virtual wallet if needed, then allocate capital. Setup opens in a new tab.",
         contextUnavailable: "Position data could not be loaded.",
+      },
+      setup: {
+        capital: "Set up capital",
+        wallet: "Open wallet",
+        retry: "Refresh position data",
+        insufficient: "Insufficient available {asset}",
       },
     },
     analytics: {
@@ -1461,7 +1469,15 @@ const messages = {
           "При текущем риске количество меньше допустимого шага или минимума инструмента. Проверьте риск, стоп и настройки инструмента.",
         notionalBelowMinimum:
           "Размер позиции меньше минимального для инструмента.",
+        allocationRequired:
+          "Для расчёта позиции нужна активная аллокация {asset} у этой стратегии. При необходимости пополните виртуальный кошелёк, затем выделите капитал. Настройки откроются в новой вкладке.",
         contextUnavailable: "Не удалось загрузить данные для расчёта позиции.",
+      },
+      setup: {
+        capital: "Настроить капитал",
+        wallet: "Открыть кошелёк",
+        retry: "Обновить данные позиции",
+        insufficient: "Недостаточно доступного {asset}",
       },
     },
     analytics: {

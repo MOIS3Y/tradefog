@@ -223,7 +223,11 @@ async def settlement_allocation(
         statement = statement.with_for_update()
     row = (await session.execute(statement)).first()
     if row is None:
-        conflict("Strategy requires an active allocation for settlement asset")
+        api_error(
+            409,
+            "settlement_allocation_required",
+            "Strategy requires an active allocation for settlement asset",
+        )
     return row[0], row[1]
 
 

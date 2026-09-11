@@ -2,6 +2,7 @@
 import {
   Activity,
   ArchiveX,
+  BriefcaseBusiness,
   Check,
   CircleDollarSign,
   Gauge,
@@ -10,6 +11,7 @@ import {
   RefreshCw,
   Save,
   Trash2,
+  WalletCards,
 } from "@lucide/vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { computed, onBeforeUnmount, reactive, ref } from "vue";
@@ -116,9 +118,34 @@ const planningQuery = useQuery({
   queryFn: () => getPlanningContext(props.trade.id),
   enabled: isDraft,
   staleTime: 30_000,
+  refetchOnWindowFocus: (query) =>
+    query.state.status === "error" ? "always" : true,
+  retry: (count, error) =>
+    !(error instanceof ApiError && error.status === 409) && count < 2,
 });
+const allocationRequired = computed(
+  () =>
+    planningQuery.error.value instanceof ApiError &&
+    planningQuery.error.value.code === "settlement_allocation_required",
+);
+/** Open setup separately so unsaved draft inputs remain intact. */
+function capitalSetup(tab: "strategies" | "wallet") {
+  return {
+    path: "/profiles",
+    query: {
+      profile: props.trade.profile_id,
+      tab,
+      strategy: props.trade.strategy_id,
+      asset: props.instrument?.settlement_asset_id,
+    },
+  };
+}
 const planningResult = computed(() => {
-  if (!isDraft.value || planningQuery.data.value === undefined) {
+  if (
+    !isDraft.value ||
+    planningQuery.isError.value ||
+    planningQuery.data.value === undefined
+  ) {
     return { plan: null, error: null };
   }
   if (!isPositiveDecimal(entry.value) || !isPositiveDecimal(stop.value)) {
@@ -148,14 +175,16 @@ const planningResult = computed(() => {
 const localPlan = computed(() => planningResult.value.plan);
 const planError = computed(() =>
   planningQuery.isError.value
-    ? t("trades.errors.contextUnavailable")
+    ? allocationRequired.value
+      ? t("trades.errors.allocationRequired", { asset: settlementSymbol.value })
+      : t("trades.errors.contextUnavailable")
     : planningResult.value.error,
 );
 const activePlan = computed(() =>
   isDraft.value ? localPlan.value : props.trade.snapshot,
 );
 const preview = computed(() =>
-  isDraft.value && planningQuery.data.value
+  isDraft.value && !planningQuery.isError.value && planningQuery.data.value
     ? previewPosition(
         planningQuery.data.value,
         direction.value,
@@ -165,7 +194,11 @@ const preview = computed(() =>
     : null,
 );
 const knownContext = computed(() =>
-  isDraft.value ? planningQuery.data.value : props.trade.snapshot,
+  isDraft.value
+    ? planningQuery.isError.value
+      ? undefined
+      : planningQuery.data.value
+    : props.trade.snapshot,
 );
 const ticketWarning = computed(() => {
   if (!planError.value || !preview.value || !planningQuery.data.value)
@@ -192,7 +225,9 @@ const target = computed(
 );
 const targetRisk = computed(() =>
   isDraft.value
-    ? (planningQuery.data.value?.target_risk_amount ?? "—")
+    ? planningQuery.isError.value
+      ? "—"
+      : (planningQuery.data.value?.target_risk_amount ?? "—")
     : calculateTargetRisk(
         props.trade.snapshot?.allocation_capital,
         props.trade.snapshot?.planned_risk_percent,
@@ -830,6 +865,42 @@ onBeforeUnmount(() => {
               }}
             </p>
             <div
+              v-if="isDraft && planningQuery.isError.value"
+              class="position-setup-actions"
+            >
+              <template v-if="allocationRequired">
+                <RouterLink
+                  class="icon-action"
+                  :title="$t('trades.setup.capital')"
+                  :aria-label="$t('trades.setup.capital')"
+                  :to="capitalSetup('strategies')"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <BriefcaseBusiness :size="18" aria-hidden="true" />
+                </RouterLink>
+                <RouterLink
+                  class="icon-action"
+                  :title="$t('trades.setup.wallet')"
+                  :aria-label="$t('trades.setup.wallet')"
+                  :to="capitalSetup('wallet')"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <WalletCards :size="18" aria-hidden="true" />
+                </RouterLink>
+              </template>
+              <button
+                class="icon-action"
+                :title="$t('trades.setup.retry')"
+                :aria-label="$t('trades.setup.retry')"
+                :disabled="planningQuery.isFetching.value"
+                @click="planningQuery.refetch()"
+              >
+                <RefreshCw :size="18" aria-hidden="true" />
+              </button>
+            </div>
+            <div
               v-if="trade.status === 'closed' && trade.realized_pnl !== null"
               class="trade-result"
             >
@@ -860,7 +931,16 @@ onBeforeUnmount(() => {
             >
               <ArchiveX :size="18" />
               <div>
-                <strong>{{ $t("trades.plan.insufficient") }}</strong
+                <strong>{{
+                  compareDecimal(
+                    localPlan.wallet_available,
+                    localPlan.settlement_required,
+                  ) < 0
+                    ? $t("trades.setup.insufficient", {
+                        asset: settlementSymbol,
+                      })
+                    : $t("trades.plan.insufficient")
+                }}</strong
                 ><span>{{ $t("trades.plan.insufficientBody") }}</span>
               </div>
             </div>

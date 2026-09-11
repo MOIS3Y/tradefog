@@ -41,11 +41,11 @@ import {
   isPositiveDecimal,
 } from "@/utils/decimal";
 
-const props = defineProps<{ profile: Profile }>();
+const props = defineProps<{ profile: Profile; focusStrategyId?: number }>();
 const { t } = useI18n();
 const queryClient = useQueryClient();
 const toasts = useToastStore();
-const selectedId = ref<number | null>(null);
+const selectedId = ref<number | null>(props.focusStrategyId ?? null);
 const strategyDialogOpen = ref(false);
 const allocationDialogOpen = ref(false);
 const editing = ref<Strategy | null>(null);
@@ -131,6 +131,7 @@ const allocationInvalid = computed(
 watch(
   strategies,
   (items) => {
+    if (!query.data.value) return;
     if (!items.some((item) => item.id === selectedId.value))
       selectedId.value = items[0]?.id ?? null;
   },

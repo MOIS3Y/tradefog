@@ -1,5 +1,13 @@
 /** Paginated journal, individual decision workspace and lifecycle controls. */
 .tf-app {
+  .position-setup-actions {
+    margin-top: 0.5rem;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 32px;
+    justify-content: start;
+    gap: 0.5rem;
+  }
   .position-buyback {
     border-left: 2px solid var(--tf-type-equity);
     padding: 0.35rem 0.65rem;

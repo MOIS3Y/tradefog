@@ -141,6 +141,45 @@ async def test_trade_sorting_by_id_and_date(
         assert [row["id"] for row in response.json()["items"]] == expected
 
 
+async def test_draft_without_allocation_can_recover(
+    profile_client: AsyncClient,
+) -> None:
+    """Missing funding setup is identifiable and never destroys a draft."""
+    client = profile_client
+    market = await setup_market(client)
+    allocation_path = (
+        f"/api/v1{market['root']}/strategies/"
+        f"{market['strategy']['id']}/allocations/{market['allocation']['id']}"
+    )
+    response = await client.patch(allocation_path, json={"is_archived": True})
+    assert response.status_code == 200, response.text
+    trade = await post(
+        client,
+        "/trades",
+        {
+            "profile_id": market["profile"]["id"],
+            "strategy_id": market["strategy"]["id"],
+            "instrument_id": market["instrument"]["id"],
+            "trade_date": "2026-09-10",
+            "direction": "long",
+        },
+    )
+    path = f"/api/v1/trades/{trade['id']}"
+    response = await client.get(path + "/planning-context")
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == (
+        "settlement_allocation_required"
+    )
+    response = await client.post(path + "/submit", json={"status": "open"})
+    assert response.status_code == 422
+    assert (await client.get(path)).json()["status"] == "draft"
+    response = await client.patch(allocation_path, json={"is_archived": False})
+    assert response.status_code == 200, response.text
+    response = await client.get(path + "/planning-context")
+    assert response.status_code == 200, response.text
+    assert Decimal(response.json()["target_risk_amount"]) == 10
+
+
 @pytest.mark.parametrize(
     "product,direction,reserved,inventory",
     [

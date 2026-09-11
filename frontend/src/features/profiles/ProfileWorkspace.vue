@@ -14,6 +14,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRoute } from "vue-router";
 
 import { useProfilePresence } from "@/composables/useProfilePresence";
 import ProfileMarket from "@/features/profiles/ProfileMarket.vue";
@@ -49,9 +50,24 @@ const queryClient = useQueryClient();
 const toasts = useToastStore();
 const search = ref("");
 const visibility = ref<Visibility>("active");
-const selectedId = ref<number | null>(null);
-const activeTab = ref<ProfileTab>("market");
-const focusAssetId = ref<number | null>(null);
+const route = useRoute();
+const requestedProfile = Number(route.query.profile);
+const selectedId = ref<number | null>(
+  Number.isSafeInteger(requestedProfile) && requestedProfile > 0
+    ? requestedProfile
+    : null,
+);
+const activeTab = ref<ProfileTab>(
+  route.query.tab === "wallet" || route.query.tab === "strategies"
+    ? route.query.tab
+    : "market",
+);
+const requestedAsset = Number(route.query.asset);
+const focusAssetId = ref<number | null>(
+  Number.isSafeInteger(requestedAsset) && requestedAsset > 0
+    ? requestedAsset
+    : null,
+);
 watch(selectedId, () => {
   focusAssetId.value = null;
 });
@@ -144,7 +160,10 @@ watch(
   filtered,
   (items) => {
     if (!profilesQuery.data.value) return;
-    if (!items.some((item) => item.id === selectedId.value)) {
+    if (
+      selectedId.value !== requestedProfile &&
+      !items.some((item) => item.id === selectedId.value)
+    ) {
       selectedId.value = items[0]?.id ?? null;
     }
   },
@@ -478,7 +497,16 @@ function openEdit(profile: Profile): void {
           :key="selected.id"
           :profile="selected"
         />
-        <ProfileStrategies v-else :key="selected.id" :profile="selected" />
+        <ProfileStrategies
+          v-else
+          :key="selected.id"
+          :profile="selected"
+          :focus-strategy-id="
+            selected.id === requestedProfile
+              ? Number(route.query.strategy)
+              : undefined
+          "
+        />
       </div>
     </div>
 
