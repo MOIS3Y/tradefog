@@ -12,6 +12,7 @@ from pydantic import (
     model_validator,
 )
 
+from tradefog.api.documentation import TRADE_CLOSE_EXAMPLE, TRADE_PLAN_EXAMPLE
 from tradefog.api.v1.schemas.pagination import ListQuery
 from tradefog.domain.checklists import (
     AssessmentDirection,
@@ -180,6 +181,10 @@ class TradeSubmit(TradeInput):
 class TradePlanRequest(TradeInput):
     """Editable position anchors persisted as normalized entry and stop."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [TRADE_PLAN_EXAMPLE]}
+    )
+
     planned_entry: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
     planned_stop: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
 
@@ -290,7 +295,18 @@ class TradePlanResponse(BaseModel):
 class TradeClose(TradeInput):
     """Record final signed net P&L and execution context."""
 
-    realized_pnl: Decimal = Field(max_digits=30, decimal_places=18)
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [TRADE_CLOSE_EXAMPLE]}
+    )
+
+    realized_pnl: Decimal = Field(
+        max_digits=30,
+        decimal_places=18,
+        description=(
+            "Signed net P&L in the settlement asset, including commission "
+            "and funding. Those fields are not applied again to this amount."
+        ),
+    )
     actual_exit_price: Decimal = Field(
         gt=0,
         max_digits=30,

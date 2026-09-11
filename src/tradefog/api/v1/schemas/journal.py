@@ -13,6 +13,7 @@ from pydantic import (
     model_validator,
 )
 
+from tradefog.api.documentation import WALLET_OPERATION_EXAMPLE
 from tradefog.domain.enums import (
     StrategyStatus,
     VenueType,
@@ -110,8 +111,17 @@ class ProfileResponse(BaseModel):
 class WalletOperationCreate(JournalInput):
     """Append a positive deposit or withdrawal request."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [WALLET_OPERATION_EXAMPLE]}
+    )
+
     kind: WalletOperationKind
-    amount: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
+    amount: Decimal = Field(
+        gt=0,
+        max_digits=30,
+        decimal_places=18,
+        description="Positive asset units for either kind of operation.",
+    )
     note: str | None = Field(default=None, max_length=255)
 
 
@@ -129,7 +139,11 @@ class WalletOperationResponse(BaseModel):
     id: int
     asset_id: int
     kind: WalletOperationKind
-    amount: Decimal
+    amount: Decimal = Field(
+        description=(
+            "Signed asset units: deposits positive, withdrawals negative."
+        )
+    )
     note: str | None
     created_at: datetime
 
@@ -144,6 +158,7 @@ class StrategyCreate(JournalInput):
         le=100,
         max_digits=10,
         decimal_places=6,
+        description="Risk per trade as a percentage of allocated capital.",
     )
     reward_multiple: int = Field(default=3, ge=3, le=100)
 

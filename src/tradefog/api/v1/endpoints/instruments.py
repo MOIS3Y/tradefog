@@ -92,7 +92,13 @@ async def list_assets(
     user: CurrentUserDependency,
     query: Annotated[AssetListQuery, Query()],
 ) -> Page[AssetResponse]:
-    """Search only assets belonging to the requested owned profile."""
+    """List profile assets with current derived balances.
+
+    Search q matches symbol; the supported sort key is symbol. hide_empty
+    excludes assets without account history or references, rather than
+    simply excluding every zero balance. visibility filters archive state,
+    independently of the advisory financial status.
+    """
     await get_owned(session, TradingProfile, profile_id, user.id)
     statement = owned_select(TradingAsset, user.id).where(
         TradingAsset.profile_id == profile_id
@@ -339,7 +345,13 @@ async def create_instrument(
     user: CurrentUserDependency,
     market: MarketDependency,
 ) -> InstrumentResponse:
-    """Import Bybit metadata or validate an explicit manual specification."""
+    """Import Bybit metadata or create a manual instrument specification.
+
+    Request mode must match the profile venue (422, invalid_mode).
+    Creation also resolves or creates the profile-local denomination
+    assets. Duplicate identities return 409; browsing venue instruments
+    alone does not import them into a profile.
+    """
     profile = await profile_record(profile_id, session, user)
     if request.mode != profile.venue_type.value:
         api_error(422, "invalid_mode", "Request must match profile venue")

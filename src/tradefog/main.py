@@ -13,6 +13,7 @@ from loguru import logger
 
 from tradefog import __version__
 from tradefog.api import api_router
+from tradefog.api.documentation import API_DESCRIPTION
 from tradefog.config import Settings, get_settings
 from tradefog.db.session import Database
 from tradefog.logging import setup_logging
@@ -54,6 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title=app_settings.application.app_name,
         version=__version__,
+        description=API_DESCRIPTION,
         debug=app_settings.application.debug,
         lifespan=lifespan,
     )

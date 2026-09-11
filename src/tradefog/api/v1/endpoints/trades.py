@@ -519,7 +519,13 @@ async def refresh_atr(
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> ATRResponse:
-    """Fetch ATR on demand or persist a manual fallback in draft context."""
+    """Refresh and save ATR context for a draft trade.
+
+    Supply value for manual ATR; otherwise request automatic market data.
+    Manual profiles require value (422, manual_atr_required). A manual
+    contributing date cannot follow the trade date. Submission locks this
+    context (409). Returned candles are transient and are not stored.
+    """
     trade = await get_owned(session, Trade, trade_id, user.id)
     if trade.status != TradeStatus.DRAFT:
         conflict("ATR context is locked after trade submission")
@@ -634,7 +640,12 @@ async def preview_trade_plan(
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradePlanResponse:
-    """Calculate an executable plan without persisting a snapshot."""
+    """Preview a draft position plan without saving it or reserving funds.
+
+    The response includes capital checks, but preview does not enforce
+    sufficient capital. Submission recalculates and enforces those checks
+    against current state; a preview does not guarantee submission.
+    """
     trade = await get_owned(
         session,
         Trade,
@@ -722,7 +733,12 @@ async def save_trade_plan(
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradeResponse:
-    """Persist editable entry and stop values in a draft context."""
+    """Replace the draft's saved entry and stop values.
+
+    Omitted or null anchors are cleared. Supply both to retain a complete
+    plan. This saves preparation only; it does not reserve funds or submit
+    the trade. Submitted plans are locked (409).
+    """
     trade = await get_owned(
         session,
         Trade,
@@ -753,7 +769,14 @@ async def submit_draft(
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradeResponse:
-    """Create one immutable snapshot and reserve wallet capital atomically."""
+    """Submit a draft as pending_entry or open.
+
+    Save entry and stop first; missing anchors return 422 with
+    missing_draft_plan. Submission recalculates the plan, checks capital,
+    freezes one immutable snapshot and reserves the required asset amounts
+    atomically. Invalid lifecycle or capital state returns 409.
+    This records a journal decision; it does not place an exchange order.
+    """
     trade = await session.scalar(
         owned_select(Trade, user.id)
         .where(Trade.id == trade_id)
@@ -832,7 +855,12 @@ async def close_trade(
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradeResponse:
-    """Close an open trade, release reservation and add realized P&L."""
+    """Close an open trade, release reservation and add realized P&L.
+
+    Supply signed net P&L in the settlement asset, already including fees
+    and funding. Commission and funding fields are recorded as context;
+    they are not deducted again. Only open trades can close (409).
+    """
     trade = await get_owned(
         session,
         Trade,

@@ -50,7 +50,12 @@ async def get_analytics(
     settlement_asset_id: int | None = None,
     strategy_capital_id: int | None = None,
 ) -> AnalyticsResponse:
-    """Calculate quality metrics for a filtered cohort of closed trades."""
+    """Calculate quality metrics for a filtered cohort of closed trades.
+
+    Explicit date bounds require period=custom and at least one bound;
+    reversed bounds return 422, invalid_date_range. Preset periods use
+    today's UTC date. Monetary results retain their asset denomination.
+    """
     if (
         period is AnalyticsPeriod.CUSTOM
         and date_from is None

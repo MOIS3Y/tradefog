@@ -135,6 +135,9 @@ virtual wallets and strategies. Staff remains an account-administration role.
 
 ### Authentication and Profile API
 
+See the [API guide](api.md) for client workflows, capital semantics and
+documentation conventions. `/docs` exposes the generated API contract.
+
 All business and market endpoints require JWT authentication. Public market
 means no exchange key, not anonymous application access. Profile collections
 use /profiles/{id}/assets, /instruments, /wallet, /strategies and nested

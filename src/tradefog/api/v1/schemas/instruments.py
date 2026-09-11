@@ -12,6 +12,7 @@ from pydantic import (
     model_validator,
 )
 
+from tradefog.api.documentation import ASSET_EXAMPLE
 from tradefog.domain.enums import AssetType, ProductKind, WalletAssetStatus
 
 
@@ -59,29 +60,49 @@ class AssetPatch(Patch):
 
     nullable = {"name", "risk_stop_capital"}
     risk_stop_capital: Decimal | None = Field(
-        default=None, ge=0, max_digits=30, decimal_places=18
+        default=None,
+        ge=0,
+        max_digits=30,
+        decimal_places=18,
+        description="Balance floor for risk stop; null clears the floor.",
     )
     name: str | None = Field(default=None, max_length=255)
     is_archived: bool | None = None
 
 
 class AssetResponse(BaseModel):
-    """One asset owned by the profile."""
+    """Profile asset with derived balances, all in units of this asset."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={"examples": [ASSET_EXAMPLE]},
+    )
     id: int
     profile_id: int
     symbol: str
     name: str | None
     asset_type: AssetType
     is_archived: bool
-    risk_stop_capital: Decimal | None
+    risk_stop_capital: Decimal | None = Field(
+        description=(
+            "Advisory risk-stop floor: balance at or below it marks the "
+            "asset risk_stopped. Null disables the floor."
+        )
+    )
     status: WalletAssetStatus
-    balance: Decimal
-    allocated: Decimal
-    reserved: Decimal
-    available: Decimal
-    uncommitted: Decimal
+    balance: Decimal = Field(
+        description="Signed ledger operations plus closed-trade net P&L."
+    )
+    allocated: Decimal = Field(
+        description="Capital committed by non-archived strategy allocations."
+    )
+    reserved: Decimal = Field(
+        description="Funds reserved by pending-entry and open trades."
+    )
+    available: Decimal = Field(description="Balance minus reserved funds.")
+    uncommitted: Decimal = Field(
+        description="Balance minus max(allocated, reserved); withdrawal limit."
+    )
 
 
 class AssetInput(Input):

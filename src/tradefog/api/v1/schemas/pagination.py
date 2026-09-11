@@ -9,9 +9,12 @@ class Page[T](BaseModel):
     """One page and the count after applying all collection filters."""
 
     items: list[T]
-    total: int
-    page: int
-    page_size: int
+    total: int = Field(
+        description="Matching items across all pages, after filtering.",
+        examples=[1],
+    )
+    page: int = Field(examples=[1])
+    page_size: int = Field(examples=[25])
 
 
 class ListQuery(BaseModel):

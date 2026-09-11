@@ -294,7 +294,13 @@ async def create_wallet_operation(
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> WalletOperation:
-    """Append a deposit or withdrawal to an active wallet asset."""
+    """Append a deposit or withdrawal to an active wallet asset.
+
+    Supply a positive amount for either kind. Withdrawals are stored as
+    negative ledger entries and cannot exceed the asset's uncommitted
+    balance (409). Archived profiles or assets also return 409.
+    This records a journal entry; it does not transfer exchange funds.
+    """
     item = await get_owned(
         session,
         TradingAsset,
@@ -331,7 +337,11 @@ async def update_wallet_operation_note(
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> WalletOperation:
-    """Correct an operation note without changing its financial fact."""
+    """Replace an operation note without changing its financial fact.
+
+    An omitted or null note clears the existing note, including an empty
+    request object. Amount and operation kind cannot be edited.
+    """
     operation = await get_owned(
         session,
         WalletOperation,
@@ -430,7 +440,11 @@ async def update_strategy(
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> StrategyResponse:
-    """Edit strategy rules while preserving frozen snapshot history."""
+    """Edit strategy rules while preserving frozen snapshot history.
+
+    Risk and reward rules are locked after the first submitted trade
+    (409). Archive allocations before archiving their strategy.
+    """
     strategy = await session.scalar(
         owned_select(TradingStrategy, user.id)
         .where(TradingStrategy.id == strategy_id)
