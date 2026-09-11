@@ -93,7 +93,7 @@ const activeAllocations = computed(
 );
 const availableWalletAssets = computed(() => {
   const assigned = new Set(
-    selected.value?.allocations.map((item) => item.wallet_asset_id) ?? [],
+    selected.value?.allocations.map((item) => item.asset_id) ?? [],
   );
   return walletAssets.value.filter(
     (item) =>
@@ -105,7 +105,7 @@ const availableWalletAssets = computed(() => {
 const walletOptions = computed<SearchableOption[]>(() =>
   (allocationEditing.value
     ? walletAssets.value.filter(
-        (item) => item.id === allocationEditing.value?.wallet_asset_id,
+        (item) => item.id === allocationEditing.value?.asset_id,
       )
     : availableWalletAssets.value
   ).map((item) => ({
@@ -295,7 +295,7 @@ function openEdit(strategy: Strategy): void {
 function openAllocation(allocation: Allocation | null): void {
   allocationEditing.value = allocation;
   Object.assign(allocationForm, {
-    walletAssetId: allocation?.wallet_asset_id ?? null,
+    walletAssetId: allocation?.asset_id ?? null,
     capital: allocation ? formatDecimal(allocation.capital) : "",
   });
   allocationDialogOpen.value = true;
@@ -465,7 +465,7 @@ function openAllocation(allocation: Allocation | null): void {
             :class="{ 'allocation-row--archived': allocation.is_archived }"
           >
             <span class="allocation-row__symbol">{{
-              walletAssetById.get(allocation.wallet_asset_id)?.symbol ?? "—"
+              walletAssetById.get(allocation.asset_id)?.symbol ?? "—"
             }}</span>
             <span
               ><small>{{ $t("profiles.strategies.capital") }}</small

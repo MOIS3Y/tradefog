@@ -1,11 +1,16 @@
 /** Owner-scoped profile, wallet ledger, strategy, and capital workspace. */
 .tf-app {
+  .asset-symbol-field .tf-combobox-input {
+    border: 0;
+    background: transparent;
+  }
+
   .profile-workspace {
-    width: min(100%, 1380px);
+    width: 100%;
   }
 
   .profile-shell {
-    margin-top: 2.4rem;
+    margin-top: 0;
     border: 1px solid var(--tf-line);
     border-radius: var(--tf-radius-lg);
     background: linear-gradient(
@@ -257,14 +262,12 @@
     }
   }
 
-  .wallet-layout,
   .strategy-layout {
     display: grid;
     grid-template-columns: minmax(190px, 230px) minmax(0, 1fr);
     border-top: 1px solid var(--tf-line-soft);
   }
 
-  .wallet-assets,
   .strategy-list {
     display: grid;
     align-content: start;
@@ -590,5 +593,145 @@
 
   .allocation-row--archived {
     opacity: 0.55;
+  }
+}
+
+.tf-app {
+  .wallet-layout {
+    min-width: 0;
+    border-top: 1px solid var(--tf-line-soft);
+  }
+  .wallet-assets {
+    display: grid;
+    grid-template-columns: repeat(
+      auto-fill,
+      minmax(min(100%, max(220px, calc((100% - 3.25rem) / 6))), 1fr)
+    );
+    gap: 0.65rem;
+    overflow-x: auto;
+    max-width: 100%;
+    padding: 1rem;
+    scroll-snap-type: x proximity;
+  }
+  .wallet-balance-card {
+    flex: 0 0 240px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+    scroll-snap-align: start;
+    overflow: hidden;
+    &__select {
+      display: grid;
+      gap: 0.6rem;
+      width: 100%;
+      flex: 1;
+      padding: 0.85rem;
+      color: inherit;
+      font: inherit;
+      background: transparent;
+      border: 0;
+      text-align: left;
+      cursor: pointer;
+      &:focus-visible {
+        outline: 2px solid var(--tf-action);
+        outline-offset: -3px;
+      }
+    }
+    &__name {
+      min-height: 1.2em;
+      overflow-wrap: anywhere;
+    }
+    &__balance {
+      overflow-wrap: anywhere;
+    }
+    &__metrics small {
+      gap: 0.6rem;
+      align-items: baseline;
+    }
+    &__metrics b {
+      overflow-wrap: anywhere;
+      min-width: 0;
+      text-align: right;
+    }
+    &__actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.3rem;
+      padding: 0.4rem 0.65rem;
+      border-top: 1px solid var(--tf-line-soft);
+    }
+  }
+  .profile-ledger {
+    .table-scroll {
+      position: relative;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+    min-width: 0;
+    border-top: 1px solid var(--tf-line-soft);
+  }
+  .ledger-filters {
+    align-items: end;
+    flex-wrap: wrap;
+    > .tf-select-trigger {
+      flex: 0 0 180px;
+      width: 180px;
+      min-width: 0;
+      height: 40px;
+      min-height: 40px;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    input {
+      width: 100%;
+      min-width: 0;
+      height: 40px;
+      min-height: 40px;
+      font-size: 0.78rem;
+    }
+    .field {
+      width: 180px;
+      min-width: 0;
+      flex: 0 0 180px;
+    }
+    .ledger-reset {
+      width: 40px;
+      height: 40px;
+      min-height: 40px;
+      flex: 0 0 40px;
+      padding: 0;
+      border-radius: var(--tf-radius-sm);
+    }
+  }
+}
+
+.asset-type-pair {
+  white-space: nowrap;
+}
+
+.tf-app {
+  .asset-type-pair__separator {
+    margin-inline: 0.3rem;
+    color: var(--tf-ink-faint);
+  }
+
+  .ledger-kind--deposit {
+    --tf-tag-color: var(--tf-action);
+  }
+
+  .ledger-kind--withdrawal {
+    --tf-tag-color: var(--tf-danger);
+  }
+}
+
+.tf-app .profile-ledger {
+  .ledger-row__amount--deposit {
+    color: var(--tf-action);
+  }
+
+  .ledger-row__amount--withdrawal {
+    color: var(--tf-danger);
   }
 }

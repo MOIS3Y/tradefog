@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import PanelHeading from "@/components/PanelHeading.vue";
+import { ChartCandlestick } from "@lucide/vue";
 import TradeWorkspace from "@/features/trades/TradeWorkspace.vue";
 import TradePage from "@/features/trades/TradePage.vue";
 import AppShell from "@/layouts/AppShell.vue";
@@ -7,28 +9,12 @@ import AppShell from "@/layouts/AppShell.vue";
 <template>
   <AppShell>
     <div class="workspace trade-workspace">
-      <header class="catalog-heading">
-        <h1>
-          {{
-            $route.path === "/trades"
-              ? $t("journal.title")
-              : $route.path === "/trades/new"
-                ? $t("trades.new")
-                : $t("journal.detail", { id: $route.params.tradeId })
-          }}
-        </h1>
-        <p>
-          {{
-            $t(
-              $route.path === "/trades"
-                ? "pageDescriptions.trades"
-                : $route.path === "/trades/new"
-                  ? "pageDescriptions.newTrade"
-                  : "pageDescriptions.trade",
-            )
-          }}
-        </p>
-      </header>
+      <PanelHeading
+        v-if="$route.path !== '/trades'"
+        :icon="ChartCandlestick"
+        :title="$t('journal.detail', { id: $route.params.tradeId })"
+        :description="$t('pageDescriptions.trade')"
+      />
       <TradeWorkspace v-if="$route.path === '/trades'" />
       <TradePage v-else />
     </div>

@@ -4,21 +4,36 @@ import { useQuery } from "@tanstack/vue-query";
 import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+import { useProfilePresence } from "@/composables/useProfilePresence";
+import { hasTradeFilters } from "./filters";
 import AppSelect from "@/components/AppSelect.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import ErrorState from "@/components/ErrorState.vue";
 import LoadingState from "@/components/LoadingState.vue";
+import PanelHeading from "@/components/PanelHeading.vue";
+import { ChartCandlestick } from "@lucide/vue";
 import PaginationControls from "@/components/PaginationControls.vue";
 import SearchableSelect from "@/components/SearchableSelect.vue";
 import SortableHeader from "@/components/SortableHeader.vue";
 import { listProfiles, listStrategies } from "@/features/profiles/api";
 import { listTrades, type TradeListParams } from "@/features/trades/api";
+import TradeCreateDialog from "./TradeCreateDialog.vue";
 import TradeRatingDisplay from "@/features/trades/TradeRatingDisplay.vue";
 import { formatDecimal } from "@/utils/decimal";
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const creating = ref(false);
+watch(
+  () => route.query.create,
+  (value) => {
+    if (value !== "1") return;
+    creating.value = true;
+    void router.replace({ query: { ...route.query, create: undefined } });
+  },
+  { immediate: true },
+);
 const text = (key: string, fallback = "") =>
   typeof route.query[key] === "string" ? String(route.query[key]) : fallback;
 const positive = (key: string, fallback: number): number => {
@@ -205,6 +220,35 @@ watch(
       page.value = Math.max(1, Math.ceil(value.total / pageSize.value));
   },
 );
+const filtered = computed(() => hasTradeFilters(criteria.value));
+const needsProfiles = computed(
+  () =>
+    query.isSuccess.value && query.data.value?.total === 0 && !filtered.value,
+);
+const needsPresence = computed(
+  () =>
+    needsProfiles.value &&
+    profilesQuery.isSuccess.value &&
+    profilesQuery.data.value?.length === 0,
+);
+const presence = useProfilePresence(needsPresence);
+const emptyPending = computed(
+  () =>
+    needsProfiles.value &&
+    (profilesQuery.isPending.value ||
+      (needsPresence.value && presence.isPending.value)),
+);
+const emptyError = computed(
+  () =>
+    needsProfiles.value &&
+    (profilesQuery.isError.value ||
+      (needsPresence.value && presence.isError.value)),
+);
+const emptyKind = computed(() => {
+  if (filtered.value) return "filteredTrades";
+  if (profilesQuery.data.value?.length) return "trades";
+  return presence.data.value?.total ? "archivedProfiles" : "start";
+});
 const columns = [
   ["trade_date", "trades.fields.date"],
   ["instrument", "trades.fields.instrument"],
@@ -248,6 +292,20 @@ const advancedOpen = ref(advancedCount.value > 0);
 
 <template>
   <section class="trade-shell">
+    <PanelHeading
+      embedded
+      :icon="ChartCandlestick"
+      :title="$t('journal.title')"
+      :description="$t('pageDescriptions.trades')"
+    >
+      <button
+        class="button button--primary trade-toolbar__create"
+        type="button"
+        @click="creating = true"
+      >
+        <Plus :size="17" />{{ $t("trades.new") }}
+      </button>
+    </PanelHeading>
     <div class="trade-toolbar journal-toolbar">
       <label class="search-field trade-search"
         ><Search
@@ -289,11 +347,6 @@ const advancedOpen = ref(advancedCount.value > 0);
       >
         <RotateCcw :size="16" aria-hidden="true" />
       </button>
-      <RouterLink
-        class="button button--primary trade-toolbar__create"
-        :to="{ path: '/trades/new', query: backQuery }"
-        ><Plus :size="17" />{{ $t("trades.new") }}</RouterLink
-      >
     </div>
     <div
       v-show="advancedOpen"
@@ -345,13 +398,42 @@ const advancedOpen = ref(advancedCount.value > 0);
       </p>
     </div>
     <template v-if="!dateError">
-      <LoadingState v-if="query.isPending.value" />
-      <ErrorState v-else-if="query.isError.value" @retry="query.refetch()" />
-      <EmptyState
-        v-else-if="!query.data.value?.items.length"
-        :title="$t('trades.emptyFiltered')"
-        :body="$t('journal.emptyBody')"
+      <LoadingState v-if="query.isPending.value || emptyPending" />
+      <ErrorState
+        v-else-if="query.isError.value || emptyError"
+        @retry="
+          query.refetch();
+          profilesQuery.refetch();
+          presence.refetch();
+        "
       />
+      <EmptyState
+        v-else-if="query.data.value?.total === 0"
+        :title="
+          filtered
+            ? $t('trades.emptyFiltered')
+            : $t(`workspaceEmpty.${emptyKind}.title`)
+        "
+        :description="$t(`workspaceEmpty.${emptyKind}.description`)"
+      >
+        <button
+          v-if="filtered"
+          class="button button--secondary"
+          @click="router.replace('/trades')"
+        >
+          {{ $t("catalog.reset") }}
+        </button>
+        <button
+          v-else-if="emptyKind === 'trades'"
+          class="button button--primary"
+          @click="creating = true"
+        >
+          {{ $t("workspaceEmpty.trades.action") }}
+        </button>
+        <RouterLink v-else class="button button--primary" to="/profiles">{{
+          $t(`workspaceEmpty.${emptyKind}.action`)
+        }}</RouterLink>
+      </EmptyState>
       <div v-else class="catalog-table-wrap">
         <table class="catalog-table journal-table">
           <thead>
@@ -377,7 +459,7 @@ const advancedOpen = ref(advancedCount.value > 0);
             </tr>
           </thead>
           <tbody>
-            <tr v-for="trade in query.data.value.items" :key="trade.id">
+            <tr v-for="trade in query.data.value?.items" :key="trade.id">
               <td :data-label="$t('trades.fields.date')">
                 <time>{{ trade.trade_date }}</time>
               </td>
@@ -440,5 +522,10 @@ const advancedOpen = ref(advancedCount.value > 0);
         :busy="query.isFetching.value"
       />
     </template>
+    <TradeCreateDialog
+      v-if="creating"
+      :return-to="route.fullPath"
+      @close="creating = false"
+    />
   </section>
 </template>

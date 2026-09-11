@@ -17,8 +17,6 @@ from tradefog.db.models import (
     TradingInstrument,
     TradingProfile,
     TradingStrategy,
-    Wallet,
-    WalletAsset,
 )
 from tradefog.db.scoping import owned_select
 from tradefog.domain.calculations import (
@@ -47,7 +45,7 @@ class PlanningContext:
     strategy: TradingStrategy
     instrument: TradingInstrument
     allocation: StrategyCapital
-    wallet_asset: WalletAsset
+    wallet_asset: TradingAsset
     settlement_asset_id: int
     balance: Decimal
     reserved_notional: Decimal
@@ -65,7 +63,7 @@ class SubmissionContext:
     plan: PositionPlan
     strategy: TradingStrategy
     allocation: StrategyCapital
-    wallet_asset: WalletAsset
+    wallet_asset: TradingAsset
     settlement_asset_id: int
     balance: Decimal
     reserved_notional: Decimal
@@ -83,7 +81,6 @@ class SubmissionContext:
 class ReservationRequirement:
     """An exact asset requirement and its current available balance."""
 
-    wallet_asset_id: int
     asset_id: int
     purpose: ReservationPurpose
     amount: Decimal
@@ -199,33 +196,28 @@ async def settlement_allocation(
     *,
     active_only: bool = True,
     for_update: bool = True,
-) -> tuple[StrategyCapital, WalletAsset]:
+) -> tuple[StrategyCapital, TradingAsset]:
     """Resolve the active allocation matching the instrument settlement asset."""
     instrument = await session.get(TradingInstrument, trade.instrument_id)
     if instrument is None:
         not_found("TradingInstrument")
     settlement_id = instrument.settlement_asset_id
-    wallet = await session.scalar(
-        select(Wallet).where(Wallet.profile_id == trade.profile_id)
-    )
-    if wallet is None:
-        conflict("Instrument has no resolvable settlement wallet asset")
     statement = (
-        select(StrategyCapital, WalletAsset)
+        select(StrategyCapital, TradingAsset)
         .join(
-            WalletAsset,
-            WalletAsset.id == StrategyCapital.wallet_asset_id,
+            TradingAsset,
+            TradingAsset.id == StrategyCapital.asset_id,
         )
         .where(
             StrategyCapital.strategy_id == trade.strategy_id,
-            WalletAsset.wallet_id == wallet.id,
-            WalletAsset.asset_id == settlement_id,
+            TradingAsset.profile_id == trade.profile_id,
+            TradingAsset.id == settlement_id,
         )
     )
     if active_only:
         statement = statement.where(
             StrategyCapital.is_archived.is_(False),
-            WalletAsset.is_archived.is_(False),
+            TradingAsset.is_archived.is_(False),
         )
     if for_update:
         statement = statement.with_for_update()
@@ -381,7 +373,7 @@ async def prepare_planning_context(
         asset = await session.get(TradingAsset, asset_id)
         if (
             asset is None
-            or not asset.is_active
+            or asset.is_archived
             or asset.profile_id != trade.profile_id
         ):
             conflict("Instrument assets are unavailable in this profile")
@@ -400,7 +392,7 @@ async def prepare_planning_context(
         instrument=instrument,
         allocation=allocation,
         wallet_asset=wallet_asset,
-        settlement_asset_id=wallet_asset.asset_id,
+        settlement_asset_id=wallet_asset.id,
         balance=balance,
         reserved_notional=wallet_reserved_amount,
         available=available,
@@ -477,7 +469,7 @@ async def submit_trade(
         [
             TradeReservation(
                 trade_snapshot_id=snapshot.id,
-                wallet_asset_id=row.wallet_asset_id,
+                asset_id=row.asset_id,
                 purpose=row.purpose,
                 amount=stored_decimal(row.amount),
             )
@@ -503,8 +495,7 @@ async def reservation_requirements(
     money = plan.planned_risk_amount if buyback else plan.notional
     rows = [
         ReservationRequirement(
-            wallet_asset_id=planning.wallet_asset.id,
-            asset_id=planning.wallet_asset.asset_id,
+            asset_id=planning.wallet_asset.id,
             purpose=ReservationPurpose.LOSS_BUFFER
             if buyback
             else ReservationPurpose.POSITION_FUNDING,
@@ -514,12 +505,10 @@ async def reservation_requirements(
     ]
     if buyback:
         inventory = await session.scalar(
-            select(WalletAsset)
-            .join(Wallet)
-            .where(
-                Wallet.profile_id == trade.profile_id,
-                WalletAsset.asset_id == planning.instrument.base_asset_id,
-                WalletAsset.is_archived.is_(False),
+            select(TradingAsset).where(
+                TradingAsset.profile_id == trade.profile_id,
+                TradingAsset.id == planning.instrument.base_asset_id,
+                TradingAsset.is_archived.is_(False),
             )
         )
         available = Decimal(0)
@@ -529,7 +518,6 @@ async def reservation_requirements(
             ) - await wallet_reserved(session, inventory)
         rows.append(
             ReservationRequirement(
-                wallet_asset_id=inventory.id if inventory else 0,
                 asset_id=planning.instrument.base_asset_id,
                 purpose=ReservationPurpose.INVENTORY,
                 amount=stored_decimal(plan.quantity),

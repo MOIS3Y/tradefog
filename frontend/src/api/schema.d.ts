@@ -103,7 +103,7 @@ export interface paths {
     put?: never;
     /**
      * Create Asset
-     * @description Create manual metadata, never a virtual balance.
+     * @description Create an account denomination without funding it.
      */
     post: operations["create_asset_api_v1_profiles__profile_id__assets_post"];
     delete?: never;
@@ -121,7 +121,7 @@ export interface paths {
     };
     /**
      * Get Asset
-     * @description Resolve an asset without exposing other profiles.
+     * @description Resolve one profile asset with financial values.
      */
     get: operations["get_asset_api_v1_profiles__profile_id__assets__asset_id__get"];
     put?: never;
@@ -173,7 +173,7 @@ export interface paths {
     };
     /**
      * Get Instrument
-     * @description Resolve an instrument within its exact profile.
+     * @description Return an instrument with its current denomination types.
      */
     get: operations["get_instrument_api_v1_profiles__profile_id__instruments__instrument_id__get"];
     put?: never;
@@ -227,7 +227,7 @@ export interface paths {
     put?: never;
     /**
      * Create Profile
-     * @description Create a profile and its required one-to-one wallet atomically.
+     * @description Create an ownership root without a separate wallet container.
      */
     post: operations["create_profile_api_v1_profiles_post"];
     delete?: never;
@@ -264,71 +264,7 @@ export interface paths {
     patch: operations["update_profile_api_v1_profiles__profile_id__patch"];
     trace?: never;
   };
-  "/api/v1/profiles/{profile_id}/wallet": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get Wallet
-     * @description Return the profile wallet with derived balances and reservations.
-     */
-    get: operations["get_wallet_api_v1_profiles__profile_id__wallet_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/profiles/{profile_id}/wallet/assets": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * List Wallet Assets
-     * @description Search and page owned wallet denominations independently.
-     */
-    get: operations["list_wallet_assets_api_v1_profiles__profile_id__wallet_assets_get"];
-    put?: never;
-    /**
-     * Create Wallet Asset
-     * @description Add an active asset capability belonging to the profile venue.
-     */
-    post: operations["create_wallet_asset_api_v1_profiles__profile_id__wallet_assets_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/profiles/{profile_id}/wallet/assets/{wallet_asset_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /**
-     * Update Wallet Asset
-     * @description Edit a risk floor or archive an unused zero-balance wallet asset.
-     */
-    patch: operations["update_wallet_asset_api_v1_profiles__profile_id__wallet_assets__wallet_asset_id__patch"];
-    trace?: never;
-  };
-  "/api/v1/profiles/{profile_id}/wallet/operations": {
+  "/api/v1/profiles/{profile_id}/assets/{asset_id}/operations": {
     parameters: {
       query?: never;
       header?: never;
@@ -339,20 +275,20 @@ export interface paths {
      * List Wallet Operations
      * @description List immutable ledger facts for one owned wallet asset.
      */
-    get: operations["list_wallet_operations_api_v1_profiles__profile_id__wallet_operations_get"];
+    get: operations["list_wallet_operations_api_v1_profiles__profile_id__assets__asset_id__operations_get"];
     put?: never;
     /**
      * Create Wallet Operation
      * @description Append a deposit or withdrawal to an active wallet asset.
      */
-    post: operations["create_wallet_operation_api_v1_profiles__profile_id__wallet_operations_post"];
+    post: operations["create_wallet_operation_api_v1_profiles__profile_id__assets__asset_id__operations_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/profiles/{profile_id}/wallet/operations/{operation_id}": {
+  "/api/v1/profiles/{profile_id}/assets/{asset_id}/operations/{operation_id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -369,7 +305,7 @@ export interface paths {
      * Update Wallet Operation Note
      * @description Correct an operation note without changing its financial fact.
      */
-    patch: operations["update_wallet_operation_note_api_v1_profiles__profile_id__wallet_operations__operation_id__patch"];
+    patch: operations["update_wallet_operation_note_api_v1_profiles__profile_id__assets__asset_id__operations__operation_id__patch"];
     trace?: never;
   };
   "/api/v1/profiles/{profile_id}/strategies": {
@@ -466,6 +402,26 @@ export interface paths {
      * @description Edit unlocked capital or archive a strategy allocation.
      */
     patch: operations["update_allocation_api_v1_profiles__profile_id__strategies__strategy_id__allocations__allocation_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/profiles/{profile_id}/operations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Profile Operations
+     * @description Read all denominations of one owned profile, including archived ones.
+     */
+    get: operations["list_profile_operations_api_v1_profiles__profile_id__operations_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/api/v1/trades": {
@@ -1075,14 +1031,27 @@ export interface components {
      */
     AssessmentDirection: "SHORT" | "NEUTRAL" | "LONG";
     /**
+     * AssetInput
+     * @description Identify an existing asset or supply the type for a new symbol.
+     */
+    AssetInput: {
+      /** Symbol */
+      symbol: string;
+      asset_type?: components["schemas"]["AssetType"] | null;
+      /** Name */
+      name?: string | null;
+    };
+    /**
      * AssetPatch
      * @description Edit presentation or availability without repurposing identity.
      */
     AssetPatch: {
+      /** Risk Stop Capital */
+      risk_stop_capital?: number | string | null;
       /** Name */
       name?: string | null;
-      /** Is Active */
-      is_active?: boolean | null;
+      /** Is Archived */
+      is_archived?: boolean | null;
     };
     /**
      * AssetResponse
@@ -1098,8 +1067,21 @@ export interface components {
       /** Name */
       name: string | null;
       asset_type: components["schemas"]["AssetType"];
-      /** Is Active */
-      is_active: boolean;
+      /** Is Archived */
+      is_archived: boolean;
+      /** Risk Stop Capital */
+      risk_stop_capital: string | null;
+      status: components["schemas"]["WalletAssetStatus"];
+      /** Balance */
+      balance: string;
+      /** Allocated */
+      allocated: string;
+      /** Reserved */
+      reserved: string;
+      /** Available */
+      available: string;
+      /** Uncommitted */
+      uncommitted: string;
     };
     /**
      * AssetType
@@ -1179,6 +1161,20 @@ export interface components {
       price: string;
       /** Size */
       size: string;
+    };
+    /**
+     * BybitInstrumentWrite
+     * @description Import an explicitly selected exchange instrument.
+     */
+    BybitInstrumentWrite: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      mode: "bybit";
+      product: components["schemas"]["ProductKind"];
+      /** Exec Symbol */
+      exec_symbol: string;
     };
     /**
      * Candle
@@ -1319,8 +1315,6 @@ export interface components {
      * @description Update editable metadata; identity remains immutable.
      */
     InstrumentPatch: {
-      /** Name */
-      name?: string | null;
       /** Price Step */
       price_step?: number | string | null;
       /** Qty Step */
@@ -1345,8 +1339,6 @@ export interface components {
       profile_id: number;
       /** Exec Symbol */
       exec_symbol: string;
-      /** Name */
-      name: string | null;
       product: components["schemas"]["ProductKind"];
       /** Base Asset Id */
       base_asset_id: number;
@@ -1354,6 +1346,8 @@ export interface components {
       quote_asset_id: number;
       /** Settlement Asset Id */
       settlement_asset_id: number;
+      base_asset_type: components["schemas"]["AssetType"];
+      quote_asset_type: components["schemas"]["AssetType"];
       /** Price Step */
       price_step: string;
       /** Qty Step */
@@ -1395,25 +1389,22 @@ export interface components {
       is_active: boolean;
     };
     /**
-     * InstrumentWrite
-     * @description Symbol-only import for Bybit, complete specification for manual.
+     * ManualInstrumentWrite
+     * @description Create a manual instrument and any missing profile assets.
      */
-    InstrumentWrite: {
-      /** Exec Symbol */
-      exec_symbol: string;
+    ManualInstrumentWrite: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      mode: "manual";
       product: components["schemas"]["ProductKind"];
-      /** Name */
-      name?: string | null;
-      /** Base Asset Id */
-      base_asset_id?: number | null;
-      /** Quote Asset Id */
-      quote_asset_id?: number | null;
-      /** Settlement Asset Id */
-      settlement_asset_id?: number | null;
+      base: components["schemas"]["AssetInput"];
+      quote: components["schemas"]["AssetInput"];
       /** Price Step */
-      price_step?: number | string | null;
+      price_step: number | string;
       /** Qty Step */
-      qty_step?: number | string | null;
+      qty_step: number | string;
       /** Min Qty */
       min_qty?: number | string | null;
       /** Min Notional */
@@ -1482,6 +1473,17 @@ export interface components {
       /** Page Size */
       page_size: number;
     };
+    /** Page[ProfileOperationResponse] */
+    Page_ProfileOperationResponse_: {
+      /** Items */
+      items: components["schemas"]["ProfileOperationResponse"][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Page Size */
+      page_size: number;
+    };
     /** Page[ProfileResponse] */
     Page_ProfileResponse_: {
       /** Items */
@@ -1519,17 +1521,6 @@ export interface components {
     Page_TradeListItem_: {
       /** Items */
       items: components["schemas"]["TradeListItem"][];
-      /** Total */
-      total: number;
-      /** Page */
-      page: number;
-      /** Page Size */
-      page_size: number;
-    };
-    /** Page[WalletAssetResponse] */
-    Page_WalletAssetResponse_: {
-      /** Items */
-      items: components["schemas"]["WalletAssetResponse"][];
       /** Total */
       total: number;
       /** Page */
@@ -1584,6 +1575,8 @@ export interface components {
      * @description Create a venue-bound trading workspace.
      */
     ProfileCreate: {
+      /** Venue Url */
+      venue_url?: string | null;
       venue_type: components["schemas"]["VenueType"];
       /** Name */
       name: string;
@@ -1591,10 +1584,34 @@ export interface components {
       description?: string | null;
     };
     /**
+     * ProfileOperationResponse
+     * @description Include the denomination without relying on the current asset page.
+     */
+    ProfileOperationResponse: {
+      /** Id */
+      id: number;
+      /** Asset Id */
+      asset_id: number;
+      kind: components["schemas"]["WalletOperationKind"];
+      /** Amount */
+      amount: string;
+      /** Note */
+      note: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Asset Symbol */
+      asset_symbol: string;
+    };
+    /**
      * ProfilePatch
      * @description Edit profile presentation or its archive state.
      */
     ProfilePatch: {
+      /** Venue Url */
+      venue_url?: string | null;
       /** Name */
       name?: string | null;
       /** Description */
@@ -1610,6 +1627,8 @@ export interface components {
       /** Id */
       id: number;
       venue_type: components["schemas"]["VenueType"];
+      /** Venue Url */
+      venue_url?: string | null;
       /** Name */
       name: string;
       /** Description */
@@ -1643,8 +1662,6 @@ export interface components {
      * @description Exact required amount and availability of one virtual denomination.
      */
     ReservationResponse: {
-      /** Wallet Asset Id */
-      wallet_asset_id: number | null;
       /** Asset Id */
       asset_id: number;
       /** Purpose */
@@ -1739,8 +1756,8 @@ export interface components {
      * @description Immutable requirements retained after release.
      */
     StoredReservationResponse: {
-      /** Wallet Asset Id */
-      wallet_asset_id: number;
+      /** Asset Id */
+      asset_id: number;
       /** Purpose */
       purpose: string;
       /** Amount */
@@ -1751,8 +1768,8 @@ export interface components {
      * @description Commit fixed strategy capital from a wallet asset.
      */
     StrategyCapitalCreate: {
-      /** Wallet Asset Id */
-      wallet_asset_id: number;
+      /** Asset Id */
+      asset_id: number;
       /** Capital */
       capital: number | string;
     };
@@ -1775,8 +1792,8 @@ export interface components {
       id: number;
       /** Strategy Id */
       strategy_id: number;
-      /** Wallet Asset Id */
-      wallet_asset_id: number;
+      /** Asset Id */
+      asset_id: number;
       /** Capital */
       capital: string;
       /** Is Archived */
@@ -2087,8 +2104,8 @@ export interface components {
       base_asset_id: number;
       /** Settlement Asset Id */
       settlement_asset_id: number;
-      /** Inventory Wallet Asset Id */
-      inventory_wallet_asset_id: number | null;
+      /** Inventory Asset Id */
+      inventory_asset_id: number | null;
       /** Inventory Available */
       inventory_available: string;
     };
@@ -2301,53 +2318,6 @@ export interface components {
      */
     VenueType: "manual" | "bybit";
     /**
-     * WalletAssetCreate
-     * @description Add one active venue capability to a profile wallet.
-     */
-    WalletAssetCreate: {
-      /** Asset Id */
-      asset_id: number;
-      /** Risk Stop Capital */
-      risk_stop_capital?: number | string | null;
-    };
-    /**
-     * WalletAssetPatch
-     * @description Edit the advisory deposit floor or archive a zero balance.
-     */
-    WalletAssetPatch: {
-      /** Risk Stop Capital */
-      risk_stop_capital?: number | string | null;
-      /** Is Archived */
-      is_archived?: boolean | null;
-    };
-    /**
-     * WalletAssetResponse
-     * @description Wallet asset with exact derived balance and reservations.
-     */
-    WalletAssetResponse: {
-      /** Id */
-      id: number;
-      /** Asset Id */
-      asset_id: number;
-      /** Symbol */
-      symbol: string;
-      /** Balance */
-      balance: string;
-      /** Allocated */
-      allocated: string;
-      /** Reserved */
-      reserved: string;
-      /** Available */
-      available: string;
-      /** Uncommitted */
-      uncommitted: string;
-      /** Risk Stop Capital */
-      risk_stop_capital: string | null;
-      status: components["schemas"]["WalletAssetStatus"];
-      /** Is Archived */
-      is_archived: boolean;
-    };
-    /**
      * WalletAssetStatus
      * @description Money-health status of a wallet asset against its deposit floor.
      * @enum {string}
@@ -2358,8 +2328,6 @@ export interface components {
      * @description Append a positive deposit or withdrawal request.
      */
     WalletOperationCreate: {
-      /** Wallet Asset Id */
-      wallet_asset_id: number;
       kind: components["schemas"]["WalletOperationKind"];
       /** Amount */
       amount: number | string;
@@ -2387,8 +2355,8 @@ export interface components {
     WalletOperationResponse: {
       /** Id */
       id: number;
-      /** Wallet Asset Id */
-      wallet_asset_id: number;
+      /** Asset Id */
+      asset_id: number;
       kind: components["schemas"]["WalletOperationKind"];
       /** Amount */
       amount: string;
@@ -2399,18 +2367,6 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
-    };
-    /**
-     * WalletResponse
-     * @description The one wallet belonging to a profile.
-     */
-    WalletResponse: {
-      /** Id */
-      id: number;
-      /** Profile Id */
-      profile_id: number;
-      /** Assets */
-      assets: components["schemas"]["WalletAssetResponse"][];
     };
   };
   responses: never;
@@ -2569,6 +2525,8 @@ export interface operations {
         sort?: string | null;
         order?: "asc" | "desc";
         visibility?: "all" | "active" | "archived";
+        hide_empty?: boolean;
+        asset_type?: components["schemas"]["AssetType"] | null;
       };
       header?: never;
       path: {
@@ -2740,6 +2698,7 @@ export interface operations {
         sort?: string | null;
         order?: "asc" | "desc";
         visibility?: "all" | "active" | "archived";
+        product?: components["schemas"]["ProductKind"] | null;
       };
       header?: never;
       path: {
@@ -2780,7 +2739,9 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["InstrumentWrite"];
+        "application/json":
+          | components["schemas"]["ManualInstrumentWrite"]
+          | components["schemas"]["BybitInstrumentWrite"];
       };
     };
     responses: {
@@ -3098,149 +3059,7 @@ export interface operations {
       };
     };
   };
-  get_wallet_api_v1_profiles__profile_id__wallet_get: {
-    parameters: {
-      query?: {
-        include_archived?: boolean;
-      };
-      header?: never;
-      path: {
-        profile_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["WalletResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_wallet_assets_api_v1_profiles__profile_id__wallet_assets_get: {
-    parameters: {
-      query?: {
-        page?: number;
-        page_size?: number;
-        q?: string;
-        sort?: string | null;
-        order?: "asc" | "desc";
-        visibility?: "all" | "active" | "archived";
-      };
-      header?: never;
-      path: {
-        profile_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["Page_WalletAssetResponse_"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_wallet_asset_api_v1_profiles__profile_id__wallet_assets_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        profile_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["WalletAssetCreate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["WalletAssetResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_wallet_asset_api_v1_profiles__profile_id__wallet_assets__wallet_asset_id__patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        profile_id: number;
-        wallet_asset_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["WalletAssetPatch"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["WalletAssetResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_wallet_operations_api_v1_profiles__profile_id__wallet_operations_get: {
+  list_wallet_operations_api_v1_profiles__profile_id__assets__asset_id__operations_get: {
     parameters: {
       query?: {
         page?: number;
@@ -3249,6 +3068,7 @@ export interface operations {
       header?: never;
       path: {
         profile_id: number;
+        asset_id: number;
       };
       cookie?: never;
     };
@@ -3274,12 +3094,13 @@ export interface operations {
       };
     };
   };
-  create_wallet_operation_api_v1_profiles__profile_id__wallet_operations_post: {
+  create_wallet_operation_api_v1_profiles__profile_id__assets__asset_id__operations_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         profile_id: number;
+        asset_id: number;
       };
       cookie?: never;
     };
@@ -3309,12 +3130,13 @@ export interface operations {
       };
     };
   };
-  update_wallet_operation_note_api_v1_profiles__profile_id__wallet_operations__operation_id__patch: {
+  update_wallet_operation_note_api_v1_profiles__profile_id__assets__asset_id__operations__operation_id__patch: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         profile_id: number;
+        asset_id: number;
         operation_id: number;
       };
       cookie?: never;
@@ -3615,6 +3437,48 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["StrategyCapitalResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_profile_operations_api_v1_profiles__profile_id__operations_get: {
+    parameters: {
+      query?: {
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+        asset_id?: number | null;
+        kind?: components["schemas"]["WalletOperationKind"] | null;
+        date_from?: string | null;
+        date_to?: string | null;
+      };
+      header?: never;
+      path: {
+        profile_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_ProfileOperationResponse_"];
         };
       };
       /** @description Validation Error */
@@ -4360,6 +4224,7 @@ export interface operations {
         product: "spot" | "perpetual_future";
         symbol?: string | null;
         cursor?: string | null;
+        q?: string;
       };
       header?: never;
       path: {

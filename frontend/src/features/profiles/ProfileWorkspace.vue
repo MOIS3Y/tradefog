@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Archive,
+  ExternalLink,
   ArchiveRestore,
   BriefcaseBusiness,
   Landmark,
@@ -14,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { useProfilePresence } from "@/composables/useProfilePresence";
 import ProfileMarket from "@/features/profiles/ProfileMarket.vue";
 import { ApiError } from "@/api/errors";
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
@@ -22,6 +24,7 @@ import EmptyState from "@/components/EmptyState.vue";
 import ErrorState from "@/components/ErrorState.vue";
 import FormDialog from "@/components/FormDialog.vue";
 import LoadingState from "@/components/LoadingState.vue";
+import PanelHeading from "@/components/PanelHeading.vue";
 import PaginationControls from "@/components/PaginationControls.vue";
 import { usePagination } from "@/composables/usePagination";
 import ProfileStrategies from "@/features/profiles/ProfileStrategies.vue";
@@ -48,12 +51,17 @@ const search = ref("");
 const visibility = ref<Visibility>("active");
 const selectedId = ref<number | null>(null);
 const activeTab = ref<ProfileTab>("market");
+const focusAssetId = ref<number | null>(null);
+watch(selectedId, () => {
+  focusAssetId.value = null;
+});
 const dialogOpen = ref(false);
 const editing = ref<Profile | null>(null);
 const statusTarget = ref<Profile | null>(null);
 const deleteTarget = ref<Profile | null>(null);
 const form = reactive({
   venue_type: "bybit" as VenueType,
+  venue_url: "",
   name: "",
   description: "",
 });
@@ -76,6 +84,26 @@ const profilesQuery = useQuery({
     listProfilePage({ ...criteria.value, ...pagination.params.value }),
 });
 pagination.track(computed(() => profilesQuery.data.value));
+const needsPresence = computed(
+  () =>
+    profilesQuery.isSuccess.value &&
+    profilesQuery.data.value?.total === 0 &&
+    (visibility.value !== "all" || !!search.value.trim()),
+);
+const presence = useProfilePresence(needsPresence);
+const firstProfile = computed(
+  () =>
+    !search.value.trim() &&
+    visibility.value !== "archived" &&
+    (needsPresence.value
+      ? presence.data.value?.total === 0
+      : profilesQuery.data.value?.total === 0),
+);
+function showAllProfiles(): void {
+  search.value = "";
+  visibility.value = "all";
+  page.value = 1;
+}
 const venuesQuery = useQuery({
   queryKey: ["venue-capabilities"],
   queryFn: listVenues,
@@ -141,10 +169,12 @@ const saveMutation = useMutation({
           venue_type: form.venue_type,
           name: form.name,
           description: form.description || null,
+          venue_url: form.venue_url.trim() || null,
         })
       : updateProfile(editing.value.id, {
           name: form.name,
           description: form.description || null,
+          venue_url: form.venue_url.trim() || null,
         }),
   onSuccess: async (profile) => {
     await queryClient.invalidateQueries({ queryKey: ["profiles"] });
@@ -187,7 +217,12 @@ const removeMutation = useMutation({
 
 function openCreate(): void {
   editing.value = null;
-  Object.assign(form, { venue_type: "bybit", name: "", description: "" });
+  Object.assign(form, {
+    venue_type: "bybit",
+    venue_url: "",
+    name: "",
+    description: "",
+  });
   dialogOpen.value = true;
 }
 
@@ -195,6 +230,7 @@ function openEdit(profile: Profile): void {
   editing.value = profile;
   Object.assign(form, {
     venue_type: profile.venue_type,
+    venue_url: profile.venue_url ?? "",
     name: profile.name,
     description: profile.description ?? "",
   });
@@ -203,22 +239,18 @@ function openEdit(profile: Profile): void {
 </script>
 
 <template>
-  <section class="profile-shell" aria-labelledby="profiles-heading">
-    <header class="catalog-section__header">
-      <div>
-        <h2 id="profiles-heading" class="catalog-section__title">
-          <BriefcaseBusiness :size="21" aria-hidden="true" />
-          {{ $t("profiles.heading") }}
-        </h2>
-        <p class="catalog-section__description">
-          {{ $t("profiles.description") }}
-        </p>
-      </div>
+  <section class="profile-shell" :aria-label="$t('profiles.title')">
+    <PanelHeading
+      embedded
+      :icon="BriefcaseBusiness"
+      :title="$t('profiles.title')"
+      :description="$t('profiles.description')"
+    >
       <button class="button button--primary" type="button" @click="openCreate">
         <Plus :size="17" aria-hidden="true" />
         {{ $t("profiles.create") }}
       </button>
-    </header>
+    </PanelHeading>
 
     <div class="profile-toolbar" role="search">
       <label class="search-field">
@@ -238,36 +270,58 @@ function openEdit(profile: Profile): void {
     </div>
 
     <LoadingState
-      v-if="profilesQuery.isPending.value || venuesQuery.isPending.value"
+      v-if="
+        profilesQuery.isPending.value ||
+        venuesQuery.isPending.value ||
+        (needsPresence && presence.isPending.value)
+      "
       :label="$t('profiles.loading')"
     />
     <ErrorState
-      v-else-if="profilesQuery.isError.value || venuesQuery.isError.value"
+      v-else-if="
+        profilesQuery.isError.value ||
+        venuesQuery.isError.value ||
+        (needsPresence && presence.isError.value)
+      "
       :title="$t('profiles.loadFailed')"
       :description="$t('catalog.errors.unavailable')"
       :retry-label="$t('common.retry')"
       @retry="
         profilesQuery.refetch();
         venuesQuery.refetch();
+        if (needsPresence) presence.refetch();
       "
     />
     <EmptyState
-      v-else-if="
-        profiles.length === 0 &&
-        !search.trim() &&
-        visibility === 'all' &&
-        page === 1
+      v-else-if="profilesQuery.data.value?.total === 0"
+      :title="
+        $t(
+          firstProfile
+            ? 'workspaceEmpty.profiles.title'
+            : 'workspaceEmpty.filteredProfiles.title',
+        )
       "
-      :title="$t('profiles.emptyTitle')"
-      :description="$t('profiles.emptyBody')"
+      :description="
+        $t(
+          firstProfile
+            ? 'workspaceEmpty.profiles.description'
+            : 'workspaceEmpty.filteredProfiles.description',
+        )
+      "
     >
       <button
         class="button button--secondary"
         type="button"
-        @click="openCreate"
+        @click="firstProfile ? openCreate() : showAllProfiles()"
       >
-        <Plus :size="16" />
-        {{ $t("profiles.create") }}
+        <Plus v-if="firstProfile" :size="16" />
+        {{
+          $t(
+            firstProfile
+              ? "profiles.create"
+              : "workspaceEmpty.filteredProfiles.action",
+          )
+        }}
       </button>
     </EmptyState>
     <div v-else class="profile-console">
@@ -339,6 +393,17 @@ function openEdit(profile: Profile): void {
             <p v-if="selected.description">{{ selected.description }}</p>
           </div>
           <div class="profile-detail__actions">
+            <a
+              v-if="selected.venue_url"
+              :href="selected.venue_url"
+              class="icon-action"
+              target="_blank"
+              rel="noopener noreferrer"
+              :aria-label="$t('profileMarket.openVenue')"
+              :title="$t('profileMarket.openVenue')"
+            >
+              <ExternalLink :size="16"
+            /></a>
             <button
               class="icon-action"
               type="button"
@@ -400,11 +465,16 @@ function openEdit(profile: Profile): void {
         </nav>
         <ProfileMarket
           v-if="activeTab === 'market'"
+          @fund="
+            focusAssetId = $event;
+            activeTab = 'wallet';
+          "
           :key="selected.id"
           :profile="selected"
         />
         <ProfileWallet
           v-else-if="activeTab === 'wallet'"
+          :focus-asset-id="focusAssetId"
           :key="selected.id"
           :profile="selected"
         />
@@ -437,6 +507,16 @@ function openEdit(profile: Profile): void {
         <small>{{
           editing ? $t("profiles.venueLocked") : $t("profiles.venueHint")
         }}</small>
+      </label>
+      <label class="field">
+        <span>{{ $t("profileMarket.venueUrl") }}</span>
+        <input
+          v-model="form.venue_url"
+          type="url"
+          maxlength="2048"
+          placeholder="https://…"
+        />
+        <small>{{ $t("profileMarket.venueUrlHelp") }}</small>
       </label>
       <label class="field">
         <span>{{ $t("profiles.profileDescription") }}</span>

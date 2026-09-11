@@ -30,10 +30,10 @@ expectancy.
 
 ## User Workflow
 
-1. **Reference Catalog**: Staff members maintain shared assets, pairs, venues,
-   and instruments. Regular users read and select from existing catalog items.
-2. **Profile & Wallet Setup**: The user creates a `TradingProfile` bound to one
-   `Venue`, adds venue-capable assets to the profile `Wallet`, and records
+1. **Profile Market Setup**: Each user chooses Bybit or manual. Bybit imports
+   selected instrument specifications and assets; manual users enter them.
+2. **Profile & Wallet Setup**: The user creates a `TradingProfile` with a fixed
+   integration type, adds instruments or profile assets, and records
    deposits.
 3. **Strategy Definition**: The user defines a `TradingStrategy` with a decimal
    risk percent (e.g. `5.5%`) and a whole reward multiple (e.g. `3` for
@@ -41,7 +41,7 @@ expectancy.
    the monetary `1R`; it is not the left side of the ratio, which is always
    normalized to one.
 4. **Trade Preparation (Workspace)**:
-   - Selects Profile, Strategy, Product, and Venue Instrument.
+   - Selects Profile, Strategy, Product, and Trading Instrument.
    - Fills the 4-step directional checklist.
    - Refreshes on-demand ATR context.
    - Enters planned entry and stop loss. System computes take profit, position
@@ -67,8 +67,8 @@ expectancy.
 Create Profile ──► Configure Wallet ──► Create Strategy ──► Create First Trade
 ```
 
-- Profiles require a name and target `Venue`.
-- Wallets offer only assets active on the bound venue (`VenueWalletAsset`).
+- Profiles require a name and integration type (`bybit` or `manual`).
+- Wallets show profile assets; balances are always virtual and explicitly funded.
 - Strategies require at least one allocated wallet asset with positive balance.
 
 ## Trade Workspace Requirements
@@ -85,8 +85,12 @@ custom ranges, profile, strategy, direction, lifecycle, review and rating
 filters live in the URL together with page and ordering. Returning from a
 trade restores that list context. Unrated records sort last in both directions.
 
-`/trades/new` creates a draft, then opens `/trades/{id}`. The individual trade
-page loads its full record independently and provides the full lifecycle:
+A side drawer in `/trades` creates a draft, then opens `/trades/{id}`.
+Creation asks for profile, strategy, instrument and date; direction starts
+as Long and is changed in the trade workspace. Closing the drawer preserves
+list filters. `/trades/new` redirects to the journal with the drawer open.
+The individual trade page loads its full record independently and provides
+the full lifecycle:
 
 1. **Context Selector**: Profile, Strategy, Product (`SPOT`, `PERPETUAL_FUTURE`,
    `CASH_EQUITY`), and Instrument.
@@ -102,3 +106,37 @@ page loads its full record independently and provides the full lifecycle:
 
 ATR is advisory evidence, not a direction or probability forecast. It shows
 whether the planned target is unusually large relative to recent daily range.
+
+## Profile-owned Refactor Delivery
+
+The profile-owned API and SPA are implemented. Each profile provides Venue,
+Wallet and Strategies sections. Bybit imports only selected instruments and
+their required assets; manual profiles create both locally. Global catalog
+screens have been removed. The server supplies public Bybit metadata, candles
+and depth without depending on chart rendering; the browser never calls the
+exchange directly. Market failures do not disable journal controls.
+
+Cash instruments support purchase/resale and owned-asset sale/full buyback.
+The latter reserves inventory plus a quote-currency loss buffer without loans.
+Open positions close at actual prices, including early exits and slippage;
+they cannot be discarded through cancellation.
+
+## Pair-first setup and virtual wallet
+
+Add a manual instrument by selecting or entering base and quote symbols;
+specify a type for new assets and the instrument execution steps. Bybit profiles
+search public instruments and import the selected result. Required assets are
+created automatically with zero balances in either mode.
+
+The market section manages instruments, not a separate asset catalog. The
+wallet manages optional asset names, explicit funding, capital floors and
+ledger operations. Manual assets may also be added before choosing a pair;
+Bybit asset identities come from instrument imports.
+A successful instrument creation offers a link to its settlement asset, even
+when empty assets are hidden. The wallet defaults to hiding never-used assets,
+with an enabled Hide empty balances switch. Asset cards form an adaptive grid
+and a horizontal mobile row. Balances and actions live on each card; selecting
+one shows its operations below, filtered by type and UTC dates with server
+sorting. Switching assets preserves filters but resets the operation page.
+Profiles may store an optional venue website URL for manual or Bybit use;
+this opens independently of provider API and chart links.

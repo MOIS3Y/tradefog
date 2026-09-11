@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tradefog.api.errors import api_error, conflict
+from tradefog.api.v1.schemas.instruments import AssetInput
 from tradefog.db.models import TradingAsset, TradingInstrument, TradingProfile
 from tradefog.domain.enums import AssetType, VenueType
 from tradefog.market.contracts import InstrumentSpec
@@ -36,20 +37,11 @@ async def import_spec(
         ("quote", spec.quote),
         ("settlement", spec.settlement),
     ):
-        asset = await session.scalar(
-            select(TradingAsset).where(
-                TradingAsset.profile_id == profile.id,
-                TradingAsset.symbol == code,
-            )
+        asset = await ensure_asset(
+            session,
+            profile.id,
+            AssetInput(symbol=code, asset_type=AssetType.CRYPTO),
         )
-        if asset is None:
-            asset = TradingAsset(
-                profile_id=profile.id, symbol=code, asset_type=AssetType.CRYPTO
-            )
-            session.add(asset)
-            await session.flush()
-        if not asset.is_active:
-            conflict("Required profile asset is inactive")
         assets[f"{role}_asset_id"] = asset.id
     return spec, assets
 
@@ -83,9 +75,41 @@ async def validate_assets(
         )
     for asset_id in {base, quote, settlement}:
         item = await session.get(TradingAsset, asset_id)
-        if item is None or item.profile_id != profile_id or not item.is_active:
+        if item is None or item.profile_id != profile_id or item.is_archived:
             api_error(
                 422,
                 "invalid_asset",
                 "An active asset in this profile is required",
             )
+
+
+async def ensure_asset(
+    session: AsyncSession,
+    profile_id: int,
+    request: AssetInput,
+) -> TradingAsset:
+    """Reuse profile identity without overwriting metadata or archives.
+
+    The caller owns the transaction and translates unique conflicts.
+    """
+    asset = await session.scalar(
+        select(TradingAsset).where(
+            TradingAsset.profile_id == profile_id,
+            TradingAsset.symbol == request.symbol,
+        )
+    )
+    if asset is not None:
+        if asset.is_archived:
+            conflict("Required asset is archived; restore it first")
+        return asset
+    if request.asset_type is None:
+        api_error(422, "missing_asset_type", "New assets require a type")
+    asset = TradingAsset(
+        profile_id=profile_id,
+        symbol=request.symbol,
+        name=request.name,
+        asset_type=request.asset_type,
+    )
+    session.add(asset)
+    await session.flush()
+    return asset

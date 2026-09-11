@@ -8,10 +8,16 @@ The first increment supports Bybit charts and order books, reducing the need
 to switch between Tradefog and the exchange. It is not a tick-accurate trading
 terminal or an authoritative source for financial calculations.
 
-The standalone API remains independent. ATR fetching, calculations, snapshots,
-and trade lifecycle rules stay unchanged. No general market-data endpoint,
-server candle cache, Redis, or task queue is required. Automated trading is
-outside this scope.
+The backend now exposes normalized authenticated market data through
+`/api/v1/venues/{venue_type}/public/{instruments,klines,orderbook}`. Trade ATR
+uses the same provider service but returns its own calculated business result.
+Neither API nor manual journal functionality depends on the chart module.
+There is no candle persistence, cache, Redis or task queue. Automated trading
+is outside this scope. See `backend-refactor.md` for the API contract.
+
+Migration status: both stages are implemented. The frontend consumes the
+Tradefog API and profile-owned instrument context. Exchange payload handling,
+provider limits and ATR fetching stay in the backend.
 
 ## Module Boundary and Providers
 
@@ -28,18 +34,20 @@ resolves venue context and supplies the existing attachment-upload callback;
 its default slot contains the unchanged position form. Replacing that bridge
 with its slot content restores the ordinary workspace.
 
-A frontend adapter registry declares supported market types, timeframes,
+A frontend capability registry declares supported market types, timeframes,
 chart and order-book capabilities separately, refresh policy, and exchange
-instrument links. The venue's configured provider identifies the source, but
+instrument links. The profile's venue type identifies the source, but
 server-side ATR support does not imply frontend chart support. Initially
 support Bybit spot and linear perpetual instruments. Adding a provider should
 require an adapter, registration, and tests, not changes to the position form
 or market components.
 
-Public REST requests go directly from the browser to the provider, without
-exchange keys, Tradefog credentials, or private trade data. Verify browser
-CORS and network accessibility for each adapter. Do not silently substitute
-another venue or add a backend proxy fallback. Provide an "Open in Bybit" link.
+The transport uses authenticated Tradefog REST requests; only the
+backend talks to the exchange. Public means no exchange key, not anonymous
+application access. Do not silently substitute another venue. Preserve an
+"Open in Bybit" link, visibility pauses and error cooldowns. Provider
+normalization belongs to the backend; chart rendering and refresh scheduling
+belong to this optional frontend module.
 
 Normalize candles in ascending order with UTC millisecond timestamps and
 decimal-string OHLC values; volume and turnover may be absent. Convert to
@@ -138,16 +146,18 @@ retry without clearing drawings. No new attachment storage is needed.
 
 The first feature includes the Bybit adapter, multi-timeframe chart, REST
 order book, responsive position layout, basic drawings with local retention,
-and screenshot attachment. No backend migrations are needed.
+and screenshot attachment. Drawing persistence remains browser-local.
 
 Focused frontend tests cover adapters, refresh lifecycle, local storage,
 incremental canvas updates, snapshot retries, and unsupported-provider fallback.
-Chrome verification covers direct Bybit browser requests, wide/mobile layouts,
-provider failures, and drawing retention through timeframe changes and reloads.
+Chrome verification of the refactor uses mocked normalized API responses for
+wide/mobile layouts (1600 and 390 px). Focused tests cover authenticated market
+transport, server cooldowns, side visibility, drawing retention and manual
+fallback. This does not replace a live provider availability check.
 
 Test normalization, history boundaries, incremental updates, cancellation,
 hidden-page polling, backoff, drawing restoration, and screenshot upload.
-Verify browser CORS, desktop/mobile layouts, unsupported providers, and
+Verify desktop/mobile layouts, unsupported providers, and
 unchanged trade operations when the module is absent or fails.
 
 Owner-scoped server storage of editable annotations is a separate later

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
 
+import PanelHeading from "@/components/PanelHeading.vue";
+import { LayoutDashboard } from "@lucide/vue";
 import AppShell from "@/layouts/AppShell.vue";
 import { useAuthStore } from "@/stores/auth";
 
@@ -17,19 +19,16 @@ const steps = [
 <template>
   <AppShell>
     <div class="workspace">
-      <header class="workspace-header">
-        <div>
-          <p class="eyebrow">{{ $t("dashboard.eyebrow") }}</p>
-          <h1>
-            {{ $t("dashboard.greeting", { name: auth.user?.username }) }}
-          </h1>
-          <p class="workspace-lead">{{ $t("dashboard.lead") }}</p>
-        </div>
+      <PanelHeading
+        :icon="LayoutDashboard"
+        :title="$t('dashboard.greeting', { name: auth.user?.username })"
+        :description="$t('dashboard.lead')"
+      >
         <div class="connection-badge">
           <span aria-hidden="true"></span>
           {{ $t("dashboard.connection") }}
         </div>
-      </header>
+      </PanelHeading>
 
       <section class="setup-card" aria-labelledby="setup-title">
         <div class="setup-card__copy">

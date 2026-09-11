@@ -102,30 +102,12 @@
     display: inline-block;
     margin-top: 1rem;
   }
-  .journal-create {
-    max-width: 760px;
-    margin-inline: auto;
-    padding: clamp(1rem, 3vw, 2rem);
-    > p {
-      color: var(--tf-ink-soft);
-    }
-    form {
-      display: grid;
-      gap: 1.2rem;
-    }
-  }
-  .journal-create-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
   .trade-workspace {
-    width: min(100%, 1540px);
+    width: 100%;
   }
 
   .trade-shell {
-    margin-top: 2.2rem;
+    margin-top: 0;
     overflow: hidden;
     border: 1px solid var(--tf-line);
     border-radius: var(--tf-radius-lg);

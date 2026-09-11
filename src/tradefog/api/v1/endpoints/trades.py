@@ -42,11 +42,10 @@ from tradefog.db.models import (
     TradePreparation,
     TradeReservation,
     TradeSnapshot,
+    TradingAsset,
     TradingInstrument,
     TradingProfile,
     TradingStrategy,
-    Wallet,
-    WalletAsset,
 )
 from tradefog.db.scoping import owned_select
 from tradefog.domain.checklists import (
@@ -208,7 +207,6 @@ def plan_response(
         atr_value=context.atr.value if context.atr else None,
         reservations=[
             ReservationResponse(
-                wallet_asset_id=row.wallet_asset_id or None,
                 asset_id=row.asset_id,
                 purpose=row.purpose,
                 amount=row.amount,
@@ -582,7 +580,7 @@ async def refresh_atr(
             trade.trade_date,
         )
         response = ATRResponse(
-            value=context.atr_value,
+            value=stored_decimal(context.atr_value),
             source=ATRSource.AUTO,
             contributing_date=context.contributing_date,
             observation_time=datetime.now(UTC),
@@ -672,12 +670,10 @@ async def get_trade_plan_context(
         for_update=False,
     )
     inventory = await session.scalar(
-        select(WalletAsset)
-        .join(Wallet)
-        .where(
-            Wallet.profile_id == trade.profile_id,
-            WalletAsset.asset_id == context.instrument.base_asset_id,
-            WalletAsset.is_archived.is_(False),
+        select(TradingAsset).where(
+            TradingAsset.profile_id == trade.profile_id,
+            TradingAsset.id == context.instrument.base_asset_id,
+            TradingAsset.is_archived.is_(False),
         )
     )
     inventory_available = (
@@ -691,7 +687,7 @@ async def get_trade_plan_context(
         direction=trade.direction,
         base_asset_id=context.instrument.base_asset_id,
         settlement_asset_id=context.settlement_asset_id,
-        inventory_wallet_asset_id=inventory.id if inventory else None,
+        inventory_asset_id=inventory.id if inventory else None,
         inventory_available=inventory_available,
         price_step=context.instrument.price_step,
         quantity_step=context.instrument.qty_step,
@@ -853,7 +849,7 @@ async def close_trade(
         snapshot.strategy_capital_id,
     )
     wallet_asset = (
-        await session.get(WalletAsset, allocation.wallet_asset_id)
+        await session.get(TradingAsset, allocation.asset_id)
         if allocation is not None
         else None
     )

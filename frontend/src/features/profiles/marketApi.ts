@@ -20,7 +20,10 @@ export async function listVenues(): Promise<Venue[]> {
 /** Page the profile-owned asset catalog. */
 export async function listAssets(
   profileId: number,
-  query: ListParams = {},
+  query: ListParams & {
+    hide_empty?: boolean;
+    asset_type?: Asset["asset_type"];
+  } = {},
 ): Promise<Page<Asset>> {
   const { data, error, response } = await api.GET(
     "/api/v1/profiles/{profile_id}/assets",
@@ -78,7 +81,7 @@ export async function deleteAsset(
 /** Page only the instruments selected for this profile. */
 export async function listInstruments(
   profileId: number,
-  query: ListParams = {},
+  query: ListParams & { product?: Instrument["product"] } = {},
 ): Promise<Page<Instrument>> {
   const { data, error, response } = await api.GET(
     "/api/v1/profiles/{profile_id}/instruments",
@@ -102,7 +105,9 @@ export async function getInstrument(
 /** Import a symbol or create a complete manual specification. */
 export async function createInstrument(
   profileId: number,
-  input: components["schemas"]["InstrumentWrite"],
+  input:
+    | components["schemas"]["ManualInstrumentWrite"]
+    | components["schemas"]["BybitInstrumentWrite"],
 ): Promise<Instrument> {
   const { data, error, response } = await api.POST(
     "/api/v1/profiles/{profile_id}/instruments",
@@ -163,7 +168,7 @@ export async function searchExchange(
     {
       params: {
         path: { venue_type: venueType },
-        query: { product, symbol: symbol || undefined, cursor },
+        query: { product, q: symbol || undefined, cursor },
       },
     },
   );

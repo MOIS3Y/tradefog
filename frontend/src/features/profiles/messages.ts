@@ -1,10 +1,34 @@
 /** Profile-owned setup and reservation explanations. */
 export const profileMarketMessages = {
   en: {
+    assetLedger: "Operations · {symbol}",
+    venueUrl: "Venue URL (optional)",
+    venueUrlHelp: "A link to your preferred website, not an API address.",
+    openVenue: "Open venue",
+    hideEmpty: "Hide empty balances",
+    allMarkets: "All markets",
+    assetTypes: "Asset types",
+    allAssetTypes: "All types",
+    allAssets: "All assets",
+    allOperations: "All operations",
+    searchAssets: "Search assets",
+    asset: "Asset",
+    operationType: "Type",
+    operationDate: "Date and time",
+    ledgerHelp:
+      "Deposits and withdrawals for the selected asset. Date filters use UTC.",
+    operationsHelp: "Select an asset and record a deposit or withdrawal.",
+    noFilteredOperations: "No operations match these filters",
+    bybitWalletHelp:
+      "Import an instrument in Market setup, then turn off Hide empty balances to fund its assets.",
+    createSymbol: "Create {symbol}",
+    fundingHint:
+      "Assets are ready. Add virtual funds to start planning trades.",
+    fund: "Go to wallet",
     manual: "Manual",
     title: "Market setup",
     manualHelp:
-      "Add assets, then instruments. Fund the virtual wallet separately; no exchange connection is required.",
+      "Enter a pair; missing assets are created automatically. Fund them separately in the virtual wallet.",
     bybitHelp:
       "Import only the instruments you trade. Assets and order rules come from Bybit; wallet funding stays virtual and manual.",
     setupStep: "Set up instruments and virtual capital",
@@ -22,7 +46,7 @@ export const profileMarketMessages = {
     unavailable: "Unavailable",
     refresh: "Refresh exchange rules",
     product: "Product",
-    exactSymbol: "Exact exchange symbol",
+    exactSymbol: "Search exchange instruments",
     find: "Find",
     next: "Next exchange page",
     assetType: "Asset type",
@@ -40,7 +64,7 @@ export const profileMarketMessages = {
       "Delete this archived record? Records referenced by the journal cannot be deleted.",
     saved: "Market settings saved",
     failed: "Could not save market settings",
-    ledger: "Profile wallet operations",
+    ledger: "Wallet operations",
     buybackHelp:
       "Sell owned inventory, then buy back the full quantity. No borrowing: reserve the asset and a cash loss buffer.",
     lossBuffer: "Loss buffer",
@@ -49,10 +73,33 @@ export const profileMarketMessages = {
     riskRule: "Risk / reward rule",
   },
   ru: {
+    assetLedger: "Операции · {symbol}",
+    venueUrl: "URL площадки (необязательно)",
+    venueUrlHelp: "Ссылка на удобный вам сайт, не адрес API.",
+    openVenue: "Открыть площадку",
+    hideEmpty: "Скрывать пустые балансы",
+    allMarkets: "Все рынки",
+    assetTypes: "Типы активов",
+    allAssetTypes: "Все типы",
+    allAssets: "Все активы",
+    allOperations: "Все операции",
+    searchAssets: "Поиск активов",
+    asset: "Актив",
+    operationType: "Тип",
+    operationDate: "Дата и время",
+    ledgerHelp: "Пополнения и списания выбранного актива. Фильтр дат — по UTC.",
+    operationsHelp: "Выберите актив и запишите пополнение или списание.",
+    noFilteredOperations: "По этим фильтрам операций нет",
+    bybitWalletHelp:
+      "Импортируйте инструмент в разделе рынка, затем отключите скрытие пустых балансов для пополнения его активов.",
+    createSymbol: "Создать {symbol}",
+    fundingHint:
+      "Активы готовы. Внесите виртуальные средства для планирования сделок.",
+    fund: "Перейти в кошелёк",
     manual: "Ручная площадка",
     title: "Настройка рынка",
     manualHelp:
-      "Добавьте активы, затем инструменты. Виртуальный кошелёк пополняется отдельно; подключение к бирже не требуется.",
+      "Введите пару — недостающие активы создадутся автоматически. Пополнение остаётся отдельной операцией.",
     bybitHelp:
       "Импортируйте только торгуемые инструменты. Активы и правила заявки загрузятся с Bybit; пополнение кошелька остаётся виртуальным и ручным.",
     setupStep: "Настройте инструменты и виртуальный капитал",
@@ -70,7 +117,7 @@ export const profileMarketMessages = {
     unavailable: "Недоступен",
     refresh: "Обновить правила с биржи",
     product: "Продукт",
-    exactSymbol: "Точный символ на бирже",
+    exactSymbol: "Поиск инструментов биржи",
     find: "Найти",
     next: "Следующая страница биржи",
     assetType: "Тип актива",
@@ -88,7 +135,7 @@ export const profileMarketMessages = {
       "Удалить архивную запись? Если она используется в журнале, удаление недоступно.",
     saved: "Настройки рынка сохранены",
     failed: "Не удалось сохранить настройки рынка",
-    ledger: "Операции кошелька профиля",
+    ledger: "Операции кошелька",
     buybackHelp:
       "Продажа собственного актива с последующим выкупом всего количества. Без займа: резервируются актив и денежный запас на убыток.",
     lossBuffer: "Резерв риска",

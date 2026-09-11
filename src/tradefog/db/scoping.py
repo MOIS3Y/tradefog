@@ -17,8 +17,6 @@ from tradefog.db.models import (
     TradingInstrument,
     TradingProfile,
     TradingStrategy,
-    Wallet,
-    WalletAsset,
     WalletOperation,
 )
 
@@ -28,8 +26,6 @@ type JournalModel = (
     | TradingInstrument
     | TradeReservation
     | TradingProfile
-    | Wallet
-    | WalletAsset
     | WalletOperation
     | TradingStrategy
     | StrategyCapital
@@ -51,8 +47,9 @@ def owned_select[Model: JournalModel](
     profiles = select(TradingProfile.id).where(
         TradingProfile.owner_id == owner_id,
     )
-    wallets = select(Wallet.id).where(Wallet.profile_id.in_(profiles))
-    assets = select(WalletAsset.id).where(WalletAsset.wallet_id.in_(wallets))
+    assets = select(TradingAsset.id).where(
+        TradingAsset.profile_id.in_(profiles)
+    )
     strategies = select(TradingStrategy.id).where(
         TradingStrategy.profile_id.in_(profiles),
     )
@@ -65,9 +62,7 @@ def owned_select[Model: JournalModel](
         ),
         Attachment: Attachment.trade_id.in_(trades),
         TradingProfile: TradingProfile.owner_id == owner_id,
-        Wallet: Wallet.profile_id.in_(profiles),
-        WalletAsset: WalletAsset.wallet_id.in_(wallets),
-        WalletOperation: WalletOperation.wallet_asset_id.in_(assets),
+        WalletOperation: WalletOperation.asset_id.in_(assets),
         TradingStrategy: TradingStrategy.profile_id.in_(profiles),
         StrategyCapital: StrategyCapital.strategy_id.in_(strategies),
         Trade: Trade.profile_id.in_(profiles),

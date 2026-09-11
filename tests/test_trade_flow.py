@@ -39,26 +39,22 @@ async def setup_market(
         client,
         root + "/instruments",
         {
-            "exec_symbol": "BTCUSDT",
+            "mode": "manual",
             "product": product,
-            "base_asset_id": base["id"],
-            "quote_asset_id": quote["id"],
-            "settlement_asset_id": quote["id"],
+            "base": {"symbol": "BTC"},
+            "quote": {"symbol": "USDT"},
             "price_step": "0.01",
             "qty_step": "0.001",
         },
     )
     wallets = []
     for asset, balance in [(quote, "1000"), (base, inventory)]:
-        wallet = await post(
-            client, root + "/wallet/assets", {"asset_id": asset["id"]}
-        )
+        wallet = asset
         if Decimal(balance) > 0:
             await post(
                 client,
-                root + "/wallet/operations",
+                root + f"/assets/{asset['id']}/operations",
                 {
-                    "wallet_asset_id": wallet["id"],
                     "kind": "deposit",
                     "amount": balance,
                 },
@@ -72,7 +68,7 @@ async def setup_market(
     allocation = await post(
         client,
         root + f"/strategies/{strategy['id']}/allocations",
-        {"wallet_asset_id": wallets[0]["id"], "capital": "1000"},
+        {"asset_id": wallets[0]["id"], "capital": "1000"},
     )
     return {
         "profile": profile,
@@ -137,8 +133,8 @@ async def test_full_close_preserves_inventory_and_counts_net_pnl_once(
         client, f"/trades/{identifier}/submit", {"status": "open"}
     )
     assert Decimal(submitted["snapshot"]["quantity"]) == 1
-    wallet = (await client.get("/api/v1" + market["root"] + "/wallet")).json()
-    by_asset = {row["asset_id"]: row for row in wallet["assets"]}
+    wallet = (await client.get("/api/v1" + market["root"] + "/assets")).json()
+    by_asset = {row["id"]: row for row in wallet["items"]}
     assert Decimal(by_asset[market["quote"]["id"]]["reserved"]) == Decimal(
         reserved
     )
@@ -164,11 +160,11 @@ async def test_full_close_preserves_inventory_and_counts_net_pnl_once(
             json={"actual_exit_price": "115", "realized_pnl": "-15"},
         )
     ).status_code == 409
-    wallet = (await client.get("/api/v1" + market["root"] + "/wallet")).json()
-    by_asset = {row["asset_id"]: row for row in wallet["assets"]}
+    wallet = (await client.get("/api/v1" + market["root"] + "/assets")).json()
+    by_asset = {row["id"]: row for row in wallet["items"]}
     assert Decimal(by_asset[market["quote"]["id"]]["balance"]) == 985
     assert Decimal(by_asset[market["base"]["id"]]["balance"]) == 2
-    assert all(Decimal(row["reserved"]) == 0 for row in wallet["assets"])
+    assert all(Decimal(row["reserved"]) == 0 for row in wallet["items"])
     assert (await client.get("/api/v1/trades")).status_code == 200
     assert (await client.get("/api/v1/analytics")).status_code == 200
 
@@ -284,12 +280,10 @@ async def test_partial_plan_and_loss_beyond_virtual_balance(
         )
     ).status_code == 200
     wallet = (
-        await profile_client.get("/api/v1" + market["root"] + "/wallet")
+        await profile_client.get("/api/v1" + market["root"] + "/assets")
     ).json()
     quote = next(
-        row
-        for row in wallet["assets"]
-        if row["asset_id"] == market["quote"]["id"]
+        row for row in wallet["items"] if row["id"] == market["quote"]["id"]
     )
     assert Decimal(quote["balance"]) == -100
 
@@ -306,18 +300,23 @@ async def test_inventory_withdrawal_cannot_spend_reserved_units(
         {"status": "pending_entry"},
     )
     withdrawal = {
-        "wallet_asset_id": market["wallets"][1]["id"],
         "kind": "withdrawal",
         "amount": "1",
     }
     assert (
         await profile_client.post(
-            "/api/v1" + market["root"] + "/wallet/operations", json=withdrawal
+            "/api/v1"
+            + market["root"]
+            + f"/assets/{market['base']['id']}/operations",
+            json=withdrawal,
         )
     ).status_code == 409
     await post(profile_client, f"/trades/{trade['id']}/cancel", {})
     assert (
         await profile_client.post(
-            "/api/v1" + market["root"] + "/wallet/operations", json=withdrawal
+            "/api/v1"
+            + market["root"]
+            + f"/assets/{market['base']['id']}/operations",
+            json=withdrawal,
         )
     ).status_code == 201

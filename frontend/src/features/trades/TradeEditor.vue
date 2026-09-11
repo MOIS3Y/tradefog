@@ -754,8 +754,8 @@ onBeforeUnmount(() => {
             <div>
               <small>{{ $t("profileMarket.riskRule") }}</small
               ><strong
-                >{{ activePlan.planned_risk_percent }}% · 1 :
-                {{ activePlan.reward_multiple }}</strong
+                >{{ formatDecimal(activePlan.planned_risk_percent ?? "—") }}% ·
+                1 : {{ activePlan.reward_multiple }}</strong
               >
             </div>
           </div>

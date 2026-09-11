@@ -91,8 +91,16 @@ class TradingAsset(PrimaryKeyMixin, Base):
 
     __tablename__: str = "TradingAsset"
     profile_id: Mapped[int] = mapped_column(ForeignKey("TradingProfile.id"))
-    is_active: Mapped[bool] = mapped_column(
-        default=True, server_default=true()
+    is_archived: Mapped[bool] = mapped_column(
+        default=False, server_default=false()
+    )
+    risk_stop_capital: Mapped[Decimal | None] = mapped_column(
+        ExactDecimal(30, 18)
+    )
+    status: Mapped[WalletAssetStatus] = mapped_column(
+        enum_type(WalletAssetStatus, "wallet_asset_status"),
+        default=WalletAssetStatus.ACTIVE,
+        server_default="active",
     )
     __table_args__: tuple[Index | CheckConstraint, ...] = (
         Index("profile_asset_symbol_idx", "profile_id", "symbol", unique=True),
@@ -143,8 +151,7 @@ class TradingInstrument(PrimaryKeyMixin, Base):
     product: Mapped[ProductKind] = mapped_column(
         enum_type(ProductKind, "product_kind")
     )
-    exec_symbol: Mapped[str] = mapped_column(String(64))
-    name: Mapped[str | None] = mapped_column(String(255))
+    exec_symbol: Mapped[str] = mapped_column(String(65))
     price_step: Mapped[Decimal] = mapped_column(ExactDecimal(30, 18))
     qty_step: Mapped[Decimal] = mapped_column(ExactDecimal(30, 18))
     min_qty: Mapped[Decimal | None] = mapped_column(ExactDecimal(30, 18))
@@ -175,6 +182,7 @@ class TradingProfile(PrimaryKeyMixin, Base):
     owner_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
     )
+    venue_url: Mapped[str | None] = mapped_column(String(2048))
     venue_type: Mapped[VenueType] = mapped_column(
         enum_type(VenueType, "venue_type")
     )
@@ -196,67 +204,12 @@ class TradingProfile(PrimaryKeyMixin, Base):
     )
 
 
-class Wallet(PrimaryKeyMixin, Base):
-    """Persist Wallet records from the source schema."""
-
-    __tablename__: str = "Wallet"
-    profile_id: Mapped[int] = mapped_column(
-        ForeignKey("TradingProfile.id"),
-        unique=True,
-    )
-
-    profile: Mapped[TradingProfile] = relationship(
-        foreign_keys=[profile_id],
-        lazy="raise",
-    )
-
-
-class WalletAsset(PrimaryKeyMixin, Base):
-    """Persist WalletAsset records from the source schema."""
-
-    __tablename__: str = "WalletAsset"
-    __table_args__: tuple[Index | CheckConstraint, ...] = (
-        Index(
-            "wallet_asset_asset_idx",
-            "wallet_id",
-            "asset_id",
-            unique=True,
-        ),
-    )
-    wallet_id: Mapped[int] = mapped_column(
-        ForeignKey("Wallet.id"),
-    )
-    asset_id: Mapped[int] = mapped_column(
-        ForeignKey("TradingAsset.id"),
-    )
-    risk_stop_capital: Mapped[Decimal | None] = mapped_column(
-        ExactDecimal(30, 18),
-    )
-    status: Mapped[WalletAssetStatus] = mapped_column(
-        enum_type(WalletAssetStatus, "wallet_asset_status"),
-    )
-    is_archived: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        server_default=false(),
-    )
-
-    wallet: Mapped[Wallet] = relationship(
-        foreign_keys=[wallet_id],
-        lazy="raise",
-    )
-    asset: Mapped[TradingAsset] = relationship(
-        foreign_keys=[asset_id],
-        lazy="raise",
-    )
-
-
 class WalletOperation(PrimaryKeyMixin, Base):
     """Persist WalletOperation records from the source schema."""
 
     __tablename__: str = "WalletOperation"
-    wallet_asset_id: Mapped[int] = mapped_column(
-        ForeignKey("WalletAsset.id"),
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey("TradingAsset.id"),
     )
     kind: Mapped[WalletOperationKind] = mapped_column(
         enum_type(WalletOperationKind, "wallet_operation_kind"),
@@ -272,8 +225,8 @@ class WalletOperation(PrimaryKeyMixin, Base):
         server_default=func.now(),
     )
 
-    wallet_asset: Mapped[WalletAsset] = relationship(
-        foreign_keys=[wallet_asset_id],
+    wallet_asset: Mapped[TradingAsset] = relationship(
+        foreign_keys=[asset_id],
         lazy="raise",
     )
 
@@ -336,15 +289,15 @@ class StrategyCapital(PrimaryKeyMixin, Base):
         Index(
             "strategy_capital_strategy_wallet_asset_idx",
             "strategy_id",
-            "wallet_asset_id",
+            "asset_id",
             unique=True,
         ),
     )
     strategy_id: Mapped[int] = mapped_column(
         ForeignKey("TradingStrategy.id"),
     )
-    wallet_asset_id: Mapped[int] = mapped_column(
-        ForeignKey("WalletAsset.id"),
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey("TradingAsset.id"),
     )
     capital: Mapped[Decimal] = mapped_column(
         ExactDecimal(30, 18),
@@ -359,8 +312,8 @@ class StrategyCapital(PrimaryKeyMixin, Base):
         foreign_keys=[strategy_id],
         lazy="raise",
     )
-    wallet_asset: Mapped[WalletAsset] = relationship(
-        foreign_keys=[wallet_asset_id],
+    wallet_asset: Mapped[TradingAsset] = relationship(
+        foreign_keys=[asset_id],
         lazy="raise",
     )
 
@@ -649,7 +602,7 @@ class TradeReservation(PrimaryKeyMixin, Base):
     trade_snapshot_id: Mapped[int] = mapped_column(
         ForeignKey("TradeSnapshot.id")
     )
-    wallet_asset_id: Mapped[int] = mapped_column(ForeignKey("WalletAsset.id"))
+    asset_id: Mapped[int] = mapped_column(ForeignKey("TradingAsset.id"))
     purpose: Mapped[ReservationPurpose] = mapped_column(
         enum_type(ReservationPurpose, "reservation_purpose")
     )
@@ -663,7 +616,7 @@ class TradeReservation(PrimaryKeyMixin, Base):
         ),
         Index(
             "reservation_wallet_snapshot_idx",
-            "wallet_asset_id",
+            "asset_id",
             "trade_snapshot_id",
         ),
         CheckConstraint(

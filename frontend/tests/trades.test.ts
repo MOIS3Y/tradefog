@@ -121,7 +121,7 @@ describe("trade lifecycle client", () => {
       direction: "long",
       base_asset_id: 1,
       settlement_asset_id: 2,
-      inventory_wallet_asset_id: 4,
+      inventory_asset_id: 4,
       inventory_available: "10",
     };
     const plan = calculateLocalPosition(context, "long", "100", "97", "20");
@@ -154,7 +154,7 @@ describe("trade lifecycle client", () => {
     ).toBe(false);
     expect(
       calculateLocalPosition(
-        { ...shortContext, inventory_wallet_asset_id: null },
+        { ...shortContext, inventory_asset_id: null },
         "short",
         "100",
         "110",

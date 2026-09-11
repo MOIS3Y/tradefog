@@ -210,9 +210,9 @@
   }
 
   .workspace {
-    width: min(100%, 1200px);
+    width: 100%;
     margin: 0 auto;
-    padding: clamp(2.5rem, 5.5vw, 5rem);
+    padding: 24px;
   }
 
   .workspace-header {

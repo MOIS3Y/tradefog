@@ -20,7 +20,7 @@ const profile: Profile = {
 };
 const operation: WalletOperation = {
   id: 12,
-  wallet_asset_id: 9,
+  asset_id: 9,
   kind: "deposit",
   amount: "1000.000000000000000000",
   note: null,
@@ -68,13 +68,17 @@ describe("profile setup flow", () => {
       name: profile.name,
       description: null,
     });
-    await createOperation(profile.id, {
-      wallet_asset_id: operation.wallet_asset_id,
+    await createOperation(profile.id, operation.asset_id, {
       kind: "deposit",
       amount: "1000.000000000000000000",
       note: null,
     });
-    await updateOperationNote(profile.id, operation.id, "Initial capital");
+    await updateOperationNote(
+      profile.id,
+      operation.asset_id,
+      operation.id,
+      "Initial capital",
+    );
     await deleteProfile(profile.id);
 
     expect(requests.map((request) => request.method)).toEqual([
@@ -87,7 +91,7 @@ describe("profile setup flow", () => {
       note: "Initial capital",
     });
     expect(new URL(requests[1]?.url ?? "").pathname).toBe(
-      `/api/v1/profiles/${profile.id}/wallet/operations`,
+      `/api/v1/profiles/${profile.id}/assets/${operation.asset_id}/operations`,
     );
   });
 });

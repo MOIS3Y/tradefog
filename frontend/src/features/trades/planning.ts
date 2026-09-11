@@ -219,7 +219,7 @@ export function calculateLocalPosition(
       capitalRemaining.gte(0) &&
       targetRisk.lte(riskAvailable) &&
       (!buyback ||
-        (context.inventory_wallet_asset_id !== null &&
+        (context.inventory_asset_id !== null &&
           inventoryRequired.lte(context.inventory_available))),
     inventory_required: exactString(inventoryRequired),
     inventory_available: context.inventory_available,

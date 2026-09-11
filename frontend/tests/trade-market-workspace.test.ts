@@ -13,7 +13,6 @@ const instrument = {
   product: "spot",
   price_step: "0.01",
   qty_step: "0.000001",
-  name: null,
   base_asset_id: 1,
   quote_asset_id: 2,
   settlement_asset_id: 2,

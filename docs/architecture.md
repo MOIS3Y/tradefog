@@ -35,7 +35,7 @@ src/tradefog/
 ├── config/         # Typed settings (pydantic-settings, TOML/env support)
 ├── db/             # SQLAlchemy engine, session maker, models, migrations
 ├── domain/         # Pure domain rules, enums, calculations, analytics
-├── market/         # On-demand market data providers (Bybit, Binance, YFinance)
+├── market/         # Provider-neutral async public data, Bybit adapter and ATR
 ├── cli.py          # Typer CLI application entry point
 ├── logging.py      # Loguru configuration setup
 └── main.py         # FastAPI application factory
@@ -57,16 +57,22 @@ the relative API prefix `/api/v1`; the Vite development server proxies `/api`
 to the local FastAPI process. Nix provides separate backend, frontend, and
 combined development commands.
 
+Frontend tooling uses Node.js 22.22.2 or newer in the Node 22 line (jsdom's
+minimum), Vite 8 and Vitest 5. Dependencies are locked with npm. TypeScript
+stays on 5.9 until `openapi-typescript` supports newer compiler majors; do not
+bypass its peer requirement with forced installs. Update `npmDepsHash` in
+`flake.nix` whenever the frontend lockfile changes.
+
 The frontend and backend are built as separate Nix derivations. The production
 container includes both artifacts, and FastAPI serves the compiled SPA. A
 reverse proxy and TLS termination remain deployment concerns outside the
 container.
 
-The optional `features/market-chart` module obtains public Bybit candles and
-order-book snapshots directly from the browser. Provider adapters and polling
-are isolated from journal API state and calculations. It uses lazy-loaded
-KLineCharts and local browser annotations; snapshots reuse private journal
-attachments. Server-side ATR is unchanged. See [Market Chart](market-chart.md).
+Market data is an official headless API feature under /api/v1/venues, with a
+provider-neutral service and async Bybit transport. Chart rendering remains an
+optional frontend module. The SPA uses authenticated Tradefog market endpoints,
+not browser-to-exchange requests. Profile-local setup supports selected Bybit
+imports and manual specifications without a shared staff catalog. See [backend refactor](backend-refactor.md).
 
 The optional `[frontend] path` setting identifies the directory containing
 `index.html` and compiled assets. When it is unset or invalid, the headless API
@@ -98,58 +104,31 @@ Domain Calculations & Persistence (SQLAlchemy Async)
 
 ## Ownership & Access Control
 
-The system defines two clear ownership zones:
+All journal and market identities belong to TradingProfile.owner_id.
+TradingAsset and TradingInstrument are profile-local; no staff-maintained
+catalog exists. Authenticated users manage their own profiles, metadata,
+virtual wallets and strategies. Staff remains an account-administration role.
 
-1. **Shared Reference Catalog**: Staff-managed records (`Asset`, `TradingPair`,
-   `Venue`, `VenueInstrument`, `VenueWalletAsset`). Regular users have
-   read-only access.
-2. **User Journal**: Owner-scoped records (`TradingProfile`, `Wallet`,
-   `WalletAsset`, `WalletOperation`, `TradingStrategy`, `StrategyCapital`,
-   `Trade`, `TradeSnapshot`, `Attachment`). All user queries are strictly
-   filtered through `TradingProfile.owner`.
+### Authentication and Profile API
 
-### Authentication & Authorization
+All business and market endpoints require JWT authentication. Public market
+means no exchange key, not anonymous application access. Profile collections
+use /profiles/{id}/assets, /instruments, /wallet, /strategies and nested
+allocations; /trades remains a cross-profile owner-scoped list.
+Profile, asset, instrument, strategy, allocation and wallet-asset lists use
+server pagination, search where meaningful and allowlisted stable sorting.
+Wallet operations are paged newest-first and never edited except for notes.
 
-- Authentication via JWT bearer tokens (access/refresh tokens).
-- Role-based permissions: Staff vs. Regular user.
-- Multi-user isolation enforced at the database repository/service boundary.
+Mutations serialize financial checks: SQLite uses BEGIN IMMEDIATE before
+reads; PostgreSQL locks the authenticated user row before modifying profiles.
+This conservatively serializes all mutations for one user, including different
+profiles. It is deliberately broader than a per-profile lock. Network timeout
+bounds also limit long-running import/ATR requests; no distributed lock exists.
 
-### Authentication and Catalog API
-
-Version-one endpoints are rooted at `/api/v1`. Anyone can read the shared
-catalog; a valid bearer access token with `is_staff=true` is required to create
-or update an asset, pair, venue, venue instrument, or venue wallet asset.
-Unused assets and trading pairs may be deleted by staff, but deletion never
-cascades into related catalog or journal records. Referenced identities return
-a conflict instead. Venues, instruments, and wallet capabilities are retained;
-deactivation keeps them out of active UI lists while preserving history.
-
-Catalog collections and `GET /trades` return `{items, total, page, page_size}`.
-Wallet-operation collections use the same page envelope, with fixed ordering
-by creation time and ID descending. Pagination never limits balance queries.
-Page sizes default to 25 and are bounded at 100. Literal substring search,
-filters and allowlisted sorting execute in SQL before pagination; an ID
-tie-breaker provides stable ordering and null sort values always come last.
-Catalog clients explicitly request `visibility=active|archived|all`; the API
-default includes all records. Collection reads retain public catalog access,
-while journal rows and filtered counts remain strictly owner-scoped.
-
-The journal list returns compact `TradeListItem` rows including display
-identities, P&L currency, rating and review completion. It does not serialize
-plans, checklists or snapshots. `GET /trades/{id}` supplies the full workspace.
-Catalog selectors use paginated search and individual-record GETs, including
-instruments and wallet capabilities; `/catalog/instruments` also supports
-search across venues. Analytics and forms do not preload entire catalogs.
-Migration `0002` adds profile-owner and journal-list indexes without changing
-stored trades. Regenerate frontend OpenAPI types when changing these contracts.
-
-Catalog PATCH requests reject explicit nulls for required fields. Referenced
-asset identities and pairs used by instruments cannot be reassigned; a traded
-instrument's product, execution symbol and settlement asset are also locked.
-Create a new catalog identity for a different market and deactivate the old
-instrument. Descriptions, execution increments and availability remain editable.
-Argon2 work runs in a worker thread, and JWT verification requires subject,
-purpose, issue time, expiration and token identifier claims.
+A fresh 0001 baseline replaces the WIP migration history. Existing development
+databases require an explicit reset, not an automatic data migration. Optional
+user contact fields are exposed by GET/PATCH /auth/me; email is nonunique and
+not used for authentication or recovery.
 
 Accounts are provisioned by the installation owner through `tradefog users`.
 `POST /auth/token` accepts OAuth2 form credentials and issues 15-minute access
@@ -221,16 +200,16 @@ as UTC. Application services must normalize supplied timestamps to UTC.
 Authenticated journal endpoints are rooted at `/api/v1/profiles` and
 `/api/v1/trades`. Every lookup scopes through `TradingProfile.owner`; a missing
 record and another user's record both return the same not-found response.
-Creating a profile also creates its one-to-one wallet. Wallet balances are
+A profile owns virtual account assets directly. Wallet balances are
 derived from signed deposit and withdrawal facts plus closed-trade net P&L.
 The profile directory uses server-side pagination, archive filtering and
 literal search across profile and venue names, with stable name/ID ordering.
 Ledger fact amounts, kinds, and timestamps cannot be patched; the dedicated
 operation-note endpoint changes only optional explanatory text.
-Pending and open snapshots derive wallet reservations; balances and
-reservations are not duplicated in mutable columns.
+Immutable TradeReservation rows attached to pending/open snapshots derive
+wallet reservations; balances and active flags are not duplicated.
 
-Wallet assets must reference an active capability on the profile venue.
+Operations and allocations reference an unarchived profile asset directly.
 Withdrawals preserve both active trade reservations and capital committed to
 active strategies. Strategy capital is allocated per wallet asset and cannot
 exceed the asset balance across active allocations. Its amount, plus strategy
@@ -239,27 +218,31 @@ Deposit-floor and strategy statuses are advisory and never reject a
 discretionary trade.
 
 Trade identity and checklist fields remain editable in `draft`; Markdown notes
-and analytical trade date remain correctable later. Submission to
+remain correctable later; analytical trade date locks on submission. Submission to
 `pending_entry` or `open` locks the trade, validates its settlement allocation,
-calculates an executable position, checks risk capacity and wallet notional,
+calculates an executable position, checks risk capacity and all denomination-specific reserves,
 then creates exactly one immutable `TradeSnapshot` in the same transaction.
 Reservations release when a trade is cancelled or closed. Closing records
 signed net P&L, and review completion is tracked independently.
 
-`GET /trades/{trade_id}/plan-context` supplies exact instrument, strategy, and
+`GET /trades/{trade_id}/planning-context` supplies exact instrument, strategy, and
 capital inputs for the frontend's synchronous Decimal calculation. The user
 edits only entry and stop; take profit and quantity remain derived. `POST
-/trades/{trade_id}/plan` provides the same preview to headless API clients.
+/trades/{trade_id}/plan/preview` provides the same preview to headless API clients.
 `PUT /trades/{trade_id}/plan` revalidates and persists entry and stop while
 still allowing an underfunded draft. Submission rechecks current capital and
 freezes the saved plan.
 
-Saved plan inputs, checklist answers, and the latest draft ATR are stored
-inside `draft_context`. Automatic ATR fetches run outside the event loop through
-the venue's configured Bybit, Binance, or Yahoo provider. Manual ATR remains
-available when a provider is absent or unavailable. Candles are returned for
-immediate preview and are never persisted; only decision-time ATR fields enter
-the immutable snapshot.
+Saved entry/stop, four checklist answers and ATR facts live in the typed
+TradePreparation table. Incomplete price anchors are allowed until submission.
+Bybit automatic ATR uses the same async provider as chart candles, without
+internal HTTP calls; manual ATR remains available for both integration types.
+Changing the instrument or trade date clears stale preparation ATR.
+
+Spot/cash short reserves owned base inventory and a quote loss buffer. Other
+supported plans reserve virtual 1x notional. Sale proceeds are not spendable.
+Open trades must close with actual price and net P&L; losses beyond reserves
+are recorded even if the resulting virtual balance is negative.
 
 ### Analytics, Attachments and Administration
 
@@ -274,8 +257,7 @@ Trade attachments are verified JPEG, PNG, GIF, or WebP images stored beneath
 the configured private media root. Only generated storage keys reach the
 filesystem; API responses never expose them. Metadata and content endpoints
 are owner-scoped, content responses disable shared caching and MIME sniffing,
-and there is no public static-files mount. Apply migration `0002` before using
-attachment endpoints.
+and there is no public static-files mount. Attachments are included in the new baseline migration.
 
 Administrative user management is available through `tradefog users` commands
 for account creation, listing, activation, staff-role changes, and password
@@ -285,7 +267,7 @@ replacement.
 
 Market data serves as an on-demand, read-only auxiliary context:
 
-- Sources: Bybit, Binance, Yahoo Finance, or Manual fallback.
+- Source: public Bybit; manual profiles never require network access.
 - True Range and `ATR(14)` are computed locally from fetched daily OHLC
   candles.
 - External provider outages never block manual trade journaling.
@@ -296,3 +278,45 @@ Market data serves as an on-demand, read-only auxiliary context:
   data representations.
 - **Frontend Layer**: Client-side internationalization supporting
   English (default) and Russian.
+
+## Unified profile assets
+
+The profile owns account denominations directly. There are no Wallet or
+WalletAsset tables. WalletOperation, StrategyCapital and TradeReservation
+reference TradingAsset through asset_id; financial calculations remain Decimal
+and independent of the presentation layer.
+
+GET/POST /api/v1/profiles/{profile_id}/assets and GET/PATCH/DELETE of one asset
+combine identity management with derived balance/reservation values.
+GET/POST /api/v1/profiles/{profile_id}/assets/{asset_id}/operations and PATCH
+of one operation preserve immutable financial facts with note-only correction.
+The asset list supports hide_empty before server pagination.
+
+Instrument creation is discriminated by mode (manual or bybit), matching the
+immutable profile venue. Manual requests carry base/quote symbols and execution
+rules; Bybit requests carry a selected executable symbol and product.
+The public instrument list accepts q and provider cursor; search skips empty
+provider pages and exposes the next cursor without persisting the catalog.
+
+Baseline 0001 is replaced for WIP; old development databases are incompatible.
+Recreate only a confirmed disposable development database with the application
+stopped, then run alembic upgrade head inside nix develop. No data migration,
+compatibility endpoints or automatic runtime database deletion are provided.
+
+### Profile browsing
+
+- `GET /api/v1/profiles/{profile_id}/operations` returns a paginated ledger
+  across profile assets, including archived ones. Filters: `asset_id`,
+  `kind`, inclusive UTC `date_from/date_to`; sort: `created_at`,
+  `order=asc|desc` (default descending). Each row includes `asset_symbol`.
+  Create and note-patch requests stay nested under the asset.
+- Instrument collections accept `product` and server sorting by
+  `symbol` or `product`. Counts reflect filters before pagination.
+- Direct asset creation is manual-only; Bybit imports establish identities.
+  Ledger browsing and market filters require no new database tables.
+
+- Profiles expose optional nullable `venue_url` in create, patch and read
+  responses. Migration 0002 adds the column without replacing the baseline.
+  It is a credential-free HTTP(S) browser link, never a market transport
+  configuration. The wallet UI uses the existing profile ledger endpoint
+  with `asset_id`; unfiltered headless access remains supported.

@@ -73,11 +73,10 @@ describe("catalog flow", () => {
       asset_type: "fiat",
     });
     const created = await createInstrument(8, {
-      exec_symbol: "BTCUSD",
+      mode: "manual",
       product: "spot",
-      base_asset_id: 1,
-      quote_asset_id: 2,
-      settlement_asset_id: 2,
+      base: { symbol: "BTC" },
+      quote: { symbol: "USD" },
       price_step: "0.01",
       qty_step: "0.001",
     });

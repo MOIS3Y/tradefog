@@ -13,7 +13,7 @@ import {
   Trash2,
 } from "@lucide/vue";
 import AppSelect from "@/components/AppSelect.vue";
-import RemoteCatalogSelect from "@/components/RemoteCatalogSelect.vue";
+import AssetSymbolInput from "./AssetSymbolInput.vue";
 import FormDialog from "@/components/FormDialog.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import PaginationControls from "@/components/PaginationControls.vue";
@@ -23,13 +23,9 @@ import LoadingState from "@/components/LoadingState.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import { usePagination } from "@/composables/usePagination";
 import type { Profile } from "./api";
-import type { Page } from "@/api/pagination";
 import {
-  listAssets,
+  getAsset,
   listInstruments,
-  createAsset,
-  updateAsset,
-  deleteAsset,
   createInstrument,
   updateInstrument,
   deleteInstrument,
@@ -43,16 +39,28 @@ import { useToastStore } from "@/stores/toasts";
 import { formatDecimal, isPositiveDecimal } from "@/utils/decimal";
 
 const props = defineProps<{ profile: Profile }>();
+const emit = defineEmits<{ fund: [assetId: number] }>();
+const fundedAsset = ref<number | null>(null);
 const { t } = useI18n();
 const client = useQueryClient();
 const toasts = useToastStore();
 const manual = computed(() => props.profile.venue_type === "manual");
-const tab = ref<"assets" | "instruments">("instruments");
 const search = ref("");
 const visibility = ref<"all" | "active" | "archived">("active");
 const order = ref<"asc" | "desc">("asc");
+const productFilter = ref<Instrument["product"] | "all">("all");
+const sortKey = ref<"symbol" | "product">("symbol");
+function sortBy(key: "symbol" | "product"): void {
+  order.value = sortKey.value === key && order.value === "asc" ? "desc" : "asc";
+  sortKey.value = key;
+}
+const marketOptions = computed(() => [
+  { value: "all", label: t("profileMarket.allMarkets") },
+  ...products.value,
+]);
 const criteria = computed(() => ({
-  tab: tab.value,
+  product: productFilter.value === "all" ? undefined : productFilter.value,
+  sort: sortKey.value,
   q: search.value,
   visibility: visibility.value,
   order: order.value,
@@ -66,35 +74,24 @@ const query = useQuery({
     criteria.value,
     pagination.params.value,
   ]),
-  queryFn: async (): Promise<Page<Asset | Instrument>> =>
-    tab.value === "assets"
-      ? listAssets(props.profile.id, {
-          ...pagination.params.value,
-          q: search.value,
-          visibility: visibility.value,
-          sort: "symbol",
-          order: order.value,
-        })
-      : listInstruments(props.profile.id, {
-          ...pagination.params.value,
-          q: search.value,
-          visibility: visibility.value,
-          sort: "symbol",
-          order: order.value,
-        }),
+  queryFn: () =>
+    listInstruments(props.profile.id, {
+      ...pagination.params.value,
+      ...criteria.value,
+    }),
 });
 pagination.track(computed(() => query.data.value));
 const items = computed(() => query.data.value?.items ?? []);
 const dialog = ref(false);
-const editing = ref<Asset | Instrument | null>(null);
-const deleting = ref<Asset | Instrument | null>(null);
+const editing = ref<Instrument | null>(null);
+const deleting = ref<Instrument | null>(null);
 const form = reactive({
   symbol: "",
-  name: "",
-  asset_type: "crypto" as Asset["asset_type"],
   product: "spot" as Instrument["product"],
-  base: null as number | null,
-  quote: null as number | null,
+  base: "",
+  quote: "",
+  baseType: undefined as Asset["asset_type"] | undefined,
+  quoteType: undefined as Asset["asset_type"] | undefined,
   price_step: "0.01",
   qty_step: "0.001",
   min_qty: "",
@@ -107,12 +104,6 @@ const products = computed(() =>
   ).map((value) => ({
     value: value as Instrument["product"],
     label: t(`venues.products.${value}`),
-  })),
-);
-const types = computed(() =>
-  ["crypto", "fiat", "equity"].map((value) => ({
-    value: value as Asset["asset_type"],
-    label: t(`catalog.types.${value}`),
   })),
 );
 const visibilityOptions = computed(() =>
@@ -132,13 +123,7 @@ const importQuery = useQuery({
     importSymbol.value,
     cursor.value,
   ]),
-  enabled: computed(
-    () =>
-      dialog.value &&
-      !manual.value &&
-      !editing.value &&
-      tab.value === "instruments",
-  ),
+  enabled: computed(() => dialog.value && !manual.value && !editing.value),
   retry: false,
   queryFn: () =>
     searchExchange(
@@ -156,10 +141,8 @@ watch(
   },
 );
 const invalid = computed(() => {
-  if (tab.value === "assets") return !form.symbol.trim();
   if (!manual.value) return !editing.value && !selectedSpec.value;
   return (
-    !form.symbol.trim() ||
     !form.base ||
     !form.quote ||
     form.base === form.quote ||
@@ -170,30 +153,43 @@ const invalid = computed(() => {
     )
   );
 });
-function label(item: Asset | Instrument): string {
-  return "exec_symbol" in item ? item.exec_symbol : item.symbol;
+function label(item: Instrument): string {
+  return item.exec_symbol.replace("/", " / ");
 }
-function archived(item: Asset | Instrument): boolean {
-  return "is_archived" in item ? item.is_archived : !item.is_active;
+function archived(item: Instrument): boolean {
+  return item.is_archived;
 }
-function open(item: Asset | Instrument | null = null): void {
+async function open(item: Instrument | null = null): Promise<void> {
   editing.value = item;
   selectedSpec.value = undefined;
   importSymbol.value = "";
   cursor.value = undefined;
   Object.assign(form, {
     symbol: item ? label(item) : "",
-    name: item?.name ?? "",
-    asset_type: item && "asset_type" in item ? item.asset_type : "crypto",
     product: item && "product" in item ? item.product : "spot",
-    base: item && "base_asset_id" in item ? item.base_asset_id : null,
-    quote: item && "quote_asset_id" in item ? item.quote_asset_id : null,
+    base: "",
+    quote: "",
+    baseType: undefined,
+    quoteType: undefined,
     price_step: item && "price_step" in item ? item.price_step : "0.01",
     qty_step: item && "qty_step" in item ? item.qty_step : "0.001",
     min_qty: item && "min_qty" in item ? (item.min_qty ?? "") : "",
     min_notional:
       item && "min_notional" in item ? (item.min_notional ?? "") : "",
   });
+  if (item && manual.value) {
+    try {
+      const [base, quote] = await Promise.all([
+        getAsset(props.profile.id, item.base_asset_id),
+        getAsset(props.profile.id, item.quote_asset_id),
+      ]);
+      form.base = base.symbol;
+      form.quote = quote.symbol;
+    } catch (error) {
+      failed(error as Error);
+      return;
+    }
+  }
   dialog.value = true;
 }
 async function refresh(): Promise<void> {
@@ -210,15 +206,6 @@ function failed(error: Error): void {
 }
 const save = useMutation({
   mutationFn: async () => {
-    const name = form.name || null;
-    if (tab.value === "assets")
-      return editing.value
-        ? updateAsset(props.profile.id, editing.value.id, { name })
-        : createAsset(props.profile.id, {
-            symbol: form.symbol,
-            name,
-            asset_type: form.asset_type,
-          });
     const rules = {
       price_step: form.price_step,
       qty_step: form.qty_step,
@@ -227,28 +214,26 @@ const save = useMutation({
     };
     if (editing.value)
       return updateInstrument(props.profile.id, editing.value.id, {
-        name,
         ...(manual.value ? rules : {}),
       });
     if (!manual.value) {
       if (!selectedSpec.value) throw new Error(t("profileMarket.choose"));
       return createInstrument(props.profile.id, {
+        mode: "bybit",
         exec_symbol: selectedSpec.value.symbol,
         product: selectedSpec.value.product,
-        name,
       });
     }
     return createInstrument(props.profile.id, {
-      exec_symbol: form.symbol,
+      mode: "manual",
       product: form.product,
-      name,
-      base_asset_id: form.base!,
-      quote_asset_id: form.quote!,
-      settlement_asset_id: form.quote!,
+      base: { symbol: form.base, asset_type: form.baseType },
+      quote: { symbol: form.quote, asset_type: form.quoteType },
       ...rules,
     });
   },
-  onSuccess: async () => {
+  onSuccess: async (item) => {
+    fundedAsset.value = item.settlement_asset_id;
     await refresh();
     dialog.value = false;
     toasts.success({ title: t("profileMarket.saved") });
@@ -260,20 +245,13 @@ const action = useMutation({
     item,
     kind,
   }: {
-    item: Asset | Instrument;
+    item: Instrument;
     kind: "archive" | "delete" | "refresh";
   }) => {
-    if ("exec_symbol" in item) {
-      if (kind === "refresh")
-        return refreshInstrument(props.profile.id, item.id);
-      if (kind === "delete") return deleteInstrument(props.profile.id, item.id);
-      return updateInstrument(props.profile.id, item.id, {
-        is_archived: !item.is_archived,
-      });
-    }
-    if (kind === "delete") return deleteAsset(props.profile.id, item.id);
-    return updateAsset(props.profile.id, item.id, {
-      is_active: !item.is_active,
+    if (kind === "refresh") return refreshInstrument(props.profile.id, item.id);
+    if (kind === "delete") return deleteInstrument(props.profile.id, item.id);
+    return updateInstrument(props.profile.id, item.id, {
+      is_archived: !item.is_archived,
     });
   },
   onSuccess: async () => {
@@ -296,33 +274,25 @@ const action = useMutation({
         </p>
       </div>
       <button
-        v-if="!profile.is_archived && (manual || tab === 'instruments')"
+        v-if="!profile.is_archived"
         class="button button--primary"
         type="button"
         @click="open()"
       >
         <Plus :size="16" />{{
-          $t(
-            tab === "assets"
-              ? "profileMarket.addAsset"
-              : manual
-                ? "profileMarket.addInstrument"
-                : "profileMarket.import",
-          )
+          $t(manual ? "profileMarket.addInstrument" : "profileMarket.import")
         }}
       </button>
     </header>
-    <nav class="profile-tabs" :aria-label="$t('profileMarket.title')">
+    <div v-if="fundedAsset" class="profile-toolbar">
+      <p>{{ $t("profileMarket.fundingHint") }}</p>
       <button
-        v-for="section in ['instruments', 'assets'] as const"
-        :key="section"
-        type="button"
-        :class="{ 'profile-tabs__button--active': tab === section }"
-        @click="tab = section"
+        class="button button--secondary"
+        @click="emit('fund', fundedAsset)"
       >
-        {{ $t(`profileMarket.${section}`) }}
+        {{ $t("profileMarket.fund") }}
       </button>
-    </nav>
+    </div>
     <div class="profile-toolbar">
       <label class="search-field"
         ><span class="sr-only">{{ $t("profileMarket.search") }}</span>
@@ -336,6 +306,11 @@ const action = useMutation({
         v-model="visibility"
         :options="visibilityOptions"
         :label="$t('profiles.status')"
+      />
+      <AppSelect
+        v-model="productFilter"
+        :options="marketOptions"
+        :label="$t('profileMarket.product')"
       />
     </div>
     <LoadingState v-if="query.isPending.value" />
@@ -353,10 +328,17 @@ const action = useMutation({
           <tr>
             <SortableHeader
               :label="$t('profileMarket.symbol')"
-              :direction="order"
-              @sort="order = order === 'asc' ? 'desc' : 'asc'"
+              :direction="sortKey === 'symbol' ? order : null"
+              @sort="sortBy('symbol')"
             />
-            <th>{{ $t("profileMarket.details") }}</th>
+            <th>{{ $t("profileMarket.assetTypes") }}</th>
+            <SortableHeader
+              :label="$t('profileMarket.product')"
+              :direction="sortKey === 'product' ? order : null"
+              @sort="sortBy('product')"
+            />
+            <th>{{ $t("profileMarket.priceStep") }}</th>
+            <th>{{ $t("profileMarket.qtyStep") }}</th>
             <th>{{ $t("profiles.status") }}</th>
             <th>
               <span class="sr-only">{{ $t("catalog.edit") }}</span>
@@ -366,22 +348,35 @@ const action = useMutation({
         <tbody>
           <tr v-for="item in items" :key="item.id">
             <td :data-label="$t('profileMarket.symbol')">
-              <strong>{{ label(item) }}</strong
-              ><small v-if="item.name">{{ item.name }}</small>
+              <strong>{{ label(item) }}</strong>
             </td>
-            <td :data-label="$t('profileMarket.details')">
-              <template v-if="'product' in item"
-                >{{ $t(`venues.products.${item.product}`)
-                }}<small
-                  >{{ $t("profileMarket.priceStep") }}
-                  {{ formatDecimal(item.price_step) }} ·
-                  {{ $t("profileMarket.qtyStep") }}
-                  {{ formatDecimal(item.qty_step) }}</small
-                ></template
+            <td
+              :data-label="$t('profileMarket.assetTypes')"
+              class="asset-type-pair"
+            >
+              <span
+                class="catalog-tag"
+                :class="`catalog-tag--${item.base_asset_type}`"
+                >{{ $t(`catalog.types.${item.base_asset_type}`) }}</span
               >
-              <template v-else>{{
-                $t(`catalog.types.${item.asset_type}`)
-              }}</template>
+              <span class="asset-type-pair__separator">/</span>
+              <span
+                class="catalog-tag"
+                :class="`catalog-tag--${item.quote_asset_type}`"
+                >{{ $t(`catalog.types.${item.quote_asset_type}`) }}</span
+              >
+            </td>
+            <td :data-label="$t('profileMarket.product')">
+              {{ $t(`venues.products.${item.product}`) }}
+            </td>
+            <td
+              :data-label="$t('profileMarket.priceStep')"
+              class="numeric-cell"
+            >
+              {{ formatDecimal(item.price_step) }}
+            </td>
+            <td :data-label="$t('profileMarket.qtyStep')" class="numeric-cell">
+              {{ formatDecimal(item.qty_step) }}
             </td>
             <td :data-label="$t('profiles.status')">
               <span
@@ -414,6 +409,7 @@ const action = useMutation({
               </button>
               <button
                 class="icon-action"
+                v-if="manual"
                 :aria-label="$t('catalog.edit')"
                 :disabled="profile.is_archived"
                 @click="open(item)"
@@ -461,26 +457,20 @@ const action = useMutation({
         $t(
           editing
             ? 'catalog.edit'
-            : tab === 'assets'
-              ? 'profileMarket.addAsset'
-              : manual
-                ? 'profileMarket.addInstrument'
-                : 'profileMarket.import',
+            : manual
+              ? 'profileMarket.addInstrument'
+              : 'profileMarket.import',
         )
       "
       :submit-label="
-        $t(
-          !manual && !editing && tab === 'instruments'
-            ? 'profileMarket.import'
-            : 'catalog.saveChanges',
-        )
+        $t(!manual && !editing ? 'profileMarket.import' : 'catalog.saveChanges')
       "
       :cancel-label="$t('common.cancel')"
       :busy="save.isPending.value"
       :invalid="invalid"
       @submit="save.mutate()"
     >
-      <label v-if="tab === 'instruments'" class="field"
+      <label class="field"
         ><span>{{ $t("profileMarket.product") }}</span>
         <AppSelect
           v-model="form.product"
@@ -488,7 +478,7 @@ const action = useMutation({
           :disabled="!!editing"
           :label="$t('profileMarket.product')"
       /></label>
-      <template v-if="!manual && !editing && tab === 'instruments'">
+      <template v-if="!manual && !editing">
         <label class="field"
           ><span>{{ $t("profileMarket.exactSymbol") }}</span
           ><input
@@ -553,52 +543,21 @@ const action = useMutation({
           </button>
         </div>
       </template>
-      <template v-else>
-        <label class="field"
-          ><span>{{ $t("profileMarket.symbol") }}</span
-          ><input
-            v-model="form.symbol"
-            :disabled="!!editing"
-            :maxlength="tab === 'assets' ? 32 : 64"
-        /></label>
-        <label v-if="tab === 'assets'" class="field"
-          ><span>{{ $t("profileMarket.assetType") }}</span
-          ><AppSelect
-            v-model="form.asset_type"
-            :options="types"
-            :disabled="!!editing"
-            :label="$t('profileMarket.assetType')"
-        /></label>
-      </template>
-      <label class="field"
-        ><span>{{ $t("profileMarket.name") }}</span
-        ><input v-model="form.name" maxlength="255"
-      /></label>
-      <template v-if="manual && tab === 'instruments'">
-        <label class="field"
-          ><span>{{ $t("profileMarket.base") }}</span
-          ><RemoteCatalogSelect
-            v-model="form.base"
-            resource="assets"
-            :profile-id="profile.id"
-            :params="{ visibility: 'active' }"
-            :exclude-id="form.quote"
-            :disabled="!!editing"
-            :placeholder="$t('profileMarket.chooseAsset')"
-            :empty-label="$t('profileMarket.addAssetFirst')"
-        /></label>
-        <label class="field"
-          ><span>{{ $t("profileMarket.quote") }}</span
-          ><RemoteCatalogSelect
-            v-model="form.quote"
-            resource="assets"
-            :profile-id="profile.id"
-            :params="{ visibility: 'active' }"
-            :exclude-id="form.base"
-            :disabled="!!editing"
-            :placeholder="$t('profileMarket.chooseAsset')"
-            :empty-label="$t('profileMarket.addAssetFirst')"
-        /></label>
+      <template v-if="manual">
+        <AssetSymbolInput
+          v-model="form.base"
+          v-model:asset-type="form.baseType"
+          :profile-id="profile.id"
+          :label="$t('profileMarket.base')"
+          :disabled="!!editing"
+        />
+        <AssetSymbolInput
+          v-model="form.quote"
+          v-model:asset-type="form.quoteType"
+          :profile-id="profile.id"
+          :label="$t('profileMarket.quote')"
+          :disabled="!!editing"
+        />
         <label
           v-for="field in [
             'price_step',

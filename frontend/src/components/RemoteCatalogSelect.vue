@@ -109,7 +109,7 @@ function option(item: Item): SearchableOption {
     value: item.id,
     label: item.symbol,
     detail: item.name ?? undefined,
-    disabled: props.params?.visibility === "active" && !item.is_active,
+    disabled: props.params?.visibility === "active" && item.is_archived,
   };
 }
 const options = computed(() => {

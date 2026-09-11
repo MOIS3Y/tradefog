@@ -27,7 +27,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/trades/new",
-    component: TradesView,
+    redirect: { path: "/trades", query: { create: "1" } },
     meta: { requiresAuth: true },
   },
   {

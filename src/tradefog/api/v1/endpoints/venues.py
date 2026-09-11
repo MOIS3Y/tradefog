@@ -10,6 +10,7 @@ from tradefog.market.contracts import (
     CandlePage,
     InstrumentPage,
     InstrumentSpec,
+    MarketFailure,
     MarketProduct,
     OrderBook,
     Timeframe,
@@ -60,11 +61,29 @@ async def instruments(
         Query(max_length=64, pattern=r"^[A-Z0-9]+$"),
     ] = None,
     cursor: Annotated[str | None, Query(max_length=1024)] = None,
+    q: Annotated[str, Query(max_length=64)] = "",
 ) -> InstrumentPage:
     """Browse supported upstream instruments without database writes."""
-    return await market.provider(venue_type).instruments(
+    page = await market.provider(venue_type).instruments(
         product, symbol, cursor
     )
+    query = q.strip().upper()
+    while True:
+        matches = [
+            item
+            for item in page.items
+            if query in item.symbol or query in item.base
+        ]
+        if matches or not page.next_cursor or not query:
+            return InstrumentPage(items=matches, next_cursor=page.next_cursor)
+        cursor = page.next_cursor
+        page = await market.provider(venue_type).instruments(
+            product, symbol, cursor
+        )
+        if page.next_cursor == cursor:
+            raise MarketFailure(
+                "invalid_cursor", "Provider cursor did not advance"
+            )
 
 
 @router.get(

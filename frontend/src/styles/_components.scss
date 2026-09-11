@@ -257,3 +257,58 @@
     transform: rotate(360deg);
   }
 }
+
+/** Compact terminal panel headings share one page-level hierarchy. */
+.tf-app .panel-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 24px;
+  margin-bottom: 20px;
+  border: 1px solid var(--tf-line);
+  border-radius: var(--tf-radius-lg);
+  background: var(--tf-panel-soft);
+  h1 {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0;
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+    line-height: 1.25;
+    letter-spacing: -0.03em;
+    svg {
+      flex-shrink: 0;
+      color: var(--tf-action);
+    }
+  }
+  p {
+    margin: 0.35rem 0 0;
+    max-width: 75ch;
+    color: var(--tf-ink-soft);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+  &--embedded {
+    margin-bottom: 0;
+    border: 0;
+    border-bottom: 1px solid var(--tf-line);
+    border-radius: 0;
+    background: transparent;
+  }
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+}
+.tf-app .numeric-cell {
+  font-family: var(--tf-mono);
+  white-space: nowrap;
+}
+@media (max-width: 620px) {
+  .tf-app .panel-heading {
+    padding: 18px;
+  }
+}

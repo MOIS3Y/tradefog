@@ -39,9 +39,8 @@ async def test_exact_virtual_money_and_asset_owner_scoping(
     market = await setup_market(profile_client)
     await post(
         profile_client,
-        market["root"] + "/wallet/operations",
+        market["root"] + f"/assets/{market['quote']['id']}/operations",
         {
-            "wallet_asset_id": market["wallets"][0]["id"],
             "kind": "deposit",
             "amount": "0.123456789123456789",
         },

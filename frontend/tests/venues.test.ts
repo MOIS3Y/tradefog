@@ -42,13 +42,18 @@ describe("venue catalog flow", () => {
         return jsonResponse({ id: 7, exec_symbol: "BTCUSDT" }, 201);
       }),
     );
-    await createInstrument(8, { exec_symbol: "BTCUSDT", product: "spot" });
+    await createInstrument(8, {
+      mode: "bybit",
+      exec_symbol: "BTCUSDT",
+      product: "spot",
+    });
     await refreshInstrument(8, 7);
     expect(requests.map((r) => new URL(r.url).pathname)).toEqual([
       "/api/v1/profiles/8/instruments",
       "/api/v1/profiles/8/instruments/7/refresh",
     ]);
     expect(await requests[0]!.clone().json()).toEqual({
+      mode: "bybit",
       exec_symbol: "BTCUSDT",
       product: "spot",
     });

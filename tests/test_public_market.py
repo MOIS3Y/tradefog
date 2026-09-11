@@ -10,7 +10,12 @@ import pytest
 from tradefog.config.database import DatabaseSettings, SQLiteSettings
 from tradefog.config.root import Settings
 from tradefog.main import create_app
-from tradefog.market.contracts import MarketFailure
+from tradefog.market.contracts import (
+    MarketFailure,
+    InstrumentPage,
+    InstrumentSpec,
+    MarketProduct,
+)
 from tradefog.market.providers.bybit_public import (
     BybitPublic,
     normalize_instrument,
@@ -272,3 +277,50 @@ async def test_timeout_and_malformed_candle_are_safe_errors() -> None:
                 "BTCUSDT", "spot", "1m"
             )
         assert error.value.code == "market_invalid_response"
+
+
+async def test_instrument_search_reaches_later_provider_pages() -> None:
+    """A partial symbol search must not stop on the first provider page."""
+    from tradefog.api.v1.endpoints.venues import instruments
+
+    class PagedBybit(BybitPublic):
+        """Return deterministic metadata pages without network calls."""
+
+        async def instruments(
+            self,
+            product: MarketProduct,
+            symbol: str | None = None,
+            cursor: str | None = None,
+        ) -> InstrumentPage:
+            """Place the match after a nonmatching metadata page."""
+            base = "BTC" if cursor else "ETH"
+            return InstrumentPage(
+                items=[
+                    InstrumentSpec(
+                        symbol=base + "USDT",
+                        product=product,
+                        base=base,
+                        quote="USDT",
+                        settlement="USDT",
+                        price_step=Decimal("0.01"),
+                        qty_step=Decimal("0.001"),
+                        is_active=True,
+                    )
+                ],
+                next_cursor=None if cursor else "second",
+            )
+
+    async with httpx.AsyncClient() as source:
+        service = PublicMarketService(
+            {
+                "bybit": PagedBybit(MarketTransport(source)),
+            }
+        )
+        result = await instruments(
+            "bybit",
+            "perpetual_future",
+            service,
+            q="btc",
+        )
+    assert [item.symbol for item in result.items] == ["BTCUSDT"]
+    assert result.next_cursor is None

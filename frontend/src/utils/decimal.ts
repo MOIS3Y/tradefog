@@ -1,4 +1,5 @@
 /** Exact decimal presentation helpers. */
+import Decimal from "decimal.js";
 
 /**
  * Remove insignificant fractional zeroes without converting the value to a
@@ -9,6 +10,11 @@ export function formatDecimal(value: string): string {
     return "0";
   }
 
+  if (/^[+-]?\d+(?:\.\d+)?[eE][+-]?\d+$/.test(value)) {
+    const decimal = new Decimal(value);
+    // Bound expansion while retaining every significant decimal digit.
+    if (Math.abs(decimal.e) <= 1000) value = decimal.toFixed();
+  }
   const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(value);
   if (match === null) {
     return value;

@@ -11,9 +11,8 @@ from tradefog.db.models import (
     Trade,
     TradeReservation,
     TradeSnapshot,
+    TradingAsset,
     TradingStrategy,
-    Wallet,
-    WalletAsset,
     WalletOperation,
 )
 from tradefog.db.scoping import JournalModel, owned_select
@@ -41,28 +40,25 @@ async def get_owned[Model: JournalModel](
 
 async def wallet_balance(
     session: AsyncSession,
-    wallet_asset: WalletAsset,
+    wallet_asset: TradingAsset,
 ) -> Decimal:
     """Derive exact balance from immutable operations and closed trade P&L."""
     operations = (
         await session.scalars(
             select(WalletOperation.amount).where(
-                WalletOperation.wallet_asset_id == wallet_asset.id,
+                WalletOperation.asset_id == wallet_asset.id,
             )
         )
     ).all()
-    profile_id = await session.scalar(
-        select(Wallet.profile_id).where(Wallet.id == wallet_asset.wallet_id)
-    )
     profits = (
         await session.scalars(
             select(Trade.realized_pnl)
             .join(TradeSnapshot, TradeSnapshot.trade_id == Trade.id)
             .where(
-                Trade.profile_id == profile_id,
+                Trade.profile_id == wallet_asset.profile_id,
                 Trade.status == TradeStatus.CLOSED,
                 Trade.realized_pnl.is_not(None),
-                TradeSnapshot.settlement_asset_id == wallet_asset.asset_id,
+                TradeSnapshot.settlement_asset_id == wallet_asset.id,
             )
         )
     ).all()
@@ -74,7 +70,7 @@ async def wallet_balance(
 
 async def wallet_reserved(
     session: AsyncSession,
-    wallet_asset: WalletAsset,
+    wallet_asset: TradingAsset,
 ) -> Decimal:
     """Derive reserved notional for pending and open trades in this asset."""
     amounts = (
@@ -86,7 +82,7 @@ async def wallet_reserved(
             )
             .join(Trade, Trade.id == TradeSnapshot.trade_id)
             .where(
-                TradeReservation.wallet_asset_id == wallet_asset.id,
+                TradeReservation.asset_id == wallet_asset.id,
                 Trade.status.in_(
                     (TradeStatus.PENDING_ENTRY, TradeStatus.OPEN)
                 ),
@@ -98,13 +94,13 @@ async def wallet_reserved(
 
 async def allocated_capital(
     session: AsyncSession,
-    wallet_asset: WalletAsset,
+    wallet_asset: TradingAsset,
 ) -> Decimal:
     """Sum capital committed by active strategies to a wallet asset."""
     values = (
         await session.scalars(
             select(StrategyCapital.capital).where(
-                StrategyCapital.wallet_asset_id == wallet_asset.id,
+                StrategyCapital.asset_id == wallet_asset.id,
                 StrategyCapital.is_archived.is_(False),
             )
         )
@@ -114,7 +110,7 @@ async def allocated_capital(
 
 async def recompute_wallet_asset(
     session: AsyncSession,
-    wallet_asset: WalletAsset,
+    wallet_asset: TradingAsset,
 ) -> Decimal:
     """Persist derived wallet and dependent strategy statuses."""
     balance = await wallet_balance(session, wallet_asset)
@@ -125,7 +121,7 @@ async def recompute_wallet_asset(
     strategy_ids = (
         await session.scalars(
             select(StrategyCapital.strategy_id).where(
-                StrategyCapital.wallet_asset_id == wallet_asset.id,
+                StrategyCapital.asset_id == wallet_asset.id,
                 StrategyCapital.is_archived.is_(False),
             )
         )
@@ -145,15 +141,15 @@ async def recompute_strategy(
         return
     statuses = (
         await session.scalars(
-            select(WalletAsset.status)
+            select(TradingAsset.status)
             .join(
                 StrategyCapital,
-                StrategyCapital.wallet_asset_id == WalletAsset.id,
+                StrategyCapital.asset_id == TradingAsset.id,
             )
             .where(
                 StrategyCapital.strategy_id == strategy_id,
                 StrategyCapital.is_archived.is_(False),
-                WalletAsset.is_archived.is_(False),
+                TradingAsset.is_archived.is_(False),
             )
         )
     ).all()
@@ -162,7 +158,7 @@ async def recompute_strategy(
 
 async def record_wallet_operation(
     session: AsyncSession,
-    wallet_asset: WalletAsset,
+    wallet_asset: TradingAsset,
     kind: WalletOperationKind,
     amount: Decimal,
     note: str | None,
@@ -179,7 +175,7 @@ async def record_wallet_operation(
         conflict("Withdrawal exceeds uncommitted wallet balance")
     signed = amount if kind == WalletOperationKind.DEPOSIT else -amount
     operation = WalletOperation(
-        wallet_asset_id=wallet_asset.id,
+        asset_id=wallet_asset.id,
         kind=kind,
         amount=signed,
         note=note,

@@ -108,3 +108,12 @@ Analytics calculations support global multi-dimensional filtering:
 
 Financial and statistical calculations execute on the backend with exact
 decimal precision.
+
+## Profile-owned denominations
+
+Settlement asset identities are profile-local. Monetary trajectories remain
+partitioned by immutable strategy allocation and its settlement asset, which
+also identifies the profile. Identical symbols in different profiles must not
+be implicitly summed or converted. Cross-profile quality comparisons use R.
+Owned-asset sale/buyback contributes its recorded quote-denominated net P&L
+once; temporary sale proceeds and inventory reservations are not profits.

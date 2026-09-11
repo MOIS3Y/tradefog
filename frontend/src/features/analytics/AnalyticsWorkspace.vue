@@ -169,7 +169,7 @@ const allocationOptions = computed<SearchableOption[]>(() =>
     )
     .flatMap((strategy) =>
       strategy.allocations.map((allocation) => {
-        const asset = walletAssetById.value.get(allocation.wallet_asset_id);
+        const asset = walletAssetById.value.get(allocation.asset_id);
         return {
           value: allocation.id,
           label: `${strategy.name} · ${formatDecimal(allocation.capital)} ${

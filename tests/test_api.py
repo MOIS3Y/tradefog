@@ -2,8 +2,10 @@
 
 from base64 import b64decode
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import httpx
+import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 
@@ -47,17 +49,15 @@ async def test_profile_child_lists_keep_pagination_and_scope(
     await setup_market(profile_client)
     root = "/api/v1" + market["root"]
     for suffix, total in (
-        ("/wallet/assets", 2),
-        ("/wallet/operations", 2),
+        ("/assets", 2),
+        (f"/assets/{market['quote']['id']}/operations", 1),
         ("/strategies", 1),
         (f"/strategies/{market['strategy']['id']}/allocations", 1),
     ):
         response = await profile_client.get(root + suffix)
         assert response.status_code == 200, response.text
         assert response.json()["total"] == total
-    response = await profile_client.get(
-        root + "/wallet/assets?page_size=1&page=2"
-    )
+    response = await profile_client.get(root + "/assets?page_size=1&page=2")
     assert response.status_code == 200, response.text
     assert len(response.json()["items"]) == 1
     assert response.json()["total"] == 2
@@ -100,11 +100,10 @@ async def test_profiles_isolate_assets_wallets_and_strategies(
     client = profile_client
     first = await setup_market(client)
     second = await setup_market(client)
-    response = await client.post(
-        "/api/v1" + first["root"] + "/wallet/assets",
-        json={"asset_id": second["base"]["id"]},
+    response = await client.get(
+        "/api/v1" + first["root"] + f"/assets/{second['base']['id']}",
     )
-    assert response.status_code == 422
+    assert response.status_code == 404
     response = await client.get(
         "/api/v1"
         + first["root"]
@@ -123,9 +122,7 @@ async def test_profiles_isolate_assets_wallets_and_strategies(
     )
     assert response.status_code == 422
     response = await client.patch(
-        "/api/v1"
-        + first["root"]
-        + f"/wallet/assets/{second['wallets'][0]['id']}",
+        "/api/v1" + first["root"] + f"/assets/{second['wallets'][0]['id']}",
         json={"risk_stop_capital": "10"},
     )
     assert response.status_code == 404
@@ -166,11 +163,18 @@ async def test_manual_profile_needs_no_staff_catalog(
         f"/api/v1/profiles/{profile['id']}/assets",
         json={"symbol": "BTC", "asset_type": "crypto"},
     )
-    assert response.status_code == 422
+    assert response.status_code == 409
 
 
+@pytest.mark.parametrize(
+    ("high_step", "expected_atr"),
+    [(0, "20"), (1, "30.869194600532394787")],
+)
 async def test_bybit_import_and_atr_share_provider_without_funding(
-    profile_client: AsyncClient, profile_app: FastAPI
+    profile_client: AsyncClient,
+    profile_app: FastAPI,
+    high_step: int,
+    expected_atr: str,
 ) -> None:
     """Import metadata once, refresh archives safely and reuse ATR transport."""
     requests: list[str] = []
@@ -201,7 +205,7 @@ async def test_bybit_import_and_atr_share_provider_without_funding(
                     [
                         int((start + timedelta(days=i)).timestamp() * 1000),
                         "100",
-                        "110",
+                        str(110 + i * high_step),
                         "90",
                         "100",
                         "1",
@@ -227,12 +231,14 @@ async def test_bybit_import_and_atr_share_provider_without_funding(
         instrument = await post(
             profile_client,
             root + "/instruments",
-            {"exec_symbol": "BTCUSDT", "product": "spot"},
+            {"mode": "bybit", "exec_symbol": "BTCUSDT", "product": "spot"},
         )
         wallet = (
-            await profile_client.get("/api/v1" + root + "/wallet")
+            await profile_client.get(
+                "/api/v1" + root + "/assets?hide_empty=true"
+            )
         ).json()
-        assert wallet["assets"] == []
+        assert wallet["items"] == []
         metadata = await profile_client.get("/api/v1" + root + "/assets")
         assert metadata.json()["total"] == 2
         archived = await profile_client.patch(
@@ -245,21 +251,20 @@ async def test_bybit_import_and_atr_share_provider_without_funding(
             root + f"/instruments/{instrument['id']}/refresh",
             {},
         )
+        assert instrument["base_asset_type"] == "crypto"
+        assert instrument["quote_asset_type"] == "crypto"
+        assert refreshed["base_asset_type"] == "crypto"
+        assert refreshed["quote_asset_type"] == "crypto"
         assert refreshed["is_archived"]
         await profile_client.patch(
             "/api/v1" + root + f"/instruments/{instrument['id']}",
             json={"is_archived": False},
         )
-        quote = await post(
-            profile_client,
-            root + "/wallet/assets",
-            {"asset_id": instrument["settlement_asset_id"]},
-        )
+        quote = {"id": instrument["settlement_asset_id"]}
         await post(
             profile_client,
-            root + "/wallet/operations",
+            root + f"/assets/{quote['id']}/operations",
             {
-                "wallet_asset_id": quote["id"],
                 "kind": "deposit",
                 "amount": "1000",
             },
@@ -272,7 +277,7 @@ async def test_bybit_import_and_atr_share_provider_without_funding(
         await post(
             profile_client,
             root + f"/strategies/{strategy['id']}/allocations",
-            {"wallet_asset_id": quote["id"], "capital": "1000"},
+            {"asset_id": quote["id"], "capital": "1000"},
         )
         trade = await post(
             profile_client,
@@ -286,9 +291,12 @@ async def test_bybit_import_and_atr_share_provider_without_funding(
             },
         )
         atr = await post(profile_client, f"/trades/{trade['id']}/atr", {})
-        assert float(atr["value"]) == 20
+        assert Decimal(atr["value"]) == Decimal(expected_atr)
         loaded = (
             await profile_client.get(f"/api/v1/trades/{trade['id']}")
         ).json()
         assert loaded["preparation"]["atr_source"] == "auto"
+        assert loaded["preparation"]["atr_value"] == atr["value"]
+        assert loaded["atr"]["value"] == atr["value"]
+        assert len(atr["candles"]) == 14
     assert requests.count("/v5/market/kline") == 1

@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from tradefog.api.dependencies import CurrentUserDependency, SessionDependency
-from tradefog.api.errors import api_error, conflict, not_found
+from tradefog.api.errors import conflict, not_found
 from tradefog.api.v1.schemas.journal import (
     ProfileCreate,
     ProfilePatch,
@@ -20,13 +20,9 @@ from tradefog.api.v1.schemas.journal import (
     StrategyCreate,
     StrategyPatch,
     StrategyResponse,
-    WalletAssetCreate,
-    WalletAssetPatch,
-    WalletAssetResponse,
     WalletOperationCreate,
     WalletOperationPatch,
     WalletOperationResponse,
-    WalletResponse,
 )
 from tradefog.api.v1.schemas.pagination import ListQuery, Page
 from tradefog.db.models import (
@@ -37,21 +33,16 @@ from tradefog.db.models import (
     TradingInstrument,
     TradingProfile,
     TradingStrategy,
-    Wallet,
-    WalletAsset,
     WalletOperation,
 )
 from tradefog.db.scoping import owned_select
-from tradefog.domain.capital import wallet_asset_status
 from tradefog.domain.enums import StrategyStatus
 from tradefog.services.journal import (
-    allocated_capital,
     get_owned,
     recompute_strategy,
     recompute_wallet_asset,
     record_wallet_operation,
     wallet_balance,
-    wallet_reserved,
 )
 from tradefog.services.pagination import paginate, search_text
 
@@ -65,32 +56,6 @@ async def flush_unique(session: SessionDependency, message: str) -> None:
     except IntegrityError:
         await session.rollback()
         conflict(message)
-
-
-async def wallet_asset_response(
-    session: SessionDependency,
-    item: WalletAsset,
-) -> WalletAssetResponse:
-    """Build a wallet asset response with exact derived financial values."""
-    capability = await session.get(TradingAsset, item.asset_id)
-    if capability is None:
-        not_found("TradingAsset")
-    balance = await wallet_balance(session, item)
-    allocated = await allocated_capital(session, item)
-    reserved = await wallet_reserved(session, item)
-    return WalletAssetResponse(
-        id=item.id,
-        asset_id=item.asset_id,
-        symbol=capability.symbol,
-        balance=balance,
-        allocated=allocated,
-        reserved=reserved,
-        available=balance - reserved,
-        uncommitted=balance - max(allocated, reserved),
-        risk_stop_capital=item.risk_stop_capital,
-        status=item.status,
-        is_archived=item.is_archived,
-    )
 
 
 async def strategy_response(
@@ -181,16 +146,15 @@ async def create_profile(
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradingProfile:
-    """Create a profile and its required one-to-one wallet atomically."""
+    """Create an ownership root without a separate wallet container."""
     profile = TradingProfile(
         owner_id=user.id,
         venue_type=request.venue_type,
+        venue_url=request.venue_url,
         name=request.name,
         description=request.description,
     )
     session.add(profile)
-    await session.flush()
-    session.add(Wallet(profile_id=profile.id))
     await session.flush()
     return profile
 
@@ -256,26 +220,18 @@ async def delete_profile(
         .where(TradingStrategy.profile_id == profile.id)
         .limit(1)
     )
-    wallet = await session.scalar(
-        select(Wallet).where(Wallet.profile_id == profile.id)
-    )
     if has_history is not None or has_strategies is not None:
         conflict("A profile with journal history cannot be deleted")
-    if wallet is not None:
-        asset_ids = select(WalletAsset.id).where(
-            WalletAsset.wallet_id == wallet.id,
-        )
-        has_operations = await session.scalar(
-            select(WalletOperation.id)
-            .where(WalletOperation.wallet_asset_id.in_(asset_ids))
-            .limit(1)
-        )
-        if has_operations is not None:
-            conflict("A profile with wallet history cannot be deleted")
-        await session.execute(
-            delete(WalletAsset).where(WalletAsset.wallet_id == wallet.id)
-        )
-        await session.delete(wallet)
+    asset_ids = select(TradingAsset.id).where(
+        TradingAsset.profile_id == profile.id
+    )
+    has_operations = await session.scalar(
+        select(WalletOperation.id)
+        .where(WalletOperation.asset_id.in_(asset_ids))
+        .limit(1)
+    )
+    if has_operations is not None:
+        conflict("A profile with wallet history cannot be deleted")
     await session.execute(
         delete(TradingInstrument).where(
             TradingInstrument.profile_id == profile.id
@@ -289,178 +245,23 @@ async def delete_profile(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/{profile_id}/wallet", response_model=WalletResponse)
-async def get_wallet(
-    profile_id: int,
-    session: SessionDependency,
-    user: CurrentUserDependency,
-    include_archived: bool = False,
-) -> WalletResponse:
-    """Return the profile wallet with derived balances and reservations."""
-    profile = await get_owned(
-        session,
-        TradingProfile,
-        profile_id,
-        user.id,
-    )
-    wallet = await session.scalar(
-        owned_select(Wallet, user.id).where(Wallet.profile_id == profile.id)
-    )
-    if wallet is None:
-        not_found("Wallet")
-    statement = (
-        owned_select(WalletAsset, user.id)
-        .where(
-            WalletAsset.wallet_id == wallet.id,
-        )
-        .order_by(WalletAsset.id)
-    )
-    if not include_archived:
-        statement = statement.where(WalletAsset.is_archived.is_(False))
-    items = (await session.scalars(statement)).all()
-    return WalletResponse(
-        id=wallet.id,
-        profile_id=profile.id,
-        assets=[await wallet_asset_response(session, item) for item in items],
-    )
-
-
-@router.post(
-    "/{profile_id}/wallet/assets",
-    response_model=WalletAssetResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_wallet_asset(
-    profile_id: int,
-    request: WalletAssetCreate,
-    session: SessionDependency,
-    user: CurrentUserDependency,
-) -> WalletAssetResponse:
-    """Add an active asset capability belonging to the profile venue."""
-    profile = await get_owned(
-        session,
-        TradingProfile,
-        profile_id,
-        user.id,
-        for_update=True,
-    )
-    if profile.is_archived:
-        conflict("Archived profiles cannot accept new wallet assets")
-    capability = await session.get(
-        TradingAsset,
-        request.asset_id,
-    )
-    if (
-        capability is None
-        or not capability.is_active
-        or capability.profile_id != profile.id
-    ):
-        api_error(
-            422,
-            "invalid_wallet_asset",
-            "Asset must be active on the profile venue",
-        )
-    wallet = await session.scalar(
-        owned_select(Wallet, user.id).where(Wallet.profile_id == profile.id)
-    )
-    if wallet is None:
-        not_found("Wallet")
-    item = WalletAsset(
-        wallet_id=wallet.id,
-        asset_id=capability.id,
-        risk_stop_capital=request.risk_stop_capital,
-        status=wallet_asset_status(Decimal(0), request.risk_stop_capital),
-    )
-    session.add(item)
-    await flush_unique(session, "Wallet asset is already present")
-    return await wallet_asset_response(session, item)
-
-
-@router.patch(
-    "/{profile_id}/wallet/assets/{wallet_asset_id}",
-    response_model=WalletAssetResponse,
-)
-async def update_wallet_asset(
-    profile_id: int,
-    wallet_asset_id: int,
-    request: WalletAssetPatch,
-    session: SessionDependency,
-    user: CurrentUserDependency,
-) -> WalletAssetResponse:
-    """Edit a risk floor or archive an unused zero-balance wallet asset."""
-    item = await get_owned(
-        session,
-        WalletAsset,
-        wallet_asset_id,
-        user.id,
-        for_update=True,
-    )
-    await require_wallet_profile(session, item, profile_id)
-    values = request.model_dump(exclude_unset=True)
-    if values.get("is_archived") is False and item.is_archived:
-        wallet = await session.get(Wallet, item.wallet_id)
-        capability = await session.get(
-            TradingAsset,
-            item.asset_id,
-        )
-        profile = (
-            await get_owned(
-                session,
-                TradingProfile,
-                wallet.profile_id,
-                user.id,
-            )
-            if wallet is not None
-            else None
-        )
-        if (
-            profile is None
-            or profile.is_archived
-            or capability is None
-            or not capability.is_active
-        ):
-            conflict("A wallet asset requires active profile capability")
-    if values.get("is_archived") is True:
-        balance = await wallet_balance(session, item)
-        reserved = await wallet_reserved(session, item)
-        active_allocations = await session.scalar(
-            select(func.count())
-            .select_from(StrategyCapital)
-            .where(
-                StrategyCapital.wallet_asset_id == item.id,
-                StrategyCapital.is_archived.is_(False),
-            )
-        )
-        if balance != 0 or reserved != 0 or active_allocations:
-            conflict(
-                "Only an unused zero-balance wallet asset can be archived"
-            )
-    for field, value in values.items():
-        setattr(item, field, value)
-    await recompute_wallet_asset(session, item)
-    await session.flush()
-    return await wallet_asset_response(session, item)
-
-
 @router.get(
-    "/{profile_id}/wallet/operations",
+    "/{profile_id}/assets/{asset_id}/operations",
     response_model=Page[WalletOperationResponse],
 )
 async def list_wallet_operations(
     profile_id: int,
+    asset_id: int,
     session: SessionDependency,
     user: CurrentUserDependency,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> Page[WalletOperationResponse]:
     """List immutable ledger facts for one owned wallet asset."""
-    await get_owned(session, TradingProfile, profile_id, user.id)
+    item = await get_owned(session, TradingAsset, asset_id, user.id)
+    require_asset_profile(item, profile_id)
     statement = owned_select(WalletOperation, user.id).where(
-        WalletOperation.wallet_asset_id.in_(
-            select(WalletAsset.id)
-            .join(Wallet)
-            .where(Wallet.profile_id == profile_id)
-        ),
+        WalletOperation.asset_id == asset_id
     )
     total = await session.scalar(
         select(func.count()).select_from(statement.subquery()),
@@ -482,12 +283,13 @@ async def list_wallet_operations(
 
 
 @router.post(
-    "/{profile_id}/wallet/operations",
+    "/{profile_id}/assets/{asset_id}/operations",
     response_model=WalletOperationResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_wallet_operation(
     profile_id: int,
+    asset_id: int,
     request: WalletOperationCreate,
     session: SessionDependency,
     user: CurrentUserDependency,
@@ -495,26 +297,18 @@ async def create_wallet_operation(
     """Append a deposit or withdrawal to an active wallet asset."""
     item = await get_owned(
         session,
-        WalletAsset,
-        request.wallet_asset_id,
+        TradingAsset,
+        asset_id,
         user.id,
         for_update=True,
     )
-    await require_wallet_profile(session, item, profile_id)
+    require_asset_profile(item, profile_id)
     if item.is_archived:
         conflict("Archived wallet assets cannot accept operations")
-    wallet = await session.get(Wallet, item.wallet_id)
-    profile = (
-        await get_owned(
-            session,
-            TradingProfile,
-            wallet.profile_id,
-            user.id,
-        )
-        if wallet is not None
-        else None
+    profile = await get_owned(
+        session, TradingProfile, item.profile_id, user.id
     )
-    if profile is None or profile.is_archived:
+    if profile.is_archived:
         conflict("Archived profiles cannot accept wallet operations")
     return await record_wallet_operation(
         session,
@@ -526,11 +320,12 @@ async def create_wallet_operation(
 
 
 @router.patch(
-    "/{profile_id}/wallet/operations/{operation_id}",
+    "/{profile_id}/assets/{asset_id}/operations/{operation_id}",
     response_model=WalletOperationResponse,
 )
 async def update_wallet_operation_note(
     profile_id: int,
+    asset_id: int,
     operation_id: int,
     request: WalletOperationPatch,
     session: SessionDependency,
@@ -544,10 +339,10 @@ async def update_wallet_operation_note(
         user.id,
         for_update=True,
     )
-    item = await get_owned(
-        session, WalletAsset, operation.wallet_asset_id, user.id
-    )
-    await require_wallet_profile(session, item, profile_id)
+    item = await get_owned(session, TradingAsset, operation.asset_id, user.id)
+    require_asset_profile(item, profile_id)
+    if operation.asset_id != asset_id:
+        not_found("WalletOperation")
     operation.note = request.note
     await session.flush()
     return operation
@@ -747,18 +542,12 @@ async def create_allocation(
         not_found("TradingStrategy")
     wallet_asset = await get_owned(
         session,
-        WalletAsset,
-        request.wallet_asset_id,
+        TradingAsset,
+        request.asset_id,
         user.id,
         for_update=True,
     )
-    profile_wallet = await session.scalar(
-        select(Wallet.id).where(
-            Wallet.id == wallet_asset.wallet_id,
-            Wallet.profile_id == strategy.profile_id,
-        )
-    )
-    if profile_wallet is None:
+    if wallet_asset.profile_id != strategy.profile_id:
         conflict("Allocation asset must belong to the strategy profile")
     profile = await get_owned(
         session,
@@ -766,24 +555,14 @@ async def create_allocation(
         strategy.profile_id,
         user.id,
     )
-    capability = await session.get(
-        TradingAsset,
-        wallet_asset.asset_id,
-    )
-    if (
-        profile.is_archived
-        or strategy.is_archived
-        or wallet_asset.is_archived
-        or capability is None
-        or not capability.is_active
-    ):
+    if profile.is_archived or strategy.is_archived or wallet_asset.is_archived:
         conflict("Archived records cannot accept new allocations")
     balance = await wallet_balance(session, wallet_asset)
     allocated = sum(
         (
             await session.scalars(
                 select(StrategyCapital.capital).where(
-                    StrategyCapital.wallet_asset_id == wallet_asset.id,
+                    StrategyCapital.asset_id == wallet_asset.id,
                     StrategyCapital.is_archived.is_(False),
                 )
             )
@@ -794,7 +573,7 @@ async def create_allocation(
         conflict("Allocation exceeds wallet asset balance")
     allocation = StrategyCapital(
         strategy_id=strategy.id,
-        wallet_asset_id=wallet_asset.id,
+        asset_id=wallet_asset.id,
         capital=request.capital,
     )
     session.add(allocation)
@@ -838,8 +617,8 @@ async def update_allocation(
     if capital_changed or reactivated:
         wallet_asset = await get_owned(
             session,
-            WalletAsset,
-            allocation.wallet_asset_id,
+            TradingAsset,
+            allocation.asset_id,
             user.id,
         )
         strategy = await get_owned(
@@ -854,23 +633,17 @@ async def update_allocation(
             strategy.profile_id,
             user.id,
         )
-        capability = await session.get(
-            TradingAsset,
-            wallet_asset.asset_id,
-        )
         if reactivated and (
             wallet_asset.is_archived
             or strategy.is_archived
             or profile.is_archived
-            or capability is None
-            or not capability.is_active
         ):
             conflict("An allocation requires active parent records")
         other = sum(
             (
                 await session.scalars(
                     select(StrategyCapital.capital).where(
-                        StrategyCapital.wallet_asset_id == wallet_asset.id,
+                        StrategyCapital.asset_id == wallet_asset.id,
                         StrategyCapital.is_archived.is_(False),
                         StrategyCapital.id != allocation.id,
                     )
@@ -888,8 +661,8 @@ async def update_allocation(
         setattr(allocation, field, value)
     wallet_asset = await get_owned(
         session,
-        WalletAsset,
-        allocation.wallet_asset_id,
+        TradingAsset,
+        allocation.asset_id,
         user.id,
     )
     await recompute_wallet_asset(session, wallet_asset)
@@ -898,13 +671,10 @@ async def update_allocation(
     return allocation
 
 
-async def require_wallet_profile(
-    session: SessionDependency, item: WalletAsset, profile_id: int
-) -> None:
-    """Reject a nested wallet identifier from a different profile."""
-    wallet = await session.get(Wallet, item.wallet_id)
-    if wallet is None or wallet.profile_id != profile_id:
-        not_found("WalletAsset")
+def require_asset_profile(item: TradingAsset, profile_id: int) -> None:
+    """Reject a nested asset identifier from a different profile."""
+    if item.profile_id != profile_id:
+        not_found("TradingAsset")
 
 
 @router.get(
@@ -953,47 +723,6 @@ async def list_allocations(
     )
     return Page(
         items=[StrategyCapitalResponse.model_validate(item) for item in items],
-        total=total,
-        page=query.page,
-        page_size=query.page_size,
-    )
-
-
-@router.get(
-    "/{profile_id}/wallet/assets", response_model=Page[WalletAssetResponse]
-)
-async def list_wallet_assets(
-    profile_id: int,
-    session: SessionDependency,
-    user: CurrentUserDependency,
-    query: Annotated[ListQuery, Query()],
-) -> Page[WalletAssetResponse]:
-    """Search and page owned wallet denominations independently."""
-    await get_owned(session, TradingProfile, profile_id, user.id)
-    statement = (
-        owned_select(WalletAsset, user.id)
-        .join(Wallet)
-        .join(TradingAsset, TradingAsset.id == WalletAsset.asset_id)
-        .where(Wallet.profile_id == profile_id)
-    )
-    if query.visibility != "all":
-        statement = statement.where(
-            WalletAsset.is_archived.is_(query.visibility == "archived")
-        )
-    if query.q.strip():
-        statement = statement.where(
-            TradingAsset.symbol.icontains(query.q.strip(), autoescape=True)
-        )
-    items, total = await paginate(
-        session,
-        statement,
-        query,
-        {"symbol": TradingAsset.symbol},
-        "symbol",
-        WalletAsset.id,
-    )
-    return Page(
-        items=[await wallet_asset_response(session, item) for item in items],
         total=total,
         page=query.page,
         page_size=query.page_size,

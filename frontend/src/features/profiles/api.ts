@@ -1,5 +1,6 @@
 /** Typed API access for owner-scoped profiles, wallets, and strategies. */
 
+import { listAssets, type Asset } from "./marketApi";
 import { api } from "@/api/client";
 import { toApiError } from "@/api/errors";
 import type { components } from "@/api/schema";
@@ -8,9 +9,9 @@ import type { ListParams, Page } from "@/api/pagination";
 export type Profile = components["schemas"]["ProfileResponse"];
 export type ProfileCreate = components["schemas"]["ProfileCreate"];
 export type ProfilePatch = components["schemas"]["ProfilePatch"];
-export type Wallet = components["schemas"]["WalletResponse"];
-export type WalletAsset = components["schemas"]["WalletAssetResponse"];
-export type WalletAssetCreate = components["schemas"]["WalletAssetCreate"];
+export interface Wallet {
+  assets: Asset[];
+}
 export type WalletOperation = components["schemas"]["WalletOperationResponse"];
 export type WalletOperationKind = components["schemas"]["WalletOperationKind"];
 export type Strategy = components["schemas"]["StrategyResponse"];
@@ -80,42 +81,35 @@ export async function deleteProfile(id: number): Promise<void> {
 }
 
 export async function getWallet(profileId: number): Promise<Wallet> {
+  const assets: Asset[] = [];
+  for (let page = 1; ; page++) {
+    const result = await listAssets(profileId, {
+      page,
+      page_size: 100,
+      visibility: "all",
+    });
+    assets.push(...result.items);
+    if (assets.length >= result.total || !result.items.length) break;
+  }
+  return { assets };
+}
+
+export type ProfileOperation =
+  components["schemas"]["ProfileOperationResponse"];
+export type OperationFilters = ListParams & {
+  asset_id?: number;
+  kind?: WalletOperationKind;
+  date_from?: string;
+  date_to?: string;
+  sort?: "created_at" | "kind";
+};
+export async function listProfileOperations(
+  profileId: number,
+  query: OperationFilters = {},
+): Promise<Page<ProfileOperation>> {
   const { data, error, response } = await api.GET(
-    "/api/v1/profiles/{profile_id}/wallet",
-    {
-      params: {
-        path: { profile_id: profileId },
-        query: { include_archived: true },
-      },
-    },
-  );
-  if (data === undefined) throw toApiError(error, response);
-  return data;
-}
-
-export async function createWalletAsset(
-  profileId: number,
-  input: WalletAssetCreate,
-): Promise<WalletAsset> {
-  const { data, error, response } = await api.POST(
-    "/api/v1/profiles/{profile_id}/wallet/assets",
-    { params: { path: { profile_id: profileId } }, body: input },
-  );
-  if (data === undefined) throw toApiError(error, response);
-  return data;
-}
-
-export async function updateWalletAsset(
-  profileId: number,
-  id: number,
-  input: components["schemas"]["WalletAssetPatch"],
-): Promise<WalletAsset> {
-  const { data, error, response } = await api.PATCH(
-    "/api/v1/profiles/{profile_id}/wallet/assets/{wallet_asset_id}",
-    {
-      params: { path: { profile_id: profileId, wallet_asset_id: id } },
-      body: input,
-    },
+    "/api/v1/profiles/{profile_id}/operations",
+    { params: { path: { profile_id: profileId }, query } },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
@@ -123,11 +117,12 @@ export async function updateWalletAsset(
 
 export async function listOperations(
   profileId: number,
+  assetId: number,
   query: { page?: number; page_size?: number } = {},
 ): Promise<Page<WalletOperation>> {
   const { data, error, response } = await api.GET(
-    "/api/v1/profiles/{profile_id}/wallet/operations",
-    { params: { path: { profile_id: profileId }, query } },
+    "/api/v1/profiles/{profile_id}/assets/{asset_id}/operations",
+    { params: { path: { profile_id: profileId, asset_id: assetId }, query } },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
@@ -135,11 +130,15 @@ export async function listOperations(
 
 export async function createOperation(
   profileId: number,
+  assetId: number,
   input: components["schemas"]["WalletOperationCreate"],
 ): Promise<WalletOperation> {
   const { data, error, response } = await api.POST(
-    "/api/v1/profiles/{profile_id}/wallet/operations",
-    { params: { path: { profile_id: profileId } }, body: input },
+    "/api/v1/profiles/{profile_id}/assets/{asset_id}/operations",
+    {
+      params: { path: { profile_id: profileId, asset_id: assetId } },
+      body: input,
+    },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
@@ -147,13 +146,16 @@ export async function createOperation(
 
 export async function updateOperationNote(
   profileId: number,
+  assetId: number,
   id: number,
   note: string | null,
 ): Promise<WalletOperation> {
   const { data, error, response } = await api.PATCH(
-    "/api/v1/profiles/{profile_id}/wallet/operations/{operation_id}",
+    "/api/v1/profiles/{profile_id}/assets/{asset_id}/operations/{operation_id}",
     {
-      params: { path: { profile_id: profileId, operation_id: id } },
+      params: {
+        path: { profile_id: profileId, asset_id: assetId, operation_id: id },
+      },
       body: { note },
     },
   );
@@ -230,7 +232,7 @@ export async function createAllocation(
     "/api/v1/profiles/{profile_id}/strategies/{strategy_id}/allocations",
     {
       params: { path: { profile_id: profileId, strategy_id: strategyId } },
-      body: { wallet_asset_id: walletAssetId, capital },
+      body: { asset_id: walletAssetId, capital },
     },
   );
   if (data === undefined) throw toApiError(error, response);

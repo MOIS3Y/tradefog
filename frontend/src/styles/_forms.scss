@@ -33,6 +33,12 @@
       line-height: 1.5;
       resize: vertical;
     }
+
+    :is(input, select, textarea):focus {
+      outline: none;
+      border-color: var(--tf-action);
+      box-shadow: 0 0 0 1px var(--tf-action-soft);
+    }
   }
 
   .tf-form {
@@ -59,8 +65,8 @@
   background: var(--tf-panel-soft);
 
   &:focus-within {
-    border-color: rgb(53 217 144 / 55%);
-    box-shadow: 0 0 0 3px rgb(53 217 144 / 9%);
+    border-color: var(--tf-action);
+    box-shadow: 0 0 0 1px var(--tf-action-soft);
   }
 
   &[data-disabled] {
@@ -89,6 +95,36 @@
 .tf-combobox-trigger {
   cursor: pointer;
   color: var(--tf-ink-soft);
+}
+
+// The anchor owns the focus indicator, including inside a .field wrapper.
+.tf-app .tf-combobox-anchor :is(.tf-combobox-input, .tf-combobox-trigger) {
+  &,
+  &:focus,
+  &:focus-visible {
+    min-height: 0;
+    border: 0;
+    background: transparent;
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+.tf-app .search-field {
+  &:focus-within {
+    border-color: var(--tf-action);
+    box-shadow: 0 0 0 1px var(--tf-action-soft);
+  }
+  input:focus {
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+.tf-app .tf-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--tf-action);
+  box-shadow: 0 0 0 1px var(--tf-action-soft);
 }
 
 .tf-combobox-content {
@@ -223,4 +259,86 @@
 .tf-select-indicator {
   display: inline-flex;
   color: var(--tf-action);
+}
+
+/** Native radio semantics with explicit dark-theme selection and focus. */
+.tf-app .profile-market__import input[type="radio"] {
+  appearance: none;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--tf-ink-soft);
+  border-radius: 50%;
+  background: var(--tf-canvas);
+  display: grid;
+  place-content: center;
+  &::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--tf-action);
+    transform: scale(0);
+  }
+  &:checked {
+    border-color: var(--tf-action);
+  }
+  &:checked::before {
+    transform: scale(1);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--tf-action);
+    outline-offset: 3px;
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+.tf-app .app-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--tf-ink-soft);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  &__track {
+    width: 34px;
+    height: 20px;
+    padding: 3px;
+    flex-shrink: 0;
+    border: 1px solid var(--tf-line);
+    border-radius: 20px;
+    background: var(--tf-panel-raised);
+  }
+  &__track > span {
+    display: block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--tf-ink-soft);
+  }
+  &[aria-checked="true"] .app-switch__track {
+    border-color: var(--tf-action);
+    background: var(--tf-action-soft);
+    > span {
+      transform: translateX(12px);
+      background: var(--tf-action);
+    }
+  }
+  &:focus-visible {
+    outline: 2px solid var(--tf-action);
+    outline-offset: 4px;
+    border-radius: var(--tf-radius-sm);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }

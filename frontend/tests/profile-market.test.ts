@@ -13,6 +13,7 @@ let query: QueryClient;
 const requests: Request[] = [];
 beforeEach(() => {
   document.body.innerHTML = '<div class="tf-app"><div id="root"></div></div>';
+  HTMLElement.prototype.scrollIntoView = vi.fn();
   localStorage.clear();
   reloadTokens();
   i18n.global.locale.value = "en";
@@ -83,13 +84,12 @@ function button(text: string): HTMLButtonElement {
 it("allows manual setup without exchange requests or staff catalogs", async () => {
   mount("manual");
   await vi.waitFor(() => expect(requests.length).toBe(1));
-  button("Assets").click();
+  button("Add instrument").click();
   await vi.waitFor(() =>
     expect(requests.some((r) => r.url.includes("/profiles/8/assets"))).toBe(
       true,
     ),
   );
-  button("Add asset").click();
   await vi.waitFor(() =>
     expect(document.querySelector('[role="dialog"]')).not.toBeNull(),
   );
@@ -99,7 +99,7 @@ it("allows manual setup without exchange requests or staff catalogs", async () =
     ),
   ).toBe(true);
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
-    "Asset type",
+    "Base asset",
   );
 });
 it("browses on demand and imports metadata without funding a wallet", async () => {
@@ -133,7 +133,102 @@ it("browses on demand and imports metadata without funding a wallet", async () =
   expect(await imported.clone().json()).toEqual({
     exec_symbol: "BTCUSDT",
     product: "spot",
-    name: null,
+    mode: "bybit",
   });
   expect(requests.every((r) => !r.url.includes("/wallet"))).toBe(true);
+});
+
+it("creates manual pair assets inline in one instrument request", async () => {
+  mount("manual");
+  await vi.waitFor(() => expect(requests.length).toBe(1));
+  button("Add instrument").click();
+  await vi.waitFor(() =>
+    expect(document.querySelectorAll(".asset-symbol-field input").length).toBe(
+      2,
+    ),
+  );
+  for (const [index, symbol] of ["BTC", "USDT"].entries()) {
+    const input = document.querySelectorAll<HTMLInputElement>(
+      ".asset-symbol-field input",
+    )[index]!;
+    const trigger = document.querySelectorAll<HTMLButtonElement>(
+      ".asset-symbol-field .tf-combobox-trigger",
+    )[index]!;
+    trigger.click();
+    await vi.waitFor(() =>
+      expect(input.getAttribute("aria-expanded")).toBe("true"),
+    );
+    input.value = symbol;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.waitFor(() => {
+      const option = [
+        ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+      ].find((item) => item.textContent?.includes("Create " + symbol));
+      expect(option).toBeDefined();
+    });
+    const option = [
+      ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+    ].find((item) => item.textContent?.includes("Create " + symbol))!;
+    option.click();
+  }
+  const submit = document.querySelector<HTMLButtonElement>(
+    '[role="dialog"] button[type="submit"]',
+  )!;
+  await vi.waitFor(() => expect(submit.disabled).toBe(false));
+  submit.click();
+  await vi.waitFor(() =>
+    expect(requests.some((r) => r.method === "POST")).toBe(true),
+  );
+  expect(
+    await requests
+      .find((r) => r.method === "POST")!
+      .clone()
+      .json(),
+  ).toMatchObject({
+    mode: "manual",
+    base: { symbol: "BTC", asset_type: "crypto" },
+    quote: { symbol: "USDT", asset_type: "crypto" },
+  });
+  expect(requests.filter((r) => r.method === "POST")).toHaveLength(1);
+});
+
+it("renders ordered asset types without fetching each asset", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (request: Request) => {
+      requests.push(request);
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: 1,
+              profile_id: 8,
+              exec_symbol: "BTC/USD",
+              product: "spot",
+              base_asset_id: 1,
+              quote_asset_id: 2,
+              settlement_asset_id: 2,
+              base_asset_type: "crypto",
+              quote_asset_type: "fiat",
+              price_step: "0.01",
+              qty_step: "0.001",
+              is_active: true,
+              is_archived: false,
+            },
+          ],
+          total: 1,
+          page: 1,
+          page_size: 25,
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      );
+    }),
+  );
+  mount("manual");
+  await vi.waitFor(() =>
+    expect(document.querySelector(".asset-type-pair")?.textContent).toMatch(
+      /Crypto\s*\/\s*Fiat/,
+    ),
+  );
+  expect(requests).toHaveLength(1);
 });

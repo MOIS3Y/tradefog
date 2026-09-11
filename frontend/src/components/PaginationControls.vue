@@ -4,14 +4,17 @@ import { ChevronLeft, ChevronRight } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 import AppSelect from "@/components/AppSelect.vue";
 
-const props = defineProps<{
-  page: number;
-  pageSize: number;
-  total: number;
-  busy?: boolean;
-  compact?: boolean;
-  hideWhenSmall?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    page: number;
+    pageSize: number;
+    total: number;
+    busy?: boolean;
+    compact?: boolean;
+    hideWhenSmall?: boolean;
+  }>(),
+  { hideWhenSmall: true },
+);
 const emit = defineEmits<{
   "update:page": [number];
   "update:pageSize": [number];
@@ -24,6 +27,7 @@ const minimumPageSize = 25;
 const visible = computed(
   () =>
     !props.hideWhenSmall ||
+    props.page > 1 ||
     props.total > minimumPageSize ||
     props.pageSize !== minimumPageSize,
 );

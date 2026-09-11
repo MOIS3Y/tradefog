@@ -2,11 +2,13 @@
 
 from datetime import datetime
 from decimal import Decimal
+from urllib.parse import urlsplit
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    HttpUrl,
     field_validator,
     model_validator,
 )
@@ -14,7 +16,6 @@ from pydantic import (
 from tradefog.domain.enums import (
     StrategyStatus,
     VenueType,
-    WalletAssetStatus,
     WalletOperationKind,
 )
 
@@ -25,7 +26,29 @@ class JournalInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class ProfileCreate(JournalInput):
+class ProfilePresentation(JournalInput):
+    """Optional browser navigation, never an exchange transport address."""
+
+    venue_url: str | None = Field(default=None, max_length=2048)
+
+    @field_validator("venue_url")
+    @classmethod
+    def validate_venue_url(cls, value: str | None) -> str | None:
+        """Accept only credential-free absolute HTTP(S) links."""
+        if value is None or not value.strip():
+            return None
+        parts = urlsplit(value.strip())
+        if parts.scheme not in {"http", "https"} or not parts.hostname:
+            raise ValueError("Venue URL must be an absolute HTTP(S) address")
+        if parts.username is not None or parts.password is not None:
+            raise ValueError("Venue URL must not contain credentials")
+        normalized = str(HttpUrl(value.strip()))
+        if len(normalized) > 2048:
+            raise ValueError("Venue URL must not exceed 2048 characters")
+        return normalized
+
+
+class ProfileCreate(ProfilePresentation):
     """Create a venue-bound trading workspace."""
 
     venue_type: VenueType
@@ -42,7 +65,7 @@ class ProfileCreate(JournalInput):
         return normalized
 
 
-class ProfilePatch(JournalInput):
+class ProfilePatch(ProfilePresentation):
     """Edit profile presentation or its archive state."""
 
     name: str | None = Field(default=None, min_length=1, max_length=128)
@@ -78,71 +101,15 @@ class ProfileResponse(BaseModel):
 
     id: int
     venue_type: VenueType
+    venue_url: str | None = None
     name: str
     description: str | None
     is_archived: bool
 
 
-class WalletAssetCreate(JournalInput):
-    """Add one active venue capability to a profile wallet."""
-
-    asset_id: int = Field(gt=0)
-    risk_stop_capital: Decimal | None = Field(
-        default=None,
-        ge=0,
-        max_digits=30,
-        decimal_places=18,
-    )
-
-
-class WalletAssetPatch(JournalInput):
-    """Edit the advisory deposit floor or archive a zero balance."""
-
-    risk_stop_capital: Decimal | None = Field(
-        default=None,
-        ge=0,
-        max_digits=30,
-        decimal_places=18,
-    )
-    is_archived: bool | None = None
-
-    @model_validator(mode="after")
-    def reject_null_archive_flag(self) -> "WalletAssetPatch":
-        """Prevent explicit null for the archive flag."""
-        fields = self.model_dump(exclude_unset=True)
-        if fields.get("is_archived", False) is None:
-            raise ValueError("is_archived cannot be null")
-        return self
-
-
-class WalletAssetResponse(BaseModel):
-    """Wallet asset with exact derived balance and reservations."""
-
-    id: int
-    asset_id: int
-    symbol: str
-    balance: Decimal
-    allocated: Decimal
-    reserved: Decimal
-    available: Decimal
-    uncommitted: Decimal
-    risk_stop_capital: Decimal | None
-    status: WalletAssetStatus
-    is_archived: bool
-
-
-class WalletResponse(BaseModel):
-    """The one wallet belonging to a profile."""
-
-    id: int
-    profile_id: int
-    assets: list[WalletAssetResponse]
-
-
 class WalletOperationCreate(JournalInput):
     """Append a positive deposit or withdrawal request."""
 
-    wallet_asset_id: int = Field(gt=0)
     kind: WalletOperationKind
     amount: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
     note: str | None = Field(default=None, max_length=255)
@@ -160,7 +127,7 @@ class WalletOperationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    wallet_asset_id: int
+    asset_id: int
     kind: WalletOperationKind
     amount: Decimal
     note: str | None
@@ -231,7 +198,7 @@ class StrategyPatch(JournalInput):
 class StrategyCapitalCreate(JournalInput):
     """Commit fixed strategy capital from a wallet asset."""
 
-    wallet_asset_id: int = Field(gt=0)
+    asset_id: int = Field(gt=0)
     capital: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
 
 
@@ -262,7 +229,7 @@ class StrategyCapitalResponse(BaseModel):
 
     id: int
     strategy_id: int
-    wallet_asset_id: int
+    asset_id: int
     capital: Decimal
     is_archived: bool
 

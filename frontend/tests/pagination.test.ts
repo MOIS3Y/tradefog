@@ -30,7 +30,17 @@ function mountPagination(
 
 describe("optional pagination visibility", () => {
   it.each([0, 1, 24, 25])("hides %i records when enabled", (total) => {
-    mountPagination(total, 25, true);
+    mountPagination(total);
+    expect(document.querySelector("nav.pagination")).toBeNull();
+  });
+
+  it("retains navigation while a stale page is being corrected", async () => {
+    const props = mountPagination(1);
+    props.page = 2;
+    await nextTick();
+    expect(document.querySelector("nav.pagination")).not.toBeNull();
+    props.page = 1;
+    await nextTick();
     expect(document.querySelector("nav.pagination")).toBeNull();
   });
 
@@ -44,7 +54,7 @@ describe("optional pagination visibility", () => {
     expect(document.querySelector("nav.pagination")).not.toBeNull();
   });
 
-  it.each([undefined, false])("stays visible with option %s", (option) => {
+  it.each([false])("stays visible with option %s", (option) => {
     mountPagination(0, 25, option);
     expect(document.querySelector("nav.pagination")).not.toBeNull();
   });

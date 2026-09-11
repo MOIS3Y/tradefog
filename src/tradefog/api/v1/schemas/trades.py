@@ -235,14 +235,13 @@ class TradePlanningContextResponse(BaseModel):
     direction: Direction
     base_asset_id: int
     settlement_asset_id: int
-    inventory_wallet_asset_id: int | None
+    inventory_asset_id: int | None
     inventory_available: Decimal
 
 
 class ReservationResponse(BaseModel):
     """Exact required amount and availability of one virtual denomination."""
 
-    wallet_asset_id: int | None
     asset_id: int
     purpose: str
     amount: Decimal
@@ -253,7 +252,7 @@ class StoredReservationResponse(BaseModel):
     """Immutable requirements retained after release."""
 
     model_config = ConfigDict(from_attributes=True)
-    wallet_asset_id: int
+    asset_id: int
     purpose: str
     amount: Decimal
 

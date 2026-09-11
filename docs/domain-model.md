@@ -1,60 +1,45 @@
 # Domain Model
 
-## Ownership Zones
+## Ownership
 
-The domain model is divided into two distinct ownership zones:
-
-1. **Shared Reference Catalog**: Staff-managed common directory (`Asset`,
-   `TradingPair`, `Venue`, `VenueInstrument`, `VenueWalletAsset`). Regular
-   users have read-only access.
-2. **User Journal**: Owner-scoped entities (`TradingProfile`, `Wallet`,
-   `WalletAsset`, `WalletOperation`, `TradingStrategy`, `StrategyCapital`,
-   `Trade`, `TradeSnapshot`, `Attachment`).
+All trading data belongs to a user through TradingProfile.owner_id. There is
+no shared staff-managed market catalog. Child records do not duplicate owner
+fields; services validate both ownership and same-profile references.
 
 ```text
-Shared Catalog (Staff-managed)
-├── Asset                          # Reusable symbol and type (Crypto/Equity/Fiat)
-├── TradingPair                    # Canonical BASE/QUOTE market
-└── Venue                          # Exchange or Broker destination
-    ├── VenueInstrument            # Executable product/market on a venue
-    └── VenueWalletAsset           # Assets permitted in wallets on this venue
-
-User Journal (Owner-scoped via TradingProfile.owner)
-└── TradingProfile                 # Top-level trading context (bound to 1 Venue)
-    └── Wallet                     # 1:1 relation with TradingProfile
-        ├── WalletAsset            # Balance and floor for a venue-capable asset
-        │   └── WalletOperation    # Immutable deposit / withdrawal log
-        ├── TradingStrategy        # Risk % and Reward multiple
-        │   └── StrategyCapital    # Fixed capital allocated per WalletAsset
-        └── Trade                  # Trade draft, open, closed, or cancelled
-            ├── TradeSnapshot      # Write-once plan & ATR snapshot
-            └── Attachment         # Private image metadata and storage key
+User
+└── TradingProfile (bybit / manual)
+    ├── TradingAsset → WalletOperation
+    ├── TradingInstrument (base / quote / settlement)
+    ├── TradingStrategy → StrategyCapital
+    └── Trade
+        ├── TradePreparation
+        ├── TradeSnapshot → TradeReservation
+        └── Attachment
 ```
 
-`TradingProfile.owner` is the single root of ownership for all journal records.
-No child record duplicates user ownership fields.
+Bybit imports selected public instrument metadata and required assets; manual
+profiles define them themselves. Both have virtual wallets funded explicitly
+by the user. Import never creates funds or private exchange connections.
 
-## Shared Reference Catalog
-
-- **Asset**: Global identity, unique normalized symbol (e.g. `BTC`, `USD`),
-  display name, and asset type (`CRYPTO`, `EQUITY`, `FIAT`).
-- **TradingPair**: Logical market pairing one base `Asset` and one quote
-  `Asset` (`BASE/QUOTE`).
-- **Venue**: Execution destination (e.g. `Bybit`, `Interactive Brokers`).
-  Carries no market class; markets are derived from venue instruments.
-- **VenueInstrument**: Executable instrument on a specific `Venue` for a
-  `TradingPair`. Stores execution symbol, price step, quantity step, minimum
-  order size, and product kind (`SPOT`, `PERPETUAL_FUTURE`, `CASH_EQUITY`).
-- **VenueWalletAsset**: Links a `Venue` to an `Asset` capable of being held
-  in a wallet on that venue.
+Instrument identity is unique by profile, product and executable symbol.
+Its asset references must belong to the same profile; supported products use
+quote as settlement. Source availability and user archive state are separate.
+Refresh changes execution rules, not identity or historical snapshots.
+User records also carry optional contact names/email and audit timestamps;
+email is neither a unique login identity nor a verified address.
 
 ## User Journal & Capital
 
-- **TradingProfile**: Journal context bound to one `Venue`. Has an active/archived
+- **TradingProfile**: Journal context with a fixed `venue_type`. Has an active/archived
   state. Only archived profiles can be permanently deleted.
-- **Wallet**: 1:1 container of assets for a `TradingProfile`.
-- **WalletAsset**: Held balance for a `VenueWalletAsset`. Tracks current
-  balance, derived reservations, and an advisory `risk_stop_capital` floor.
+- **TradingAsset**: Profile-owned symbol, optional name, type, archive state and
+  advisory capital floor. Also the virtual account denomination. Balance,
+  allocated capital and reservations are derived, never manually overwritten.
+  Both instrument creation paths create missing assets atomically; a user may
+  also add an asset directly in manual profiles. Bybit identities come only
+  from instrument imports. No implicit funding.
+- **Wallet**: A view of profile assets, not a persisted container.
 - **WalletOperation**: Explicit ledger entries for `DEPOSIT` and `WITHDRAWAL`.
   Initial capital is represented as an initial deposit operation. Its kind,
   amount, and creation time are immutable; only its explanatory note may be
@@ -64,7 +49,7 @@ No child record duplicates user ownership fields.
   monetary size of `1R` for every allocation. `reward_multiple` is the right
   side of the canonical `1:N` ratio and is a whole number from `3` through
   `100`. The left side is always one and is never entered separately.
-- **StrategyCapital**: Fixed capital allocated from a `WalletAsset` to a
+- **StrategyCapital**: Fixed capital allocated from a `TradingAsset` to a
   `TradingStrategy`. Its amount is locked after the first submitted trade that
   uses it; a materially different risk tier requires a new strategy or
   allocation rather than rewriting history.
@@ -84,7 +69,7 @@ No child record duplicates user ownership fields.
 - **Position Sizing**: Quantity rounds down to the venue step, so executable
   monetary loss at the stop never exceeds the target `1R`.
 - **Wallet Reservations**: Moving a trade to `PENDING` or `OPEN` locks the
-  required notional capital.
+  requirements in `TradeReservation`, not a universal notional.
 
 ## Trade Lifecycle
 
@@ -102,7 +87,7 @@ CANCELLED  CANCELLED  CANCELLED
 3. **OPEN**: Order filled. Position is active.
 4. **CLOSED**: Position exited. `closed_at` and final signed net realized P&L
    in the snapshotted settlement asset are recorded.
-5. **CANCELLED**: Order cancelled before fill or aborted. Releases wallet
+5. **CANCELLED**: Draft or pending entry cancelled before fill. Open trades must close with actual P&L. Releases wallet
    reservations.
 
 ## Trade Snapshot & Invariants
@@ -116,9 +101,9 @@ immutable `TradeSnapshot`:
   notional.
 - Freezes strategy risk percent, reward multiple, allocation capital, planned
   1R risk amount, and ATR context (source and calculated value).
-- Verifies that `VenueInstrument.settlement_asset` matches the strategy's
-  settlement `WalletAsset`.
-- Verifies that available wallet balance is sufficient for required notional.
+- Verifies that `TradingInstrument.settlement_asset` matches the strategy's
+  settlement `TradingAsset`.
+- Verifies all required inventory and settlement reserves are available.
 
 After the snapshot exists, direction, checklist, ATR, and position fields are
 locked. Notes, attachments, review completion, and an optional integer quality
@@ -139,3 +124,44 @@ Trades evaluate 4 standard directional observations with fixed weights:
   in a normalized directional assessment between `-1.0` (Short) and `+1.0` (Long).
 - **Advisory Role**: Disagreement between checklist assessment and chosen trade
   direction is recorded but does not block trade execution.
+
+## Typed Preparation and Reservations
+
+TradePreparation stores nullable entry/stop, four checklist answers and ATR
+facts. Partial inputs can be saved; complete plans are validated on submission.
+Computed TP, size, checklist assessment and ATR percentages are not duplicated.
+Preparation is retained and locked after submission; snapshot and reservation
+rows are written atomically.
+
+Spot/cash long and virtual 1x perpetual reserve notional in settlement currency.
+Spot/cash short is sale of owned inventory followed by full-quantity buyback:
+reserve base quantity plus planned quote loss. Sale proceeds are never credited
+as spendable money. No separate base-asset strategy allocation is required.
+Inventory stays in the virtual balance but is unavailable until buyback.
+
+Reservation rows are immutable; only pending/open trades count toward reserved
+funds. Closing uses actual exit and net P&L exactly once, even if slippage
+exceeds the planned reserve and leaves a negative virtual balance. Commission
+and funding fields are context, not additional deductions from net P&L.
+Partial quantities and borrowed inventory are outside v1.
+Monetary reports retain exact allocation/profile/asset cohorts; cross-profile
+comparisons use dimensionless R without automatic currency aggregation.
+
+## Unified asset setup
+
+Manual instruments accept separate base and quote symbols, reusing normalized
+profile identities and requiring a type only for new assets. Bybit imports
+explicit base/quote/settlement codes; symbols are never split heuristically.
+Instrument display names derive from the pair and product; only assets have
+optional descriptive names. Settlement identity remains explicit, with the
+existing restriction that supported products settle in quote.
+
+The wallet can hide never-used zero-balance assets. Ledger operations,
+allocations and trade history keep an asset visible even after its balance
+returns to zero. Hiding is presentation only and never releases reservations.
+Archived assets cannot accept new activity; existing names and archive choices
+are never overwritten by an import. Active instruments/allocations, funds or
+reservations prevent asset archival. References prevent permanent deletion.
+
+Portfolio-wide aggregation and historical valuation are outside this change;
+no aggregate wallet table is introduced.
