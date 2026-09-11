@@ -8,6 +8,7 @@ import {
   sanitizeDrawings,
 } from "@/features/market-chart/drawings";
 import { MarketFeed } from "@/features/market-chart/feed";
+import { candleHistory } from "@/features/market-chart/history-cache";
 import { resolveMarket } from "@/features/market-chart/registry";
 import {
   MarketError,
@@ -32,6 +33,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
   reloadTokens();
+  candleHistory.clear();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -250,7 +252,7 @@ describe("market refresh lifecycle", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(
       events.candles.mock.calls[0]?.[0].map((item: Candle) => item.timestamp),
-    ).toEqual([1000, 2000, 3000, 4000]);
+    ).toEqual([2000, 3000, 4000]);
     expect(candles.mock.calls[2]?.[1].before).toBe(3000);
     feed.pause();
   });

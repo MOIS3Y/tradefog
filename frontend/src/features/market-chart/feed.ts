@@ -1,4 +1,4 @@
-/** One cancellable refresh loop shared by candles and visible depth. */
+/** Independent candle and depth streams with session-local history reuse. */
 import {
   MarketError,
   type Candle,
@@ -7,62 +7,110 @@ import {
   type MarketInstrument,
   type OrderBook,
 } from "./types";
+import { candleHistory, sameCandle, type HistoryCache } from "./history-cache";
+import { PollingLoop } from "./polling";
 
 export interface FeedEvents {
   candles: (bars: Candle[]) => void;
   book: (book: OrderBook) => void;
   status: (panel: "chart" | "book", failed: boolean) => void;
+  refreshing?: () => void;
 }
 
-/** Serialize refresh cycles, retaining provider cooldowns across restarts. */
+/** Share cooldowns, not scheduling or cancellation, between market panels. */
 export class MarketFeed {
-  private controller = new AbortController();
-  private timer?: ReturnType<typeof setTimeout>;
   private active = false;
-  private generation = 0;
-  private failures = 0;
   private cooldownUntil = 0;
-  private lastTimestamp?: number;
-  bookVisible = true;
+  private lastBar?: Candle;
+  private visibleBook = true;
+  private readonly chartLoop: PollingLoop;
+  private readonly bookLoop: PollingLoop;
+  private readonly cacheVersion: number;
 
   constructor(
     readonly adapter: MarketAdapter,
     readonly instrument: MarketInstrument,
     public timeframe: string,
     private readonly events: FeedEvents,
-  ) {}
-
-  /** Abort old work; a new generation cannot accept old responses. */
-  pause(): void {
-    this.active = false;
-    this.generation++;
-    clearTimeout(this.timer);
-    this.controller.abort();
-    this.controller = new AbortController();
+    private readonly cache: HistoryCache = candleHistory,
+  ) {
+    this.cacheVersion = cache.version;
+    this.chartLoop = new PollingLoop(
+      (signal) => this.recent(signal),
+      () => this.cooldownUntil,
+      adapter.refreshMs,
+    );
+    this.bookLoop = new PollingLoop(
+      async (signal) => {
+        if (!adapter.book) return;
+        try {
+          const book = await adapter.book(instrument, signal);
+          signal.throwIfAborted();
+          events.book(book);
+          events.status("book", false);
+        } catch (error) {
+          if (!signal.aborted) this.failed("book", error);
+          throw error;
+        }
+      },
+      () => this.cooldownUntil,
+      adapter.refreshMs,
+    );
   }
 
-  /** Resume immediately unless the provider imposed a cooldown. */
+  get bookVisible(): boolean {
+    return this.visibleBook;
+  }
+  set bookVisible(value: boolean) {
+    this.visibleBook = value;
+    if (!value) this.bookLoop.pause();
+    else if (this.active) this.bookLoop.resume();
+  }
+
+  /** Stop both streams when the market workspace is hidden or disposed. */
+  pause(): void {
+    this.active = false;
+    this.chartLoop.pause();
+    this.bookLoop.pause();
+  }
+
+  /** Retain cached drawings/history, but refresh prices on visibility return. */
   resume(): void {
     if (this.active) return;
     this.active = true;
-    this.schedule(0);
+    this.events.refreshing?.();
+    this.chartLoop.resume();
+    if (this.visibleBook) this.bookLoop.resume();
   }
 
-  /** Change only chart context, retaining the IP-level cooldown. */
+  /** Restart only candle work; the book does not depend on chart period. */
   changeTimeframe(value: string): void {
-    const active = this.active;
-    this.pause();
+    this.chartLoop.pause();
     this.timeframe = value;
-    this.lastTimestamp = undefined;
-    if (active) this.resume();
+    this.lastBar = undefined;
+    this.events.refreshing?.();
+    if (this.active) this.chartLoop.resume();
   }
 
-  /** Load strictly older history without mutating the live cursor. */
+  /** Load an initial cached range or a strictly older upstream page. */
   async history(before?: number): Promise<CandlePage> {
     if (!this.active) throw new DOMException("Market hidden", "AbortError");
+    const key = this.cache.key(
+      this.adapter.id,
+      this.instrument,
+      this.timeframe,
+    );
+    if (before === undefined) {
+      const cached = this.cache.get(key);
+      if (cached) {
+        this.lastBar = cached.bars.at(-1);
+        this.events.refreshing?.();
+        return cached;
+      }
+    }
     if (Date.now() < this.cooldownUntil)
       throw new MarketError(this.cooldownUntil - Date.now());
-    const signal = this.controller.signal;
+    const signal = this.chartLoop.signal;
     try {
       const page = (await this.adapter.candles?.(this.instrument, {
         timeframe: this.timeframe,
@@ -70,9 +118,12 @@ export class MarketFeed {
         signal,
       })) ?? { bars: [], hasMore: false };
       signal.throwIfAborted();
-      if (before === undefined)
-        this.lastTimestamp = page.bars.at(-1)?.timestamp;
-      if (before === undefined) this.events.status("chart", false);
+      if (before === undefined || this.cache.get(key))
+        this.cache.merge(key, page, this.cacheVersion);
+      if (before === undefined) {
+        this.lastBar = page.bars.at(-1);
+        this.events.status("chart", false);
+      }
       return page;
     } catch (error) {
       if (!signal.aborted) this.failed("chart", error);
@@ -80,92 +131,65 @@ export class MarketFeed {
     }
   }
 
-  /** Record throttling separately from transient exponential backoff. */
+  /** Throttling is shared; transient failures back off only their stream. */
   private failed(panel: "chart" | "book", error: unknown): void {
-    if (error instanceof MarketError) {
+    if (error instanceof MarketError)
       this.cooldownUntil = Math.max(
         this.cooldownUntil,
         Date.now() + error.retryAfterMs,
       );
-    }
     this.events.status(panel, true);
   }
 
-  /** Schedule only after completion; provider cooldown always wins. */
-  private schedule(delay: number): void {
-    if (!this.active) return;
-    this.timer = setTimeout(
-      () => void this.cycle(),
-      Math.max(delay, this.cooldownUntil - Date.now()),
-    );
-  }
-
-  /** Reconcile missed bars in bounded pages before publishing newer bars. */
+  /** Repair missed intervals before publishing only changed/new candles. */
   private async recent(signal: AbortSignal): Promise<void> {
-    if (!this.adapter.candles || this.lastTimestamp === undefined) return;
-    const collected: Candle[][] = [];
+    if (!this.adapter.candles || !this.lastBar) return;
+    const last = this.lastBar;
+    const timeframe = this.timeframe;
+    const key = this.cache.key(this.adapter.id, this.instrument, timeframe);
+    const collected = new Map<number, Candle>();
     let before: number | undefined;
-    for (;;) {
-      const { bars, hasMore } = await this.adapter.candles(this.instrument, {
-        timeframe: this.timeframe,
-        before,
-        signal,
-        limit: before === undefined ? 2 : 500,
-      });
-      signal.throwIfAborted();
-      collected.unshift(
-        bars.filter((bar) => bar.timestamp >= this.lastTimestamp!),
+    try {
+      for (;;) {
+        const { bars, hasMore } = await this.adapter.candles(this.instrument, {
+          timeframe,
+          before,
+          signal,
+          limit: before === undefined ? 2 : 500,
+        });
+        signal.throwIfAborted();
+        for (const bar of bars) {
+          if (bar.timestamp >= last.timestamp)
+            collected.set(bar.timestamp, bar);
+        }
+        const first = bars[0]?.timestamp;
+        if (!hasMore || first === undefined || first <= last.timestamp) break;
+        if (before !== undefined && first >= before) throw new MarketError();
+        before = first;
+      }
+      const bars = [...collected.values()].sort(
+        (a, b) => a.timestamp - b.timestamp,
       );
-      const first = bars[0]?.timestamp;
-      if (!hasMore || first === undefined || first <= this.lastTimestamp) break;
-      if (before !== undefined && first >= before) throw new MarketError();
-      before = first;
+      const changed = bars.filter((bar) => !sameCandle(bar, last));
+      if (bars.length) {
+        // Live updates never change the oldest cached page's continuation.
+        const cached = this.cache.get(key);
+        if (cached && changed.length)
+          this.cache.merge(
+            key,
+            {
+              bars,
+              hasMore: cached.hasMore,
+            },
+            this.cacheVersion,
+          );
+        this.lastBar = bars.at(-1)!;
+      }
+      if (changed.length) this.events.candles(changed);
+      this.events.status("chart", false);
+    } catch (error) {
+      if (!signal.aborted) this.failed("chart", error);
+      throw error;
     }
-    const bars = collected.flat();
-    if (bars.length) {
-      this.events.candles(bars);
-      this.lastTimestamp = bars.at(-1)!.timestamp;
-    }
-    this.events.status("chart", false);
-  }
-
-  /** Refresh panels independently so one failure cannot discard the other. */
-  private async cycle(): Promise<void> {
-    const generation = this.generation;
-    const signal = this.controller.signal;
-    const tasks: Promise<void>[] = [];
-    if (this.adapter.candles && this.lastTimestamp !== undefined) {
-      tasks.push(
-        this.recent(signal).catch((error) => {
-          if (!signal.aborted) this.failed("chart", error);
-          throw error;
-        }),
-      );
-    }
-    if (this.adapter.book && this.bookVisible) {
-      tasks.push(
-        this.adapter
-          .book(this.instrument, signal)
-          .then((book) => {
-            signal.throwIfAborted();
-            this.events.book(book);
-            this.events.status("book", false);
-          })
-          .catch((error) => {
-            if (!signal.aborted) this.failed("book", error);
-            throw error;
-          }),
-      );
-    }
-    const results = await Promise.allSettled(tasks);
-    if (generation !== this.generation || !this.active) return;
-    this.failures = results.some((r) => r.status === "rejected")
-      ? Math.min(this.failures + 1, 4)
-      : 0;
-    // Faster normal polling must not shorten the existing error cooldowns.
-    const delay = this.failures
-      ? Math.max(this.adapter.refreshMs, 5000) * 2 ** this.failures
-      : this.adapter.refreshMs;
-    this.schedule(Math.min(delay, 60_000));
   }
 }

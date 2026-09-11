@@ -3,7 +3,6 @@
 import {
   ArrowRight,
   Camera,
-  ChevronDown,
   ExternalLink,
   Maximize2,
   Minimize2,
@@ -11,10 +10,8 @@ import {
   MoveUpRight,
   Trash2,
 } from "@lucide/vue";
-import Decimal from "decimal.js";
 import {
   computed,
-  nextTick,
   onBeforeUnmount,
   onMounted,
   reactive,
@@ -23,12 +20,12 @@ import {
 } from "vue";
 import { useI18n } from "vue-i18n";
 import AppSelect from "@/components/AppSelect.vue";
-import { formatDecimal } from "@/utils/decimal";
 import ChartCanvas from "./ChartCanvas.vue";
+import OrderBookPanel from "./OrderBookPanel.vue";
 import { drawingTools } from "./drawings";
 import { MarketFeed } from "./feed";
 import { messages } from "./messages";
-import type { MarketAdapter, MarketInstrument, OrderBook } from "./types";
+import type { MarketAdapter, MarketInstrument } from "./types";
 
 const props = defineProps<{
   adapter: MarketAdapter;
@@ -56,23 +53,7 @@ const timeframe = ref(
 const period = computed(() =>
   props.adapter.timeframes.find((item) => item.value === timeframe.value)!,
 );
-const book = ref<OrderBook>();
-const bookSide = ref<"both" | "asks" | "bids">("both");
-const bookSides = computed(() =>
-  bookSide.value === "both" ? (["asks", "bids"] as const) : [bookSide.value],
-);
-const depthMaximum = computed(() =>
-  Decimal.max(
-    book.value?.bids.at(-1)?.total ?? "0",
-    book.value?.asks.at(-1)?.total ?? "0",
-  ),
-);
-function depthWidth(total: string): string {
-  return depthMaximum.value.isZero()
-    ? "0%"
-    : `${new Decimal(total).div(depthMaximum.value).mul(100).toNumber()}%`;
-}
-const depth = ref<HTMLElement>();
+const bookPanel = ref<InstanceType<typeof OrderBookPanel>>();
 const expanded = ref(true);
 const ready = ref(false);
 const selected = ref(false);
@@ -80,39 +61,37 @@ const clearConfirm = ref(false);
 const storageFailed = ref(false);
 const uploading = ref(false);
 const snapshotStatus = ref<"saved" | "snapshotError" | null>(null);
-const failures = reactive({ chart: false, book: false });
-const updated = reactive({ chart: 0, book: 0 });
+const failures = reactive({ chart: false });
+const refreshing = ref(true);
+const lastReceived = ref("");
+let updatedChart = 0;
 let visible = true;
 let observer: IntersectionObserver | undefined;
 const feed = new MarketFeed(props.adapter, props.instrument, timeframe.value, {
   candles: (bars) => canvas.value?.update(bars),
-  book: (value) => {
-    book.value = value;
+  book: (value) => bookPanel.value?.update(value),
+  refreshing: () => {
+    refreshing.value = true;
   },
   status: (panel, failed) => {
-    failures[panel] = failed;
-    if (!failed) updated[panel] = Date.now();
+    if (panel === "book") {
+      bookPanel.value?.status(failed);
+      return;
+    }
+    failures.chart = failed;
+    refreshing.value = false;
+    if (!failed) updatedChart = Date.now();
+    lastReceived.value =
+      failed && updatedChart
+        ? new Intl.DateTimeFormat(locale.value, {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hourCycle: "h23",
+          }).format(updatedChart)
+        : "";
   },
 });
-const spread = computed(() =>
-  book.value?.asks[0] && book.value.bids[0]
-    ? new Decimal(book.value.asks[0].price)
-        .minus(book.value.bids[0].price)
-        .toFixed()
-    : "",
-);
-
-/** Display separate successful receipt times; REST snapshots are not atomic. */
-function time(value: number): string {
-  return value
-    ? new Intl.DateTimeFormat(locale.value, {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hourCycle: "h23",
-      }).format(value)
-    : "";
-}
 
 /** Suspend network activity when the browser or entire market block is hidden. */
 function visibility(): void {
@@ -172,23 +151,14 @@ async function snapshot(): Promise<void> {
 watch(timeframe, (value) => {
   ready.value = false;
   selected.value = false;
+  failures.chart = false;
+  updatedChart = 0;
+  lastReceived.value = "";
   feed.changeTimeframe(value);
 });
 watch(expanded, (value) => {
   feed.bookVisible = value && !fullscreen.value;
 });
-watch(
-  () => !!book.value && expanded.value,
-  async (value) => {
-    if (!value) return;
-    await nextTick();
-    if (depth.value)
-      depth.value.scrollTop = Math.max(
-        0,
-        (depth.value.scrollHeight - depth.value.clientHeight) / 2,
-      );
-  },
-);
 onMounted(() => {
   document.addEventListener("fullscreenchange", fullscreenChanged);
   document.addEventListener("visibilitychange", visibility);
@@ -336,7 +306,7 @@ onBeforeUnmount(() => {
       <div class="market-chart__plot">
         <ChartCanvas
           ref="canvas"
-          :key="timeframe"
+          :style="{ visibility: ready ? 'visible' : 'hidden' }"
           :feed="feed"
           :timeframe="period"
           :chart-type="chartType"
@@ -359,7 +329,7 @@ onBeforeUnmount(() => {
       </div>
       <footer class="market-panel__status">
         <span>{{ t(storageFailed ? "storage" : "local") }}</span
-        ><time v-if="updated.chart">{{ time(updated.chart) }}</time>
+        ><span v-if="ready && refreshing">{{ t("refreshing") }}</span>
       </footer>
       <p
         v-if="failures.chart && ready"
@@ -367,6 +337,9 @@ onBeforeUnmount(() => {
         role="status"
       >
         {{ t("stale") }}
+        <span v-if="lastReceived">{{
+          t("lastUpdated", { time: lastReceived })
+        }}</span>
       </p>
       <p v-if="fullscreenFailed" class="market-panel__warning" role="status">
         {{ t("fullscreenFailed") }}
@@ -375,89 +348,13 @@ onBeforeUnmount(() => {
         {{ t(snapshotStatus) }}
       </p>
     </section>
-    <section v-if="adapter.book" class="market-book" :aria-label="t('book')">
-      <a
-        v-if="!adapter.candles"
-        class="market-text-button"
-        :href="adapter.link(instrument)"
-        target="_blank"
-        rel="noopener noreferrer"
-        >{{ t("exchange", { name: adapter.name }) }}</a
-      >
-      <button
-        type="button"
-        class="market-book__toggle"
-        :aria-expanded="expanded"
-        @click="expanded = !expanded"
-      >
-        <strong>{{ t("book") }}</strong
-        ><ChevronDown :size="15" />
-      </button>
-      <template v-if="expanded">
-        <p class="market-book__caption">{{ t("current") }}</p>
-        <div class="market-book__modes" role="group" :aria-label="t('sides')">
-          <button
-            v-for="side in ['both', 'bids', 'asks'] as const"
-            :key="side"
-            type="button"
-            :aria-pressed="bookSide === side"
-            :class="{ active: bookSide === side }"
-            @click="bookSide = side"
-          >
-            {{ t(side) }}
-          </button>
-        </div>
-        <p v-if="!book" class="market-panel__status" role="status">
-          {{ t(failures.book ? "stale" : "loading") }}
-        </p>
-        <template v-if="book">
-          <div class="market-book__labels">
-            <span>{{ t("price") }}</span
-            ><span>{{ t("size") }}</span
-            ><span>{{ t("total") }}</span>
-          </div>
-          <div ref="depth" class="market-book__depth">
-            <div
-              v-for="side in bookSides"
-              :key="side"
-              :class="`market-book__${side}`"
-            >
-              <div v-if="side === 'bids'" class="market-book__spread">
-                <span>{{ t("spread") }}</span
-                ><strong>{{ formatDecimal(spread) }}</strong>
-              </div>
-              <div
-                v-for="level in side === 'asks'
-                  ? [...book.asks].reverse()
-                  : book.bids"
-                :key="level.price"
-                class="market-book__row"
-                :style="{ '--depth-width': depthWidth(level.total) }"
-              >
-                <span :title="formatDecimal(level.price)">{{
-                  formatDecimal(level.price)
-                }}</span
-                ><span :title="formatDecimal(level.size)">{{
-                  formatDecimal(level.size)
-                }}</span
-                ><span :title="formatDecimal(level.total)">{{
-                  formatDecimal(level.total)
-                }}</span>
-              </div>
-            </div>
-          </div>
-          <footer class="market-panel__status">
-            <time>{{ time(updated.book) }}</time>
-          </footer>
-        </template>
-        <p
-          v-if="failures.book && book"
-          class="market-panel__warning"
-          role="status"
-        >
-          {{ t("stale") }}
-        </p>
-      </template>
-    </section>
+    <OrderBookPanel
+      v-if="adapter.book"
+      ref="bookPanel"
+      :has-chart="!!adapter.candles"
+      :exchange-name="adapter.name"
+      :exchange-url="adapter.link(instrument)"
+      @expanded="expanded = $event"
+    />
   </div>
 </template>

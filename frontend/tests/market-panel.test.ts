@@ -7,6 +7,7 @@ import MarketPanel from "@/features/market-chart/MarketPanel.vue";
 import { bybit } from "@/features/market-chart/bybit";
 import ChartCanvas from "@/features/market-chart/ChartCanvas.vue";
 import { MarketFeed } from "@/features/market-chart/feed";
+import { candleHistory } from "@/features/market-chart/history-cache";
 
 const fake = vi.hoisted(() => ({
   loader: undefined as DataLoader | undefined,
@@ -37,6 +38,7 @@ async function flush(): Promise<void> {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  candleHistory.clear();
   fake.symbol = { ticker: "", pricePrecision: 0, volumePrecision: 0 };
   fake.setSymbol.mockImplementation((symbol: SymbolInfo) => {
     fake.symbol = { ...symbol };
@@ -330,13 +332,17 @@ it("updates candles in place and retries screenshot upload without removing draw
   await flush();
   expect(fake.init).toHaveBeenCalledTimes(1);
   expect(root.querySelector(".market-book")).toBeNull();
+  candles.mockResolvedValue({
+    bars: [{ timestamp: 1000, open: "1", high: "2", low: "1", close: "1.5" }],
+    hasMore: false,
+  });
   await vi.advanceTimersByTimeAsync(1000);
   expect(fake.push).toHaveBeenCalledWith({
     timestamp: 1000,
     open: 1,
     high: 2,
     low: 1,
-    close: 2,
+    close: 1.5,
     volume: undefined,
     turnover: undefined,
   });

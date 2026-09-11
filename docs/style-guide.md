@@ -62,6 +62,13 @@ accents reserved for active state, selection, and primary actions.
   The same position component fills the available width for manual markets.
   Spot/cash sale-and-buyback displays inventory and cash risk reserves separately.
   Book side switches only change presentation, never request frequency.
+  Market panels have no ticking receipt clocks. Show loading or history
+  refresh states when necessary, and a separate stale-data warning for each
+  failed stream, including its last successful receipt time when available.
+  Cached history remains visibly refreshing until the live tail is checked.
+  Chart period changes preserve the canvas but hide previous-period candles
+  until replacement data is ready. Depth rows are prepared per changed
+  snapshot, independently of chart status and side selection.
 
 ## Content and States
 

@@ -74,6 +74,23 @@ optional frontend module. The SPA uses authenticated Tradefog market endpoints,
 not browser-to-exchange requests. Profile-local setup supports selected Bybit
 imports and manual specifications without a shared staff catalog. See [backend refactor](backend-refactor.md).
 
+The market UI polls candles and visible depth independently, one second after
+each stream completes. Requests within a stream never overlap; timeframe
+changes cancel only candles. Hidden work is aborted, transient failures back
+off per stream, and provider cooldowns apply to both. Late responses cannot
+update a different chart context. REST contracts and exact backend decimals
+remain unchanged.
+
+Chart periods reuse one canvas instance. A feature-local, in-memory history
+cache is keyed by provider/product/symbol/timeframe, with a ten-minute idle
+TTL, eight ranges and 20,000 candles total. LRU eviction removes whole ranges;
+oversized ranges are not cached. Returning to a period displays history first,
+then refreshes the last two candles and reconciles gaps before live updates.
+Cached data is not considered a fresh price. Logout clears the cache and
+invalidates in-flight cache writes; reload also discards it. No persistent
+browser storage or server cache is involved. Snapshot-only book rendering
+and unchanged-candle suppression keep polling out of unrelated UI updates.
+
 The optional `[frontend] path` setting identifies the directory containing
 `index.html` and compiled assets. When it is unset or invalid, the headless API
 remains available and frontend requests return a safe not-found response.

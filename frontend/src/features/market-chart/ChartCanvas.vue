@@ -33,6 +33,8 @@ let retryTimer: ReturnType<typeof setTimeout> | undefined;
 let historyFailures = 0;
 let restoring = false;
 let initializing = false;
+let generation = 0;
+let drawingsRestored = false;
 
 /** Update display precision without resetting history or the viewport. */
 function updatePrecision(bars: Candle[]): void {
@@ -226,8 +228,9 @@ async function initialize(): Promise<void> {
           return;
         }
         let running = false;
+        const context = generation;
         const load = async (): Promise<void> => {
-          if (running || disposed) return;
+          if (running || disposed || context !== generation) return;
           if (document.hidden) {
             retryTimer = setTimeout(() => void load(), 5000);
             return;
@@ -237,23 +240,30 @@ async function initialize(): Promise<void> {
             const { bars, hasMore } = await props.feed.history(
               type === "forward" ? (timestamp ?? undefined) : undefined,
             );
-            if (disposed) return;
+            if (disposed || context !== generation) return;
             updatePrecision(bars);
             callback(bars.map(visual), { forward: hasMore, backward: false });
             retryHistory = undefined;
             historyFailures = 0;
             if (type === "init") {
-              restoring = true;
-              instance.createOverlay(
-                browserDrawings.load(props.storageKey).map(overlay),
-              );
-              restoring = false;
+              if (!drawingsRestored) {
+                restoring = true;
+                instance.createOverlay(
+                  browserDrawings.load(props.storageKey).map(overlay),
+                );
+                restoring = false;
+                drawingsRestored = true;
+              }
               emit("ready");
             }
-          } catch {
-            if (disposed) return;
-            emit("failure");
+          } catch (error) {
+            if (disposed || context !== generation) return;
             retryHistory = load;
+            // Hiding a panel is not a provider failure. Visibility resume
+            // retries this loader without displaying an error or backoff.
+            if (error instanceof DOMException && error.name === "AbortError")
+              return;
+            emit("failure");
             historyFailures = Math.min(historyFailures + 1, 4);
             retryTimer = setTimeout(
               () => void load(),
@@ -291,6 +301,21 @@ async function initialize(): Promise<void> {
   }
 }
 onMounted(initialize);
+watch(
+  () => props.timeframe,
+  (period) => {
+    generation++;
+    clearTimeout(retryTimer);
+    retryHistory = undefined;
+    historyFailures = 0;
+    selectedId = undefined;
+    emit("selected", false);
+    const symbol = chart?.getSymbol();
+    if (symbol)
+      Object.assign(symbol, { pricePrecision: 0, volumePrecision: 0 });
+    chart?.setPeriod({ span: period.span, type: period.unit });
+  },
+);
 watch(locale, (value) => chart?.setLocale(value === "ru" ? "ru" : "en-US"));
 watch(
   () => props.chartType,

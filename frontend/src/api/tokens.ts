@@ -50,6 +50,7 @@ export function setTokens(tokens: TokenPair): void {
 export function clearTokens(): void {
   currentTokens = null;
   window.localStorage.removeItem(storageKey);
+  window.dispatchEvent(new Event("tradefog:session-ended"));
 }
 
 export function reloadTokens(): void {
