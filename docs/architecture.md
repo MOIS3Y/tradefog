@@ -158,10 +158,26 @@ Accounts are provisioned by the installation owner through `tradefog users`.
 `POST /auth/token` accepts OAuth2 form credentials and issues 15-minute access
 and 7-day refresh JWTs. `POST /auth/refresh` exchanges a refresh token for a
 fresh pair, and `GET /auth/me` validates an access token. A disabled account
-cannot authenticate or use a token issued before its deactivation. Refresh
-tokens have no server-side revocation list in this stage, so the old refresh
-token remains valid until it expires. Staff accounts can be provisioned with
+cannot authenticate or use a token issued before its deactivation. Password
+changes through `POST /auth/password` or the CLI increment an account credential
+version, invalidating all previous access and refresh tokens. Legacy JWTs
+without a version are accepted only while the account version is zero.
+Refresh tokens otherwise remain valid until expiry. Staff can be provisioned with
 `tradefog users create --staff`.
+
+The settings page exposes contact metadata, account language and password
+changes with current-password verification. Optional `preferred_locale` on
+`GET/PATCH /auth/me` accepts `en`, `ru` or null; null preserves the browser's
+language until the user saves a preference. Passwords use the shared 12–128
+character policy. Successful changes end the current browser session too.
+Apply Alembic migrations before starting the updated application.
+
+Swagger UI at `/docs` already supports authentication: choose **Authorize**,
+enter the account username and password, leave client ID/secret empty, and
+authorize. Try `GET /api/v1/auth/me` to verify access. Swagger uses the same
+OAuth2 password endpoint as the SPA; reauthorize after token expiry or a
+password change. SMTP, email verification/recovery and exchange API-key
+storage are not part of account settings yet.
 
 Set `TRADEFOG_AUTHENTICATION__JWT_SECRET_KEY` to a private value of at least
 32 characters before production. The bundled default exists only for local

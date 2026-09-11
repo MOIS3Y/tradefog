@@ -83,9 +83,29 @@ export interface paths {
     head?: never;
     /**
      * Update Current User
-     * @description Edit only the authenticated user's optional contact fields.
+     * @description Edit the authenticated user's contact fields and language preference.
      */
     patch: operations["update_current_user_api_v1_auth_me_patch"];
+    trace?: never;
+  };
+  "/api/v1/auth/password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Change Password
+     * @description Replace verified credentials and invalidate every previous session.
+     */
+    post: operations["change_password_api_v1_auth_password_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/api/v1/profiles/{profile_id}/assets": {
@@ -1540,6 +1560,16 @@ export interface components {
       page_size: number;
     };
     /**
+     * PasswordChange
+     * @description Verify existing credentials before replacing the password.
+     */
+    PasswordChange: {
+      /** Current Password */
+      current_password: string;
+      /** New Password */
+      new_password: string;
+    };
+    /**
      * PreparationResponse
      * @description Typed inputs retained even when the plan is incomplete.
      */
@@ -2231,7 +2261,7 @@ export interface components {
     TrendRelationship: "UNASSESSED" | "ALIGNED" | "MIXED" | "DIVERGENT";
     /**
      * UserPatch
-     * @description Only self-service contact metadata; never privilege or credentials.
+     * @description Self-service metadata and language; never privileges or credentials.
      */
     UserPatch: {
       /** First Name */
@@ -2240,6 +2270,8 @@ export interface components {
       last_name?: string | null;
       /** Email */
       email?: string | null;
+      /** Preferred Locale */
+      preferred_locale?: ("en" | "ru") | null;
     };
     /**
      * UserResponse
@@ -2260,6 +2292,8 @@ export interface components {
       last_name: string | null;
       /** Email */
       email: string | null;
+      /** Preferred Locale */
+      preferred_locale: ("en" | "ru") | null;
       /**
        * Created At
        * Format: date-time
@@ -2504,6 +2538,37 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["UserResponse"];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  change_password_api_v1_auth_password_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasswordChange"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {

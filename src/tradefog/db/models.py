@@ -61,6 +61,8 @@ class User(PrimaryKeyMixin, Base):
     first_name: Mapped[str | None] = mapped_column(String(150))
     last_name: Mapped[str | None] = mapped_column(String(150))
     email: Mapped[str | None] = mapped_column(String(254))
+    preferred_locale: Mapped[str | None] = mapped_column(String(2))
+    auth_version: Mapped[int] = mapped_column(default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )

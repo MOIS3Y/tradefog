@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
 import BrandMark from "@/components/BrandMark.vue";
-import LanguageMenu from "@/components/LanguageMenu.vue";
+import { Settings } from "@lucide/vue";
 import PositionDiagram from "@/components/PositionDiagram.vue";
 import { useAuthStore } from "@/stores/auth";
 
@@ -37,6 +37,20 @@ const navigation = computed(() => [
 const initials = computed(() =>
   (auth.user?.username ?? "TF").slice(0, 2).toUpperCase(),
 );
+
+/** Prefer personal details while retaining a localized role fallback. */
+const accountCaption = computed(() => {
+  const user = auth.user;
+  const name = [user?.first_name, user?.last_name]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+  return (
+    name ||
+    user?.email?.trim() ||
+    t(user?.is_staff ? "dashboard.staff" : "dashboard.user")
+  );
+});
 
 async function signOut(): Promise<void> {
   auth.signOut();
@@ -96,18 +110,20 @@ function closeNavigation(): void {
       </nav>
 
       <div class="sidebar__footer">
-        <LanguageMenu />
+        <RouterLink
+          to="/settings"
+          class="account-settings-link"
+          :aria-current="route.path === '/settings' ? 'page' : undefined"
+          @click="closeNavigation"
+        >
+          <Settings :size="17" aria-hidden="true" />
+          {{ t("settings.title") }}
+        </RouterLink>
         <div class="account-card">
           <span class="account-card__avatar">{{ initials }}</span>
           <span class="account-card__identity">
             <strong>{{ auth.user?.username }}</strong>
-            <small>
-              {{
-                auth.user?.is_staff
-                  ? $t("dashboard.staff")
-                  : $t("dashboard.user")
-              }}
-            </small>
+            <small :title="accountCaption">{{ accountCaption }}</small>
           </span>
           <button class="sign-out" type="button" @click="signOut">
             {{ $t("common.signOut") }}

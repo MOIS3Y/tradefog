@@ -1,5 +1,6 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
+import { setLocale } from "@/i18n";
 
 import { api } from "@/api/client";
 import { toApiError } from "@/api/errors";
@@ -22,6 +23,14 @@ export const useAuthStore = defineStore("auth", () => {
   const isAuthenticated = computed(
     () => status.value === "authenticated" && user.value !== null,
   );
+
+  /** Keep account metadata and the persisted interface language together. */
+  function acceptUser(next: User): void {
+    user.value = next;
+    if (next.preferred_locale === "en" || next.preferred_locale === "ru") {
+      setLocale(next.preferred_locale);
+    }
+  }
 
   async function loadUser(): Promise<User> {
     const { data, error, response } = await api.GET("/api/v1/auth/me");
@@ -53,7 +62,7 @@ export const useAuthStore = defineStore("auth", () => {
 
     setTokens(data as TokenPair);
     try {
-      user.value = await loadUser();
+      acceptUser(await loadUser());
       status.value = "authenticated";
     } catch (error: unknown) {
       signOut();
@@ -77,7 +86,7 @@ export const useAuthStore = defineStore("auth", () => {
 
       status.value = "loading";
       try {
-        user.value = await loadUser();
+        acceptUser(await loadUser());
         status.value = "authenticated";
       } catch {
         signOut();
@@ -95,6 +104,7 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   return {
+    acceptUser,
     bootstrap,
     isAuthenticated,
     login,

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { reloadTokens, setTokens } from "@/api/tokens";
 import { useAuthStore } from "@/stores/auth";
+import { i18n, setLocale } from "@/i18n";
 
 const tokenPair = {
   access_token: "access-token",
@@ -39,6 +40,44 @@ afterEach(() => {
 });
 
 describe("authentication flow", () => {
+  it("applies the account language on login and session restoration", async () => {
+    setLocale("en");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        jsonResponse(
+          requestUrl(input).endsWith("/token")
+            ? tokenPair
+            : { ...user, preferred_locale: "ru" },
+        ),
+      ),
+    );
+    const auth = useAuthStore();
+    await auth.login("trader", "correct-password");
+    expect(i18n.global.locale.value).toBe("ru");
+    setLocale("en");
+    setActivePinia(createPinia());
+    await useAuthStore().bootstrap();
+    expect(i18n.global.locale.value).toBe("ru");
+    expect(document.documentElement.lang).toBe("ru");
+  });
+
+  it("keeps the browser language for accounts without a preference", async () => {
+    setLocale("ru");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        jsonResponse(
+          requestUrl(input).endsWith("/token")
+            ? tokenPair
+            : { ...user, preferred_locale: null },
+        ),
+      ),
+    );
+    await useAuthStore().login("trader", "correct-password");
+    expect(i18n.global.locale.value).toBe("ru");
+  });
+
   it("exchanges credentials, loads the user, and clears the session", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = requestUrl(input);

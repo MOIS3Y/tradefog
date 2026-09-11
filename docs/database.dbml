@@ -113,6 +113,8 @@ Table users {
   id integer [pk, increment]
   username varchar(150) [unique, not null]
   password varchar(128) [not null, note: 'Hashed password']
+  preferred_locale varchar(2) [note: 'Optional en/ru interface preference']
+  auth_version integer [not null, default: 0, note: 'Credential version for JWT revocation']
   first_name varchar(150) [note: 'Optional given name']
   last_name varchar(150) [note: 'Optional family name']
   email varchar(254) [note: 'Optional nonunique contact address; not a verified identity or login']

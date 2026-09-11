@@ -122,6 +122,7 @@ async def update_user_password(username: str, password: str) -> User:
         if user is None:
             raise typer.BadParameter("User not found")
         user.password = hash_password(password)
+        user.auth_version += 1
         await session.flush()
         return user
 

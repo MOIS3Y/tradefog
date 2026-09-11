@@ -1,5 +1,7 @@
 /** Statically assembled dictionaries with unchanged global keys. */
 import encommon from "./locales/en/common";
+import ensettings from "./locales/en/settings";
+import rusettings from "./locales/ru/settings";
 import enshell from "./locales/en/shell";
 import enauth from "./locales/en/auth";
 import encatalog from "./locales/en/catalog";
@@ -20,6 +22,7 @@ import ruanalytics from "./locales/ru/analytics";
 
 export const messages = {
   en: {
+    ...ensettings,
     ...encommon,
     ...enshell,
     ...enauth,
@@ -31,6 +34,7 @@ export const messages = {
     ...enanalytics,
   },
   ru: {
+    ...rusettings,
     ...rucommon,
     ...rushell,
     ...ruauth,

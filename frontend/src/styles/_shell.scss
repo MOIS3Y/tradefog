@@ -183,6 +183,9 @@
     small {
       color: var(--tf-ink-faint);
       font-size: 0.64rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 

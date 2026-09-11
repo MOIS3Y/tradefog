@@ -14,6 +14,11 @@ import ProfilesView from "@/views/ProfilesView.vue";
 import TradesView from "@/views/TradesView.vue";
 
 const routes: RouteRecordRaw[] = [
+  {
+    path: "/settings",
+    component: () => import("@/views/SettingsView.vue"),
+    meta: { requiresAuth: true },
+  },
   { path: "/", component: DashboardView, meta: { requiresAuth: true } },
   {
     path: "/profiles",

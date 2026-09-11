@@ -57,11 +57,11 @@ async def get_current_user(
             "invalid_credentials",
             "Could not validate credentials",
         )
-    statement = select(User).where(User.id == subject)
+    statement = select(User).where(User.id == subject[0])
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         statement = statement.with_for_update()
     user = await session.scalar(statement)
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.auth_version != subject[1]:
         api_error(
             status.HTTP_401_UNAUTHORIZED,
             "invalid_credentials",

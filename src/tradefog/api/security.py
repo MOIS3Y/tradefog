@@ -33,6 +33,7 @@ def create_token(
     subject: int,
     kind: TokenKind,
     settings: AuthenticationSettings,
+    auth_version: int = 0,
 ) -> str:
     """Issue a short-lived signed JWT with an explicit token purpose."""
     now = datetime.now(UTC)
@@ -47,6 +48,7 @@ def create_token(
         "iat": now,
         "exp": now + lifetime,
         "jti": str(uuid4()),
+        "ver": auth_version,
     }
     return jwt.encode(
         claims,
@@ -59,8 +61,8 @@ def decode_token(
     token: str,
     expected_kind: TokenKind,
     settings: AuthenticationSettings,
-) -> int | None:
-    """Return a valid subject ID only when the token has the expected type."""
+) -> tuple[int, int] | None:
+    """Return subject and credential version for a valid token purpose."""
     try:
         payload = jwt.decode(
             token,
@@ -76,6 +78,9 @@ def decode_token(
         if not subject.isdecimal() or len(subject) > 19:
             return None
         identifier = int(subject)
-        return identifier if 0 < identifier <= 2**63 - 1 else None
+        version = payload.get("ver", 0)
+        if type(version) is not int or version < 0:
+            return None
+        return (identifier, version) if 0 < identifier <= 2**63 - 1 else None
     except (InvalidTokenError, ValueError, TypeError):
         return None

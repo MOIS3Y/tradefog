@@ -1,0 +1,255 @@
+/** Account settings reuse the journal palette and compact form rhythm. */
+.tf-app {
+  .account-settings-link {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.6rem;
+    color: var(--tf-ink-soft);
+    font-size: 0.85rem;
+    border-radius: var(--tf-radius-sm);
+
+    &:hover,
+    &[aria-current="page"] {
+      color: var(--tf-action);
+      background: var(--tf-action-soft);
+    }
+  }
+
+  .settings-panel {
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-lg);
+    background: var(--tf-canvas);
+    overflow: hidden;
+  }
+
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr);
+    min-height: 520px;
+  }
+
+  .settings-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 1.25rem 0.75rem;
+    border-right: 1px solid var(--tf-line);
+    background: var(--tf-panel-soft);
+  }
+
+  .settings-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.85rem;
+    border: 1px solid transparent;
+    border-radius: var(--tf-radius-sm);
+    color: var(--tf-ink-soft);
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.85rem;
+    text-align: left;
+
+    &[data-state="active"] {
+      color: var(--tf-action);
+      background: var(--tf-action-soft);
+      border-color: var(--tf-line);
+    }
+  }
+
+  .settings-content {
+    width: 100%;
+    max-width: 760px;
+    min-width: 0;
+    padding: 1.75rem 2rem 2rem;
+
+    h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    input[readonly] {
+      color: var(--tf-ink-soft);
+    }
+  }
+
+  .settings-description {
+    margin: 0.4rem 0 0;
+    color: var(--tf-ink-soft);
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  .settings-section-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .settings-section-icon {
+    display: grid;
+    flex: 0 0 44px;
+    height: 44px;
+    place-items: center;
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-md);
+    color: var(--tf-action);
+    background: var(--tf-action-soft);
+  }
+
+  .settings-content .tf-form {
+    padding: 1.4rem;
+    border: 1px solid var(--tf-line-soft);
+    border-radius: var(--tf-radius-md);
+    background: var(--tf-panel-soft);
+  }
+
+  .settings-login {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 1px solid var(--tf-line-soft);
+    color: var(--tf-ink-soft);
+    font-size: 0.8rem;
+
+    strong {
+      margin-left: auto;
+      color: var(--tf-ink);
+      font-family: var(--tf-mono);
+      font-size: 0.8rem;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .settings-field-label {
+    margin-bottom: 0.8rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .settings-languages {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    max-width: 360px;
+  }
+
+  .settings-language {
+    position: relative;
+    display: grid;
+    gap: 0.8rem;
+    padding: 1rem;
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-sm);
+    background: var(--tf-canvas);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--tf-ink-faint);
+    }
+    &:has(input:checked) {
+      border-color: var(--tf-action);
+      background: var(--tf-action-soft);
+      .settings-language-sample,
+      .settings-language-check {
+        color: var(--tf-action);
+      }
+      .settings-language-check {
+        visibility: visible;
+      }
+    }
+    &:has(input:focus-visible) {
+      outline: 2px solid var(--tf-action);
+      outline-offset: 3px;
+    }
+    &:has(input:disabled) {
+      opacity: 0.6;
+      cursor: wait;
+    }
+  }
+
+  .settings-language-sample {
+    color: var(--tf-ink-soft);
+    font-size: 1.8rem;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+  .settings-language-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  .settings-language-check {
+    position: absolute;
+    right: 0.8rem;
+    top: 0.8rem;
+    visibility: hidden;
+  }
+
+  .settings-fields {
+    display: grid;
+    min-width: 0;
+    gap: 1.2rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .settings-save {
+    justify-self: start;
+    min-height: 40px;
+    padding: 0.6rem 1rem;
+  }
+  .settings-error {
+    margin: 0;
+    color: var(--tf-danger);
+    font-size: 0.85rem;
+  }
+  .settings-notice {
+    margin: 0;
+    padding: 0.8rem 1rem;
+    border-left: 2px solid var(--tf-type-equity);
+    border-radius: var(--tf-radius-sm);
+    color: var(--tf-ink-soft);
+    background: var(--tf-panel-soft);
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 900px) {
+    .settings-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .settings-tabs {
+      flex-direction: row;
+      overflow-x: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--tf-line);
+      padding: 0.75rem;
+    }
+    .settings-tab {
+      flex-shrink: 0;
+    }
+  }
+
+  @media (max-width: 620px) {
+    .settings-content {
+      padding: 1rem;
+    }
+    .settings-content .tf-form {
+      padding: 1rem;
+    }
+    .settings-section-heading {
+      gap: 0.75rem;
+    }
+    .settings-content .form-grid--two {
+      grid-template-columns: 1fr;
+    }
+    .settings-tab {
+      gap: 0.4rem;
+      padding: 0.65rem;
+    }
+  }
+}
