@@ -50,6 +50,10 @@ accents reserved for active state, selection, and primary actions.
   immutable snapshot values receive no edit affordance after submission.
 - ATR bars share a visible 75% marker. Exceeding it is advisory and changes the
   visual warning state without blocking a discretionary draft.
+  Labels show absolute day/target ranges in quote currency before percentages.
+  ATR amounts round to two decimal places; nonzero values below 0.01 retain
+  four significant digits. Missing observations display an em dash, not zero.
+  Lifecycle dots glow only for the current status; passed steps are muted.
 - Position inputs follow stop, entry, and derived target order. The target is
   read-only; the risk map keeps stop and target labels at opposite edges and
   places entry at the exact `1:R` boundary.
@@ -88,6 +92,33 @@ accents reserved for active state, selection, and primary actions.
   badges rather than destructive styling.
 - Exact decimal strings are displayed without insignificant trailing zeroes and
   are never converted through JavaScript floating-point numbers.
+  Position results preserve every significant digit with the shared decimal
+  formatter; long values wrap rather than being truncated or approximated.
+  Inputs, calculations and persisted values retain their original precision.
+  Wide trade workspaces reserve 380–420 px for position planning. Chart types
+  use icon buttons and periods use a horizontally scrollable button strip.
+  Built-in VOL (enabled initially), MA, EMA, BOLL, RSI and MACD are optional;
+  secondary panes expand the chart rather than squeezing the price area.
+  The book centre uses the latest live candle close, with arrows indicating
+  movement since the preceding sample, not the trade aggressor side.
+  Local price grouping rounds asks up and bids down before summing volumes.
+  Up to 20 rows represent the received 50-level snapshot, not full depth.
+  A compact numeric grouping selector sits beside the book side buttons;
+  its four increments start at observed price precision, without a duplicate
+  ungrouped option. Requests and depth remain unchanged when switching.
+  Position planning is one continuous panel: prominent quantity/notional,
+  paired risk/profit and a compact list of capital facts, without table cells.
+  Manual profiles use the available width without centred gutters or a column
+  divider. Narrow containers and chart sidebars stack entry above results.
+  Result slots always remain visible, with em dashes for unavailable values.
+  Valid price geometry (target and stop distance) remains visible when sizing
+  fails; the warning states minimum quantity, required risk and risk budget.
+  This preview is never submitted as an executable plan or used for reserves.
+  The risk map sits inside results, between quantity/notional and risk/profit,
+  and can use valid preview prices. Its labels replace the separate stop-distance
+  row and wrap for long prices; entry/exit marker calculations stay unchanged.
+  Invalid draft sizing shows an explanation, never an old snapshot or an
+  executable zero-quantity plan. Positive values must be strictly above zero.
 - Trade detail shows recorded lifecycle timestamps separately from the
   analytical trade date. UTC timestamps render in local time with seconds,
   localized dates and a 24-hour clock; absent events are omitted.

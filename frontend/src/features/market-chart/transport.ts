@@ -33,7 +33,7 @@ export function cumulativeLevels(
 ): BookLevel[] {
   const Exact = Decimal.clone({ precision: 96 });
   let total = new Exact(0);
-  return levels.slice(0, 20).map((level) => {
+  return levels.map((level) => {
     total = total.plus(level.size);
     return { ...level, total: total.toFixed() };
   });

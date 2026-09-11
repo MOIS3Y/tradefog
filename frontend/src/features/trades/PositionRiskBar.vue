@@ -61,18 +61,12 @@ const exitTooltip = computed(() =>
 <template>
   <div class="position-risk-map">
     <div class="position-risk-map__labels">
-      <span
-        class="position-risk-map__price position-risk-map__price--stop"
-        :style="position(scale.stop)"
-      >
+      <span class="position-risk-map__price position-risk-map__price--stop">
         <small>{{ $t("trades.plan.stop") }}</small>
         <strong>{{ formatDecimal(stop) }}</strong>
         <em>−{{ formatDecimal(stopDistance) }}</em>
       </span>
-      <span
-        class="position-risk-map__price position-risk-map__price--target"
-        :style="position(scale.target)"
-      >
+      <span class="position-risk-map__price position-risk-map__price--target">
         <small>{{ $t("trades.plan.target") }}</small>
         <strong>{{ formatDecimal(target) }}</strong>
         <em>+{{ formatDecimal(targetDistance) }}</em>

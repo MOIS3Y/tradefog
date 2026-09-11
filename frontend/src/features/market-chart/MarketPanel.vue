@@ -2,6 +2,9 @@
 /** Optional market UI with no authority over trade planning or lifecycle. */
 import {
   ArrowRight,
+  ChartCandlestick,
+  ChartNoAxesColumn,
+  ChartLine,
   Camera,
   ExternalLink,
   Maximize2,
@@ -19,12 +22,10 @@ import {
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
-import AppSelect from "@/components/AppSelect.vue";
 import ChartCanvas from "./ChartCanvas.vue";
 import OrderBookPanel from "./OrderBookPanel.vue";
 import { drawingTools } from "./drawings";
 import { MarketFeed } from "./feed";
-import { messages } from "./messages";
 import type { MarketAdapter, MarketInstrument } from "./types";
 
 const props = defineProps<{
@@ -33,12 +34,23 @@ const props = defineProps<{
   storageKey: string;
   saveSnapshot: (file: File) => Promise<void>;
 }>();
-const { t, locale } = useI18n({ messages, useScope: "local" });
+const { t: translate, locale } = useI18n({ useScope: "global" });
+/** Resolve feature copy through the shared journal namespace. */
+const t = (key: string, values: Record<string, string> = {}) =>
+  translate("marketChart." + key, values);
 const root = ref<HTMLElement>();
 const chartRoot = ref<HTMLElement>();
 const fullscreen = ref(false);
 const fullscreenFailed = ref(false);
 const chartType = ref<"candle_solid" | "ohlc" | "area">("candle_solid");
+const indicators = ref<string[]>(["VOL"]);
+const indicatorNames = ["VOL", "MA", "EMA", "BOLL", "RSI", "MACD"];
+/** Toggle built-ins without reloading market history. */
+function toggleIndicator(name: string): void {
+  indicators.value = indicators.value.includes(name)
+    ? indicators.value.filter((item) => item !== name)
+    : [...indicators.value, name];
+}
 const chartTypes = computed(() => [
   { value: "candle_solid" as const, label: t("candles") },
   { value: "ohlc" as const, label: t("bars") },
@@ -70,6 +82,7 @@ let observer: IntersectionObserver | undefined;
 const feed = new MarketFeed(props.adapter, props.instrument, timeframe.value, {
   candles: (bars) => canvas.value?.update(bars),
   book: (value) => bookPanel.value?.update(value),
+  price: (value) => bookPanel.value?.updatePrice(value),
   refreshing: () => {
     refreshing.value = true;
   },
@@ -189,23 +202,33 @@ onBeforeUnmount(() => {
       v-if="adapter.candles"
       ref="chartRoot"
       class="market-chart"
+      :style="{
+        '--indicator-extra': `${Math.max(0, indicators.filter((name) => ['VOL', 'RSI', 'MACD'].includes(name)).length - 1) * 100}px`,
+      }"
       :aria-label="t('chart')"
     >
       <header class="market-panel__header">
         <strong>{{ instrument.symbol }}</strong>
-        <AppSelect
-          v-model="timeframe"
-          :options="adapter.timeframes"
-          :label="t('timeframe')"
-          :portal-to="chartRoot"
-        />
-        <div class="market-chart__type">
-          <AppSelect
-            v-model="chartType"
-            :options="chartTypes"
-            :label="t('chartType')"
-            :portal-to="chartRoot"
-          />
+        <div
+          class="market-chart__types"
+          role="group"
+          :aria-label="t('chartType')"
+        >
+          <button
+            v-for="(item, index) in chartTypes"
+            :key="item.value"
+            type="button"
+            class="icon-action"
+            :aria-label="item.label"
+            :title="item.label"
+            :aria-pressed="chartType === item.value"
+            @click="chartType = item.value"
+          >
+            <component
+              :is="[ChartCandlestick, ChartNoAxesColumn, ChartLine][index]"
+              :size="16"
+            />
+          </button>
         </div>
         <button
           type="button"
@@ -228,6 +251,35 @@ onBeforeUnmount(() => {
           ><ExternalLink :size="15"
         /></a>
       </header>
+      <div
+        class="market-chart__periods"
+        role="group"
+        :aria-label="t('timeframe')"
+      >
+        <button
+          v-for="item in adapter.timeframes"
+          :key="item.value"
+          type="button"
+          :aria-pressed="timeframe === item.value"
+          @click="timeframe = item.value"
+        >
+          {{ item.label }}
+        </button>
+      </div>
+      <details class="market-chart__indicators">
+        <summary>{{ t("indicators") }}</summary>
+        <div role="group" :aria-label="t('indicators')">
+          <button
+            v-for="name in indicatorNames"
+            :key="name"
+            type="button"
+            :aria-pressed="indicators.includes(name)"
+            @click="toggleIndicator(name)"
+          >
+            {{ name === "VOL" ? t("volume") : name }}
+          </button>
+        </div>
+      </details>
       <div
         class="market-chart__toolbar"
         role="toolbar"
@@ -310,6 +362,7 @@ onBeforeUnmount(() => {
           :feed="feed"
           :timeframe="period"
           :chart-type="chartType"
+          :indicators="indicators"
           :storage-key="storageKey"
           @ready="ready = true"
           @failure="failures.chart = true"

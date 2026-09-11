@@ -1,6 +1,17 @@
 /** Exact decimal presentation helpers. */
 import Decimal from "decimal.js";
 
+/** Round ATR display amounts without hiding tiny nonzero crypto ranges. */
+export function formatAtrAmount(value: string | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  const amount = new Decimal(value);
+  const rounded =
+    !amount.isZero() && amount.abs().lt("0.01")
+      ? amount.toSignificantDigits(4, Decimal.ROUND_HALF_UP)
+      : amount.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  return formatDecimal(rounded.toFixed());
+}
+
 /**
  * Remove insignificant fractional zeroes without converting the value to a
  * JavaScript number and therefore without losing decimal precision.

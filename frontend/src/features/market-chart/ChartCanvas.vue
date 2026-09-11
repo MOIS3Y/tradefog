@@ -13,6 +13,7 @@ const props = defineProps<{
   timeframe: Timeframe;
   storageKey: string;
   chartType?: "candle_solid" | "ohlc" | "area";
+  indicators?: string[];
 }>();
 const emit = defineEmits<{
   ready: [];
@@ -35,6 +36,28 @@ let restoring = false;
 let initializing = false;
 let generation = 0;
 let drawingsRestored = false;
+const activeIndicators = new Set<string>();
+
+/** Diff built-in indicators without resetting the canvas or its history. */
+function syncIndicators(): void {
+  if (!chart) return;
+  const wanted = props.indicators ?? [];
+  for (const name of activeIndicators) {
+    if (!wanted.includes(name)) {
+      chart.removeIndicator({ name });
+      activeIndicators.delete(name);
+    }
+  }
+  for (const name of wanted) {
+    if (activeIndicators.has(name)) continue;
+    const overlay = ["MA", "EMA", "BOLL"].includes(name);
+    chart.createIndicator(
+      { name, ...(overlay ? { paneId: "candle_pane" } : {}) },
+      true,
+    );
+    activeIndicators.add(name);
+  }
+}
 
 /** Update display precision without resetting history or the viewport. */
 function updatePrecision(bars: Candle[]): void {
@@ -135,6 +158,26 @@ async function initialize(): Promise<void> {
     const color = (name: string): string =>
       tokens.getPropertyValue(`--tf-${name}`).trim();
     instance.setStyles({
+      indicator: {
+        bars: [
+          {
+            upColor: color("action"),
+            downColor: color("danger"),
+            noChangeColor: color("ink-soft"),
+          },
+        ],
+        lines: ["type-equity", "type-fiat", "action", "danger"].map(
+          (token) => ({ color: color(token) }),
+        ),
+        tooltip: {
+          title: { family: "IBM Plex Mono", size: 11, color: color("ink") },
+          legend: {
+            family: "IBM Plex Mono",
+            size: 10,
+            color: color("ink-soft"),
+          },
+        },
+      },
       grid: {
         horizontal: { color: color("line") },
         vertical: { color: color("line") },
@@ -293,6 +336,7 @@ async function initialize(): Promise<void> {
       type: props.timeframe.unit,
     });
     observer = new ResizeObserver(() => instance.resize());
+    syncIndicators();
     observer.observe(root.value);
   } catch {
     emit("failure");
@@ -301,6 +345,7 @@ async function initialize(): Promise<void> {
   }
 }
 onMounted(initialize);
+watch(() => props.indicators, syncIndicators);
 watch(
   () => props.timeframe,
   (period) => {

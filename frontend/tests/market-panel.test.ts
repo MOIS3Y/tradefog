@@ -51,6 +51,8 @@ beforeEach(() => {
     },
   );
   fake.init.mockReturnValue({
+    createIndicator: vi.fn(),
+    removeIndicator: vi.fn(),
     setStyles: fake.styles,
     setThousandsSeparator: fake.separator,
     setTimezone: vi.fn(),

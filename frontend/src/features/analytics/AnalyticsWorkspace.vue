@@ -154,7 +154,7 @@ const strategyOptions = computed<SearchableOption[]>(() =>
     .map((strategy) => ({
       value: strategy.id,
       label: strategy.name,
-      detail: `1:${strategy.reward_multiple} · ${formatDecimal(
+      detail: `1:${formatDecimal(String(strategy.reward_multiple))} · ${formatDecimal(
         strategy.risk_percent,
       )}%${strategy.is_archived ? ` · ${t("analytics.filters.archived")}` : ""}`,
     })),
@@ -878,7 +878,9 @@ function openTrade(tradeId: number): void {
               </div>
             </div>
             <span class="analytics-ratio">
-              1:{{ analytics.discipline_reward_multiple }}
+              1:{{
+                formatDecimal(String(analytics.discipline_reward_multiple))
+              }}
             </span>
           </header>
           <AnalyticsChart

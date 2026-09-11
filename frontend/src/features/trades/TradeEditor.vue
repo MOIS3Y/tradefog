@@ -33,6 +33,7 @@ import {
   calculateTargetRisk,
   LocalPlanningError,
   normalizeToStep,
+  previewPosition,
 } from "@/features/trades/planning";
 import {
   cancelTrade,
@@ -55,6 +56,7 @@ import { useToastStore } from "@/stores/toasts";
 import {
   compareDecimal,
   formatDecimal,
+  formatAtrAmount,
   formatRoundedDecimal,
   isPositiveDecimal,
 } from "@/utils/decimal";
@@ -149,13 +151,48 @@ const planError = computed(() =>
     ? t("trades.errors.contextUnavailable")
     : planningResult.value.error,
 );
-const activePlan = computed(() => localPlan.value ?? props.trade.snapshot);
+const activePlan = computed(() =>
+  isDraft.value ? localPlan.value : props.trade.snapshot,
+);
+const preview = computed(() =>
+  isDraft.value && planningQuery.data.value
+    ? previewPosition(
+        planningQuery.data.value,
+        direction.value,
+        entry.value,
+        stop.value,
+      )
+    : null,
+);
+const knownContext = computed(() =>
+  isDraft.value ? planningQuery.data.value : props.trade.snapshot,
+);
+const ticketWarning = computed(() => {
+  if (!planError.value || !preview.value || !planningQuery.data.value)
+    return planError.value;
+  if (
+    compareDecimal(
+      planningQuery.data.value.target_risk_amount,
+      preview.value.minimumRisk,
+    ) >= 0
+  )
+    return planError.value;
+  return t("positionTicket.minimumRisk", {
+    quantity: formatDecimal(preview.value.minimumQuantity),
+    required: formatDecimal(preview.value.minimumRisk),
+    available: formatDecimal(planningQuery.data.value.target_risk_amount),
+    asset: settlementSymbol.value,
+  });
+});
 const target = computed(
-  () => activePlan.value?.planned_take_profit?.toString() ?? "",
+  () =>
+    activePlan.value?.planned_take_profit?.toString() ??
+    preview.value?.target ??
+    "",
 );
 const targetRisk = computed(() =>
-  localPlan.value
-    ? localPlan.value.target_risk_amount
+  isDraft.value
+    ? (planningQuery.data.value?.target_risk_amount ?? "—")
     : calculateTargetRisk(
         props.trade.snapshot?.allocation_capital,
         props.trade.snapshot?.planned_risk_percent,
@@ -171,7 +208,21 @@ const targetAtrPercent = computed(
   () =>
     localPlan.value?.take_profit_atr_percent ??
     calculateAtrUsage(
-      activePlan.value?.take_profit_distance,
+      activePlan.value?.take_profit_distance ?? preview.value?.targetDistance,
+      props.trade.atr?.value ?? props.trade.snapshot?.atr_value,
+    ),
+);
+const sessionRange = computed(
+  () =>
+    props.trade.atr?.observed_session_range ??
+    props.trade.preparation.observed_session_range ??
+    null,
+);
+const sessionAtrPercent = computed(
+  () =>
+    props.trade.atr?.session_range_percent ??
+    calculateAtrUsage(
+      sessionRange.value,
       props.trade.atr?.value ?? props.trade.snapshot?.atr_value,
     ),
 );
@@ -224,6 +275,41 @@ const capitalRemaining = computed(() =>
         quoteReservation.value,
       ),
 );
+/** Stable result slots distinguish unavailable values from genuine zeroes. */
+const ticketFacts = computed(() => [
+  {
+    label: t("positionTicket.riskBudget"),
+    value: targetRisk.value,
+    unit: settlementSymbol.value,
+  },
+
+  {
+    label: t("trades.plan.available"),
+    value: knownContext.value?.wallet_available ?? "—",
+    unit: settlementSymbol.value,
+  },
+  {
+    label: t("trades.plan.capitalRemaining"),
+    value: activePlan.value ? capitalRemaining.value : "—",
+    unit: settlementSymbol.value,
+  },
+  {
+    label: t(
+      buyback.value ? "profileMarket.lossBuffer" : "profileMarket.funding",
+    ),
+    value: activePlan.value ? quoteReservation.value : "—",
+    unit: settlementSymbol.value,
+  },
+  ...(buyback.value
+    ? [
+        {
+          label: t("profileMarket.inventory"),
+          value: activePlan.value ? inventoryReservation.value : "—",
+          unit: props.base?.symbol ?? "",
+        },
+      ]
+    : []),
+]);
 const checklistFields = [
   "market_sentiment",
   "information_background",
@@ -486,6 +572,7 @@ onBeforeUnmount(() => {
         <span
           v-for="status in ['draft', 'pending_entry', 'open', 'closed']"
           :key="status"
+          :aria-current="trade.status === status ? 'step' : undefined"
           :class="{
             active: trade.status === status,
             passed:
@@ -582,195 +669,203 @@ onBeforeUnmount(() => {
               class="trade-module__lock"
             />
           </header>
-          <div
-            v-if="isDraft"
-            class="direction-switch"
-            role="group"
-            :aria-label="$t('trades.fields.direction')"
-          >
-            <button
-              type="button"
-              :class="{ active: direction === 'long' }"
-              @click="direction = 'long'"
+          <div class="position-entry-panel">
+            <div
+              v-if="isDraft"
+              class="direction-switch"
+              role="group"
+              :aria-label="$t('trades.fields.direction')"
             >
-              {{ $t("trades.direction.long") }}
-            </button>
-            <button
-              type="button"
-              :class="{ active: direction === 'short' }"
-              @click="direction = 'short'"
-            >
-              {{ $t("trades.direction.short") }}
-            </button>
-          </div>
-          <p v-if="buyback" class="position-buyback">
-            {{ $t("profileMarket.buybackHelp") }}
-          </p>
-          <div class="position-fields">
-            <label
-              class="field field--risk"
-              :class="{ 'field--normalized': normalizedField === 'stop' }"
-              ><span>{{ $t("trades.plan.stop") }}</span
-              ><input
-                :value="stop"
-                type="number"
-                :step="instrument?.price_step ?? 'any'"
-                :disabled="!isDraft"
-                @input="handleStopInput"
-                @blur="normalizeStop"
-                @keydown.enter="normalizeStop"
-            /></label>
-            <label
-              class="field field--entry"
-              :class="{ 'field--normalized': normalizedField === 'entry' }"
-              ><span>{{ $t("trades.plan.entry") }}</span
-              ><input
-                :value="entry"
-                type="number"
-                :step="instrument?.price_step ?? 'any'"
-                :disabled="!isDraft"
-                @input="handleEntryInput"
-                @blur="normalizeEntry"
-                @keydown.enter="normalizeEntry"
-            /></label>
-            <label class="field field--reward"
-              ><span>{{ $t("trades.plan.target") }}</span
-              ><input
-                class="derived-price"
-                type="text"
-                readonly
-                :value="formatDecimal(target)"
-                :placeholder="$t('trades.plan.derivedTarget')"
-                :title="$t('trades.plan.derivedTarget')"
-            /></label>
-          </div>
-          <p v-if="planError" class="inline-warning">{{ planError }}</p>
-          <div v-if="activePlan" class="position-summary">
-            <div>
-              <small>{{ $t(`trades.plan.quantity.${direction}`) }}</small
-              ><strong>{{ formatDecimal(activePlan.quantity ?? "0") }}</strong>
+              <button
+                type="button"
+                :class="{ active: direction === 'long' }"
+                @click="direction = 'long'"
+              >
+                {{ $t("trades.direction.long") }}
+              </button>
+              <button
+                type="button"
+                :class="{ active: direction === 'short' }"
+                @click="direction = 'short'"
+              >
+                {{ $t("trades.direction.short") }}
+              </button>
             </div>
-            <div>
-              <small>{{ $t("trades.plan.targetRisk") }}</small
-              ><strong>{{ formatDecimal(targetRisk) }}</strong>
-            </div>
-            <div>
-              <small>{{ $t("trades.plan.actualRisk") }}</small
-              ><strong>{{
-                formatRoundedDecimal(activePlan.planned_risk_amount ?? "0", 4)
-              }}</strong
-              ><em>{{
-                $t("trades.plan.riskLimit", {
-                  limit: formatDecimal(targetRisk),
-                  asset: settlementSymbol,
-                })
-              }}</em>
-            </div>
-            <div>
-              <small>{{ $t("trades.plan.profit") }}</small
-              ><strong>{{ formatRoundedDecimal(plannedProfit, 4) }}</strong
-              ><em>{{ settlementSymbol }}</em>
-            </div>
-            <div>
-              <small>{{ $t("trades.plan.notional") }}</small
-              ><strong>{{
-                formatDecimal(activePlan.planned_notional ?? "0")
-              }}</strong>
-            </div>
-            <div>
-              <small>{{ $t("trades.plan.available") }}</small
-              ><strong>{{
-                formatDecimal(activePlan.wallet_available ?? "0")
-              }}</strong>
-            </div>
-            <div :class="{ 'is-negative': capitalRemaining.startsWith('-') }">
-              <small>{{ $t("trades.plan.capitalRemaining") }}</small
-              ><strong>{{ formatDecimal(capitalRemaining) }}</strong>
+            <p v-if="buyback" class="position-buyback">
+              {{ $t("profileMarket.buybackHelp") }}
+            </p>
+            <div class="position-fields">
+              <label
+                class="field field--risk"
+                :class="{ 'field--normalized': normalizedField === 'stop' }"
+                ><span>{{ $t("trades.plan.stop") }}</span
+                ><input
+                  :value="stop"
+                  type="number"
+                  :step="instrument?.price_step ?? 'any'"
+                  :disabled="!isDraft"
+                  @input="handleStopInput"
+                  @blur="normalizeStop"
+                  @keydown.enter="normalizeStop"
+              /></label>
+              <label
+                class="field field--entry"
+                :class="{ 'field--normalized': normalizedField === 'entry' }"
+                ><span>{{ $t("trades.plan.entry") }}</span
+                ><input
+                  :value="entry"
+                  type="number"
+                  :step="instrument?.price_step ?? 'any'"
+                  :disabled="!isDraft"
+                  @input="handleEntryInput"
+                  @blur="normalizeEntry"
+                  @keydown.enter="normalizeEntry"
+              /></label>
+              <label class="field field--reward"
+                ><span>{{ $t("trades.plan.target") }}</span
+                ><input
+                  class="derived-price"
+                  type="text"
+                  readonly
+                  :value="formatDecimal(target)"
+                  :placeholder="$t('trades.plan.derivedTarget')"
+                  :title="$t('trades.plan.derivedTarget')"
+              /></label>
             </div>
           </div>
-          <div
-            v-if="trade.status === 'closed' && trade.realized_pnl !== null"
-            class="trade-result"
-          >
-            <div>
-              <small>{{ $t("trades.result.title") }}</small>
-              <strong :class="`trade-result__value--${resultTone}`">
-                {{ realizedPnlDisplay }} {{ settlementSymbol }}
-              </strong>
-            </div>
-            <dl>
-              <div v-if="trade.actual_exit_price !== null">
-                <dt>{{ $t("trades.close.exit") }}</dt>
-                <dd>{{ formatDecimal(trade.actual_exit_price) }}</dd>
+          <div class="position-results-panel">
+            <div class="position-ticket__headline">
+              <div>
+                <span>{{ $t(`trades.plan.quantity.${direction}`) }}</span>
+                <strong>{{
+                  formatDecimal(activePlan?.quantity ?? "—")
+                }}</strong>
+                <small>{{ base?.symbol }}</small>
               </div>
-              <div v-if="trade.total_commission !== null">
-                <dt>{{ $t("trades.close.commission") }}</dt>
-                <dd>{{ formatDecimal(trade.total_commission) }}</dd>
+              <div>
+                <span>{{ $t("trades.plan.notional") }}</span>
+                <strong>{{
+                  formatDecimal(activePlan?.planned_notional ?? "—")
+                }}</strong>
+                <small>{{ settlementSymbol }}</small>
               </div>
-              <div v-if="trade.funding_result !== null">
-                <dt>{{ $t("trades.close.funding") }}</dt>
-                <dd>{{ formatDecimal(trade.funding_result) }}</dd>
+            </div>
+            <PositionRiskBar
+              v-if="activePlan || preview"
+              :direction="direction"
+              :entry="activePlan?.planned_entry ?? preview?.entry ?? entry"
+              :stop="activePlan?.planned_stop ?? preview?.stop ?? stop"
+              :target="activePlan?.planned_take_profit ?? target"
+              :stop-distance="
+                activePlan?.stop_distance ?? preview?.distance ?? '0'
+              "
+              :target-distance="
+                activePlan?.take_profit_distance ??
+                preview?.targetDistance ??
+                '0'
+              "
+              :exit-price="trade.actual_exit_price"
+              :realized-pnl="trade.realized_pnl"
+            />
+            <div class="position-ticket__outcome">
+              <div class="position-ticket__risk">
+                <span>{{ $t("trades.plan.actualRisk") }}</span>
+                <strong>{{
+                  formatDecimal(activePlan?.planned_risk_amount ?? "—")
+                }}</strong>
+                <small>{{ settlementSymbol }}</small>
+              </div>
+              <div class="position-ticket__profit">
+                <span>{{ $t("trades.plan.profit") }}</span>
+                <strong>{{
+                  formatDecimal(activePlan ? plannedProfit : "—")
+                }}</strong>
+                <small>{{ settlementSymbol }}</small>
+              </div>
+            </div>
+            <dl class="position-ticket__facts">
+              <div v-for="fact in ticketFacts" :key="fact.label">
+                <dt>{{ fact.label }}</dt>
+                <dd>
+                  {{ formatDecimal(fact.value) }}
+                  <small>{{ fact.unit }}</small>
+                </dd>
+              </div>
+              <div>
+                <dt>{{ $t("profileMarket.riskRule") }}</dt>
+                <dd>
+                  {{
+                    formatDecimal(knownContext?.planned_risk_percent ?? "—")
+                  }}% · 1 :
+                  {{
+                    formatDecimal(String(knownContext?.reward_multiple ?? "—"))
+                  }}
+                </dd>
+              </div>
+              <div v-if="buyback">
+                <dt>{{ $t("positionTicket.inventoryAvailable") }}</dt>
+                <dd>
+                  {{
+                    formatDecimal(
+                      isDraft
+                        ? (planningQuery.data.value?.inventory_available ?? "—")
+                        : "—",
+                    )
+                  }}
+                  {{ base?.symbol }}
+                </dd>
               </div>
             </dl>
-          </div>
-          <div
-            v-if="localPlan && !localPlan.capital_sufficient"
-            class="capital-alert"
-          >
-            <ArchiveX :size="18" />
-            <div>
-              <strong>{{ $t("trades.plan.insufficient") }}</strong
-              ><span>{{ $t("trades.plan.insufficientBody") }}</span>
+            <p
+              v-if="isDraft"
+              class="position-ticket__status"
+              :class="{ 'position-ticket__status--warning': ticketWarning }"
+              role="status"
+            >
+              {{
+                ticketWarning ||
+                (activePlan
+                  ? $t("positionTicket.preview")
+                  : $t("positionTicket.enterPrices"))
+              }}
+            </p>
+            <div
+              v-if="trade.status === 'closed' && trade.realized_pnl !== null"
+              class="trade-result"
+            >
+              <div>
+                <small>{{ $t("trades.result.title") }}</small>
+                <strong :class="`trade-result__value--${resultTone}`">
+                  {{ realizedPnlDisplay }} {{ settlementSymbol }}
+                </strong>
+              </div>
+              <dl>
+                <div v-if="trade.actual_exit_price !== null">
+                  <dt>{{ $t("trades.close.exit") }}</dt>
+                  <dd>{{ formatDecimal(trade.actual_exit_price) }}</dd>
+                </div>
+                <div v-if="trade.total_commission !== null">
+                  <dt>{{ $t("trades.close.commission") }}</dt>
+                  <dd>{{ formatDecimal(trade.total_commission) }}</dd>
+                </div>
+                <div v-if="trade.funding_result !== null">
+                  <dt>{{ $t("trades.close.funding") }}</dt>
+                  <dd>{{ formatDecimal(trade.funding_result) }}</dd>
+                </div>
+              </dl>
             </div>
-          </div>
-          <div
-            v-if="activePlan"
-            class="position-summary position-summary--reserves"
-          >
-            <div>
-              <small>{{
-                $t(
-                  buyback
-                    ? "profileMarket.lossBuffer"
-                    : "profileMarket.funding",
-                )
-              }}</small
-              ><strong
-                >{{ formatDecimal(quoteReservation) }}
-                {{ settlementSymbol }}</strong
-              >
-            </div>
-            <div v-if="buyback">
-              <small>{{ $t("profileMarket.inventory") }}</small
-              ><strong
-                >{{ formatDecimal(inventoryReservation) }}
-                {{ base?.symbol }}</strong
-              >
-              <em v-if="localPlan"
-                >{{ $t("trades.plan.available") }}:
-                {{ formatDecimal(localPlan.inventory_available) }}</em
-              >
-            </div>
-            <div>
-              <small>{{ $t("profileMarket.riskRule") }}</small
-              ><strong
-                >{{ formatDecimal(activePlan.planned_risk_percent ?? "—") }}% ·
-                1 : {{ activePlan.reward_multiple }}</strong
-              >
+            <div
+              v-if="localPlan && !localPlan.capital_sufficient"
+              class="capital-alert"
+            >
+              <ArchiveX :size="18" />
+              <div>
+                <strong>{{ $t("trades.plan.insufficient") }}</strong
+                ><span>{{ $t("trades.plan.insufficientBody") }}</span>
+              </div>
             </div>
           </div>
         </TradeMarketWorkspace>
-        <PositionRiskBar
-          v-if="activePlan"
-          :direction="direction"
-          :entry="activePlan.planned_entry ?? entry"
-          :stop="activePlan.planned_stop ?? stop"
-          :target="activePlan.planned_take_profit ?? target"
-          :stop-distance="activePlan.stop_distance ?? '0'"
-          :target-distance="activePlan.take_profit_distance ?? '0'"
-          :exit-price="trade.actual_exit_price"
-          :realized-pnl="trade.realized_pnl"
-        />
       </section>
 
       <section class="trade-module trade-module--checklist">
@@ -834,10 +929,7 @@ onBeforeUnmount(() => {
         <div v-if="trade.atr || trade.snapshot?.atr_value" class="atr-value">
           <small>ATR(14)</small
           ><strong>{{
-            formatRoundedDecimal(
-              trade.atr?.value ?? trade.snapshot?.atr_value ?? "0",
-              2,
-            )
+            formatAtrAmount(trade.atr?.value ?? trade.snapshot?.atr_value)
           }}</strong
           ><span>{{ trade.atr?.source ?? trade.snapshot?.atr_source }}</span>
         </div>
@@ -845,28 +937,48 @@ onBeforeUnmount(() => {
           <div>
             <div class="atr-bar__label">
               <span>{{ $t("trades.atr.session") }}</span
-              ><strong
-                >{{
-                  formatRoundedDecimal(
-                    trade.atr?.session_range_percent ?? "0",
-                    2,
-                  )
-                }}%</strong
-              >
+              ><strong class="atr-bar__values">
+                <span
+                  >{{ formatAtrAmount(sessionRange) }}
+                  {{ settlementSymbol }}</span
+                >
+                <span
+                  >·
+                  {{
+                    sessionAtrPercent === null
+                      ? "—"
+                      : formatRoundedDecimal(sessionAtrPercent, 2) + "%"
+                  }}</span
+                >
+              </strong>
             </div>
             <div class="atr-bar">
               <i class="atr-bar__limit"></i
-              ><span
-                :style="{ width: cssPercent(trade.atr?.session_range_percent) }"
-              ></span>
+              ><span :style="{ width: cssPercent(sessionAtrPercent) }"></span>
             </div>
           </div>
           <div>
             <div class="atr-bar__label">
               <span>{{ $t("trades.atr.target") }}</span
-              ><strong
-                >{{ formatRoundedDecimal(targetAtrPercent ?? "0", 2) }}%</strong
-              >
+              ><strong class="atr-bar__values">
+                <span
+                  >{{
+                    formatAtrAmount(
+                      activePlan?.take_profit_distance ??
+                        preview?.targetDistance,
+                    )
+                  }}
+                  {{ settlementSymbol }}</span
+                >
+                <span
+                  >·
+                  {{
+                    targetAtrPercent === null
+                      ? "—"
+                      : formatRoundedDecimal(targetAtrPercent, 2) + "%"
+                  }}</span
+                >
+              </strong>
             </div>
             <div
               class="atr-bar"
@@ -1084,5 +1196,13 @@ onBeforeUnmount(() => {
       ><span>{{ $t("trades.close.funding") }}</span
       ><input v-model="closeForm.funding_result" inputmode="decimal"
     /></label>
+    <p
+      class="position-ticket__status position-ticket__status--warning"
+      role="note"
+    >
+      <strong>{{ $t("trades.close.immutableTitle") }}</strong
+      ><br />
+      {{ $t("trades.close.immutableBody") }}
+    </p>
   </FormDialog>
 </template>

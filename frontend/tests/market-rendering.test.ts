@@ -14,6 +14,8 @@ const library = vi.hoisted(() => {
   const callback = vi.fn();
   const symbol = { ticker: "BTCUSDT", pricePrecision: 0, volumePrecision: 0 };
   const chart = {
+    createIndicator: vi.fn(),
+    removeIndicator: vi.fn(),
     setStyles: vi.fn(),
     setLocale: vi.fn(),
     setThousandsSeparator: vi.fn(),
@@ -45,7 +47,7 @@ vi.mock("klinecharts", () => ({
 let app: App | undefined;
 beforeEach(() => {
   vi.clearAllMocks();
-  document.body.innerHTML = '<div id="root"></div>';
+  document.body.innerHTML = '<div id="root" class="tf-app"></div>';
   i18n.global.locale.value = "en";
   vi.stubGlobal(
     "ResizeObserver",
@@ -63,6 +65,7 @@ afterEach(() => {
 });
 
 it("keeps one canvas and restores drawings once across periods", async () => {
+  const indicators = ref(["VOL"]);
   const page: CandlePage = {
     bars: [{ timestamp: 1, open: "1", high: "2", low: "1", close: "2" }],
     hasMore: false,
@@ -80,11 +83,27 @@ it("keeps one canvas and restores drawings once across periods", async () => {
   });
   app = createApp({
     render: () =>
-      h(ChartCanvas, { feed, timeframe: period.value, storageKey: "test" }),
+      h(ChartCanvas, {
+        feed,
+        timeframe: period.value,
+        storageKey: "test",
+        indicators: indicators.value,
+      }),
   });
   app.use(i18n).mount("#root");
   await vi.waitFor(() => expect(library.callback).toHaveBeenCalledOnce());
   const canvas = document.querySelector(".market-chart__canvas");
+  indicators.value = ["VOL", "MA", "RSI"];
+  await nextTick();
+  expect(library.chart.createIndicator).toHaveBeenCalledTimes(3);
+  expect(library.chart.createIndicator).toHaveBeenCalledWith(
+    { name: "MA", paneId: "candle_pane" },
+    true,
+  );
+  indicators.value = ["VOL", "RSI"];
+  await nextTick();
+  expect(library.chart.removeIndicator).toHaveBeenCalledWith({ name: "MA" });
+  expect(history).toHaveBeenCalledOnce();
   period.value = { value: "1h", label: "1h", span: 1, unit: "hour" };
   await nextTick();
   await vi.waitFor(() => expect(library.callback).toHaveBeenCalledTimes(2));
@@ -164,6 +183,17 @@ it("does not reformat unchanged depth on successful receipts or side switches", 
   await nextTick();
   expect(formatting).toHaveBeenCalledTimes(count);
   expect(document.querySelectorAll(".market-book__row")).toHaveLength(1);
+  panel.updatePrice("100");
+  await nextTick();
+  expect(document.querySelector(".market-book__last")?.textContent).toContain(
+    "100",
+  );
+  panel.updatePrice("101");
+  await nextTick();
+  expect(document.querySelector(".market-book__last.is-up")).not.toBeNull();
+  panel.updatePrice("99");
+  await nextTick();
+  expect(document.querySelector(".market-book__last.is-down")).not.toBeNull();
   panel.status(true);
   await nextTick();
   expect(document.body.textContent).toContain("Last updated:");

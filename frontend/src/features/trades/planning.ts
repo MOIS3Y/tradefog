@@ -71,7 +71,7 @@ export function normalizeToStep(value: string, step: string): string {
   try {
     const parsed = decimal(value);
     const tick = decimal(step);
-    if (!parsed.isPositive() || !tick.isPositive()) return value;
+    if (!parsed.gt(0) || !tick.gt(0)) return value;
     return exactString(parsed.toNearest(tick, Decimal.ROUND_HALF_UP));
   } catch {
     return value;
@@ -119,21 +119,20 @@ export function calculateAtrUsage(
   if (!targetDistance || !atrValue) return null;
   try {
     const atr = decimal(atrValue);
-    if (!atr.isPositive()) return null;
+    if (!atr.gt(0)) return null;
     return exactString(decimal(targetDistance).div(atr).mul(100));
   } catch {
     return null;
   }
 }
 
-/** Calculate the same executable plan as the backend without a network hop. */
-export function calculateLocalPosition(
+/** Price geometry is valid independently of executable position size. */
+function priceGeometry(
   context: PlanningContext,
   direction: Direction,
   rawEntry: string,
   rawStop: string,
-  atrValue?: string | null,
-): LocalPositionPlan {
+) {
   let entry: Decimal;
   let stop: Decimal;
   try {
@@ -142,7 +141,7 @@ export function calculateLocalPosition(
   } catch {
     throw new LocalPlanningError("invalidPlan");
   }
-  if (!entry.isPositive() || !stop.isPositive()) {
+  if (!entry.gt(0) || !stop.gt(0)) {
     throw new LocalPlanningError("invalidPlan");
   }
   if (direction === "long" && stop.gte(entry)) {
@@ -159,14 +158,64 @@ export function calculateLocalPosition(
     direction === "long"
       ? entry.add(targetDistance)
       : entry.sub(targetDistance);
-  if (!target.isPositive()) {
+  if (!target.gt(0)) {
     throw new LocalPlanningError("nonPositiveTarget");
   }
 
+  return { entry, stop, distance, targetDistance, target };
+}
+
+/** Non-executable preview: never used to submit or reserve capital. */
+export function previewPosition(
+  context: PlanningContext,
+  direction: Direction,
+  entry: string,
+  stop: string,
+) {
+  try {
+    const prices = priceGeometry(context, direction, entry, stop);
+    const step = decimal(context.quantity_step);
+    if (!step.gt(0)) return null;
+    const minimum = ExactDecimal.max(
+      step,
+      context.minimum_quantity ?? "0",
+      decimal(context.minimum_notional ?? "0").div(prices.entry),
+    );
+    const quantity = minimum.div(step).ceil().mul(step);
+    return {
+      target: exactString(prices.target),
+      entry: exactString(prices.entry),
+      stop: exactString(prices.stop),
+      distance: exactString(prices.distance),
+      targetDistance: exactString(prices.targetDistance),
+      minimumQuantity: exactString(quantity),
+      minimumRisk: exactString(quantity.mul(prices.distance)),
+      minimumCost: exactString(quantity.mul(prices.entry)),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Calculate the same executable plan as the backend without a network hop. */
+export function calculateLocalPosition(
+  context: PlanningContext,
+  direction: Direction,
+  rawEntry: string,
+  rawStop: string,
+  atrValue?: string | null,
+): LocalPositionPlan {
+  const { entry, stop, distance, targetDistance, target } = priceGeometry(
+    context,
+    direction,
+    rawEntry,
+    rawStop,
+  );
+  const reward = decimal(context.reward_multiple);
   const targetRisk = decimal(context.target_risk_amount);
   const quantityStep = decimal(context.quantity_step);
   const quantity = floorToStep(targetRisk.div(distance), quantityStep);
-  if (!quantity.isPositive()) {
+  if (!quantity.gt(0)) {
     throw new LocalPlanningError("quantityBelowMinimum");
   }
   if (

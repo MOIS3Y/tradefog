@@ -102,6 +102,81 @@ it("allows manual setup without exchange requests or staff catalogs", async () =
     "Base asset",
   );
 });
+it("opens instrument decimals without storage padding and preserves exact edits", async () => {
+  const instrument = {
+    id: 11,
+    profile_id: 8,
+    exec_symbol: "ABC/RUB",
+    product: "cash_equity",
+    base_asset_id: 1,
+    quote_asset_id: 2,
+    settlement_asset_id: 2,
+    base_asset_type: "equity",
+    quote_asset_type: "fiat",
+    price_step: "0.010000000000000000",
+    qty_step: "1.000000000000000000",
+    min_qty: "0.000000010000000000",
+    min_notional: "250.125000000000000000",
+    is_active: true,
+    is_archived: false,
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (request: Request) => {
+      requests.push(request);
+      const path = new URL(request.url).pathname;
+      const body = path.endsWith("/assets/1")
+        ? { id: 1, symbol: "ABC", asset_type: "equity" }
+        : path.endsWith("/assets/2")
+          ? { id: 2, symbol: "RUB", asset_type: "fiat" }
+          : request.method === "PATCH"
+            ? instrument
+            : { items: [instrument], total: 1, page: 1, page_size: 25 };
+      return new Response(JSON.stringify(body), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }),
+  );
+  mount("manual");
+  await vi.waitFor(() =>
+    expect(document.querySelector('button[aria-label="Edit"]')).not.toBeNull(),
+  );
+  document
+    .querySelector<HTMLButtonElement>('button[aria-label="Edit"]')!
+    .click();
+  await vi.waitFor(() =>
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull(),
+  );
+  const inputs = [
+    ...document.querySelectorAll<HTMLInputElement>(
+      '[role="dialog"] input[inputmode="decimal"]',
+    ),
+  ];
+  expect(inputs.map((input) => input.value)).toEqual([
+    "0.01",
+    "1",
+    "0.00000001",
+    "250.125",
+  ]);
+  inputs[2]!.value = "0.000000012345678901";
+  inputs[2]!.dispatchEvent(new Event("input", { bubbles: true }));
+  document
+    .querySelector('[role="dialog"] form')!
+    .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  await vi.waitFor(() =>
+    expect(requests.some((request) => request.method === "PATCH")).toBe(true),
+  );
+  const body = await requests
+    .find((request) => request.method === "PATCH")!
+    .clone()
+    .json();
+  expect(body).toMatchObject({
+    price_step: "0.01",
+    qty_step: "1",
+    min_qty: "0.000000012345678901",
+    min_notional: "250.125",
+  });
+});
 it("browses on demand and imports metadata without funding a wallet", async () => {
   mount("bybit");
   await vi.waitFor(() => expect(requests.length).toBe(1));

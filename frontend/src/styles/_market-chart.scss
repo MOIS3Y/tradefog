@@ -1,5 +1,90 @@
 /** Market analysis panels, namespaced with the application stylesheet. */
 .tf-app {
+  .market-book__controls {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.65rem;
+    .market-book__modes {
+      flex: 1;
+      min-width: 0;
+      padding: 0;
+      gap: 0.1rem;
+    }
+    .market-book__modes button {
+      padding: 0.25rem 0.15rem;
+      font-size: 0.6rem;
+    }
+    .market-book__grouping {
+      flex: 0 0 58px;
+      padding: 0;
+    }
+    .tf-select-trigger {
+      width: 58px;
+      min-width: 0;
+      min-height: 28px;
+      height: 28px;
+      gap: 0.2rem;
+      padding: 0.2rem 0.3rem;
+      border-radius: 5px;
+      font: 0.65rem var(--tf-mono);
+    }
+  }
+  .market-chart__types {
+    display: flex;
+  }
+  .market-chart__periods {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.2rem;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--tf-line-soft);
+  }
+  .market-chart__indicators {
+    padding: 0.3rem 0.65rem;
+    border-bottom: 1px solid var(--tf-line-soft);
+    color: var(--tf-ink-soft);
+    font-size: 0.7rem;
+    summary {
+      cursor: pointer;
+    }
+    > div {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.2rem;
+      padding-top: 0.3rem;
+    }
+  }
+  .market-chart__periods button,
+  .market-chart__indicators button {
+    flex-shrink: 0;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--tf-ink-soft);
+    font: 0.7rem var(--tf-mono);
+    cursor: pointer;
+  }
+  .market-panel button[aria-pressed="true"] {
+    color: var(--tf-action);
+    background: var(--tf-action-soft);
+    border-color: var(--tf-line);
+  }
+  .market-book__grouping {
+    padding: 0.3rem 0.65rem;
+  }
+  .market-book__last {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    &.is-up {
+      color: var(--tf-action);
+    }
+    &.is-down {
+      color: var(--tf-danger);
+    }
+  }
   .market-book__modes {
     display: flex;
     gap: 0.2rem;
@@ -160,7 +245,7 @@
       position: relative;
     }
     &__canvas {
-      height: 540px;
+      height: calc(540px + var(--indicator-extra, 0px));
       width: 100%;
       touch-action: none;
     }
@@ -248,7 +333,7 @@
       grid-template-columns: minmax(0, 1fr);
     }
     .market-chart__canvas {
-      height: 360px;
+      height: calc(360px + var(--indicator-extra, 0px));
     }
     .market-book {
       border-left: 0;

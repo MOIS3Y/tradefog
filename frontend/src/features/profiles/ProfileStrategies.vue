@@ -287,7 +287,7 @@ function openEdit(strategy: Strategy): void {
     name: strategy.name,
     description: strategy.description ?? "",
     riskPercent: formatDecimal(strategy.risk_percent),
-    rewardMultiple: strategy.reward_multiple.toString(),
+    rewardMultiple: formatDecimal(String(strategy.reward_multiple)),
   });
   strategyDialogOpen.value = true;
 }
@@ -374,7 +374,7 @@ function openAllocation(allocation: Allocation | null): void {
             ><small>{{ $t("profiles.strategies.riskPerTrade") }}</small></span
           >
           <span class="strategy-card__ratio"
-            >1 : {{ strategy.reward_multiple }}</span
+            >1 : {{ formatDecimal(String(strategy.reward_multiple)) }}</span
           >
         </button>
       </div>
@@ -436,7 +436,9 @@ function openAllocation(allocation: Allocation | null): void {
             ><ShieldCheck :size="17" /><small>{{
               $t("profiles.strategies.reward")
             }}</small
-            ><strong>1 : {{ selected.reward_multiple }}</strong></span
+            ><strong
+              >1 : {{ formatDecimal(String(selected.reward_multiple)) }}</strong
+            ></span
           >
         </div>
         <header class="allocation-heading">

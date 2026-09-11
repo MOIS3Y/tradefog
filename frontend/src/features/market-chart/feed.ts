@@ -15,6 +15,7 @@ export interface FeedEvents {
   book: (book: OrderBook) => void;
   status: (panel: "chart" | "book", failed: boolean) => void;
   refreshing?: () => void;
+  price?: (value: string) => void;
 }
 
 /** Share cooldowns, not scheduling or cancellation, between market panels. */
@@ -122,6 +123,7 @@ export class MarketFeed {
         this.cache.merge(key, page, this.cacheVersion);
       if (before === undefined) {
         this.lastBar = page.bars.at(-1);
+        if (this.lastBar) this.events.price?.(this.lastBar.close);
         this.events.status("chart", false);
       }
       return page;
@@ -186,6 +188,7 @@ export class MarketFeed {
         this.lastBar = bars.at(-1)!;
       }
       if (changed.length) this.events.candles(changed);
+      if (this.lastBar) this.events.price?.(this.lastBar.close);
       this.events.status("chart", false);
     } catch (error) {
       if (!signal.aborted) this.failed("chart", error);

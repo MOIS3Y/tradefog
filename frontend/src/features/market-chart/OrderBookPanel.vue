@@ -1,17 +1,38 @@
 <script setup lang="ts">
 /** Snapshot-only depth rendering, isolated from chart activity. */
-import { ChevronDown } from "@lucide/vue";
+import { ArrowUp, ArrowDown, ChevronDown } from "@lucide/vue";
 import Decimal from "decimal.js";
 import { computed, nextTick, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { formatDecimal } from "@/utils/decimal";
-import { messages } from "./messages";
+import AppSelect from "@/components/AppSelect.vue";
+import { groupLevels, groupingSteps } from "./grouping";
 import type { OrderBook } from "./types";
 
 defineProps<{ hasChart: boolean; exchangeName: string; exchangeUrl: string }>();
 const emit = defineEmits<{ expanded: [boolean] }>();
-const { t, locale } = useI18n({ messages, useScope: "local" });
+const { t: translate, locale } = useI18n({ useScope: "global" });
+/** Resolve feature copy through the shared journal namespace. */
+const t = (key: string, values: Record<string, string> = {}) =>
+  translate("marketChart." + key, values);
 const book = shallowRef<OrderBook>();
+const step = ref("0");
+const steps = ref<string[]>([]);
+const options = computed(() => [
+  ...steps.value.map((value) => ({ value, label: formatDecimal(value) })),
+]);
+const lastPrice = ref("");
+const displayedPrice = computed(() => formatDecimal(lastPrice.value));
+const direction = ref(0);
+
+/** Price direction is relative to the previous poll, not the aggressor side. */
+function updatePrice(value: string): void {
+  if (lastPrice.value === value) return;
+  direction.value = lastPrice.value
+    ? new Decimal(value).cmp(lastPrice.value)
+    : 0;
+  lastPrice.value = value;
+}
 const failed = ref(false);
 const lastReceived = ref("");
 const expanded = ref(true);
@@ -24,12 +45,16 @@ let updated = 0;
 
 /** Prepare exact display values only when snapshot levels change. */
 const rows = computed(() => {
+  const grouped = {
+    bids: groupLevels(book.value?.bids ?? [], step.value, "bids"),
+    asks: groupLevels(book.value?.asks ?? [], step.value, "asks"),
+  };
   const maximum = Decimal.max(
-    book.value?.bids.at(-1)?.total ?? "0",
-    book.value?.asks.at(-1)?.total ?? "0",
+    grouped.bids.at(-1)?.total ?? "0",
+    grouped.asks.at(-1)?.total ?? "0",
   );
   const prepare = (side: "asks" | "bids") =>
-    (book.value?.[side] ?? []).map((level) => ({
+    grouped[side].map((level) => ({
       price: formatDecimal(level.price),
       size: formatDecimal(level.size),
       total: formatDecimal(level.total),
@@ -46,6 +71,7 @@ const spread = computed(() =>
         .toFixed()
     : "",
 );
+const displayedSpread = computed(() => formatDecimal(spread.value));
 
 /** Receipt time is diagnostic only and does not trigger per-second renders. */
 function status(value: boolean): void {
@@ -80,6 +106,10 @@ function update(value: OrderBook): void {
         }),
     );
   if (!same) book.value = value;
+  if (!steps.value.length && (value.bids.length || value.asks.length)) {
+    steps.value = groupingSteps([...value.bids, ...value.asks]);
+    step.value = steps.value[0]!;
+  }
 }
 watch(expanded, (value) => emit("expanded", value));
 watch(
@@ -94,7 +124,7 @@ watch(
       );
   },
 );
-defineExpose({ update, status });
+defineExpose({ update, status, updatePrice });
 </script>
 
 <template>
@@ -118,17 +148,22 @@ defineExpose({ update, status });
     </button>
     <template v-if="expanded">
       <p class="market-book__caption">{{ t("current") }}</p>
-      <div class="market-book__modes" role="group" :aria-label="t('sides')">
-        <button
-          v-for="side in ['both', 'bids', 'asks'] as const"
-          :key="side"
-          type="button"
-          :aria-pressed="bookSide === side"
-          :class="{ active: bookSide === side }"
-          @click="bookSide = side"
-        >
-          {{ t(side) }}
-        </button>
+      <div class="market-book__controls">
+        <div class="market-book__modes" role="group" :aria-label="t('sides')">
+          <button
+            v-for="side in ['both', 'bids', 'asks'] as const"
+            :key="side"
+            type="button"
+            :aria-pressed="bookSide === side"
+            :class="{ active: bookSide === side }"
+            @click="bookSide = side"
+          >
+            {{ t(side) }}
+          </button>
+        </div>
+        <div v-if="steps.length" class="market-book__grouping">
+          <AppSelect v-model="step" :options="options" :label="t('grouping')" />
+        </div>
       </div>
       <p v-if="!book" class="market-panel__status" role="status">
         {{ t(failed ? "stale" : "loading") }}
@@ -145,9 +180,22 @@ defineExpose({ update, status });
             :key="side"
             :class="`market-book__${side}`"
           >
-            <div v-if="side === 'bids'" class="market-book__spread">
-              <span>{{ t("spread") }}</span
-              ><strong>{{ formatDecimal(spread) }}</strong>
+            <div
+              v-if="side === 'bids' || bookSide === 'asks'"
+              class="market-book__spread"
+            >
+              <strong
+                v-if="lastPrice"
+                class="market-book__last"
+                :class="{ 'is-up': direction > 0, 'is-down': direction < 0 }"
+                :title="t('lastPrice')"
+                :aria-label="t('lastPrice')"
+              >
+                <ArrowUp v-if="direction > 0" :size="16" />
+                <ArrowDown v-else-if="direction < 0" :size="16" />
+                {{ displayedPrice }}
+              </strong>
+              <span v-else>{{ t("spread") }} {{ displayedSpread }}</span>
             </div>
             <div
               v-for="level in rows[side]"
@@ -162,6 +210,9 @@ defineExpose({ update, status });
           </div>
         </div>
       </template>
+      <p v-if="steps.length && step !== steps[0]" class="market-panel__status">
+        {{ t("depthNote") }}
+      </p>
       <p v-if="failed && book" class="market-panel__warning" role="status">
         {{ t("stale") }}
         <span v-if="lastReceived">{{

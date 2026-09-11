@@ -362,8 +362,11 @@
     &.active {
       color: var(--tf-ink-strong);
     }
-    &.active::before,
     &.passed::before {
+      border-color: var(--tf-ink-soft);
+      background: var(--tf-ink-soft);
+    }
+    &.active::before {
       border-color: var(--tf-action);
       background: var(--tf-action);
       box-shadow: 0 0 10px rgb(53 217 144 / 45%);
@@ -524,23 +527,24 @@
     background: rgb(7 11 15 / 31%);
   }
   .position-risk-map__labels {
-    position: relative;
-    height: 36px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    min-height: 36px;
+    margin-bottom: 0.25rem;
   }
   .position-risk-map__price {
-    position: absolute;
     display: grid;
+    min-width: 0;
     gap: 0.1rem;
-    white-space: nowrap;
-    transition: left 260ms ease;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .position-risk-map__price--stop {
     text-align: left;
-    transform: translateX(0);
   }
   .position-risk-map__price--target {
     text-align: right;
-    transform: translateX(-100%);
   }
   .position-risk-map__price small {
     color: var(--tf-ink-faint);
@@ -962,10 +966,22 @@
   }
   .atr-bar__label {
     display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
     justify-content: space-between;
     margin-bottom: 0.38rem;
     color: var(--tf-ink-soft);
     font-size: 0.68rem;
+  }
+  .atr-bar__values {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    margin-left: auto;
+    font: 500 0.68rem var(--tf-mono);
+    overflow-wrap: anywhere;
   }
   .atr-bar {
     overflow: hidden;
@@ -1183,34 +1199,152 @@
       margin-bottom: 1.25rem;
     }
   }
+  .trade-market-workspace__position {
+    padding: 1.1rem;
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-md);
+    background: linear-gradient(145deg, var(--tf-panel), var(--tf-canvas));
+    .trade-module__header {
+      margin-bottom: 1.1rem;
+    }
+    .direction-switch {
+      display: grid;
+      width: 100%;
+      margin: 0 0 1rem;
+    }
+    .direction-switch button {
+      min-height: 38px;
+      font-size: 0.75rem;
+    }
+    .direction-switch button:first-child.active {
+      color: var(--tf-action);
+      background: var(--tf-action-soft);
+    }
+    .direction-switch button:last-child.active {
+      color: var(--tf-danger);
+      background: color-mix(in srgb, var(--tf-danger) 14%, transparent);
+    }
+    .position-fields {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.8rem;
+    }
+    .position-entry-panel,
+    .position-results-panel {
+      min-width: 0;
+    }
+    .position-results-panel {
+      margin-top: 1.25rem;
+    }
+  }
+  .position-ticket__headline {
+    container: position-values / inline-size;
+  }
+  .position-ticket__headline,
+  .position-ticket__outcome {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    > div {
+      min-width: 0;
+    }
+    > div > span,
+    small {
+      color: var(--tf-ink-soft);
+    }
+    > div > span {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-size: 0.65rem;
+    }
+    strong {
+      display: block;
+      overflow-wrap: anywhere;
+      font: 500 1.45rem var(--tf-mono);
+      color: var(--tf-ink-strong);
+    }
+    small {
+      font-size: 0.65rem;
+    }
+  }
+  @container position-values (max-width: 420px) {
+    .position-ticket__headline strong {
+      font-size: 0.8rem;
+    }
+  }
+  .position-ticket__outcome {
+    margin-top: 1.05rem;
+    padding: 0.8rem;
+    border-radius: var(--tf-radius-sm);
+    background: var(--tf-void);
+    strong {
+      font-size: 1.05rem;
+    }
+    .position-ticket__risk strong {
+      color: var(--tf-danger);
+    }
+    .position-ticket__profit strong {
+      color: var(--tf-action);
+    }
+  }
+  .position-ticket__facts {
+    display: grid;
+    gap: 0.55rem;
+    margin: 1rem 0 0;
+    font-size: 0.68rem;
+    > div {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    dt {
+      color: var(--tf-ink-soft);
+    }
+    dd {
+      margin: 0;
+      text-align: right;
+      color: var(--tf-ink);
+      font-family: var(--tf-mono);
+      overflow-wrap: anywhere;
+      min-width: 0;
+    }
+    small {
+      color: var(--tf-ink-faint);
+      font-size: 0.6rem;
+      margin-left: 0.35rem;
+    }
+  }
+  .position-ticket__status {
+    margin: 1rem 0 0;
+    padding: 0.75rem;
+    border-radius: var(--tf-radius-sm);
+    background: var(--tf-panel-raised);
+    color: var(--tf-ink-soft);
+    font-size: 0.7rem;
+    line-height: 1.5;
+    &--warning {
+      border-left: 2px solid var(--tf-type-equity);
+      background: color-mix(in srgb, var(--tf-type-equity) 6%, var(--tf-panel));
+      color: var(--tf-type-equity);
+    }
+  }
+  @container (min-width: 760px) {
+    .trade-market-workspace:not(.trade-market-workspace--enabled)
+      .trade-market-workspace__position {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0 2rem;
+      .trade-module__header {
+        grid-column: 1 / -1;
+      }
+      .position-results-panel {
+        margin-top: 0;
+      }
+    }
+  }
   @media (min-width: 1280px) {
     .trade-market-workspace--enabled {
-      grid-template-columns: minmax(0, 1fr) 310px;
-      .position-fields {
-        grid-template-columns: minmax(0, 1fr);
-      }
-      .direction-switch {
-        display: grid;
-      }
-      .position-summary {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-      .position-summary div {
-        grid-template-rows: auto auto auto;
-        border: 0;
-        padding: 0.65rem 0.5rem;
-      }
-      .position-summary {
-        margin-top: 0.8rem;
-        border-top: 1px solid var(--tf-line-soft);
-      }
-      .position-summary strong {
-        font-size: 0.9rem;
-      }
-      .trade-market-workspace__position {
-        padding-left: 1.25rem;
-        border-left: 1px solid var(--tf-line-soft);
-      }
+      grid-template-columns: minmax(0, 1fr) clamp(380px, 27vw, 420px);
     }
   }
 }

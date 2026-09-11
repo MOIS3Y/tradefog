@@ -648,6 +648,9 @@ const messages = {
         quickPrice: "Use planned level",
         commission: "Total commission",
         funding: "Funding result",
+        immutableTitle: "The closing result cannot be edited",
+        immutableBody:
+          "Check P&L, exit price, commission and funding before confirming. These values are final once the trade is closed; notes and review remain editable.",
       },
       result: {
         title: "Trade result",
@@ -667,7 +670,7 @@ const messages = {
         invalidShortStop: "A short stop must be above the entry.",
         nonPositiveTarget: "The calculated take profit must be positive.",
         quantityBelowMinimum:
-          "The calculated quantity is below the instrument minimum.",
+          "At the current risk, quantity is below the allowed step or instrument minimum. Check risk, stop and instrument settings.",
         notionalBelowMinimum:
           "The position is below the instrument minimum notional.",
         contextUnavailable: "Position data could not be loaded.",
@@ -1430,6 +1433,9 @@ const messages = {
         quickPrice: "Взять плановый уровень",
         commission: "Общая комиссия",
         funding: "Результат фандинга",
+        immutableTitle: "Результат закрытия нельзя будет изменить",
+        immutableBody:
+          "Перед подтверждением проверьте P&L, цену выхода, комиссию и фандинг. После закрытия эти значения фиксируются окончательно; заметки и разбор сделки можно будет редактировать.",
       },
       result: {
         title: "Результат сделки",
@@ -1449,7 +1455,8 @@ const messages = {
         invalidShortStop: "Стоп для шорта должен быть выше точки входа.",
         nonPositiveTarget:
           "Рассчитанный тейк-профит должен быть положительным.",
-        quantityBelowMinimum: "Рассчитанный объём меньше минимума инструмента.",
+        quantityBelowMinimum:
+          "При текущем риске количество меньше допустимого шага или минимума инструмента. Проверьте риск, стоп и настройки инструмента.",
         notionalBelowMinimum:
           "Размер позиции меньше минимального для инструмента.",
         contextUnavailable: "Не удалось загрузить данные для расчёта позиции.",

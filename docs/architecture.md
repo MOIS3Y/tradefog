@@ -90,6 +90,13 @@ Cached data is not considered a fresh price. Logout clears the cache and
 invalidates in-flight cache writes; reload also discards it. No persistent
 browser storage or server cache is involved. Snapshot-only book rendering
 and unchanged-candle suppression keep polling out of unrelated UI updates.
+The market feed also publishes live closing prices to the depth panel without
+an additional request; cached history alone does not update that price.
+Order book grouping consumes all 50 received levels before limiting visible
+rows to 20. Display increments derive from observed price precision, not an
+inferred exchange tick specification. Indicator toggles operate on the existing
+canvas and loaded OHLCV data. Market UI copy lives under `marketChart` in the
+shared journal translations; the feature uses the global i18n instance.
 
 The optional `[frontend] path` setting identifies the directory containing
 `index.html` and compiled assets. When it is unset or invalid, the headless API

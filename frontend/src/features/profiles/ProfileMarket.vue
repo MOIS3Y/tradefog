@@ -171,11 +171,10 @@ async function open(item: Instrument | null = null): Promise<void> {
     quote: "",
     baseType: undefined,
     quoteType: undefined,
-    price_step: item && "price_step" in item ? item.price_step : "0.01",
-    qty_step: item && "qty_step" in item ? item.qty_step : "0.001",
-    min_qty: item && "min_qty" in item ? (item.min_qty ?? "") : "",
-    min_notional:
-      item && "min_notional" in item ? (item.min_notional ?? "") : "",
+    price_step: formatDecimal(item?.price_step ?? "0.01"),
+    qty_step: formatDecimal(item?.qty_step ?? "0.001"),
+    min_qty: formatDecimal(item?.min_qty ?? ""),
+    min_notional: formatDecimal(item?.min_notional ?? ""),
   });
   if (item && manual.value) {
     try {
