@@ -180,7 +180,7 @@ const criteria = computed<TradeListParams>(() => {
     q: text("q"),
     page: page.value,
     page_size: pageSize.value,
-    sort: text("sort", "trade_date"),
+    sort: text("sort", "id"),
     order: text("order") === "asc" ? "asc" : "desc",
     trade_status:
       status.value === "all"
@@ -250,6 +250,7 @@ const emptyKind = computed(() => {
   return presence.data.value?.total ? "archivedProfiles" : "start";
 });
 const columns = [
+  ["id", "trades.fields.id"],
   ["trade_date", "trades.fields.date"],
   ["instrument", "trades.fields.instrument"],
   ["profile", "trades.fields.profile"],
@@ -263,14 +264,14 @@ function sort(key: string): void {
       page: undefined,
       sort: key,
       order:
-        text("sort", "trade_date") === key && text("order", "desc") === "desc"
+        text("sort", "id") === key && text("order", "desc") === "desc"
           ? "asc"
           : "desc",
     },
   });
 }
 function active(key: string): "asc" | "desc" | null {
-  return text("sort", "trade_date") === key
+  return text("sort", "id") === key
     ? text("order", "desc") === "asc"
       ? "asc"
       : "desc"
@@ -460,6 +461,7 @@ const advancedOpen = ref(advancedCount.value > 0);
           </thead>
           <tbody>
             <tr v-for="trade in query.data.value?.items" :key="trade.id">
+              <td :data-label="$t('trades.fields.id')">#{{ trade.id }}</td>
               <td :data-label="$t('trades.fields.date')">
                 <time>{{ trade.trade_date }}</time>
               </td>

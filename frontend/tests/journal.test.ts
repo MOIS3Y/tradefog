@@ -157,6 +157,28 @@ describe("paginated journal", () => {
     reset.click();
     await vi.waitFor(() => expect(router.currentRoute.value.query).toEqual({}));
     expect(more.textContent).not.toContain("(1)");
+    expect(document.querySelector(".journal-table tbody td")?.textContent).toBe(
+      "#7",
+    );
+    await vi.waitFor(() =>
+      expect(
+        requests.some(
+          (url) =>
+            url.pathname === "/api/v1/trades" &&
+            url.searchParams.get("sort") === "id" &&
+            url.searchParams.get("order") === "desc",
+        ),
+      ).toBe(true),
+    );
+    const idHeader = document.querySelector(".journal-table th")!;
+    expect(idHeader.getAttribute("aria-sort")).toBe("descending");
+    idHeader.querySelector("button")!.click();
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.query).toMatchObject({
+        sort: "id",
+        order: "asc",
+      }),
+    );
   });
 
   it("resolves a selected asset outside the first option page", async () => {

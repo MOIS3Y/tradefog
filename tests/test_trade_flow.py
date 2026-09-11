@@ -108,6 +108,39 @@ async def draft(
     return response.json()
 
 
+async def test_trade_sorting_by_id_and_date(
+    profile_client: AsyncClient,
+) -> None:
+    """Default to newest IDs and keep backdated trades in date order."""
+    client = profile_client
+    market = await setup_market(client)
+    identifiers = []
+    for trade_date in ("2026-09-10", "2026-09-10", "2026-09-09"):
+        trade = await post(
+            client,
+            "/trades",
+            {
+                "profile_id": market["profile"]["id"],
+                "strategy_id": market["strategy"]["id"],
+                "instrument_id": market["instrument"]["id"],
+                "trade_date": trade_date,
+                "direction": "long",
+            },
+        )
+        identifiers.append(trade["id"])
+    first, second, backdated = identifiers
+    for params, expected in (
+        ({}, [backdated, second, first]),
+        ({"sort": "id", "order": "desc"}, [backdated, second, first]),
+        ({"sort": "id", "order": "asc"}, [first, second, backdated]),
+        ({"sort": "trade_date", "order": "desc"}, [second, first, backdated]),
+        ({"sort": "trade_date", "order": "asc"}, [backdated, first, second]),
+    ):
+        response = await client.get("/api/v1/trades", params=params)
+        assert response.status_code == 200, response.text
+        assert [row["id"] for row in response.json()["items"]] == expected
+
+
 @pytest.mark.parametrize(
     "product,direction,reserved,inventory",
     [

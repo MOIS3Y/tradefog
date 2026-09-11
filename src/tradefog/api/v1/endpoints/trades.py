@@ -295,6 +295,7 @@ async def list_trades(
         statement,
         query,
         {
+            "id": Trade.id,
             "trade_date": Trade.trade_date,
             "instrument": TradingInstrument.exec_symbol,
             "profile": TradingProfile.name,
@@ -304,8 +305,10 @@ async def list_trades(
             "quality_rating": Trade.quality_rating,
             "review_completed_at": Trade.review_completed_at,
         },
-        "trade_date",
-        Trade.id,
+        "id",
+        Trade.id.desc()
+        if query.sort == "trade_date" and query.order == "desc"
+        else Trade.id,
     )
     rows = []
     for trade in items:
