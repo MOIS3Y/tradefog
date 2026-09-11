@@ -40,6 +40,8 @@ const library = vi.hoisted(() => {
   return { state, callback, chart, init: vi.fn(() => chart), dispose: vi.fn() };
 });
 vi.mock("klinecharts", () => ({
+  getOverlayClass: () => null,
+  registerOverlay: vi.fn(),
   init: library.init,
   dispose: library.dispose,
   registerLocale: vi.fn(),

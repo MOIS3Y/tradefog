@@ -21,6 +21,8 @@ const fake = vi.hoisted(() => ({
   setSymbol: vi.fn(),
 }));
 vi.mock("klinecharts", () => ({
+  getOverlayClass: () => null,
+  registerOverlay: vi.fn(),
   init: fake.init,
   dispose: fake.dispose,
   registerLocale: vi.fn(),

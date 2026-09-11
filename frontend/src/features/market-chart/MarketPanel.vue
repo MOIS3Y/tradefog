@@ -9,9 +9,6 @@ import {
   ExternalLink,
   Maximize2,
   Minimize2,
-  Minus,
-  MoveUpRight,
-  Trash2,
 } from "@lucide/vue";
 import {
   computed,
@@ -24,7 +21,8 @@ import {
 import { useI18n } from "vue-i18n";
 import ChartCanvas from "./ChartCanvas.vue";
 import OrderBookPanel from "./OrderBookPanel.vue";
-import { drawingTools } from "./drawings";
+import DrawingToolbar from "./DrawingToolbar.vue";
+import type { DrawingSelection, DrawingTool } from "./drawings";
 import { MarketFeed } from "./feed";
 import type { MarketAdapter, MarketInstrument } from "./types";
 
@@ -68,7 +66,16 @@ const period = computed(() =>
 const bookPanel = ref<InstanceType<typeof OrderBookPanel>>();
 const expanded = ref(true);
 const ready = ref(false);
-const selected = ref(false);
+const selected = ref<DrawingSelection | null>(null);
+const activeDrawing = ref<DrawingTool | null>(null);
+const textRequest = ref<{ text: string } | null>(null);
+const drawingLimit = ref(false);
+
+/** Complete or cancel text editing at the canvas boundary. */
+function finishText(value: string | null): void {
+  canvas.value?.finishText(value);
+  textRequest.value = null;
+}
 const clearConfirm = ref(false);
 const storageFailed = ref(false);
 const uploading = ref(false);
@@ -163,7 +170,7 @@ async function snapshot(): Promise<void> {
 
 watch(timeframe, (value) => {
   ready.value = false;
-  selected.value = false;
+  selected.value = null;
   failures.chart = false;
   updatedChart = 0;
   lastReceived.value = "";
@@ -286,33 +293,6 @@ onBeforeUnmount(() => {
         :aria-label="t('chart')"
       >
         <button
-          v-for="tool in drawingTools"
-          :key="tool"
-          type="button"
-          class="icon-action"
-          :disabled="!ready"
-          :title="t(tool)"
-          :aria-label="t(tool)"
-          @click="canvas?.draw(tool)"
-        >
-          <Minus v-if="tool.startsWith('horizontal')" :size="16" /><MoveUpRight
-            v-else
-            :size="16"
-          /><small v-if="tool.endsWith('RayLine') || tool === 'rayLine'"
-            >→</small
-          >
-        </button>
-        <button
-          type="button"
-          class="icon-action"
-          :disabled="!selected"
-          :title="t('remove')"
-          :aria-label="t('remove')"
-          @click="canvas?.remove()"
-        >
-          <Trash2 :size="15" />
-        </button>
-        <button
           type="button"
           class="market-text-button"
           :disabled="!ready"
@@ -355,31 +335,54 @@ onBeforeUnmount(() => {
           {{ t("cancel") }}
         </button>
       </div>
-      <div class="market-chart__plot">
-        <ChartCanvas
-          ref="canvas"
-          :style="{ visibility: ready ? 'visible' : 'hidden' }"
-          :feed="feed"
-          :timeframe="period"
-          :chart-type="chartType"
-          :indicators="indicators"
-          :storage-key="storageKey"
-          @ready="ready = true"
-          @failure="failures.chart = true"
-          @storage-failure="storageFailed = true"
-          @selected="selected = $event"
+      <div class="market-chart__drawing-area">
+        <DrawingToolbar
+          :ready="ready"
+          :selected="selected"
+          :active="activeDrawing"
+          :text-request="textRequest"
+          @draw="canvas?.draw($event)"
+          @cancel="canvas?.cancelDrawing()"
+          @color="canvas?.setColor($event)"
+          @remove="canvas?.remove()"
+          @edit-text="canvas?.editText()"
+          @finish-text="finishText"
         />
-        <p v-if="!ready" class="market-chart__loading" role="status">
-          {{ t(failures.chart ? "failed" : "loading")
-          }}<button
-            v-if="failures.chart"
-            class="market-text-button"
-            @click="canvas?.retry()"
-          >
-            {{ t("retry") }}
-          </button>
-        </p>
+        <div class="market-chart__plot">
+          <ChartCanvas
+            ref="canvas"
+            :style="{ visibility: ready ? 'visible' : 'hidden' }"
+            :feed="feed"
+            :timeframe="period"
+            :chart-type="chartType"
+            :indicators="indicators"
+            :storage-key="storageKey"
+            @ready="ready = true"
+            @failure="failures.chart = true"
+            @storage-failure="storageFailed = true"
+            @selected="selected = $event"
+            @drawing="activeDrawing = $event"
+            @text-request="textRequest = { text: $event }"
+            @limit="drawingLimit = true"
+          />
+          <p v-if="!ready" class="market-chart__loading" role="status">
+            {{ t(failures.chart ? "failed" : "loading")
+            }}<button
+              v-if="failures.chart"
+              class="market-text-button"
+              @click="canvas?.retry()"
+            >
+              {{ t("retry") }}
+            </button>
+          </p>
+        </div>
       </div>
+      <p v-if="drawingLimit" class="market-panel__warning" role="status">
+        {{ t("drawingLimit") }}
+        <button class="market-text-button" @click="drawingLimit = false">
+          {{ t("dismiss") }}
+        </button>
+      </p>
       <footer class="market-panel__status">
         <span>{{ t(storageFailed ? "storage" : "local") }}</span
         ><span v-if="ready && refreshing">{{ t("refreshing") }}</span>

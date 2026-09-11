@@ -125,13 +125,31 @@ cross-tab coordination is needed in the first increment.
 
 ## Drawing and Screenshots
 
-Provide horizontal levels and rays, trend segments and sloped rays, deletion
-of selected drawings, and clear-all. Drawings never modify the saved position.
-A custom Long/Short Position drawing is deferred.
+Provide all 15 built-in step-based overlays, grouped as lines, channels,
+Fibonacci, and labels. The left drawing rail remembers each group's last
+choice during the session. At widths up to 620 px, a Drawing button reveals
+the controls. Brush and a custom Long/Short Position drawing are deferred.
+Drawings never modify the saved position.
+
+Choose a palette or custom HEX color for the selected drawing and subsequent
+drawings. Lines, text and pointers share the foreground color; label
+backgrounds retain contrast. Text annotations and level labels ask for up to
+200 single-line characters after placement and support later editing.
+Cancelling new text removes only that new annotation. Escape or changing
+tools cancels unfinished geometry. Completed drawings remain editable and
+can be deleted individually or cleared with confirmation.
+Delete removes the selected drawing when focus is on the chart or page;
+text inputs, dialogs and controls outside the chart retain their own keys.
+The chart enables pointer events on the built-in text figures so labels can
+be selected, moved, recolored and edited after restoration.
 
 Retain a bounded, versioned set of drawings locally in the browser, scoped to
-user, trade, and instrument. Store supported types and time/price anchors,
-not library runtime objects; apply theme styles on restoration. Preserve
+user, trade, and instrument. Version 2 stores supported types, one to three
+time/price anchors, HEX color and optional text, not library runtime objects.
+Read version 1 under the same key using the original blue drawing color;
+upgrade on the next save. Bound each document to 100 drawings and 128 KiB.
+Save completed changes only; storage failures leave the visible chart usable.
+Menus and text dialogs stay inside the fullscreen chart subtree. Preserve
 drawings across
 timeframe changes, reloads, and trade closure. Local storage is best-effort:
 clearing browser data loses drawings; they are not synchronized across

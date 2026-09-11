@@ -296,4 +296,42 @@ describe("local drawing store", () => {
     });
     expect(browserDrawings.save("key", [drawing])).toBe(false);
   });
+
+  it("round-trips channels and text styles and upgrades legacy drawings", () => {
+    const points = [
+      { timestamp: 1000, value: 42 },
+      { timestamp: 2000, value: 43 },
+      { timestamp: 3000, value: 40 },
+    ];
+    const drawings = [
+      { name: "priceChannelLine", points, color: "#F16E76" },
+      {
+        name: "simpleAnnotation",
+        points: points.slice(0, 1),
+        color: "#e7edf2",
+        text: "Уровень <test>",
+      },
+    ];
+    expect(browserDrawings.save("v2", drawings)).toBe(true);
+    expect(browserDrawings.load("v2")).toEqual(sanitizeDrawings(drawings));
+    expect(JSON.parse(localStorage.getItem("v2")!).version).toBe(2);
+    localStorage.setItem(
+      "v1",
+      JSON.stringify({
+        version: 1,
+        drawings: [{ name: "segment", points: points.slice(0, 2) }],
+      }),
+    );
+    expect(browserDrawings.load("v1")[0]?.color).toBe("#6aafff");
+    expect(
+      sanitizeDrawings([
+        { ...drawings[0], points: points.slice(0, 2) },
+        { ...drawings[0], color: "url(invalid)" },
+        { ...drawings[1], text: "x".repeat(201) },
+        { ...drawings[1], text: " " },
+        { ...drawings[1], text: "a\nb" },
+        { ...drawings[0], name: "brush" },
+      ]),
+    ).toEqual([]);
+  });
 });

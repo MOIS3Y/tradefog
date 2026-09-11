@@ -1,5 +1,212 @@
 /** Market analysis panels, namespaced with the application stylesheet. */
 .tf-app {
+  .market-chart__drawing-area {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    .market-chart__plot {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+  .drawing-toolbar {
+    flex: 0 0 48px;
+    border-right: 1px solid var(--tf-line-soft);
+    background: var(--tf-canvas);
+    &__controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 2px;
+    }
+    &__mobile {
+      display: none;
+    }
+    &__group {
+      display: flex;
+      align-items: center;
+    }
+    &__arrow {
+      display: grid;
+      place-items: center;
+      padding: 0;
+      width: 14px;
+      height: 32px;
+      border: 0;
+      color: var(--tf-ink-soft);
+      background: transparent;
+      cursor: pointer;
+    }
+    button[aria-pressed="true"] {
+      background: var(--tf-action-soft);
+      color: var(--tf-action);
+    }
+  }
+  .drawing-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid var(--tf-ink-soft);
+  }
+  .drawing-menu {
+    position: relative;
+    z-index: 40;
+    max-height: min(70vh, 400px);
+    overflow-y: auto;
+    max-width: calc(100vw - 28px);
+    padding: 6px;
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-sm);
+    background: var(--tf-panel-raised);
+    color: var(--tf-ink);
+    box-shadow: var(--tf-shadow);
+    font-size: 0.75rem;
+    &__item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      &[data-highlighted] {
+        outline: none;
+        background: var(--tf-action-soft);
+      }
+    }
+  }
+  .drawing-palette {
+    width: 200px;
+    padding: 12px;
+    p {
+      margin: 0 0 10px;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    input[type="color"] {
+      appearance: none;
+      width: 38px;
+      height: 32px;
+      padding: 3px;
+      border: 1px solid var(--tf-line);
+      border-radius: var(--tf-radius-sm);
+      background: transparent;
+      cursor: pointer;
+      overflow: hidden;
+      &::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+      &::-webkit-color-swatch {
+        border: 0;
+        border-radius: 5px;
+      }
+      &::-moz-color-swatch {
+        border: 0;
+        border-radius: 5px;
+      }
+      &:focus-visible {
+        outline: 2px solid var(--tf-action);
+        outline-offset: 2px;
+      }
+    }
+    &__swatches {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 12px;
+      button {
+        width: 24px;
+        height: 24px;
+        border: 1px solid var(--tf-line);
+        border-radius: 50%;
+        cursor: pointer;
+      }
+      button[aria-pressed="true"] {
+        outline: 2px solid var(--tf-ink);
+        outline-offset: 2px;
+      }
+    }
+  }
+  .drawing-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: rgb(0 0 0 / 45%);
+  }
+  .drawing-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 81;
+    width: min(380px, calc(100vw - 28px));
+    padding: 20px;
+    background: var(--tf-panel-raised);
+    color: var(--tf-ink);
+    border: 1px solid var(--tf-line);
+    border-radius: var(--tf-radius-md);
+    box-shadow: var(--tf-shadow);
+    h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+    p {
+      font-size: 0.8rem;
+      color: var(--tf-ink-soft);
+    }
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.8rem;
+    }
+    input {
+      width: 100%;
+      min-height: 40px;
+      padding: 8px;
+      background: var(--tf-canvas);
+      color: var(--tf-ink);
+      border: 1px solid var(--tf-line);
+      border-radius: var(--tf-radius-sm);
+    }
+    .tf-dialog-actions {
+      margin-top: 16px;
+    }
+  }
+  @media (max-width: 620px) {
+    .market-chart__drawing-area {
+      flex-direction: column;
+    }
+    .drawing-toolbar {
+      flex-basis: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--tf-line-soft);
+      &__mobile {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      &__controls {
+        display: none;
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 6px;
+      }
+      &__controls.is-open {
+        display: flex;
+      }
+      &__arrow {
+        width: 22px;
+        height: 40px;
+      }
+      .icon-action {
+        width: 40px;
+        height: 40px;
+      }
+    }
+  }
   .market-book__controls {
     display: flex;
     align-items: center;

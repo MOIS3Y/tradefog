@@ -2,11 +2,20 @@
 /** Canvas boundary: only here do decimal candles become chart numbers. */
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import type { Chart, KLineData, OverlayCreate } from "klinecharts";
-import { browserDrawings, type Drawing } from "./drawings";
+import type { Chart, KLineData, OverlayCreate, Overlay } from "klinecharts";
+import {
+  browserDrawings,
+  defaultDrawingColor,
+  drawingTools,
+  isTextDrawing,
+  type Drawing,
+  type DrawingTool,
+  type DrawingSelection,
+} from "./drawings";
 import type { MarketFeed } from "./feed";
 import type { Candle, Timeframe } from "./types";
 import { candlePrecision } from "./precision";
+import { enableTextSelection } from "./text-overlays";
 
 const props = defineProps<{
   feed: MarketFeed;
@@ -19,7 +28,10 @@ const emit = defineEmits<{
   ready: [];
   failure: [];
   storageFailure: [];
-  selected: [boolean];
+  selected: [DrawingSelection | null];
+  drawing: [DrawingTool | null];
+  textRequest: [string];
+  limit: [];
 }>();
 const root = ref<HTMLElement>();
 const { locale } = useI18n({ useScope: "global" });
@@ -29,6 +41,9 @@ let observer: ResizeObserver | undefined;
 let disposeChart: (() => void) | undefined;
 let push: ((bar: KLineData) => void) | undefined;
 let selectedId: string | undefined;
+let drawingId: string | undefined;
+let pendingText: { id: string; fresh: boolean } | undefined;
+let currentColor = defaultDrawingColor;
 let retryHistory: (() => Promise<void>) | undefined;
 let retryTimer: ReturnType<typeof setTimeout> | undefined;
 let historyFailures = 0;
@@ -93,46 +108,183 @@ function save(): void {
   if (restoring || !chart) return;
   const overlays = chart
     .getOverlays()
-    .filter((overlay) => overlay.currentStep === -1);
+    .filter(
+      (item) =>
+        item.currentStep === -1 &&
+        !(pendingText?.fresh && pendingText.id === item.id),
+    )
+    .map((item) => ({
+      name: item.name,
+      points: item.points,
+      color: item.styles?.line?.color ?? defaultDrawingColor,
+      ...(isTextDrawing(item.name) ? { text: item.extendData } : {}),
+    }));
   if (!browserDrawings.save(props.storageKey, overlays)) emit("storageFailure");
 }
 
 /** Reattach runtime callbacks rather than storing them in browser storage. */
-function overlay(value: Drawing | { name: string }): OverlayCreate {
+function overlay(
+  value: Drawing | { name: DrawingTool; color: string },
+): OverlayCreate {
   return {
-    ...value,
-    onDrawEnd: save,
+    name: value.name,
+    needDefaultPointFigure: true,
+    ...("points" in value ? { points: value.points } : {}),
+    extendData: "text" in value ? value.text : undefined,
+    styles: drawingStyles(value.color),
+    onDrawEnd: ({ overlay: item }) => {
+      if (restoring) return;
+      drawingId = undefined;
+      emit("drawing", null);
+      if (isTextDrawing(item.name)) {
+        pendingText = { id: item.id, fresh: true };
+        emit("textRequest", "");
+      } else save();
+    },
     onPressedMoveEnd: save,
     onSelected: ({ overlay: item }) => {
       selectedId = item.id;
-      emit("selected", true);
+      emitSelection(item);
     },
     onDeselected: () => {
       selectedId = undefined;
-      emit("selected", false);
+      emit("selected", null);
     },
   };
 }
 
 /** Add only supported drawing tools from the containing toolbar. */
-function draw(name: string): void {
-  if ((chart?.getOverlays().length ?? 0) < 100)
-    chart?.createOverlay(overlay({ name }));
+function draw(name: DrawingTool): void {
+  cancelDrawing();
+  if (!chart || !drawingTools.includes(name)) return;
+  if (chart.getOverlays().length >= 100) {
+    emit("limit");
+    return;
+  }
+  selectedId = undefined;
+  emit("selected", null);
+  const id = chart.createOverlay(overlay({ name, color: currentColor }));
+  drawingId = typeof id === "string" ? id : undefined;
+  emit("drawing", name);
+}
+
+/** One foreground color; axis labels keep a contrasting background. */
+function drawingStyles(color: string): OverlayCreate["styles"] {
+  const backgroundColor = root.value
+    ? getComputedStyle(root.value).getPropertyValue("--tf-panel").trim()
+    : "#121922";
+  return {
+    line: { color },
+    polygon: { color, borderColor: color },
+    text: { color, backgroundColor, family: "IBM Plex Sans" },
+  };
+}
+
+/** Expose editable metadata without leaking chart instances to the toolbar. */
+function emitSelection(item: Overlay): void {
+  currentColor = item.styles?.line?.color ?? defaultDrawingColor;
+  emit("selected", {
+    color: currentColor,
+    ...(isTextDrawing(item.name)
+      ? { text: String(item.extendData ?? "") }
+      : {}),
+  });
+}
+
+/** Cancel only an unfinished overlay, preserving completed drawings. */
+function cancelDrawing(): void {
+  if (drawingId) chart?.removeOverlay({ id: drawingId });
+  drawingId = undefined;
+  emit("drawing", null);
+}
+
+/** Apply color to the current selection and subsequent drawings. */
+function setColor(color: string): void {
+  if (!/^#[0-9a-f]{6}$/i.test(color)) return;
+  currentColor = color;
+  const id = drawingId ?? selectedId;
+  if (id) chart?.overrideOverlay({ id, styles: drawingStyles(color) });
+  save();
+}
+
+/** Request editing of a completed text-bearing overlay. */
+function editText(): void {
+  const item = chart?.getOverlays().find((item) => item.id === selectedId);
+  if (!item || !isTextDrawing(item.name)) return;
+  pendingText = { id: item.id, fresh: false };
+  emit("textRequest", String(item.extendData ?? ""));
+}
+
+/** Commit text or discard only a newly placed, cancelled annotation. */
+function finishText(text: string | null): void {
+  if (!pendingText) return;
+  const { id, fresh } = pendingText;
+  if (
+    text !== null &&
+    (!text.trim() || text.length > 200 || /[\r\n]/.test(text))
+  )
+    return;
+  pendingText = undefined;
+  if (text === null && fresh) {
+    chart?.removeOverlay({ id });
+    selectedId = undefined;
+    emit("selected", null);
+  } else if (text !== null) {
+    chart?.overrideOverlay({ id, extendData: text.trim() });
+    const item = chart?.getOverlays().find((item) => item.id === id);
+    if (item && selectedId === id) emitSelection(item);
+  }
+  save();
+}
+
+/** Handle drawing shortcuts without intercepting text or other panels. */
+function drawingKeydown(event: KeyboardEvent): void {
+  const target = event.target instanceof Element ? event.target : null;
+  if (
+    event.defaultPrevented ||
+    target?.closest(
+      'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="menu"], [role="dialog"]',
+    )
+  )
+    return;
+  if (event.key === "Escape" && drawingId) {
+    event.preventDefault();
+    event.stopPropagation();
+    cancelDrawing();
+  }
+  if (
+    event.key === "Delete" &&
+    selectedId &&
+    !drawingId &&
+    !pendingText &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    !event.shiftKey &&
+    (!target ||
+      target === document.body ||
+      root.value?.closest(".market-chart")?.contains(target))
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    remove();
+  }
 }
 
 /** Delete a selected annotation, leaving position values untouched. */
 function remove(): void {
   if (selectedId) chart?.removeOverlay({ id: selectedId });
   selectedId = undefined;
-  emit("selected", false);
+  emit("selected", null);
   save();
 }
 
 /** Clear annotations after the containing UI asks for confirmation. */
 function clear(): void {
+  cancelDrawing();
   chart?.removeOverlay();
   selectedId = undefined;
-  emit("selected", false);
+  emit("selected", null);
   save();
 }
 
@@ -150,6 +302,7 @@ async function initialize(): Promise<void> {
   try {
     const library = await import("klinecharts");
     if (disposed || !root.value) return;
+    enableTextSelection(library);
     chart = library.init(root.value);
     if (!chart) throw new Error("Canvas initialization failed");
     const instance = chart;
@@ -344,7 +497,10 @@ async function initialize(): Promise<void> {
     initializing = false;
   }
 }
-onMounted(initialize);
+onMounted(() => {
+  document.addEventListener("keydown", drawingKeydown);
+  void initialize();
+});
 watch(() => props.indicators, syncIndicators);
 watch(
   () => props.timeframe,
@@ -354,7 +510,8 @@ watch(
     retryHistory = undefined;
     historyFailures = 0;
     selectedId = undefined;
-    emit("selected", false);
+    cancelDrawing();
+    emit("selected", null);
     const symbol = chart?.getSymbol();
     if (symbol)
       Object.assign(symbol, { pricePrecision: 0, volumePrecision: 0 });
@@ -370,6 +527,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  document.removeEventListener("keydown", drawingKeydown);
   disposed = true;
   clearTimeout(retryTimer);
   observer?.disconnect();
@@ -378,6 +536,10 @@ onBeforeUnmount(() => {
 
 defineExpose({
   draw,
+  cancelDrawing,
+  setColor,
+  editText,
+  finishText,
   remove,
   clear,
   retry,

@@ -1,20 +1,70 @@
-/** Versioned, bounded browser annotations, replaceable by an API store. */
-export const drawingTools = [
-  "horizontalStraightLine",
-  "horizontalRayLine",
-  "segment",
-  "rayLine",
-] as const;
+/** Built-in drawing catalog and bounded browser-local persistence. */
+export const drawingGroups = {
+  lines: [
+    "horizontalStraightLine",
+    "horizontalRayLine",
+    "horizontalSegment",
+    "verticalStraightLine",
+    "verticalRayLine",
+    "verticalSegment",
+    "straightLine",
+    "rayLine",
+    "segment",
+  ],
+  channels: ["priceChannelLine", "parallelStraightLine"],
+  fibonacci: ["fibonacciLine"],
+  labels: ["simpleAnnotation", "simpleTag", "priceLine"],
+} as const;
+export const drawingTools = Object.values(drawingGroups).flat();
+export type DrawingTool = (typeof drawingTools)[number];
+export type DrawingGroup = keyof typeof drawingGroups;
+export const defaultDrawingColor = "#6aafff";
+export const drawingColors = [
+  "#6aafff",
+  "#35d990",
+  "#e8b85f",
+  "#f16e76",
+  "#e7edf2",
+  "#84919e",
+];
+const maximumBytes = 128 * 1024;
 export interface Drawing {
-  name: (typeof drawingTools)[number];
+  name: DrawingTool;
   points: { timestamp: number; value: number }[];
+  color: string;
+  text?: string;
+}
+export interface DrawingSelection {
+  color: string;
+  text?: string;
 }
 export interface DrawingStore {
   load: (key: string) => Drawing[];
   save: (key: string, drawings: unknown) => boolean;
 }
 
-/** Strip library internals, unsupported tools and unbounded point arrays. */
+/** Text-bearing built-ins need user content rather than a price label. */
+export function isTextDrawing(name: string): boolean {
+  return name === "simpleAnnotation" || name === "simpleTag";
+}
+
+/** Completed built-ins have one, two or three price/time anchors. */
+export function drawingPointCount(name: DrawingTool): number {
+  if (name === "priceChannelLine" || name === "parallelStraightLine") return 3;
+  if (
+    [
+      "horizontalStraightLine",
+      "verticalStraightLine",
+      "priceLine",
+      "simpleAnnotation",
+      "simpleTag",
+    ].includes(name)
+  )
+    return 1;
+  return 2;
+}
+
+/** Strip runtime objects; reject malformed anchors, styles and text. */
 export function sanitizeDrawings(value: unknown): Drawing[] {
   if (!Array.isArray(value)) return [];
   return value.slice(0, 100).flatMap((item) => {
@@ -22,8 +72,7 @@ export function sanitizeDrawings(value: unknown): Drawing[] {
       !item ||
       !drawingTools.includes(item.name) ||
       !Array.isArray(item.points) ||
-      item.points.length < 1 ||
-      item.points.length > 2
+      item.points.length !== drawingPointCount(item.name)
     )
       return [];
     if (
@@ -37,6 +86,17 @@ export function sanitizeDrawings(value: unknown): Drawing[] {
       )
     )
       return [];
+    const color = item.color ?? defaultDrawingColor;
+    if (typeof color !== "string" || !/^#[0-9a-f]{6}$/i.test(color)) return [];
+    const text = isTextDrawing(item.name) ? item.text : undefined;
+    if (
+      isTextDrawing(item.name) &&
+      (typeof text !== "string" ||
+        !text.trim() ||
+        text.length > 200 ||
+        /[\r\n]/.test(text))
+    )
+      return [];
     return [
       {
         name: item.name,
@@ -44,6 +104,8 @@ export function sanitizeDrawings(value: unknown): Drawing[] {
           timestamp: p.timestamp,
           value: p.value,
         })),
+        color: color.toLowerCase(),
+        ...(text === undefined ? {} : { text: text.trim() }),
       },
     ];
   });
@@ -53,19 +115,24 @@ export const browserDrawings: DrawingStore = {
   load(key) {
     try {
       const text = localStorage.getItem(key);
-      if (!text || text.length > 64_000) return [];
+      if (!text || new TextEncoder().encode(text).length > maximumBytes)
+        return [];
       const value = JSON.parse(text);
-      return value.version === 1 ? sanitizeDrawings(value.drawings) : [];
+      return value.version === 1 || value.version === 2
+        ? sanitizeDrawings(value.drawings)
+        : [];
     } catch {
       return [];
     }
   },
   save(key, drawings) {
     try {
-      localStorage.setItem(
-        key,
-        JSON.stringify({ version: 1, drawings: sanitizeDrawings(drawings) }),
-      );
+      const text = JSON.stringify({
+        version: 2,
+        drawings: sanitizeDrawings(drawings),
+      });
+      if (new TextEncoder().encode(text).length > maximumBytes) return false;
+      localStorage.setItem(key, text);
       return true;
     } catch {
       return false;
