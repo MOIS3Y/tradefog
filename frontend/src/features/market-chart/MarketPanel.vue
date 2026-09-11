@@ -407,6 +407,8 @@ onBeforeUnmount(() => {
       :has-chart="!!adapter.candles"
       :exchange-name="adapter.name"
       :exchange-url="adapter.link(instrument)"
+      :base="instrument.base"
+      :quote="instrument.quote"
       @expanded="expanded = $event"
     />
   </div>

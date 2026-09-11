@@ -2,6 +2,25 @@
 import { describe, expect, it } from "vitest";
 import { groupLevels, groupingSteps } from "@/features/market-chart/grouping";
 import { formatDecimal } from "@/utils/decimal";
+import { formatBookAmount } from "@/features/market-chart/book-format";
+
+describe("compact book amounts", () => {
+  it.each([
+    ["0", "0"],
+    ["5721.95271234", "5721.95"],
+    ["115740.67", "115.74K"],
+    ["1250000", "1.25M"],
+    ["999995", "1.00M"],
+    ["1234567890", "1.23B"],
+    ["1234567890000", "1.23T"],
+    ["0.000123456789", "0.0001235"],
+    ["0.00000001", "0.00000001"],
+    ["0.000000000000123456", "1.235e-13"],
+    ["1e30", "1.000e+30"],
+  ])("displays %s as %s without hiding small amounts", (value, expected) => {
+    expect(formatBookAmount(value)).toBe(expected);
+  });
+});
 
 describe("exact position values", () => {
   it.each([
@@ -41,6 +60,29 @@ describe("snapshot aggregation", () => {
     expect(groupLevels(levels, "0", "asks")).toHaveLength(20);
     expect(levels[0]!.total).toBe("0");
   });
+  it.each(["asks", "bids"] as const)(
+    "values %s at original prices before grouping and accumulating",
+    (side) => {
+      const levels = [
+        level("100.01"),
+        level("100.09", "0.2"),
+        level("101.01", "0.3"),
+      ];
+      if (side === "bids") levels.reverse();
+      expect(groupLevels(levels, "1", side, "quote")).toEqual(
+        side === "asks"
+          ? [
+              { price: "101", size: "30.019", total: "30.019" },
+              { price: "102", size: "30.303", total: "60.322" },
+            ]
+          : [
+              { price: "101", size: "30.303", total: "30.303" },
+              { price: "100", size: "30.019", total: "60.322" },
+            ],
+      );
+      expect(levels.every((row) => row.total === "0")).toBe(true);
+    },
+  );
   it("supports tiny prices and empty snapshots without floating point", () => {
     expect(groupingSteps([level("0.00000001")])).toEqual([
       "0.00000001",

@@ -1,15 +1,22 @@
 <script setup lang="ts">
 /** Snapshot-only depth rendering, isolated from chart activity. */
-import { ArrowUp, ArrowDown, ChevronDown } from "@lucide/vue";
+import { ArrowUp, ArrowDown, ArrowLeftRight, ChevronDown } from "@lucide/vue";
 import Decimal from "decimal.js";
 import { computed, nextTick, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { formatDecimal } from "@/utils/decimal";
 import AppSelect from "@/components/AppSelect.vue";
 import { groupLevels, groupingSteps } from "./grouping";
+import { formatBookAmount } from "./book-format";
 import type { OrderBook } from "./types";
 
-defineProps<{ hasChart: boolean; exchangeName: string; exchangeUrl: string }>();
+defineProps<{
+  hasChart: boolean;
+  exchangeName: string;
+  exchangeUrl: string;
+  base: string;
+  quote: string;
+}>();
 const emit = defineEmits<{ expanded: [boolean] }>();
 const { t: translate, locale } = useI18n({ useScope: "global" });
 /** Resolve feature copy through the shared journal namespace. */
@@ -17,6 +24,7 @@ const t = (key: string, values: Record<string, string> = {}) =>
   translate("marketChart." + key, values);
 const book = shallowRef<OrderBook>();
 const step = ref("0");
+const unit = ref<"base" | "quote">("base");
 const steps = ref<string[]>([]);
 const options = computed(() => [
   ...steps.value.map((value) => ({ value, label: formatDecimal(value) })),
@@ -43,21 +51,23 @@ const bookSides = computed(() =>
 const depth = ref<HTMLElement>();
 let updated = 0;
 
-/** Prepare exact display values only when snapshot levels change. */
+/** Prepare labels only when depth, grouping, or volume units change. */
 const rows = computed(() => {
   const grouped = {
-    bids: groupLevels(book.value?.bids ?? [], step.value, "bids"),
-    asks: groupLevels(book.value?.asks ?? [], step.value, "asks"),
+    bids: groupLevels(book.value?.bids ?? [], step.value, "bids", unit.value),
+    asks: groupLevels(book.value?.asks ?? [], step.value, "asks", unit.value),
   };
   const maximum = Decimal.max(
     grouped.bids.at(-1)?.total ?? "0",
     grouped.asks.at(-1)?.total ?? "0",
   );
+  const pricePlaces = new Decimal(step.value).decimalPlaces();
   const prepare = (side: "asks" | "bids") =>
     grouped[side].map((level) => ({
-      price: formatDecimal(level.price),
-      size: formatDecimal(level.size),
-      total: formatDecimal(level.total),
+      exact: level,
+      price: new Decimal(level.price).toFixed(pricePlaces),
+      size: formatBookAmount(level.size),
+      total: formatBookAmount(level.total),
       width: maximum.isZero()
         ? "0%"
         : `${new Decimal(level.total).div(maximum).mul(100).toNumber()}%`,
@@ -137,15 +147,31 @@ defineExpose({ update, status, updatePrice });
       rel="noopener noreferrer"
       >{{ t("exchange", { name: exchangeName }) }}</a
     >
-    <button
-      type="button"
-      class="market-book__toggle"
-      :aria-expanded="expanded"
-      @click="expanded = !expanded"
-    >
-      <strong>{{ t("book") }}</strong
-      ><ChevronDown :size="15" />
-    </button>
+    <div class="market-book__header">
+      <strong>{{ t("book") }}</strong>
+      <button
+        v-if="expanded"
+        type="button"
+        class="market-book__unit"
+        :aria-label="t('volumeUnit', { asset: unit === 'base' ? base : quote })"
+        :title="
+          t('switchVolumeUnit', { asset: unit === 'base' ? quote : base })
+        "
+        @click="unit = unit === 'base' ? 'quote' : 'base'"
+      >
+        <span>{{ unit === "base" ? base : quote }}</span>
+        <ArrowLeftRight :size="12" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        class="market-book__toggle"
+        :aria-label="t('book')"
+        :aria-expanded="expanded"
+        @click="expanded = !expanded"
+      >
+        <ChevronDown :size="15" />
+      </button>
+    </div>
     <template v-if="expanded">
       <p class="market-book__caption">{{ t("current") }}</p>
       <div class="market-book__controls">
@@ -203,9 +229,9 @@ defineExpose({ update, status, updatePrice });
               class="market-book__row"
               :style="{ '--depth-width': level.width }"
             >
-              <span :title="level.price">{{ level.price }}</span
-              ><span :title="level.size">{{ level.size }}</span
-              ><span :title="level.total">{{ level.total }}</span>
+              <span :title="level.exact.price">{{ level.price }}</span
+              ><span :title="level.exact.size">{{ level.size }}</span
+              ><span :title="level.exact.total">{{ level.total }}</span>
             </div>
           </div>
         </div>

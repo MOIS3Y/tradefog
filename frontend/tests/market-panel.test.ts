@@ -194,7 +194,7 @@ it("learns precision from history and live candles without resetting data", asyn
   feed.pause();
 });
 
-it("switches book sides locally while preserving depth and polling", async () => {
+it("switches book sides and units without restarting polling", async () => {
   const book = vi.fn().mockResolvedValue({
     timestamp: 1000,
     bids: [{ price: "100", size: "0.1", total: "0.1" }],
@@ -220,6 +220,20 @@ it("switches book sides locally while preserving depth and polling", async () =>
       ?.getAttribute("style"),
   ).toContain("50%");
   const count = book.mock.calls.length;
+  const unit = root.querySelector<HTMLButtonElement>(".market-book__unit")!;
+  unit.click();
+  await flush();
+  expect(unit.textContent).toContain("USDT");
+  expect(
+    root.querySelector(".market-book__bids .market-book__row")?.textContent,
+  ).toBe("10010.0010.00");
+  expect(
+    root.querySelector(".market-book__asks .market-book__row")?.textContent,
+  ).toBe("10120.2020.20");
+  expect(book).toHaveBeenCalledTimes(count);
+  unit.click();
+  await flush();
+  expect(unit.textContent).toContain("BTC");
   const bids = [
     ...root.querySelectorAll<HTMLButtonElement>(".market-book__modes button"),
   ].find((button) => button.textContent?.trim() === "Bids")!;
@@ -228,10 +242,12 @@ it("switches book sides locally while preserving depth and polling", async () =>
   expect(root.querySelector(".market-book__asks")).toBeNull();
   expect(root.querySelector(".market-book__bids")).not.toBeNull();
   expect(book).toHaveBeenCalledTimes(count);
+  await vi.advanceTimersByTimeAsync(bybit.refreshMs);
+  expect(book).toHaveBeenCalledTimes(count + 1);
   root.querySelector<HTMLButtonElement>(".market-book__toggle")!.click();
   await flush();
   await vi.advanceTimersByTimeAsync(2000);
-  expect(book).toHaveBeenCalledTimes(count);
+  expect(book).toHaveBeenCalledTimes(count + 1);
 });
 
 it("keeps the chart mounted through full screen and browser-initiated exit", async () => {

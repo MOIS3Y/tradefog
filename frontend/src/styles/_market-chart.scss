@@ -16,18 +16,19 @@
       font-size: 0.6rem;
     }
     .market-book__grouping {
-      flex: 0 0 58px;
+      flex: 0 0 auto;
       padding: 0;
     }
     .tf-select-trigger {
-      width: 58px;
-      min-width: 0;
+      width: max-content;
+      min-width: 58px;
       min-height: 28px;
       height: 28px;
       gap: 0.2rem;
       padding: 0.2rem 0.3rem;
       border-radius: 5px;
       font: 0.65rem var(--tf-mono);
+      white-space: nowrap;
     }
   }
   .market-chart__types {
@@ -124,7 +125,7 @@
 
   .market-panel {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 230px;
+    grid-template-columns: minmax(0, 1fr) 280px;
     min-width: 0;
     border: 1px solid var(--tf-line);
     border-radius: var(--tf-radius-sm);
@@ -263,15 +264,48 @@
   .market-book {
     min-width: 0;
     border-left: 1px solid var(--tf-line);
+    &__header {
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--tf-line-soft);
+      > strong {
+        flex: 1;
+        min-width: 0;
+        padding-left: 0.7rem;
+        font-size: 0.75rem;
+      }
+    }
+    &__unit {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      gap: 0.3rem;
+      max-width: 45%;
+      padding: 0.3rem;
+      border: 1px solid var(--tf-line);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--tf-ink-soft);
+      font: 0.65rem var(--tf-mono);
+      cursor: pointer;
+      span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      svg {
+        flex-shrink: 0;
+      }
+    }
     &__toggle {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      width: 100%;
+      justify-content: center;
+      flex-shrink: 0;
+      min-width: 0;
       min-height: 48px;
       padding: 0.7rem;
       border: 0;
-      border-bottom: 1px solid var(--tf-line-soft);
       background: transparent;
       color: var(--tf-ink);
       cursor: pointer;
@@ -287,7 +321,7 @@
     &__labels,
     &__row {
       display: grid;
-      grid-template-columns: 1.15fr 1fr 1fr;
+      grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
       gap: 0.35rem;
       padding: 0 0.65rem;
       text-align: right;
@@ -299,9 +333,8 @@
       color: var(--tf-ink-soft);
     }
     &__row span {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     &__row:hover {
       background: var(--tf-panel-raised);

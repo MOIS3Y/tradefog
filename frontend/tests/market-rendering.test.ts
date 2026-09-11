@@ -7,7 +7,7 @@ import ChartCanvas from "@/features/market-chart/ChartCanvas.vue";
 import OrderBookPanel from "@/features/market-chart/OrderBookPanel.vue";
 import type { MarketFeed } from "@/features/market-chart/feed";
 import type { CandlePage, Timeframe } from "@/features/market-chart/types";
-import * as decimal from "@/utils/decimal";
+import * as bookFormatting from "@/features/market-chart/book-format";
 
 const library = vi.hoisted(() => {
   const state: { loader?: DataLoader } = {};
@@ -154,12 +154,45 @@ it("rejects a late loader callback from the previous period", async () => {
   expect(library.callback).toHaveBeenCalledOnce();
 });
 
-it("does not reformat unchanged depth on successful receipts or side switches", async () => {
-  const formatting = vi.spyOn(decimal, "formatDecimal");
+it("aligns prices by grouping precision and retains exact amount tooltips", async () => {
   app = createApp(OrderBookPanel, {
     hasChart: true,
     exchangeName: "Bybit",
     exchangeUrl: "https://example.com",
+    base: "BTC",
+    quote: "USDT",
+  });
+  const panel = app.use(i18n).mount("#root") as InstanceType<
+    typeof OrderBookPanel
+  >;
+  panel.update({
+    timestamp: 1,
+    asks: [{ price: "77118.1", size: "115740.671234", total: "115740.671234" }],
+    bids: [{ price: "77118", size: "0.000123456789", total: "0.000123456789" }],
+  });
+  await nextTick();
+  const bids = document.querySelectorAll(
+    ".market-book__bids .market-book__row span",
+  );
+  const asks = document.querySelectorAll(
+    ".market-book__asks .market-book__row span",
+  );
+  expect(bids[0]?.textContent).toBe("77118.0");
+  expect(asks[0]?.textContent).toBe("77118.1");
+  expect(bids[1]?.textContent).toBe("0.0001235");
+  expect(bids[1]?.getAttribute("title")).toBe("0.000123456789");
+  expect(asks[2]?.textContent).toBe("115.74K");
+  expect(asks[2]?.getAttribute("title")).toBe("115740.671234");
+});
+
+it("does not reformat unchanged depth on successful receipts or side switches", async () => {
+  const formatting = vi.spyOn(bookFormatting, "formatBookAmount");
+  app = createApp(OrderBookPanel, {
+    hasChart: true,
+    exchangeName: "Bybit",
+    exchangeUrl: "https://example.com",
+    base: "BTC",
+    quote: "USDT",
   });
   const panel = app.use(i18n).mount("#root") as InstanceType<
     typeof OrderBookPanel
@@ -183,6 +216,24 @@ it("does not reformat unchanged depth on successful receipts or side switches", 
   await nextTick();
   expect(formatting).toHaveBeenCalledTimes(count);
   expect(document.querySelectorAll(".market-book__row")).toHaveLength(1);
+  const unit = document.querySelector<HTMLButtonElement>(".market-book__unit")!;
+  unit.click();
+  await nextTick();
+  expect(unit.textContent).toContain("USDT");
+  expect(
+    document.querySelector(".market-book__row span:nth-child(2)")?.textContent,
+  ).toBe("0.4");
+  const quoteCount = formatting.mock.calls.length;
+  panel.update({ ...book, timestamp: 3 });
+  panel.status(false);
+  await nextTick();
+  expect(formatting).toHaveBeenCalledTimes(quoteCount);
+  unit.click();
+  await nextTick();
+  expect(unit.textContent).toContain("BTC");
+  expect(
+    document.querySelector(".market-book__row span:nth-child(2)")?.textContent,
+  ).toBe("0.2");
   panel.updatePrice("100");
   await nextTick();
   expect(document.querySelector(".market-book__last")?.textContent).toContain(

@@ -12,11 +12,12 @@ export function groupingSteps(levels: BookLevel[]): string[] {
   );
 }
 
-/** Aggregate before truncating; ask buckets round up and bid buckets down. */
+/** Sum in the selected unit using original prices, then truncate buckets. */
 export function groupLevels(
   levels: BookLevel[],
   step: string,
   side: "asks" | "bids",
+  unit: "base" | "quote" = "base",
 ): BookLevel[] {
   const buckets = new Map<string, Decimal>();
   for (const level of levels) {
@@ -31,7 +32,9 @@ export function groupLevels(
             )
             .mul(step)
             .toFixed();
-    buckets.set(price, (buckets.get(price) ?? new Exact(0)).plus(level.size));
+    const size =
+      unit === "quote" ? new Exact(level.size).mul(level.price) : level.size;
+    buckets.set(price, (buckets.get(price) ?? new Exact(0)).plus(size));
   }
   let total = new Exact(0);
   return [...buckets].slice(0, 20).map(([price, size]) => {
