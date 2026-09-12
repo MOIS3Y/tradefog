@@ -4,10 +4,11 @@ from datetime import UTC, date, datetime, time
 from typing import Annotated, Literal, Self
 
 from fastapi import APIRouter, Query
-from pydantic import Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 from sqlalchemy import select
 
 from tradefog.api.dependencies import CurrentUserDependency, SessionDependency
+from tradefog.api.documentation import PROFILE_OPERATION_EXAMPLE
 from tradefog.api.v1.schemas.journal import WalletOperationResponse
 from tradefog.api.v1.schemas.pagination import ListQuery, Page
 from tradefog.db.models import TradingAsset, TradingProfile, WalletOperation
@@ -38,6 +39,10 @@ class OperationListQuery(ListQuery):
 
 class ProfileOperationResponse(WalletOperationResponse):
     """Include the denomination without relying on the current asset page."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [PROFILE_OPERATION_EXAMPLE]},
+    )
 
     asset_symbol: str
 

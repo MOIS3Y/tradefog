@@ -12,7 +12,13 @@ from pydantic import (
     model_validator,
 )
 
-from tradefog.api.documentation import ASSET_EXAMPLE
+from tradefog.api.documentation import (
+    ASSET_EXAMPLE,
+    ASSET_PATCH_EXAMPLE,
+    INSTRUMENT_EXAMPLE,
+    INSTRUMENT_PATCH_EXAMPLE,
+    MANUAL_INSTRUMENT_EXAMPLE,
+)
 from tradefog.domain.enums import AssetType, ProductKind, WalletAssetStatus
 
 
@@ -57,6 +63,10 @@ class AssetWrite(Input):
 
 class AssetPatch(Patch):
     """Edit presentation or availability without repurposing identity."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [ASSET_PATCH_EXAMPLE]},
+    )
 
     nullable = {"name", "risk_stop_capital"}
     risk_stop_capital: Decimal | None = Field(
@@ -122,6 +132,10 @@ class AssetInput(Input):
 class ManualInstrumentWrite(Input):
     """Create a manual instrument and any missing profile assets."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [MANUAL_INSTRUMENT_EXAMPLE]},
+    )
+
     mode: Literal["manual"]
     product: ProductKind
     base: AssetInput
@@ -159,6 +173,10 @@ InstrumentWrite = Annotated[
 class InstrumentPatch(Patch):
     """Update editable metadata; identity remains immutable."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [INSTRUMENT_PATCH_EXAMPLE]},
+    )
+
     nullable = {"min_qty", "min_notional"}
     price_step: Decimal | None = Field(
         default=None, gt=0, max_digits=30, decimal_places=18
@@ -179,7 +197,10 @@ class InstrumentPatch(Patch):
 class InstrumentResponse(BaseModel):
     """Normalized profile instrument with exact execution rules."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={"examples": [INSTRUMENT_EXAMPLE]},
+    )
     id: int
     profile_id: int
     exec_symbol: str

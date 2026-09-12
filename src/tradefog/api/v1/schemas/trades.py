@@ -12,7 +12,22 @@ from pydantic import (
     model_validator,
 )
 
-from tradefog.api.documentation import TRADE_CLOSE_EXAMPLE, TRADE_PLAN_EXAMPLE
+from tradefog.api.documentation import (
+    ATR_EXAMPLE,
+    ATR_REQUEST_EXAMPLE,
+    CANDLE_EXAMPLE,
+    CHECKLIST_EXAMPLE,
+    PLANNING_CONTEXT_EXAMPLE,
+    PREPARATION_EXAMPLE,
+    RESERVATION_EXAMPLE,
+    SNAPSHOT_EXAMPLE,
+    STORED_RESERVATION_EXAMPLE,
+    TRADE_CLOSE_EXAMPLE,
+    TRADE_EXAMPLE,
+    TRADE_LIST_EXAMPLE,
+    TRADE_PLAN_EXAMPLE,
+    TRADE_PLAN_RESPONSE_EXAMPLE,
+)
 from tradefog.api.v1.schemas.pagination import ListQuery
 from tradefog.domain.checklists import (
     AssessmentDirection,
@@ -51,6 +66,10 @@ class TradeListQuery(ProfileTradeListQuery):
 class TradeListItem(BaseModel):
     """Compact journal row without draft sections or snapshot payloads."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [TRADE_LIST_EXAMPLE]},
+    )
+
     id: int
     profile_id: int
     profile_name: str
@@ -85,6 +104,10 @@ class ChecklistWrite(TradeInput):
 
 class ChecklistResponse(ChecklistWrite):
     """Checklist answers plus their deterministic advisory assessment."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [CHECKLIST_EXAMPLE]},
+    )
 
     score: Decimal
     direction: AssessmentDirection
@@ -130,6 +153,10 @@ class TradePatch(TradeInput):
 class ATRRequest(TradeInput):
     """Refresh automatic ATR or supply a manual fallback value."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [ATR_REQUEST_EXAMPLE]},
+    )
+
     value: Decimal | None = Field(
         default=None,
         gt=0,
@@ -149,6 +176,10 @@ class ATRRequest(TradeInput):
 class CandleResponse(BaseModel):
     """One daily candle returned only as transient market context."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [CANDLE_EXAMPLE]},
+    )
+
     date: date
     open: Decimal
     high: Decimal
@@ -158,6 +189,10 @@ class CandleResponse(BaseModel):
 
 class ATRResponse(BaseModel):
     """Current draft ATR context and non-persisted preview candles."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [ATR_EXAMPLE]},
+    )
 
     value: Decimal
     source: ATRSource
@@ -196,6 +231,10 @@ class TradePlanRequest(TradeInput):
 class TradePlanSave(TradeInput):
     """Persist partial anchors without inventing missing numeric values."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [TRADE_PLAN_EXAMPLE]},
+    )
+
     planned_entry: Decimal | None = Field(
         default=None, gt=0, max_digits=30, decimal_places=18
     )
@@ -207,7 +246,10 @@ class TradePlanSave(TradeInput):
 class PreparationResponse(BaseModel):
     """Typed inputs retained even when the plan is incomplete."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={"examples": [PREPARATION_EXAMPLE]},
+    )
     planned_entry: Decimal | None
     planned_stop: Decimal | None
     market_sentiment: DirectionalValue | None
@@ -224,6 +266,10 @@ class PreparationResponse(BaseModel):
 
 class TradePlanningContextResponse(BaseModel):
     """Stable inputs required for a local draft position calculation."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [PLANNING_CONTEXT_EXAMPLE]},
+    )
 
     price_step: Decimal
     quantity_step: Decimal
@@ -251,6 +297,10 @@ class TradePlanningContextResponse(BaseModel):
 class ReservationResponse(BaseModel):
     """Exact required amount and availability of one virtual denomination."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [RESERVATION_EXAMPLE]},
+    )
+
     asset_id: int
     purpose: str
     amount: Decimal
@@ -260,7 +310,10 @@ class ReservationResponse(BaseModel):
 class StoredReservationResponse(BaseModel):
     """Immutable requirements retained after release."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={"examples": [STORED_RESERVATION_EXAMPLE]},
+    )
     asset_id: int
     purpose: str
     amount: Decimal
@@ -268,6 +321,10 @@ class StoredReservationResponse(BaseModel):
 
 class TradePlanResponse(BaseModel):
     """Executable plan and current capital context before submission."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [TRADE_PLAN_RESPONSE_EXAMPLE]},
+    )
 
     planned_entry: Decimal
     reservations: list[ReservationResponse]
@@ -338,7 +395,10 @@ class TradeReview(TradeInput):
 class SnapshotResponse(BaseModel):
     """Immutable financial and volatility context frozen at submission."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={"examples": [SNAPSHOT_EXAMPLE]},
+    )
 
     id: int
     strategy_capital_id: int
@@ -389,6 +449,10 @@ class SnapshotResponse(BaseModel):
 
 class TradeResponse(BaseModel):
     """Complete owner-scoped trade workspace representation."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [TRADE_EXAMPLE]},
+    )
 
     id: int
     profile_id: int

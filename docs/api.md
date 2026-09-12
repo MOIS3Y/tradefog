@@ -109,9 +109,13 @@ prove a mutation failed: inspect journal state before repeating it.
   in endpoint docstrings; FastAPI exposes them in OpenAPI.
 - Use field descriptions for units, signs, null semantics and distinctions
   that names and types cannot explain. Do not repeat obvious names or limits.
-- Keep a few coherent object examples in `api/documentation.py`, referenced
-  by schemas. Use examples for related values and unfamiliar request shapes;
-  do not annotate every decimal field just to influence Swagger's generator.
+- Keep profile request and response examples in `api/documentation.py`,
+  referenced by schemas through `json_schema_extra`. Use short decimal
+  strings with meaningful precision, and separate create, patch and response
+  examples. Compose nested responses from shared examples so paginated lists,
+  trade snapshots and analytics remain readable in Swagger's Example Value.
+  Keep related amounts consistent and populate representative nested objects;
+  use null only where it has meaning, not to hide decimal fields.
 - Keep shared transport conventions in the API introduction, workflows here,
   and formulas and architecture in their dedicated documents. Update the
   relevant source when behavior changes.

@@ -4,8 +4,16 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
+from tradefog.api.documentation import (
+    ALLOCATION_MONETARY_EXAMPLE,
+    ANALYTICS_EXAMPLE,
+    DISCIPLINE_REFERENCE_EXAMPLE,
+    MONETARY_POINT_EXAMPLE,
+    REFERENCE_POINT_EXAMPLE,
+    TRAJECTORY_POINT_EXAMPLE,
+)
 from tradefog.domain.analytics import Outcome
 from tradefog.domain.enums import Direction, ProductKind
 
@@ -30,6 +38,10 @@ class StreakResponse(BaseModel):
 class TrajectoryPointResponse(BaseModel):
     """One ordered closed trade and its cumulative quality coordinates."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [TRAJECTORY_POINT_EXAMPLE]},
+    )
+
     sequence: int
     trade_id: int
     profile_id: int
@@ -49,6 +61,10 @@ class TrajectoryPointResponse(BaseModel):
 class ReferencePointResponse(BaseModel):
     """One point on the cumulative break-even reference line."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [REFERENCE_POINT_EXAMPLE]},
+    )
+
     sequence: int
     cumulative_result_r: Decimal = Decimal(0)
 
@@ -56,12 +72,20 @@ class ReferencePointResponse(BaseModel):
 class DisciplineReferencePointResponse(BaseModel):
     """One coordinate on the decision-discipline break-even diagonal."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [DISCIPLINE_REFERENCE_EXAMPLE]},
+    )
+
     x: Decimal
     y: Decimal
 
 
 class MonetaryTrajectoryPointResponse(BaseModel):
     """One realized result in a single allocation's settlement asset."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [MONETARY_POINT_EXAMPLE]},
+    )
 
     sequence: int
     trade_id: int
@@ -73,6 +97,10 @@ class MonetaryTrajectoryPointResponse(BaseModel):
 
 class AllocationMonetaryResponse(BaseModel):
     """Money totals scoped to one immutable allocation and asset."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [ALLOCATION_MONETARY_EXAMPLE]},
+    )
 
     strategy_capital_id: int
     settlement_asset_id: int
@@ -88,6 +116,10 @@ class AllocationMonetaryResponse(BaseModel):
 
 class AnalyticsResponse(BaseModel):
     """Comprehensive metrics for one owner-scoped closed-trade cohort."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [ANALYTICS_EXAMPLE]},
+    )
 
     closed_trade_count: int
     reviewed_trade_count: int

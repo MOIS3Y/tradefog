@@ -13,7 +13,16 @@ from pydantic import (
     model_validator,
 )
 
-from tradefog.api.documentation import WALLET_OPERATION_EXAMPLE
+from tradefog.api.documentation import (
+    ALLOCATION_CREATE_EXAMPLE,
+    ALLOCATION_EXAMPLE,
+    ALLOCATION_PATCH_EXAMPLE,
+    STRATEGY_CREATE_EXAMPLE,
+    STRATEGY_EXAMPLE,
+    STRATEGY_PATCH_EXAMPLE,
+    WALLET_OPERATION_EXAMPLE,
+    WALLET_OPERATION_RESPONSE_EXAMPLE,
+)
 from tradefog.domain.enums import (
     StrategyStatus,
     VenueType,
@@ -134,7 +143,10 @@ class WalletOperationPatch(JournalInput):
 class WalletOperationResponse(BaseModel):
     """Immutable signed wallet ledger fact."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={"examples": [WALLET_OPERATION_RESPONSE_EXAMPLE]},
+    )
 
     id: int
     asset_id: int
@@ -150,6 +162,10 @@ class WalletOperationResponse(BaseModel):
 
 class StrategyCreate(JournalInput):
     """Create reusable edge rules within a trading profile."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [STRATEGY_CREATE_EXAMPLE]},
+    )
 
     name: str = Field(min_length=1, max_length=128)
     description: str | None = None
@@ -174,6 +190,10 @@ class StrategyCreate(JournalInput):
 
 class StrategyPatch(JournalInput):
     """Edit unlocked strategy rules or archive the strategy."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [STRATEGY_PATCH_EXAMPLE]},
+    )
 
     name: str | None = Field(default=None, min_length=1, max_length=128)
     description: str | None = None
@@ -213,12 +233,20 @@ class StrategyPatch(JournalInput):
 class StrategyCapitalCreate(JournalInput):
     """Commit fixed strategy capital from a wallet asset."""
 
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [ALLOCATION_CREATE_EXAMPLE]},
+    )
+
     asset_id: int = Field(gt=0)
     capital: Decimal = Field(gt=0, max_digits=30, decimal_places=18)
 
 
 class StrategyCapitalPatch(JournalInput):
     """Edit unlocked allocation capital or its archive state."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [ALLOCATION_PATCH_EXAMPLE]},
+    )
 
     capital: Decimal | None = Field(
         default=None,
@@ -240,7 +268,10 @@ class StrategyCapitalPatch(JournalInput):
 class StrategyCapitalResponse(BaseModel):
     """Fixed allocation for one wallet settlement asset."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={"examples": [ALLOCATION_EXAMPLE]},
+    )
 
     id: int
     strategy_id: int
@@ -251,6 +282,10 @@ class StrategyCapitalResponse(BaseModel):
 
 class StrategyResponse(BaseModel):
     """Strategy edge rules and their per-asset allocations."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [STRATEGY_EXAMPLE]},
+    )
 
     id: int
     profile_id: int
