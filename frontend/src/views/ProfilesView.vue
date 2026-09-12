@@ -6,7 +6,7 @@ import ProfileWorkspace from "@/features/profiles/ProfileWorkspace.vue";
 <template>
   <AppShell>
     <div class="workspace profile-workspace">
-      <ProfileWorkspace />
+      <ProfileWorkspace :key="$route.path" />
     </div>
   </AppShell>
 </template>

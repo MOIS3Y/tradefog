@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from tradefog import __version__
 from tradefog.config import get_settings
 
-router = APIRouter(tags=["Health"])
+router = APIRouter(tags=["System"])
 
 
 class HealthResponse(BaseModel):

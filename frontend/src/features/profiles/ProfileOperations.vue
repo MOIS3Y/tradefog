@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useDialogLeaveGuard } from "@/composables/useLeaveGuard";
 /** Profile-wide immutable ledger; asset selection is an explicit filter. */
 import { computed, reactive, ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
@@ -115,6 +116,7 @@ const mutation = useMutation({
   },
   onError: () => toasts.error({ title: t("profiles.wallet.saveFailed") }),
 });
+useDialogLeaveGuard(dialog, () => note.value);
 </script>
 
 <template>

@@ -41,7 +41,7 @@ expectancy.
    the monetary `1R`; it is not the left side of the ratio, which is always
    normalized to one.
 4. **Trade Preparation (Workspace)**:
-   - Selects Profile, Strategy, Product, and Trading Instrument.
+   - Works in the active profile and selects Strategy, Product, and Instrument.
    - Fills the 4-step directional checklist.
    - Refreshes on-demand ATR context.
    - Enters planned entry and stop loss. System computes take profit, position
@@ -73,7 +73,9 @@ Create Profile ──► Configure Wallet ──► Create Strategy ──► Cr
 
 ## Trade Workspace Requirements
 
-The journal opens at `/trades` as a paginated, responsive table. Rows show
+The working journal opens at `/profiles/{profile_id}/trades` as a paginated,
+responsive table. `/trades` provides a read-only overview across profiles.
+Rows show
 date, instrument/direction, profile, strategy, lifecycle status, net P&L with
 its currency, a read-only five-star quality rating, and review completion.
 Half-stars preserve the 1–10 scale; empty stars mean no rating, never zero.
@@ -85,14 +87,16 @@ custom ranges, profile, strategy, direction, lifecycle, review and rating
 filters live in the URL together with page and ordering. Returning from a
 trade restores that list context. Unrated records sort last in both directions.
 
-A side drawer in `/trades` creates a draft, then opens `/trades/{id}`.
-Creation asks for profile, strategy, instrument and date; direction starts
+A side drawer in a profile's journal creates a draft, then opens
+`/profiles/{profile_id}/trades/{id}`. Creation inherits the active profile and
+asks for strategy, instrument and date; direction starts
 as Long and is changed in the trade workspace. Closing the drawer preserves
-list filters. `/trades/new` redirects to the journal with the drawer open.
+list filters. The aggregate journal asks users to choose a profile before
+creating a trade.
 The individual trade page loads its full record independently and provides
 the full lifecycle:
 
-1. **Context Selector**: Profile, Strategy, Product (`SPOT`, `PERPETUAL_FUTURE`,
+1. **Context Selector**: Strategy, Product (`SPOT`, `PERPETUAL_FUTURE`,
    `CASH_EQUITY`), and Instrument.
 2. **Directional Checklist**: 4 questions evaluated on a `-1.0` to `+1.0` scale
    with visual advisory indicator.
@@ -108,6 +112,21 @@ ATR is advisory evidence, not a direction or probability forecast. It shows
 whether the planned target is unusually large relative to recent daily range.
 
 ## Profile-owned Refactor Delivery
+
+The persistent navigation selector chooses a profile or All profiles. Profile
+routes own trades, analytics, market setup, wallets and strategies; `/profiles`
+manages profile records. Switching profiles retains the section and common
+filters, but clears resource selections, search and pagination. Switching from
+a trade opens the destination profile's list. All profiles retains aggregate
+trades and analytics; opening a trade enters its profile and preserves the
+return URL.
+
+The URL is authoritative and each browser tab has its own working context.
+The normal entry point restores the last context stored for that user; a first
+visit opens aggregate trades. An unavailable saved profile falls back to the
+overview, while an unavailable direct link shows a not-found state. Archived
+profiles remain selectable with the existing domain restrictions. Navigation
+protects unsaved forms and waits for submitted mutations to finish.
 
 The profile-owned API and SPA are implemented. Each profile provides Venue,
 Wallet and Strategies sections. Bybit imports only selected instruments and

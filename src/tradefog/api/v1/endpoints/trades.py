@@ -19,6 +19,7 @@ from tradefog.api.v1.schemas.trades import (
     ChecklistResponse,
     ChecklistWrite,
     PreparationResponse,
+    ProfileTradeListQuery,
     ReservationResponse,
     SnapshotResponse,
     StoredReservationResponse,
@@ -55,6 +56,7 @@ from tradefog.domain.checklists import (
 from tradefog.domain.enums import ATRSource, TradeStatus
 from tradefog.services.journal import (
     get_owned,
+    get_profile_trade,
     recompute_wallet_asset,
     wallet_balance,
     wallet_reserved,
@@ -72,7 +74,8 @@ from tradefog.services.trades import (
     validate_trade_identity,
 )
 
-router = APIRouter(prefix="/trades", tags=["Trades"])
+router = APIRouter(prefix="/profiles/{profile_id}/trades")
+overview_router = APIRouter(prefix="/trades", tags=["Overview · Trades"])
 
 
 def atr_response(context: ATRDecisionContext) -> ATRResponse:
@@ -219,7 +222,7 @@ def plan_response(
     )
 
 
-@router.get("", response_model=Page[TradeListItem])
+@overview_router.get("", response_model=Page[TradeListItem])
 async def list_trades(
     session: SessionDependency,
     user: CurrentUserDependency,
@@ -338,12 +341,30 @@ async def list_trades(
     )
 
 
+@router.get("", response_model=Page[TradeListItem], tags=["Profiles · Trades"])
+async def list_profile_trades(
+    profile_id: int,
+    session: SessionDependency,
+    user: CurrentUserDependency,
+    query: Annotated[ProfileTradeListQuery, Query()],
+) -> Page[TradeListItem]:
+    """List trades only after resolving the requested owned profile."""
+    await get_owned(session, TradingProfile, profile_id, user.id)
+    return await list_trades(
+        session,
+        user,
+        TradeListQuery(**query.model_dump(), profile_id=profile_id),
+    )
+
+
 @router.post(
     "",
     response_model=TradeResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["Profiles · Trades"],
 )
 async def create_trade(
+    profile_id: int,
     request: TradeCreate,
     session: SessionDependency,
     user: CurrentUserDependency,
@@ -352,7 +373,7 @@ async def create_trade(
     profile = await get_owned(
         session,
         TradingProfile,
-        request.profile_id,
+        profile_id,
         user.id,
         for_update=True,
     )
@@ -380,28 +401,36 @@ async def create_trade(
     return await trade_response(session, trade)
 
 
-@router.get("/{trade_id}", response_model=TradeResponse)
+@router.get(
+    "/{trade_id}", response_model=TradeResponse, tags=["Profiles · Trades"]
+)
 async def get_trade(
+    profile_id: int,
     trade_id: int,
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradeResponse:
     """Return the complete workspace for one owned trade."""
-    trade = await get_owned(session, Trade, trade_id, user.id)
+    trade = await get_profile_trade(session, trade_id, profile_id, user.id)
     return await trade_response(session, trade)
 
 
-@router.delete("/{trade_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{trade_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["Profiles · Trades"],
+)
 async def delete_trade(
+    profile_id: int,
     trade_id: int,
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> None:
     """Permanently remove a draft that has never created immutable history."""
-    trade = await get_owned(
+    trade = await get_profile_trade(
         session,
-        Trade,
         trade_id,
+        profile_id,
         user.id,
         for_update=True,
     )
@@ -420,18 +449,21 @@ async def delete_trade(
     await session.flush()
 
 
-@router.patch("/{trade_id}", response_model=TradeResponse)
+@router.patch(
+    "/{trade_id}", response_model=TradeResponse, tags=["Profiles · Trades"]
+)
 async def update_trade(
+    profile_id: int,
     trade_id: int,
     request: TradePatch,
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradeResponse:
     """Edit draft identity or universally editable journal metadata."""
-    trade = await get_owned(
+    trade = await get_profile_trade(
         session,
-        Trade,
         trade_id,
+        profile_id,
         user.id,
         for_update=True,
     )
@@ -473,18 +505,23 @@ async def update_trade(
     return await trade_response(session, trade)
 
 
-@router.put("/{trade_id}/checklist", response_model=ChecklistResponse)
+@router.put(
+    "/{trade_id}/checklist",
+    response_model=ChecklistResponse,
+    tags=["Profiles · Trade preparation"],
+)
 async def update_checklist(
+    profile_id: int,
     trade_id: int,
     request: ChecklistWrite,
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> ChecklistResponse:
     """Replace and assess the four directional answers on a draft trade."""
-    trade = await get_owned(
+    trade = await get_profile_trade(
         session,
-        Trade,
         trade_id,
+        profile_id,
         user.id,
         for_update=True,
     )
@@ -511,8 +548,13 @@ async def update_checklist(
     )
 
 
-@router.post("/{trade_id}/atr", response_model=ATRResponse)
+@router.post(
+    "/{trade_id}/atr",
+    response_model=ATRResponse,
+    tags=["Profiles · Trade preparation"],
+)
 async def refresh_atr(
+    profile_id: int,
     trade_id: int,
     market: MarketDependency,
     request: ATRRequest,
@@ -526,7 +568,7 @@ async def refresh_atr(
     contributing date cannot follow the trade date. Submission locks this
     context (409). Returned candles are transient and are not stored.
     """
-    trade = await get_owned(session, Trade, trade_id, user.id)
+    trade = await get_profile_trade(session, trade_id, profile_id, user.id)
     if trade.status != TradeStatus.DRAFT:
         conflict("ATR context is locked after trade submission")
     requested_instrument_id = trade.instrument_id
@@ -609,7 +651,7 @@ async def refresh_atr(
         )
     locked_trade = await session.scalar(
         owned_select(Trade, user.id)
-        .where(Trade.id == trade_id)
+        .where(Trade.id == trade_id, Trade.profile_id == profile_id)
         .with_for_update()
         .execution_options(populate_existing=True)
     )
@@ -633,8 +675,13 @@ async def refresh_atr(
     return response
 
 
-@router.post("/{trade_id}/plan/preview", response_model=TradePlanResponse)
+@router.post(
+    "/{trade_id}/plan/preview",
+    response_model=TradePlanResponse,
+    tags=["Profiles · Trade preparation"],
+)
 async def preview_trade_plan(
+    profile_id: int,
     trade_id: int,
     request: TradePlanRequest,
     session: SessionDependency,
@@ -646,10 +693,10 @@ async def preview_trade_plan(
     sufficient capital. Submission recalculates and enforces those checks
     against current state; a preview does not guarantee submission.
     """
-    trade = await get_owned(
+    trade = await get_profile_trade(
         session,
-        Trade,
         trade_id,
+        profile_id,
         user.id,
         for_update=True,
     )
@@ -670,14 +717,16 @@ async def preview_trade_plan(
 @router.get(
     "/{trade_id}/planning-context",
     response_model=TradePlanningContextResponse,
+    tags=["Profiles · Trade preparation"],
 )
 async def get_trade_plan_context(
+    profile_id: int,
     trade_id: int,
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradePlanningContextResponse:
     """Return stable exact inputs for a responsive local draft calculator."""
-    trade = await get_owned(session, Trade, trade_id, user.id)
+    trade = await get_profile_trade(session, trade_id, profile_id, user.id)
     context = await prepare_planning_context(
         session,
         trade,
@@ -726,8 +775,13 @@ async def get_trade_plan_context(
     )
 
 
-@router.put("/{trade_id}/plan", response_model=TradeResponse)
+@router.put(
+    "/{trade_id}/plan",
+    response_model=TradeResponse,
+    tags=["Profiles · Trade preparation"],
+)
 async def save_trade_plan(
+    profile_id: int,
     trade_id: int,
     request: TradePlanSave,
     session: SessionDependency,
@@ -739,10 +793,10 @@ async def save_trade_plan(
     plan. This saves preparation only; it does not reserve funds or submit
     the trade. Submitted plans are locked (409).
     """
-    trade = await get_owned(
+    trade = await get_profile_trade(
         session,
-        Trade,
         trade_id,
+        profile_id,
         user.id,
         for_update=True,
     )
@@ -762,8 +816,13 @@ async def save_trade_plan(
     return await trade_response(session, trade)
 
 
-@router.post("/{trade_id}/submit", response_model=TradeResponse)
+@router.post(
+    "/{trade_id}/submit",
+    response_model=TradeResponse,
+    tags=["Profiles · Trade lifecycle"],
+)
 async def submit_draft(
+    profile_id: int,
     trade_id: int,
     request: TradeSubmit,
     session: SessionDependency,
@@ -777,13 +836,9 @@ async def submit_draft(
     atomically. Invalid lifecycle or capital state returns 409.
     This records a journal decision; it does not place an exchange order.
     """
-    trade = await session.scalar(
-        owned_select(Trade, user.id)
-        .where(Trade.id == trade_id)
-        .with_for_update()
+    trade = await get_profile_trade(
+        session, trade_id, profile_id, user.id, for_update=True
     )
-    if trade is None:
-        not_found("Trade")
     plan = saved_plan(trade)
     if plan is None:
         api_error(
@@ -801,17 +856,22 @@ async def submit_draft(
     return await trade_response(session, trade)
 
 
-@router.post("/{trade_id}/open", response_model=TradeResponse)
+@router.post(
+    "/{trade_id}/open",
+    response_model=TradeResponse,
+    tags=["Profiles · Trade lifecycle"],
+)
 async def open_trade(
+    profile_id: int,
     trade_id: int,
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradeResponse:
     """Mark a pending external order as filled and open."""
-    trade = await get_owned(
+    trade = await get_profile_trade(
         session,
-        Trade,
         trade_id,
+        profile_id,
         user.id,
         for_update=True,
     )
@@ -823,17 +883,22 @@ async def open_trade(
     return await trade_response(session, trade)
 
 
-@router.post("/{trade_id}/cancel", response_model=TradeResponse)
+@router.post(
+    "/{trade_id}/cancel",
+    response_model=TradeResponse,
+    tags=["Profiles · Trade lifecycle"],
+)
 async def cancel_trade(
+    profile_id: int,
     trade_id: int,
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradeResponse:
     """Cancel a draft, pending or open trade and release derived reservation."""
-    trade = await get_owned(
+    trade = await get_profile_trade(
         session,
-        Trade,
         trade_id,
+        profile_id,
         user.id,
         for_update=True,
     )
@@ -848,8 +913,13 @@ async def cancel_trade(
     return await trade_response(session, trade)
 
 
-@router.post("/{trade_id}/close", response_model=TradeResponse)
+@router.post(
+    "/{trade_id}/close",
+    response_model=TradeResponse,
+    tags=["Profiles · Trade lifecycle"],
+)
 async def close_trade(
+    profile_id: int,
     trade_id: int,
     request: TradeClose,
     session: SessionDependency,
@@ -861,10 +931,10 @@ async def close_trade(
     and funding. Commission and funding fields are recorded as context;
     they are not deducted again. Only open trades can close (409).
     """
-    trade = await get_owned(
+    trade = await get_profile_trade(
         session,
-        Trade,
         trade_id,
+        profile_id,
         user.id,
         for_update=True,
     )
@@ -898,18 +968,23 @@ async def close_trade(
     return await trade_response(session, trade)
 
 
-@router.put("/{trade_id}/review", response_model=TradeResponse)
+@router.put(
+    "/{trade_id}/review",
+    response_model=TradeResponse,
+    tags=["Profiles · Trade lifecycle"],
+)
 async def review_trade(
+    profile_id: int,
     trade_id: int,
     request: TradeReview,
     session: SessionDependency,
     user: CurrentUserDependency,
 ) -> TradeResponse:
     """Set review completion time on a closed trade."""
-    trade = await get_owned(
+    trade = await get_profile_trade(
         session,
-        Trade,
         trade_id,
+        profile_id,
         user.id,
         for_update=True,
     )

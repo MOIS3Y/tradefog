@@ -8,6 +8,26 @@ contract; this guide covers how to use the operations together.
 
 ## Journal workflow
 
+Select a profile before creating or editing journal trades. Trade endpoints
+live under `/profiles/{profile_id}/trades`, including preparation, lifecycle
+actions and attachments. The profile comes from the path, never from the
+creation body. Attachment content URLs include both the profile and trade.
+The server checks the entire hierarchy; an inaccessible or mismatched
+resource returns `404`.
+
+`GET /trades` and `GET /analytics` provide owner-wide read-only overviews,
+with optional profile filters. Profile-specific analytics lives at
+`GET /profiles/{profile_id}/analytics`. Both variants use the same calculations;
+analytical trajectory points include `profile_id` for direct trade links.
+Profile-specific list and analytics endpoints do not accept a profile query
+filter. Venue capabilities and public market data remain under `/venues`.
+
+Swagger groups profile resources under consistently ordered `Profiles · …`
+tags and puts aggregate reads under `Overview · …`. Each operation has one
+tag. Backend and frontend must be released together: former root trade-detail,
+trade-write and attachment URLs are no longer supported. Existing records and
+stored image files need no migration.
+
 1. Authenticate with `/auth/token`. In Swagger, use **Authorize**, enter the
    account credentials and leave client ID and secret empty. Accounts are
    provisioned through the CLI. See [authentication](architecture.md#authentication-and-profile-api)

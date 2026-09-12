@@ -99,7 +99,11 @@ async def test_buyback_inventory_cannot_fund_another_pair(
     client = profile_client
     market = await setup_market(client, inventory="1")
     trade = await draft(client, market)
-    await post(client, f"/trades/{trade['id']}/submit", {"status": "open"})
+    await post(
+        client,
+        f"/profiles/{trade['profile_id']}/trades/{trade['id']}/submit",
+        {"status": "open"},
+    )
     root = market["root"]
     instrument = await post(
         client,
@@ -125,7 +129,7 @@ async def test_buyback_inventory_cannot_fund_another_pair(
     second = await draft(client, market, "long")
     assert (
         await client.post(
-            f"/api/v1/trades/{second['id']}/submit",
+            f"/api/v1/profiles/{second['profile_id']}/trades/{second['id']}/submit",
             json={"status": "open"},
         )
     ).status_code == 409

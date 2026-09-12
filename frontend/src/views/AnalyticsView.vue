@@ -13,7 +13,7 @@ import AppShell from "@/layouts/AppShell.vue";
         :title="$t('analytics.title')"
         :description="$t('analytics.subtitle')"
       />
-      <AnalyticsWorkspace />
+      <AnalyticsWorkspace :key="$route.path" />
     </div>
   </AppShell>
 </template>

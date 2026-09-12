@@ -4,7 +4,7 @@ import "@fontsource/ibm-plex-sans/500.css";
 import "@fontsource/ibm-plex-sans/600.css";
 import "@fontsource/ibm-plex-sans/700.css";
 
-import { VueQueryPlugin } from "@tanstack/vue-query";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia } from "pinia";
 import { createApp } from "vue";
 
@@ -22,17 +22,17 @@ const router = createAppRouter(pinia);
 app.use(pinia);
 app.use(router);
 app.use(i18n);
-app.use(VueQueryPlugin, {
-  queryClientConfig: {
-    defaultOptions: {
-      queries: {
-        retry: 1,
-        staleTime: 30_000,
-        refetchOnWindowFocus: false,
-      },
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
     },
   },
 });
+app.use(VueQueryPlugin, { queryClient });
+window.addEventListener("tradefog:session-ended", () => queryClient.clear());
 
 const auth = useAuthStore(pinia);
 setAuthenticationFailureHandler(() => {

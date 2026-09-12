@@ -290,8 +290,7 @@ describe("trade lifecycle client", () => {
       }),
     );
 
-    await createTrade({
-      profile_id: 3,
+    await createTrade(trade.profile_id, {
       strategy_id: 7,
       instrument_id: 11,
       trade_date: "2026-09-08",
@@ -301,11 +300,17 @@ describe("trade lifecycle client", () => {
       planned_entry: "100",
       planned_stop: "90",
     };
-    await previewPlan(trade.id, input);
-    await savePlan(trade.id, input);
-    const submitted = await submitTrade(trade.id, "pending_entry");
-    await openTrade(trade.id);
-    const rated = await updateTrade(trade.id, { quality_rating: 9 });
+    await previewPlan(trade.profile_id, trade.id, input);
+    await savePlan(trade.profile_id, trade.id, input);
+    const submitted = await submitTrade(
+      trade.profile_id,
+      trade.id,
+      "pending_entry",
+    );
+    await openTrade(trade.profile_id, trade.id);
+    const rated = await updateTrade(trade.profile_id, trade.id, {
+      quality_rating: 9,
+    });
 
     expect(requests.map((request) => request.method)).toEqual([
       "POST",
@@ -320,7 +325,7 @@ describe("trade lifecycle client", () => {
     expect(rated.quality_rating).toBe(9);
     expect(await requests[1]?.clone().json()).toEqual(input);
     expect(new URL(requests[4]?.url ?? "").pathname).toBe(
-      `/api/v1/trades/${trade.id}/open`,
+      `/api/v1/profiles/3/trades/${trade.id}/open`,
     );
     expect(await requests[5]?.clone().json()).toEqual({ quality_rating: 9 });
   });

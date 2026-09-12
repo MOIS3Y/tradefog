@@ -32,6 +32,7 @@ class TrajectoryPointResponse(BaseModel):
 
     sequence: int
     trade_id: int
+    profile_id: int
     trade_date: date
     closed_at: datetime
     profile_name: str
@@ -64,6 +65,7 @@ class MonetaryTrajectoryPointResponse(BaseModel):
 
     sequence: int
     trade_id: int
+    profile_id: int
     closed_at: datetime
     realized_pnl: Decimal
     cumulative_pnl: Decimal

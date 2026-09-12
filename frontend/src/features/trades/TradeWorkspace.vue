@@ -15,7 +15,11 @@ import { ChartCandlestick } from "@lucide/vue";
 import PaginationControls from "@/components/PaginationControls.vue";
 import SearchableSelect from "@/components/SearchableSelect.vue";
 import SortableHeader from "@/components/SortableHeader.vue";
-import { listProfiles, listStrategies } from "@/features/profiles/api";
+import {
+  getProfile,
+  listProfiles,
+  listStrategies,
+} from "@/features/profiles/api";
 import { listTrades, type TradeListParams } from "@/features/trades/api";
 import TradeCreateDialog from "./TradeCreateDialog.vue";
 import TradeRatingDisplay from "@/features/trades/TradeRatingDisplay.vue";
@@ -66,7 +70,8 @@ const period = field("period");
 const from = field("date_from", "");
 const to = field("date_to", "");
 const profileId = computed({
-  get: () => Number(text("profile_id")) || null,
+  get: () =>
+    Number(route.params.profileId) || Number(text("profile_id")) || null,
   set: (value: number | null) => {
     void router.replace({
       query: {
@@ -109,8 +114,15 @@ watch(
 );
 onBeforeUnmount(() => clearTimeout(timer));
 const profilesQuery = useQuery({
-  queryKey: ["profiles"],
-  queryFn: listProfiles,
+  queryKey: computed(() => [
+    "profiles",
+    "trade-options",
+    route.params.profileId ?? "overview",
+  ]),
+  queryFn: () =>
+    route.params.profileId
+      ? getProfile(Number(route.params.profileId)).then((profile) => [profile])
+      : listProfiles(),
 });
 const profileOptions = computed(() =>
   (profilesQuery.data.value ?? []).map((x) => ({ value: x.id, label: x.name })),
@@ -206,8 +218,14 @@ const dateError = computed(
     from.value > to.value,
 );
 const query = useQuery({
-  queryKey: computed(() => ["trades", "list", criteria.value]),
-  queryFn: () => listTrades(criteria.value),
+  queryKey: computed(() => [
+    "trades",
+    "list",
+    Number(route.params.profileId) || "overview",
+    criteria.value,
+  ]),
+  queryFn: () =>
+    listTrades(criteria.value, Number(route.params.profileId) || undefined),
   enabled: computed(() => !dateError.value),
 });
 watch(
@@ -220,7 +238,12 @@ watch(
       page.value = Math.max(1, Math.ceil(value.total / pageSize.value));
   },
 );
-const filtered = computed(() => hasTradeFilters(criteria.value));
+const filtered = computed(() =>
+  hasTradeFilters({
+    ...criteria.value,
+    profile_id: route.params.profileId ? undefined : criteria.value.profile_id,
+  }),
+);
 const needsProfiles = computed(
   () =>
     query.isSuccess.value && query.data.value?.total === 0 && !filtered.value,
@@ -281,7 +304,7 @@ const backQuery = computed(() => ({ returnTo: route.fullPath }));
 const advancedCount = computed(
   () =>
     [
-      profileId.value !== null,
+      !route.params.profileId && profileId.value !== null,
       strategyId.value !== null,
       direction.value !== "all",
       review.value !== "all",
@@ -302,10 +325,17 @@ const advancedOpen = ref(advancedCount.value > 0);
       <button
         class="button button--primary trade-toolbar__create"
         type="button"
+        v-if="route.params.profileId"
         @click="creating = true"
       >
         <Plus :size="17" />{{ $t("trades.new") }}
       </button>
+      <RouterLink
+        v-if="!route.params.profileId"
+        class="button button--secondary"
+        to="/profiles"
+        >{{ $t("context.chooseProfile") }}</RouterLink
+      >
     </PanelHeading>
     <div class="trade-toolbar journal-toolbar">
       <label class="search-field trade-search"
@@ -344,7 +374,7 @@ const advancedOpen = ref(advancedCount.value > 0);
         type="button"
         :aria-label="$t('catalog.reset')"
         :title="$t('catalog.reset')"
-        @click="router.replace('/trades')"
+        @click="router.replace(route.path)"
       >
         <RotateCcw :size="16" aria-hidden="true" />
       </button>
@@ -356,6 +386,7 @@ const advancedOpen = ref(advancedCount.value > 0);
     >
       <SearchableSelect
         class="journal-filter-selector"
+        v-if="!route.params.profileId"
         v-model="profileId"
         :options="profileOptions"
         :placeholder="$t('journal.allProfiles')"
@@ -420,19 +451,23 @@ const advancedOpen = ref(advancedCount.value > 0);
         <button
           v-if="filtered"
           class="button button--secondary"
-          @click="router.replace('/trades')"
+          @click="router.replace(route.path)"
         >
           {{ $t("catalog.reset") }}
         </button>
         <button
-          v-else-if="emptyKind === 'trades'"
+          v-else-if="emptyKind === 'trades' && route.params.profileId"
           class="button button--primary"
           @click="creating = true"
         >
           {{ $t("workspaceEmpty.trades.action") }}
         </button>
         <RouterLink v-else class="button button--primary" to="/profiles">{{
-          $t(`workspaceEmpty.${emptyKind}.action`)
+          $t(
+            emptyKind === "trades"
+              ? "context.chooseProfile"
+              : `workspaceEmpty.${emptyKind}.action`,
+          )
         }}</RouterLink>
       </EmptyState>
       <div v-else class="catalog-table-wrap">
@@ -469,7 +504,10 @@ const advancedOpen = ref(advancedCount.value > 0);
                 <div class="journal-identity">
                   <RouterLink
                     class="catalog-symbol"
-                    :to="{ path: `/trades/${trade.id}`, query: backQuery }"
+                    :to="{
+                      path: `/profiles/${trade.profile_id}/trades/${trade.id}`,
+                      query: backQuery,
+                    }"
                     >{{ trade.pair_symbol }}</RouterLink
                   ><small
                     >{{ trade.exec_symbol }} ·
@@ -525,7 +563,8 @@ const advancedOpen = ref(advancedCount.value > 0);
       />
     </template>
     <TradeCreateDialog
-      v-if="creating"
+      v-if="creating && route.params.profileId"
+      :profile-id="Number(route.params.profileId)"
       :return-to="route.fullPath"
       @close="creating = false"
     />

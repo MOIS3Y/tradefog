@@ -7,32 +7,35 @@ import { ApiError } from "@/api/errors";
 import LoadingState from "@/components/LoadingState.vue";
 import ErrorState from "@/components/ErrorState.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import { listProfiles, listStrategies } from "@/features/profiles/api";
+import { getProfile, listStrategies } from "@/features/profiles/api";
 import { getTrade, type Trade } from "@/features/trades/api";
 import TradeEditor from "@/features/trades/TradeEditor.vue";
 
 const route = useRoute();
 const router = useRouter();
 const client = useQueryClient();
+const profileId = computed(() => Number(route.params.profileId));
 const id = computed(() => Number(route.params.tradeId));
 const invalidIdentifier = computed(
   () => !Number.isInteger(id.value) || id.value < 1,
 );
 const back = computed(() =>
   typeof route.query.returnTo === "string" &&
-  /^\/trades(?:\?|$)/.test(route.query.returnTo)
+  /^\/(?:profiles\/\d+\/)?(?:trades|analytics)(?:\?|$)/.test(
+    route.query.returnTo,
+  )
     ? route.query.returnTo
-    : "/trades",
+    : `/profiles/${profileId.value}/trades`,
 );
 const tradeQuery = useQuery({
-  queryKey: computed(() => ["trades", "detail", id.value]),
-  queryFn: () => getTrade(id.value),
+  queryKey: computed(() => ["trades", "detail", profileId.value, id.value]),
+  queryFn: () => getTrade(profileId.value, id.value),
   enabled: computed(() => Number.isInteger(id.value) && id.value > 0),
 });
 const trade = computed(() => tradeQuery.data.value);
 const profilesQuery = useQuery({
-  queryKey: ["profiles"],
-  queryFn: listProfiles,
+  queryKey: computed(() => ["profiles", "trade-options", profileId.value]),
+  queryFn: async () => [await getProfile(profileId.value)],
 });
 const profiles = computed(() => profilesQuery.data.value ?? []);
 const profile = computed(() =>
@@ -74,11 +77,15 @@ const assetsQuery = useQuery({
   },
 });
 function updated(value: Trade): void {
-  client.setQueryData(["trades", "detail", value.id], value);
+  client.setQueryData(["trades", "detail", value.profile_id, value.id], value);
   void client.invalidateQueries({ queryKey: ["trades", "list"] });
+  void client.invalidateQueries({ queryKey: ["analytics"] });
+  void client.invalidateQueries({ queryKey: ["profiles"] });
 }
 async function deleted(): Promise<void> {
-  client.removeQueries({ queryKey: ["trades", "detail", id.value] });
+  client.removeQueries({
+    queryKey: ["trades", "detail", profileId.value, id.value],
+  });
   await client.invalidateQueries({ queryKey: ["trades", "list"] });
   await router.push(back.value);
 }

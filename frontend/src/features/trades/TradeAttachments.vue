@@ -22,14 +22,14 @@ interface Slide {
   alt: string;
 }
 
-const props = defineProps<{ tradeId: number }>();
+const props = defineProps<{ profileId: number; tradeId: number }>();
 const { t } = useI18n();
 const toasts = useToastStore();
 const slides = ref(new Map<number, Slide>());
 
 const attachmentQuery = useQuery({
-  queryKey: ["trade-attachments", props.tradeId],
-  queryFn: () => listAttachments(props.tradeId),
+  queryKey: ["trade-attachments", props.profileId, props.tradeId],
+  queryFn: () => listAttachments(props.profileId, props.tradeId),
 });
 
 function reportError(error: unknown): void {
@@ -41,7 +41,8 @@ function reportError(error: unknown): void {
 }
 
 const uploadMutation = useMutation({
-  mutationFn: (file: File) => uploadAttachment(props.tradeId, file),
+  mutationFn: (file: File) =>
+    uploadAttachment(props.profileId, props.tradeId, file),
   onSuccess: async () => {
     await attachmentQuery.refetch();
     toasts.success({ title: t("trades.attachments.uploaded") });
@@ -49,7 +50,8 @@ const uploadMutation = useMutation({
   onError: reportError,
 });
 const removeMutation = useMutation({
-  mutationFn: deleteAttachment,
+  mutationFn: (id: number) =>
+    deleteAttachment(props.profileId, props.tradeId, id),
   onSuccess: async (_, id) => {
     const slide = slides.value.get(id);
     if (slide) URL.revokeObjectURL(slide.src);

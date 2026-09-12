@@ -30,7 +30,7 @@ from tradefog.api.v1.schemas.auth import (
 from tradefog.config.authentication import AuthenticationSettings
 from tradefog.db.models import User
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 def token_pair(user: User, settings: AuthenticationSettings) -> TokenResponse:

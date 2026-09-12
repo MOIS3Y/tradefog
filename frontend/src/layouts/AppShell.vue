@@ -3,6 +3,17 @@ import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
+import { useIsMutating } from "@tanstack/vue-query";
+import { useProfileContext } from "@/composables/useProfileContext";
+import {
+  leaveConfirmation,
+  answerLeave,
+  useNavigationBusy,
+  confirmNavigation,
+} from "@/composables/useLeaveGuard";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
+import ProfileContextSelect from "@/components/ProfileContextSelect.vue";
+import ProfileScopeBoundary from "@/components/ProfileScopeBoundary.vue";
 import BrandMark from "@/components/BrandMark.vue";
 import {
   Settings,
@@ -16,10 +27,12 @@ import {
 } from "@lucide/vue";
 import { TooltipProvider } from "reka-ui";
 import SidebarTooltip from "@/components/SidebarTooltip.vue";
-import PositionDiagram from "@/components/PositionDiagram.vue";
 import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
+const { prefix, profileId } = useProfileContext();
+const mutations = useIsMutating();
+useNavigationBusy(mutations);
 const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
@@ -66,31 +79,46 @@ onBeforeUnmount(() =>
 
 const navigation = computed(() => [
   {
-    label: t("nav.overview"),
-    icon: LayoutDashboard,
-    path: "/",
-    active: route.path === "/",
-  },
-
-  {
     label: t("nav.profiles"),
     icon: WalletCards,
     path: "/profiles",
-    active: route.path.startsWith("/profiles"),
+    active: route.path === "/profiles",
   },
   {
     label: t("nav.trades"),
     icon: ArrowLeftRight,
-    path: "/trades",
-    active: route.path.startsWith("/trades"),
+    path: `${prefix.value}/trades`,
+    active: route.path.includes("/trades"),
   },
   {
     label: t("nav.analytics"),
     icon: ChartNoAxesCombined,
-    path: "/analytics",
-    active: route.path.startsWith("/analytics"),
+    path: `${prefix.value}/analytics`,
+    active: route.path.endsWith("/analytics"),
   },
 ]);
+
+const profileNavigation = computed(() =>
+  profileId.value === null
+    ? []
+    : [
+        {
+          label: t("profileMarket.title"),
+          icon: LayoutDashboard,
+          path: `${prefix.value}/market`,
+        },
+        {
+          label: t("profiles.wallet.tab"),
+          icon: WalletCards,
+          path: `${prefix.value}/wallet`,
+        },
+        {
+          label: t("profiles.strategies.tab"),
+          icon: ChartNoAxesCombined,
+          path: `${prefix.value}/strategies`,
+        },
+      ].map((item) => ({ ...item, active: route.path === item.path })),
+);
 
 const initials = computed(() =>
   (auth.user?.username ?? "TF").slice(0, 2).toUpperCase(),
@@ -111,6 +139,7 @@ const accountCaption = computed(() => {
 });
 
 async function signOut(): Promise<void> {
+  if (!(await confirmNavigation())) return;
   auth.signOut();
   await router.replace("/login");
 }
@@ -172,7 +201,7 @@ function closeNavigation(): void {
           </SidebarTooltip>
         </div>
 
-        <PositionDiagram />
+        <ProfileContextSelect :compact="compact" />
 
         <nav
           id="sidebar-navigation"
@@ -180,7 +209,7 @@ function closeNavigation(): void {
           :aria-label="t('common.menu')"
         >
           <SidebarTooltip
-            v-for="item in navigation"
+            v-for="item in [...navigation, ...profileNavigation]"
             :key="item.path"
             :label="item.label"
             :disabled="!compact"
@@ -250,8 +279,18 @@ function closeNavigation(): void {
       </aside>
 
       <main class="app-content">
-        <slot />
+        <ProfileScopeBoundary><slot /></ProfileScopeBoundary>
       </main>
     </div>
+    <ConfirmDialog
+      :open="leaveConfirmation"
+      :title="$t('context.unsavedTitle')"
+      :description="$t('context.unsavedBody')"
+      :confirm-label="$t('context.discard')"
+      :cancel-label="$t('context.stay')"
+      :busy="mutations > 0"
+      @confirm="answerLeave(true)"
+      @update:open="answerLeave(false)"
+    />
   </TooltipProvider>
 </template>

@@ -24,6 +24,7 @@ from tradefog.db.models import (
     TradingAsset,
     TradingInstrument,
     TradingProfile,
+    TradingStrategy,
 )
 from tradefog.db.scoping import owned_select
 from tradefog.domain.analytics import (
@@ -32,8 +33,9 @@ from tradefog.domain.analytics import (
     calculate_trade_analytics,
 )
 from tradefog.domain.enums import ProductKind, TradeStatus
+from tradefog.services.journal import get_owned
 
-router = APIRouter(prefix="/analytics", tags=["Analytics"])
+router = APIRouter(prefix="/analytics", tags=["Overview · Analytics"])
 
 
 @router.get("", response_model=AnalyticsResponse)
@@ -149,6 +151,7 @@ async def get_analytics(
     closed_trades: list[ClosedTradeResult] = []
     reviewed_trade_count = 0
     excluded_trade_count = 0
+    profile_by_trade: dict[int, int] = {}
     for (
         trade,
         snapshot,
@@ -157,6 +160,7 @@ async def get_analytics(
         market_type,
         settlement_symbol,
     ) in (await session.execute(statement)).all():
+        profile_by_trade[trade.id] = trade.profile_id
         risk = snapshot.planned_risk_amount
         reward = snapshot.reward_multiple
         closed_at = trade.closed_at
@@ -204,6 +208,7 @@ async def get_analytics(
         TrajectoryPointResponse(
             sequence=point.sequence,
             trade_id=point.trade.trade_id,
+            profile_id=profile_by_trade[point.trade.trade_id],
             trade_date=point.trade.trade_date,
             closed_at=point.trade.closed_at,
             profile_name=point.trade.profile_name,
@@ -258,6 +263,7 @@ async def get_analytics(
                 MonetaryTrajectoryPointResponse(
                     sequence=point.sequence,
                     trade_id=point.trade_id,
+                    profile_id=profile_by_trade[point.trade_id],
                     closed_at=point.closed_at,
                     realized_pnl=point.realized_pnl,
                     cumulative_pnl=point.cumulative_pnl,
@@ -299,4 +305,49 @@ async def get_analytics(
         ),
         discipline_break_even_reference=discipline_reference,
         monetary=monetary,
+    )
+
+
+profile_router = APIRouter(
+    prefix="/profiles/{profile_id}/analytics", tags=["Profiles · Analytics"]
+)
+
+
+@profile_router.get("", response_model=AnalyticsResponse)
+async def get_profile_analytics(
+    profile_id: int,
+    session: SessionDependency,
+    user: CurrentUserDependency,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    period: AnalyticsPeriod = AnalyticsPeriod.ALL_TIME,
+    strategy_id: int | None = None,
+    product: ProductKind | None = None,
+    instrument_id: int | None = None,
+    settlement_asset_id: int | None = None,
+    strategy_capital_id: int | None = None,
+) -> AnalyticsResponse:
+    """Calculate the existing analytics within an accessible profile."""
+    await get_owned(session, TradingProfile, profile_id, user.id)
+    if strategy_capital_id is not None:
+        allocation = await get_owned(
+            session, StrategyCapital, strategy_capital_id, user.id
+        )
+        strategy = await get_owned(
+            session, TradingStrategy, allocation.strategy_id, user.id
+        )
+        if strategy.profile_id != profile_id:
+            api_error(404, "not_found", "StrategyCapital not found")
+    return await get_analytics(
+        session,
+        user,
+        date_from,
+        date_to,
+        period,
+        profile_id,
+        strategy_id,
+        product,
+        instrument_id,
+        settlement_asset_id,
+        strategy_capital_id,
     )

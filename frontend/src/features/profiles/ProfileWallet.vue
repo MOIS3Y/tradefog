@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useDialogLeaveGuard } from "@/composables/useLeaveGuard";
 import { Search, Coins, Plus } from "@lucide/vue";
 import WalletAssetCard from "./WalletAssetCard.vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
@@ -286,6 +287,8 @@ function openOperationDialog(asset: Asset): void {
   Object.assign(operationForm, { kind: "deposit", amount: "", note: "" });
   operationDialogOpen.value = true;
 }
+useDialogLeaveGuard(assetDialogOpen, () => assetForm);
+useDialogLeaveGuard(operationDialogOpen, () => operationForm);
 </script>
 
 <template>

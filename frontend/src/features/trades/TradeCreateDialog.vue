@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { confirmNavigation, useLeaveGuard } from "@/composables/useLeaveGuard";
 /** Create a draft in the journal drawer; position direction belongs to editing. */
-import { computed, reactive, watch } from "vue";
+import { computed, reactive, ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -10,36 +11,26 @@ import RemoteCatalogSelect from "@/components/RemoteCatalogSelect.vue";
 import LoadingState from "@/components/LoadingState.vue";
 import ErrorState from "@/components/ErrorState.vue";
 import EmptyState from "@/components/EmptyState.vue";
-import { listProfiles, listStrategies } from "@/features/profiles/api";
+import { getProfile, listStrategies } from "@/features/profiles/api";
 import { createTrade } from "./api";
 import { useToastStore } from "@/stores/toasts";
 
-const props = defineProps<{ returnTo: string }>();
+const props = defineProps<{ profileId: number; returnTo: string }>();
 const emit = defineEmits<{ close: [] }>();
 const router = useRouter();
 const { t } = useI18n();
 const client = useQueryClient();
 const toasts = useToastStore();
 const form = reactive({
-  profile_id: null as number | null,
   strategy_id: null as number | null,
   instrument_id: null as number | null,
   trade_date: new Date().toISOString().slice(0, 10),
 });
 const profilesQuery = useQuery({
-  queryKey: ["profiles"],
-  queryFn: listProfiles,
+  queryKey: ["profiles", "detail", props.profileId],
+  queryFn: () => getProfile(props.profileId),
 });
-const profile = computed(() =>
-  profilesQuery.data.value?.find(
-    (item) => item.id === form.profile_id && !item.is_archived,
-  ),
-);
-const profileOptions = computed(() =>
-  (profilesQuery.data.value ?? [])
-    .filter((item) => !item.is_archived)
-    .map((item) => ({ value: item.id, label: item.name })),
-);
+const profile = computed(() => profilesQuery.data.value);
 const strategiesQuery = useQuery({
   queryKey: computed(() => ["profiles", profile.value?.id, "strategies"]),
   queryFn: () => listStrategies(profile.value!.id),
@@ -54,13 +45,6 @@ const strategyOptions = computed(() =>
     )
     .map((item) => ({ value: item.id, label: item.name })),
 );
-watch(
-  () => form.profile_id,
-  () => {
-    form.strategy_id = null;
-    form.instrument_id = null;
-  },
-);
 const invalid = computed(
   () =>
     !profile.value ||
@@ -69,24 +53,24 @@ const invalid = computed(
     !form.trade_date ||
     !strategyOptions.value.some((item) => item.value === form.strategy_id),
 );
+const savedForm = ref(JSON.stringify(form));
+useLeaveGuard(computed(() => JSON.stringify(form) !== savedForm.value));
 const create = useMutation({
   mutationFn: () =>
-    createTrade({
+    createTrade(props.profileId, {
       ...form,
-      profile_id: form.profile_id!,
       strategy_id: form.strategy_id!,
       instrument_id: form.instrument_id!,
       direction: "long",
     }),
   onSuccess: async (value) => {
-    client.setQueryData(["trades", "detail", value.id], value);
+    savedForm.value = JSON.stringify(form);
+    client.setQueryData(
+      ["trades", "detail", value.profile_id, value.id],
+      value,
+    );
     await client.invalidateQueries({ queryKey: ["trades", "list"] });
     toasts.success({ title: t("trades.created") });
-    await router.push({
-      path: `/trades/${value.id}`,
-      query: { returnTo: props.returnTo },
-    });
-    emit("close");
   },
   onError: (error: Error) =>
     toasts.error({
@@ -94,11 +78,22 @@ const create = useMutation({
       description: error.message,
     }),
 });
-function close(open: boolean): void {
-  if (!open && !create.isPending.value) emit("close");
+async function close(open: boolean): Promise<void> {
+  if (!open && !create.isPending.value && (await confirmNavigation()))
+    emit("close");
 }
-function submit(): void {
-  if (!invalid.value && !create.isPending.value) create.mutate();
+async function submit(): Promise<void> {
+  if (invalid.value || create.isPending.value) return;
+  try {
+    const value = await create.mutateAsync();
+    emit("close");
+    await router.push({
+      path: `/profiles/${value.profile_id}/trades/${value.id}`,
+      query: { returnTo: props.returnTo },
+    });
+  } catch {
+    // Keep input available for retry; the mutation presents the error.
+  }
 }
 </script>
 
@@ -120,7 +115,7 @@ function submit(): void {
       @retry="profilesQuery.refetch()"
     />
     <EmptyState
-      v-else-if="!profileOptions.length"
+      v-else-if="!profile || profile.is_archived"
       :title="$t('trades.fields.noProfiles')"
       :description="$t('journal.setup')"
     >
@@ -129,14 +124,6 @@ function submit(): void {
       }}</RouterLink>
     </EmptyState>
     <template v-else>
-      <label class="field"
-        ><span>{{ $t("trades.fields.profile") }}</span
-        ><SearchableSelect
-          v-model="form.profile_id"
-          :options="profileOptions"
-          :placeholder="$t('trades.fields.selectProfile')"
-          :empty-label="$t('trades.fields.noProfiles')"
-      /></label>
       <label class="field"
         ><span>{{ $t("trades.fields.strategy") }}</span
         ><SearchableSelect
@@ -155,7 +142,7 @@ function submit(): void {
           profile && strategiesQuery.isSuccess.value && !strategyOptions.length
         "
         class="button-link"
-        to="/profiles"
+        :to="`/profiles/${profileId}/strategies`"
         >{{ $t("journal.setup") }}</RouterLink
       >
       <label class="field"

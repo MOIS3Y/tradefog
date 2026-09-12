@@ -33,6 +33,7 @@ const analytics: Analytics = {
     {
       sequence: 1,
       trade_id: 41,
+      profile_id: 3,
       trade_date: "2026-09-01",
       closed_at: "2026-09-01T12:00:00Z",
       profile_name: "Main",
@@ -48,6 +49,7 @@ const analytics: Analytics = {
     {
       sequence: 2,
       trade_id: 42,
+      profile_id: 3,
       trade_date: "2026-09-02",
       closed_at: "2026-09-02T12:00:00Z",
       profile_name: "Main",
@@ -86,6 +88,7 @@ const analytics: Analytics = {
         {
           sequence: 1,
           trade_id: 41,
+          profile_id: 3,
           closed_at: "2026-09-01T12:00:00Z",
           realized_pnl: "30.000000000000000000",
           cumulative_pnl: "30.000000000000000000",
@@ -93,6 +96,7 @@ const analytics: Analytics = {
         {
           sequence: 2,
           trade_id: 42,
+          profile_id: 3,
           closed_at: "2026-09-02T12:00:00Z",
           realized_pnl: "-10.000000000000000000",
           cumulative_pnl: "20.000000000000000000",

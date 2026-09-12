@@ -76,6 +76,19 @@ accents reserved for active state, selection, and primary actions.
 
 ## Content and States
 
+- The persistent profile dropdown is available in full, collapsed and mobile
+  navigation. It shows an icon button in the collapsed sidebar and opens a
+  themed menu beside it. The sidebar contains no decorative chart.
+  All profiles denotes read-only aggregate trades and analytics.
+  Working pages derive the profile from their URL and omit repeated profile
+  selectors. Direct inaccessible profile links show a not-found state.
+- The profile directory uses responsive cards with descriptions, journal
+  counts, the latest trade date and direct setup links. Missing journal data
+  stays unavailable with a retry action; it is never displayed as zero.
+- Switching context preserves the section and transferable filters, drops
+  resource-specific selections and asks before discarding unsaved form edits.
+  Submitted mutations disable switching until completion.
+
 - Headings may have one short explanatory sentence when the domain term is not
   self-evident. Avoid stage labels, decorative numbering, and setup copy that
   becomes noise during routine use.

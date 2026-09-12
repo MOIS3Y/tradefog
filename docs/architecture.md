@@ -240,9 +240,11 @@ as UTC. Application services must normalize supplied timestamps to UTC.
 
 ### Journal and Trade Lifecycle API
 
-Authenticated journal endpoints are rooted at `/api/v1/profiles` and
-`/api/v1/trades`. Every lookup scopes through `TradingProfile.owner`; a missing
-record and another user's record both return the same not-found response.
+Journal writes and individual resources live under
+`/api/v1/profiles/{profile_id}`, including trades and their attachments.
+`GET /api/v1/trades` and `GET /api/v1/analytics` provide read-only aggregate
+views. Every lookup scopes through `TradingProfile.owner` and the requested
+parent IDs; a missing record and a mismatched resource both return `404`.
 A profile owns virtual account assets directly. Wallet balances are
 derived from signed deposit and withdrawal facts plus closed-trade net P&L.
 The profile directory uses server-side pagination, archive filtering and
@@ -268,11 +270,11 @@ then creates exactly one immutable `TradeSnapshot` in the same transaction.
 Reservations release when a trade is cancelled or closed. Closing records
 signed net P&L, and review completion is tracked independently.
 
-`GET /trades/{trade_id}/planning-context` supplies exact instrument, strategy, and
+`GET /profiles/{profile_id}/trades/{trade_id}/planning-context` supplies exact instrument, strategy, and
 capital inputs for the frontend's synchronous Decimal calculation. The user
 edits only entry and stop; take profit and quantity remain derived. `POST
-/trades/{trade_id}/plan/preview` provides the same preview to headless API clients.
-`PUT /trades/{trade_id}/plan` revalidates and persists entry and stop while
+/profiles/{profile_id}/trades/{trade_id}/plan/preview` provides the same preview to headless API clients.
+`PUT /profiles/{profile_id}/trades/{trade_id}/plan` revalidates and persists entry and stop while
 still allowing an underfunded draft. Submission rechecks current capital and
 freezes the saved plan.
 

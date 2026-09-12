@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useDialogLeaveGuard } from "@/composables/useLeaveGuard";
 import {
   Archive,
   ExternalLink,
@@ -14,9 +15,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import { useProfilePresence } from "@/composables/useProfilePresence";
+import ProfileDirectoryCard from "@/features/profiles/ProfileDirectoryCard.vue";
 import ProfileMarket from "@/features/profiles/ProfileMarket.vue";
 import { ApiError } from "@/api/errors";
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
@@ -51,15 +53,17 @@ const toasts = useToastStore();
 const search = ref("");
 const visibility = ref<Visibility>("active");
 const route = useRoute();
-const requestedProfile = Number(route.query.profile);
+const router = useRouter();
+const scoped = computed(() => !!route.params.profileId);
+const requestedProfile = Number(route.params.profileId);
 const selectedId = ref<number | null>(
   Number.isSafeInteger(requestedProfile) && requestedProfile > 0
     ? requestedProfile
     : null,
 );
 const activeTab = ref<ProfileTab>(
-  route.query.tab === "wallet" || route.query.tab === "strategies"
-    ? route.query.tab
+  route.params.section === "wallet" || route.params.section === "strategies"
+    ? route.params.section
     : "market",
 );
 const requestedAsset = Number(route.query.asset);
@@ -71,6 +75,14 @@ const focusAssetId = ref<number | null>(
 watch(selectedId, () => {
   focusAssetId.value = null;
 });
+/** Keep setup sections addressable and shared with the global switcher. */
+function selectTab(tab: ProfileTab): void {
+  if (selectedId.value)
+    void router.push({
+      path: `/profiles/${selectedId.value}/${tab}`,
+      query: focusAssetId.value ? { asset: focusAssetId.value } : {},
+    });
+}
 const dialogOpen = ref(false);
 const editing = ref<Profile | null>(null);
 const statusTarget = ref<Profile | null>(null);
@@ -93,11 +105,19 @@ const profilesQuery = useQuery({
   queryKey: computed(() => [
     "profiles",
     "list",
+    requestedProfile || "overview",
     criteria.value,
     pagination.params.value,
   ]),
-  queryFn: () =>
-    listProfilePage({ ...criteria.value, ...pagination.params.value }),
+  queryFn: async () =>
+    scoped.value
+      ? {
+          items: [await getProfile(requestedProfile)],
+          total: 1,
+          page: 1,
+          page_size: 25,
+        }
+      : listProfilePage({ ...criteria.value, ...pagination.params.value }),
 });
 pagination.track(computed(() => profilesQuery.data.value));
 const needsPresence = computed(
@@ -159,7 +179,7 @@ const formInvalid = computed(
 watch(
   filtered,
   (items) => {
-    if (!profilesQuery.data.value) return;
+    if (scoped.value || !profilesQuery.data.value) return;
     if (
       selectedId.value !== requestedProfile &&
       !items.some((item) => item.id === selectedId.value)
@@ -255,6 +275,29 @@ function openEdit(profile: Profile): void {
   });
   dialogOpen.value = true;
 }
+/** Enter a newly created profile after its write has completed. */
+async function saveProfile(): Promise<void> {
+  const creating = editing.value === null;
+  try {
+    const profile = await saveMutation.mutateAsync();
+    if (creating) await router.push(`/profiles/${profile.id}/market`);
+  } catch {
+    // The mutation preserves the form and reports the failure.
+  }
+}
+
+/** Leave a deleted profile only after the mutation releases navigation. */
+async function removeProfile(): Promise<void> {
+  if (!deleteTarget.value) return;
+  try {
+    await removeMutation.mutateAsync(deleteTarget.value);
+    if (scoped.value) await router.push("/trades");
+  } catch {
+    // The mutation reports why this profile could not be removed.
+  }
+}
+
+useDialogLeaveGuard(dialogOpen, () => form);
 </script>
 
 <template>
@@ -271,7 +314,7 @@ function openEdit(profile: Profile): void {
       </button>
     </PanelHeading>
 
-    <div class="profile-toolbar" role="search">
+    <div v-if="!scoped" class="profile-toolbar" role="search">
       <label class="search-field">
         <span class="sr-only">{{ $t("profiles.search") }}</span>
         <Search class="search-field__icon" :size="16" aria-hidden="true" />
@@ -288,8 +331,14 @@ function openEdit(profile: Profile): void {
       />
     </div>
 
+    <ErrorState
+      v-if="scoped && selectedQuery.isError.value"
+      :description="selectedQuery.error.value?.message"
+      @retry="selectedQuery.refetch()"
+    />
     <LoadingState
-      v-if="
+      v-else-if="
+        (scoped && selectedQuery.isPending.value && !selected) ||
         profilesQuery.isPending.value ||
         venuesQuery.isPending.value ||
         (needsPresence && presence.isPending.value)
@@ -343,31 +392,23 @@ function openEdit(profile: Profile): void {
         }}
       </button>
     </EmptyState>
-    <div v-else class="profile-console">
-      <aside class="profile-directory" :aria-label="$t('profiles.heading')">
+    <div
+      v-else
+      class="profile-console"
+      :class="{ 'profile-console--directory': !scoped }"
+      :style="{ gridTemplateColumns: '1fr' }"
+    >
+      <aside
+        v-if="!scoped"
+        class="profile-directory"
+        :aria-label="$t('profiles.heading')"
+      >
         <div class="profile-directory__items">
-          <button
+          <ProfileDirectoryCard
             v-for="profile in filtered"
             :key="profile.id"
-            class="profile-card"
-            :class="{ 'profile-card--selected': profile.id === selectedId }"
-            type="button"
-            @click="selectedId = profile.id"
-          >
-            <span class="profile-card__mark"><Landmark :size="17" /></span>
-            <span class="profile-card__copy">
-              <strong>{{ profile.name }}</strong>
-              <small>{{
-                profile.venue_type === "bybit"
-                  ? "Bybit"
-                  : $t("profileMarket.manual")
-              }}</small>
-            </span>
-            <span
-              class="status-dot"
-              :class="{ 'status-dot--archived': profile.is_archived }"
-            ></span>
-          </button>
+            :profile="profile"
+          />
           <p v-if="filtered.length === 0" class="profile-directory__empty">
             {{ $t("catalog.noResults") }}
           </p>
@@ -382,7 +423,7 @@ function openEdit(profile: Profile): void {
         />
       </aside>
 
-      <div v-if="selected" class="profile-detail">
+      <div v-if="selected && scoped" class="profile-detail">
         <header class="profile-detail__header">
           <div>
             <span class="profile-detail__venue">{{
@@ -461,14 +502,14 @@ function openEdit(profile: Profile): void {
           <button
             type="button"
             :class="{ 'profile-tabs__button--active': activeTab === 'market' }"
-            @click="activeTab = 'market'"
+            @click="selectTab('market')"
           >
             <Landmark :size="16" />{{ $t("profiles.venue") }}
           </button>
           <button
             type="button"
             :class="{ 'profile-tabs__button--active': activeTab === 'wallet' }"
-            @click="activeTab = 'wallet'"
+            @click="selectTab('wallet')"
           >
             <WalletCards :size="16" />{{ $t("profiles.wallet.tab") }}
           </button>
@@ -477,7 +518,7 @@ function openEdit(profile: Profile): void {
             :class="{
               'profile-tabs__button--active': activeTab === 'strategies',
             }"
-            @click="activeTab = 'strategies'"
+            @click="selectTab('strategies')"
           >
             <BriefcaseBusiness :size="16" />{{ $t("profiles.strategies.tab") }}
           </button>
@@ -486,7 +527,7 @@ function openEdit(profile: Profile): void {
           v-if="activeTab === 'market'"
           @fund="
             focusAssetId = $event;
-            activeTab = 'wallet';
+            selectTab('wallet');
           "
           :key="selected.id"
           :profile="selected"
@@ -518,7 +559,7 @@ function openEdit(profile: Profile): void {
       :cancel-label="$t('common.cancel')"
       :busy="saveMutation.isPending.value"
       :invalid="formInvalid"
-      @submit="saveMutation.mutate()"
+      @submit="saveProfile"
     >
       <label class="field">
         <span>{{ $t("profiles.name") }}</span>
@@ -585,7 +626,24 @@ function openEdit(profile: Profile): void {
       :cancel-label="$t('common.cancel')"
       :busy="removeMutation.isPending.value"
       @update:open="!$event && (deleteTarget = null)"
-      @confirm="deleteTarget && removeMutation.mutate(deleteTarget)"
+      @confirm="removeProfile"
     />
   </section>
 </template>
+
+<style scoped>
+.profile-console.profile-console--directory {
+  min-height: 0;
+}
+.profile-console--directory .profile-directory {
+  border: 0;
+  padding: 20px;
+}
+.profile-console--directory .profile-directory__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+  gap: 16px;
+  overflow: visible;
+  border: 0;
+}
+</style>

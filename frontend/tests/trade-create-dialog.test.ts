@@ -17,7 +17,7 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-it("resets dependent fields, retains input on errors and opens the draft", async () => {
+it("uses the active profile, retains input on errors and opens the draft", async () => {
   document.body.innerHTML = '<div class="tf-app"><div id="root"></div></div>';
   localStorage.clear();
   reloadTokens();
@@ -40,7 +40,9 @@ it("resets dependent fields, retains input on errors and opens the draft", async
       if (request.method === "POST") {
         posts.push(await request.json());
         return new Response(
-          JSON.stringify(fail ? { detail: { message: "Retry" } } : { id: 23 }),
+          JSON.stringify(
+            fail ? { detail: { message: "Retry" } } : { id: 23, profile_id: 1 },
+          ),
           {
             status: fail ? 503 : 201,
             headers: { "Content-Type": "application/json" },
@@ -64,9 +66,11 @@ it("resets dependent fields, retains input on errors and opens the draft", async
           },
         ];
       if (url.pathname.endsWith("/instruments")) items = [instrument];
-      const data = url.pathname.endsWith("/instruments/3")
-        ? instrument
-        : { items, total: items.length, page: 1, page_size: 25 };
+      const data = url.pathname.endsWith("/profiles/1")
+        ? { id: 1, name: "Profile 1", venue_type: "bybit", is_archived: false }
+        : url.pathname.endsWith("/instruments/3")
+          ? instrument
+          : { items, total: items.length, page: 1, page_size: 25 };
       return new Response(JSON.stringify(data), {
         headers: { "Content-Type": "application/json" },
       });
@@ -78,11 +82,12 @@ it("resets dependent fields, retains input on errors and opens the draft", async
       {
         path: "/trades",
         component: {
-          render: () => h(TradeCreateDialog, { returnTo: "/trades?q=BTC" }),
+          render: () =>
+            h(TradeCreateDialog, { profileId: 1, returnTo: "/trades?q=BTC" }),
         },
       },
       {
-        path: "/trades/:tradeId",
+        path: "/profiles/:profileId/trades/:tradeId",
         component: { template: "<p>Trade editor</p>" },
       },
     ],
@@ -120,29 +125,24 @@ it("resets dependent fields, retains input on errors and opens the draft", async
       .find((item) => item.textContent?.includes(label))!
       .click();
   }
-  await choose(0, "Profile 1");
-  await choose(1, "Strategy");
-  await choose(2, "BTCUSDT");
-  await vi.waitFor(() => expect(submit().disabled).toBe(false));
-  await choose(0, "Profile 2");
-  await vi.waitFor(() => expect(submit().disabled).toBe(true));
-  await choose(1, "Strategy");
-  await choose(2, "BTCUSDT");
+  expect(document.body.textContent).not.toContain("Select profile");
+  await choose(0, "Strategy");
+  await choose(1, "BTCUSDT");
   await vi.waitFor(() => expect(submit().disabled).toBe(false));
   submit().click();
   await vi.waitFor(() => expect(posts).toHaveLength(1));
   await vi.waitFor(() => expect(submit().disabled).toBe(false));
   expect(router.currentRoute.value.path).toBe("/trades");
   expect(posts[0]).toMatchObject({
-    profile_id: 2,
     strategy_id: 5,
     instrument_id: 3,
     direction: "long",
   });
+  expect(posts[0]).not.toHaveProperty("profile_id");
   fail = false;
   submit().click();
   await vi.waitFor(() =>
-    expect(router.currentRoute.value.path).toBe("/trades/23"),
+    expect(router.currentRoute.value.path).toBe("/profiles/1/trades/23"),
   );
   expect(router.currentRoute.value.query.returnTo).toBe("/trades?q=BTC");
 });

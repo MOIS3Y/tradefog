@@ -117,7 +117,12 @@ export interface paths {
     };
     /**
      * List Assets
-     * @description Search only assets belonging to the requested owned profile.
+     * @description List profile assets with current derived balances.
+     *
+     *     Search q matches symbol; the supported sort key is symbol. hide_empty
+     *     excludes assets without account history or references, rather than
+     *     simply excluding every zero balance. visibility filters archive state,
+     *     independently of the advisory financial status.
      */
     get: operations["list_assets_api_v1_profiles__profile_id__assets_get"];
     put?: never;
@@ -175,7 +180,12 @@ export interface paths {
     put?: never;
     /**
      * Create Instrument
-     * @description Import Bybit metadata or validate an explicit manual specification.
+     * @description Import Bybit metadata or create a manual instrument specification.
+     *
+     *     Request mode must match the profile venue (422, invalid_mode).
+     *     Creation also resolves or creates the profile-local denomination
+     *     assets. Duplicate identities return 409; browsing venue instruments
+     *     alone does not import them into a profile.
      */
     post: operations["create_instrument_api_v1_profiles__profile_id__instruments_post"];
     delete?: never;
@@ -300,6 +310,11 @@ export interface paths {
     /**
      * Create Wallet Operation
      * @description Append a deposit or withdrawal to an active wallet asset.
+     *
+     *     Supply a positive amount for either kind. Withdrawals are stored as
+     *     negative ledger entries and cannot exceed the asset's uncommitted
+     *     balance (409). Archived profiles or assets also return 409.
+     *     This records a journal entry; it does not transfer exchange funds.
      */
     post: operations["create_wallet_operation_api_v1_profiles__profile_id__assets__asset_id__operations_post"];
     delete?: never;
@@ -323,7 +338,10 @@ export interface paths {
     head?: never;
     /**
      * Update Wallet Operation Note
-     * @description Correct an operation note without changing its financial fact.
+     * @description Replace an operation note without changing its financial fact.
+     *
+     *     An omitted or null note clears the existing note, including an empty
+     *     request object. Amount and operation kind cannot be edited.
      */
     patch: operations["update_wallet_operation_note_api_v1_profiles__profile_id__assets__asset_id__operations__operation_id__patch"];
     trace?: never;
@@ -376,6 +394,9 @@ export interface paths {
     /**
      * Update Strategy
      * @description Edit strategy rules while preserving frozen snapshot history.
+     *
+     *     Risk and reward rules are locked after the first submitted trade
+     *     (409). Archive allocations before archiving their strategy.
      */
     patch: operations["update_strategy_api_v1_profiles__profile_id__strategies__strategy_id__patch"];
     trace?: never;
@@ -444,7 +465,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades": {
+  "/api/v1/profiles/{profile_id}/trades": {
     parameters: {
       query?: never;
       header?: never;
@@ -452,23 +473,23 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * List Trades
-     * @description List authenticated journal trades with optional cohort filters.
+     * List Profile Trades
+     * @description List trades only after resolving the requested owned profile.
      */
-    get: operations["list_trades_api_v1_trades_get"];
+    get: operations["list_profile_trades_api_v1_profiles__profile_id__trades_get"];
     put?: never;
     /**
      * Create Trade
      * @description Create an editable draft after validating its profile references.
      */
-    post: operations["create_trade_api_v1_trades_post"];
+    post: operations["create_trade_api_v1_profiles__profile_id__trades_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -479,24 +500,24 @@ export interface paths {
      * Get Trade
      * @description Return the complete workspace for one owned trade.
      */
-    get: operations["get_trade_api_v1_trades__trade_id__get"];
+    get: operations["get_trade_api_v1_profiles__profile_id__trades__trade_id__get"];
     put?: never;
     post?: never;
     /**
      * Delete Trade
      * @description Permanently remove a draft that has never created immutable history.
      */
-    delete: operations["delete_trade_api_v1_trades__trade_id__delete"];
+    delete: operations["delete_trade_api_v1_profiles__profile_id__trades__trade_id__delete"];
     options?: never;
     head?: never;
     /**
      * Update Trade
      * @description Edit draft identity or universally editable journal metadata.
      */
-    patch: operations["update_trade_api_v1_trades__trade_id__patch"];
+    patch: operations["update_trade_api_v1_profiles__profile_id__trades__trade_id__patch"];
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/checklist": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/checklist": {
     parameters: {
       query?: never;
       header?: never;
@@ -508,7 +529,7 @@ export interface paths {
      * Update Checklist
      * @description Replace and assess the four directional answers on a draft trade.
      */
-    put: operations["update_checklist_api_v1_trades__trade_id__checklist_put"];
+    put: operations["update_checklist_api_v1_profiles__profile_id__trades__trade_id__checklist_put"];
     post?: never;
     delete?: never;
     options?: never;
@@ -516,7 +537,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/atr": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/atr": {
     parameters: {
       query?: never;
       header?: never;
@@ -527,16 +548,21 @@ export interface paths {
     put?: never;
     /**
      * Refresh Atr
-     * @description Fetch ATR on demand or persist a manual fallback in draft context.
+     * @description Refresh and save ATR context for a draft trade.
+     *
+     *     Supply value for manual ATR; otherwise request automatic market data.
+     *     Manual profiles require value (422, manual_atr_required). A manual
+     *     contributing date cannot follow the trade date. Submission locks this
+     *     context (409). Returned candles are transient and are not stored.
      */
-    post: operations["refresh_atr_api_v1_trades__trade_id__atr_post"];
+    post: operations["refresh_atr_api_v1_profiles__profile_id__trades__trade_id__atr_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/plan/preview": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/plan/preview": {
     parameters: {
       query?: never;
       header?: never;
@@ -547,16 +573,20 @@ export interface paths {
     put?: never;
     /**
      * Preview Trade Plan
-     * @description Calculate an executable plan without persisting a snapshot.
+     * @description Preview a draft position plan without saving it or reserving funds.
+     *
+     *     The response includes capital checks, but preview does not enforce
+     *     sufficient capital. Submission recalculates and enforces those checks
+     *     against current state; a preview does not guarantee submission.
      */
-    post: operations["preview_trade_plan_api_v1_trades__trade_id__plan_preview_post"];
+    post: operations["preview_trade_plan_api_v1_profiles__profile_id__trades__trade_id__plan_preview_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/planning-context": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/planning-context": {
     parameters: {
       query?: never;
       header?: never;
@@ -567,7 +597,7 @@ export interface paths {
      * Get Trade Plan Context
      * @description Return stable exact inputs for a responsive local draft calculator.
      */
-    get: operations["get_trade_plan_context_api_v1_trades__trade_id__planning_context_get"];
+    get: operations["get_trade_plan_context_api_v1_profiles__profile_id__trades__trade_id__planning_context_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -576,7 +606,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/plan": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/plan": {
     parameters: {
       query?: never;
       header?: never;
@@ -586,9 +616,13 @@ export interface paths {
     get?: never;
     /**
      * Save Trade Plan
-     * @description Persist editable entry and stop values in a draft context.
+     * @description Replace the draft's saved entry and stop values.
+     *
+     *     Omitted or null anchors are cleared. Supply both to retain a complete
+     *     plan. This saves preparation only; it does not reserve funds or submit
+     *     the trade. Submitted plans are locked (409).
      */
-    put: operations["save_trade_plan_api_v1_trades__trade_id__plan_put"];
+    put: operations["save_trade_plan_api_v1_profiles__profile_id__trades__trade_id__plan_put"];
     post?: never;
     delete?: never;
     options?: never;
@@ -596,7 +630,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/submit": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/submit": {
     parameters: {
       query?: never;
       header?: never;
@@ -607,16 +641,22 @@ export interface paths {
     put?: never;
     /**
      * Submit Draft
-     * @description Create one immutable snapshot and reserve wallet capital atomically.
+     * @description Submit a draft as pending_entry or open.
+     *
+     *     Save entry and stop first; missing anchors return 422 with
+     *     missing_draft_plan. Submission recalculates the plan, checks capital,
+     *     freezes one immutable snapshot and reserves the required asset amounts
+     *     atomically. Invalid lifecycle or capital state returns 409.
+     *     This records a journal decision; it does not place an exchange order.
      */
-    post: operations["submit_draft_api_v1_trades__trade_id__submit_post"];
+    post: operations["submit_draft_api_v1_profiles__profile_id__trades__trade_id__submit_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/open": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/open": {
     parameters: {
       query?: never;
       header?: never;
@@ -629,14 +669,14 @@ export interface paths {
      * Open Trade
      * @description Mark a pending external order as filled and open.
      */
-    post: operations["open_trade_api_v1_trades__trade_id__open_post"];
+    post: operations["open_trade_api_v1_profiles__profile_id__trades__trade_id__open_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/cancel": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/cancel": {
     parameters: {
       query?: never;
       header?: never;
@@ -649,14 +689,14 @@ export interface paths {
      * Cancel Trade
      * @description Cancel a draft, pending or open trade and release derived reservation.
      */
-    post: operations["cancel_trade_api_v1_trades__trade_id__cancel_post"];
+    post: operations["cancel_trade_api_v1_profiles__profile_id__trades__trade_id__cancel_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/close": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/close": {
     parameters: {
       query?: never;
       header?: never;
@@ -668,15 +708,19 @@ export interface paths {
     /**
      * Close Trade
      * @description Close an open trade, release reservation and add realized P&L.
+     *
+     *     Supply signed net P&L in the settlement asset, already including fees
+     *     and funding. Commission and funding fields are recorded as context;
+     *     they are not deducted again. Only open trades can close (409).
      */
-    post: operations["close_trade_api_v1_trades__trade_id__close_post"];
+    post: operations["close_trade_api_v1_profiles__profile_id__trades__trade_id__close_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/review": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/review": {
     parameters: {
       query?: never;
       header?: never;
@@ -688,7 +732,7 @@ export interface paths {
      * Review Trade
      * @description Set review completion time on a closed trade.
      */
-    put: operations["review_trade_api_v1_trades__trade_id__review_put"];
+    put: operations["review_trade_api_v1_profiles__profile_id__trades__trade_id__review_put"];
     post?: never;
     delete?: never;
     options?: never;
@@ -706,6 +750,10 @@ export interface paths {
     /**
      * Get Analytics
      * @description Calculate quality metrics for a filtered cohort of closed trades.
+     *
+     *     Explicit date bounds require period=custom and at least one bound;
+     *     reversed bounds return 422, invalid_date_range. Preset periods use
+     *     today's UTC date. Monetary results retain their asset denomination.
      */
     get: operations["get_analytics_api_v1_analytics_get"];
     put?: never;
@@ -716,7 +764,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/trades/{trade_id}/attachments": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/attachments": {
     parameters: {
       query?: never;
       header?: never;
@@ -727,20 +775,20 @@ export interface paths {
      * List Attachments
      * @description List private image metadata belonging to one owned trade.
      */
-    get: operations["list_attachments_api_v1_trades__trade_id__attachments_get"];
+    get: operations["list_attachments_api_v1_profiles__profile_id__trades__trade_id__attachments_get"];
     put?: never;
     /**
      * Upload Attachment
      * @description Store one verified private image for an owned trade.
      */
-    post: operations["upload_attachment_api_v1_trades__trade_id__attachments_post"];
+    post: operations["upload_attachment_api_v1_profiles__profile_id__trades__trade_id__attachments_post"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  "/api/v1/attachments/{attachment_id}/content": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/attachments/{attachment_id}/content": {
     parameters: {
       query?: never;
       header?: never;
@@ -751,7 +799,7 @@ export interface paths {
      * Serve Attachment
      * @description Serve private content only after resolving owner-scoped metadata.
      */
-    get: operations["serve_attachment_api_v1_attachments__attachment_id__content_get"];
+    get: operations["serve_attachment_api_v1_profiles__profile_id__trades__trade_id__attachments__attachment_id__content_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -760,7 +808,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/attachments/{attachment_id}": {
+  "/api/v1/profiles/{profile_id}/trades/{trade_id}/attachments/{attachment_id}": {
     parameters: {
       query?: never;
       header?: never;
@@ -774,7 +822,7 @@ export interface paths {
      * Delete Attachment
      * @description Delete owned attachment metadata and its private file.
      */
-    delete: operations["delete_attachment_api_v1_attachments__attachment_id__delete"];
+    delete: operations["delete_attachment_api_v1_profiles__profile_id__trades__trade_id__attachments__attachment_id__delete"];
     options?: never;
     head?: never;
     patch?: never;
@@ -892,6 +940,46 @@ export interface paths {
      * @description Fetch a current depth snapshot independently of trade state.
      */
     get: operations["orderbook_api_v1_venues__venue_type__public_orderbook_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/trades": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Trades
+     * @description List authenticated journal trades with optional cohort filters.
+     */
+    get: operations["list_trades_api_v1_trades_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/profiles/{profile_id}/analytics": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Profile Analytics
+     * @description Calculate the existing analytics within an accessible profile.
+     */
+    get: operations["get_profile_analytics_api_v1_profiles__profile_id__analytics_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -1066,7 +1154,10 @@ export interface components {
      * @description Edit presentation or availability without repurposing identity.
      */
     AssetPatch: {
-      /** Risk Stop Capital */
+      /**
+       * Risk Stop Capital
+       * @description Balance floor for risk stop; null clears the floor.
+       */
       risk_stop_capital?: number | string | null;
       /** Name */
       name?: string | null;
@@ -1075,7 +1166,22 @@ export interface components {
     };
     /**
      * AssetResponse
-     * @description One asset owned by the profile.
+     * @description Profile asset with derived balances, all in units of this asset.
+     * @example {
+     *       "allocated": "400.00",
+     *       "asset_type": "crypto",
+     *       "available": "900.00",
+     *       "balance": "1000.00",
+     *       "id": 1,
+     *       "is_archived": false,
+     *       "name": "Tether",
+     *       "profile_id": 1,
+     *       "reserved": "100.00",
+     *       "risk_stop_capital": "500.00",
+     *       "status": "active",
+     *       "symbol": "USDT",
+     *       "uncommitted": "600.00"
+     *     }
      */
     AssetResponse: {
       /** Id */
@@ -1089,18 +1195,36 @@ export interface components {
       asset_type: components["schemas"]["AssetType"];
       /** Is Archived */
       is_archived: boolean;
-      /** Risk Stop Capital */
+      /**
+       * Risk Stop Capital
+       * @description Advisory risk-stop floor: balance at or below it marks the asset risk_stopped. Null disables the floor.
+       */
       risk_stop_capital: string | null;
       status: components["schemas"]["WalletAssetStatus"];
-      /** Balance */
+      /**
+       * Balance
+       * @description Signed ledger operations plus closed-trade net P&L.
+       */
       balance: string;
-      /** Allocated */
+      /**
+       * Allocated
+       * @description Capital committed by non-archived strategy allocations.
+       */
       allocated: string;
-      /** Reserved */
+      /**
+       * Reserved
+       * @description Funds reserved by pending-entry and open trades.
+       */
       reserved: string;
-      /** Available */
+      /**
+       * Available
+       * @description Balance minus reserved funds.
+       */
       available: string;
-      /** Uncommitted */
+      /**
+       * Uncommitted
+       * @description Balance minus max(allocated, reserved); withdrawal limit.
+       */
       uncommitted: string;
     };
     /**
@@ -1167,8 +1291,8 @@ export interface components {
        */
       client_secret?: string | null;
     };
-    /** Body_upload_attachment_api_v1_trades__trade_id__attachments_post */
-    Body_upload_attachment_api_v1_trades__trade_id__attachments_post: {
+    /** Body_upload_attachment_api_v1_profiles__profile_id__trades__trade_id__attachments_post */
+    Body_upload_attachment_api_v1_profiles__profile_id__trades__trade_id__attachments_post: {
       /** Upload */
       upload: string;
     };
@@ -1441,6 +1565,8 @@ export interface components {
       sequence: number;
       /** Trade Id */
       trade_id: number;
+      /** Profile Id */
+      profile_id: number;
       /**
        * Closed At
        * Format: date-time
@@ -1475,88 +1601,168 @@ export interface components {
     Page_AssetResponse_: {
       /** Items */
       items: components["schemas"]["AssetResponse"][];
-      /** Total */
+      /**
+       * Total
+       * @description Matching items across all pages, after filtering.
+       * @example 1
+       */
       total: number;
-      /** Page */
+      /**
+       * Page
+       * @example 1
+       */
       page: number;
-      /** Page Size */
+      /**
+       * Page Size
+       * @example 25
+       */
       page_size: number;
     };
     /** Page[InstrumentResponse] */
     Page_InstrumentResponse_: {
       /** Items */
       items: components["schemas"]["InstrumentResponse"][];
-      /** Total */
+      /**
+       * Total
+       * @description Matching items across all pages, after filtering.
+       * @example 1
+       */
       total: number;
-      /** Page */
+      /**
+       * Page
+       * @example 1
+       */
       page: number;
-      /** Page Size */
+      /**
+       * Page Size
+       * @example 25
+       */
       page_size: number;
     };
     /** Page[ProfileOperationResponse] */
     Page_ProfileOperationResponse_: {
       /** Items */
       items: components["schemas"]["ProfileOperationResponse"][];
-      /** Total */
+      /**
+       * Total
+       * @description Matching items across all pages, after filtering.
+       * @example 1
+       */
       total: number;
-      /** Page */
+      /**
+       * Page
+       * @example 1
+       */
       page: number;
-      /** Page Size */
+      /**
+       * Page Size
+       * @example 25
+       */
       page_size: number;
     };
     /** Page[ProfileResponse] */
     Page_ProfileResponse_: {
       /** Items */
       items: components["schemas"]["ProfileResponse"][];
-      /** Total */
+      /**
+       * Total
+       * @description Matching items across all pages, after filtering.
+       * @example 1
+       */
       total: number;
-      /** Page */
+      /**
+       * Page
+       * @example 1
+       */
       page: number;
-      /** Page Size */
+      /**
+       * Page Size
+       * @example 25
+       */
       page_size: number;
     };
     /** Page[StrategyCapitalResponse] */
     Page_StrategyCapitalResponse_: {
       /** Items */
       items: components["schemas"]["StrategyCapitalResponse"][];
-      /** Total */
+      /**
+       * Total
+       * @description Matching items across all pages, after filtering.
+       * @example 1
+       */
       total: number;
-      /** Page */
+      /**
+       * Page
+       * @example 1
+       */
       page: number;
-      /** Page Size */
+      /**
+       * Page Size
+       * @example 25
+       */
       page_size: number;
     };
     /** Page[StrategyResponse] */
     Page_StrategyResponse_: {
       /** Items */
       items: components["schemas"]["StrategyResponse"][];
-      /** Total */
+      /**
+       * Total
+       * @description Matching items across all pages, after filtering.
+       * @example 1
+       */
       total: number;
-      /** Page */
+      /**
+       * Page
+       * @example 1
+       */
       page: number;
-      /** Page Size */
+      /**
+       * Page Size
+       * @example 25
+       */
       page_size: number;
     };
     /** Page[TradeListItem] */
     Page_TradeListItem_: {
       /** Items */
       items: components["schemas"]["TradeListItem"][];
-      /** Total */
+      /**
+       * Total
+       * @description Matching items across all pages, after filtering.
+       * @example 1
+       */
       total: number;
-      /** Page */
+      /**
+       * Page
+       * @example 1
+       */
       page: number;
-      /** Page Size */
+      /**
+       * Page Size
+       * @example 25
+       */
       page_size: number;
     };
     /** Page[WalletOperationResponse] */
     Page_WalletOperationResponse_: {
       /** Items */
       items: components["schemas"]["WalletOperationResponse"][];
-      /** Total */
+      /**
+       * Total
+       * @description Matching items across all pages, after filtering.
+       * @example 1
+       */
       total: number;
-      /** Page */
+      /**
+       * Page
+       * @example 1
+       */
       page: number;
-      /** Page Size */
+      /**
+       * Page Size
+       * @example 25
+       */
       page_size: number;
     };
     /**
@@ -1623,7 +1829,10 @@ export interface components {
       /** Asset Id */
       asset_id: number;
       kind: components["schemas"]["WalletOperationKind"];
-      /** Amount */
+      /**
+       * Amount
+       * @description Signed asset units: deposits positive, withdrawals negative.
+       */
       amount: string;
       /** Note */
       note: string | null;
@@ -1838,7 +2047,10 @@ export interface components {
       name: string;
       /** Description */
       description?: string | null;
-      /** Risk Percent */
+      /**
+       * Risk Percent
+       * @description Risk per trade as a percentage of allocated capital.
+       */
       risk_percent: number | string;
       /**
        * Reward Multiple
@@ -1918,9 +2130,18 @@ export interface components {
     /**
      * TradeClose
      * @description Record final signed net P&L and execution context.
+     * @example {
+     *       "actual_exit_price": "63000.00",
+     *       "funding_result": "0.00",
+     *       "realized_pnl": "145.00",
+     *       "total_commission": "5.00"
+     *     }
      */
     TradeClose: {
-      /** Realized Pnl */
+      /**
+       * Realized Pnl
+       * @description Signed net P&L in the settlement asset, including commission and funding. Those fields are not applied again to this amount.
+       */
       realized_pnl: number | string;
       /** Actual Exit Price */
       actual_exit_price: number | string;
@@ -1934,8 +2155,6 @@ export interface components {
      * @description Create the editable identity and context of a draft trade.
      */
     TradeCreate: {
-      /** Profile Id */
-      profile_id: number;
       /** Strategy Id */
       strategy_id: number;
       /** Instrument Id */
@@ -2006,6 +2225,10 @@ export interface components {
     /**
      * TradePlanRequest
      * @description Editable position anchors persisted as normalized entry and stop.
+     * @example {
+     *       "planned_entry": "60000.00",
+     *       "planned_stop": "59000.00"
+     *     }
      */
     "TradePlanRequest-Input": {
       /** Planned Entry */
@@ -2016,6 +2239,10 @@ export interface components {
     /**
      * TradePlanRequest
      * @description Editable position anchors persisted as normalized entry and stop.
+     * @example {
+     *       "planned_entry": "60000.00",
+     *       "planned_stop": "59000.00"
+     *     }
      */
     "TradePlanRequest-Output": {
       /** Planned Entry */
@@ -2227,6 +2454,8 @@ export interface components {
       sequence: number;
       /** Trade Id */
       trade_id: number;
+      /** Profile Id */
+      profile_id: number;
       /**
        * Trade Date
        * Format: date
@@ -2360,10 +2589,18 @@ export interface components {
     /**
      * WalletOperationCreate
      * @description Append a positive deposit or withdrawal request.
+     * @example {
+     *       "amount": "100.00",
+     *       "kind": "withdrawal",
+     *       "note": "Withdraw unused capital"
+     *     }
      */
     WalletOperationCreate: {
       kind: components["schemas"]["WalletOperationKind"];
-      /** Amount */
+      /**
+       * Amount
+       * @description Positive asset units for either kind of operation.
+       */
       amount: number | string;
       /** Note */
       note?: string | null;
@@ -2392,7 +2629,10 @@ export interface components {
       /** Asset Id */
       asset_id: number;
       kind: components["schemas"]["WalletOperationKind"];
-      /** Amount */
+      /**
+       * Amount
+       * @description Signed asset units: deposits positive, withdrawals negative.
+       */
       amount: string;
       /** Note */
       note: string | null;
@@ -3557,7 +3797,7 @@ export interface operations {
       };
     };
   };
-  list_trades_api_v1_trades_get: {
+  list_profile_trades_api_v1_profiles__profile_id__trades_get: {
     parameters: {
       query?: {
         page?: number;
@@ -3566,7 +3806,6 @@ export interface operations {
         sort?: string | null;
         order?: "asc" | "desc";
         visibility?: "all" | "active" | "archived";
-        profile_id?: number | null;
         strategy_id?: number | null;
         trade_status?: components["schemas"]["TradeStatus"] | null;
         direction?: components["schemas"]["Direction"] | null;
@@ -3576,7 +3815,9 @@ export interface operations {
         rated?: boolean | null;
       };
       header?: never;
-      path?: never;
+      path: {
+        profile_id: number;
+      };
       cookie?: never;
     };
     requestBody?: never;
@@ -3601,11 +3842,13 @@ export interface operations {
       };
     };
   };
-  create_trade_api_v1_trades_post: {
+  create_trade_api_v1_profiles__profile_id__trades_post: {
     parameters: {
       query?: never;
       header?: never;
-      path?: never;
+      path: {
+        profile_id: number;
+      };
       cookie?: never;
     };
     requestBody: {
@@ -3634,11 +3877,12 @@ export interface operations {
       };
     };
   };
-  get_trade_api_v1_trades__trade_id__get: {
+  get_trade_api_v1_profiles__profile_id__trades__trade_id__get: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3665,11 +3909,12 @@ export interface operations {
       };
     };
   };
-  delete_trade_api_v1_trades__trade_id__delete: {
+  delete_trade_api_v1_profiles__profile_id__trades__trade_id__delete: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3694,11 +3939,12 @@ export interface operations {
       };
     };
   };
-  update_trade_api_v1_trades__trade_id__patch: {
+  update_trade_api_v1_profiles__profile_id__trades__trade_id__patch: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3729,11 +3975,12 @@ export interface operations {
       };
     };
   };
-  update_checklist_api_v1_trades__trade_id__checklist_put: {
+  update_checklist_api_v1_profiles__profile_id__trades__trade_id__checklist_put: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3764,11 +4011,12 @@ export interface operations {
       };
     };
   };
-  refresh_atr_api_v1_trades__trade_id__atr_post: {
+  refresh_atr_api_v1_profiles__profile_id__trades__trade_id__atr_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3799,11 +4047,12 @@ export interface operations {
       };
     };
   };
-  preview_trade_plan_api_v1_trades__trade_id__plan_preview_post: {
+  preview_trade_plan_api_v1_profiles__profile_id__trades__trade_id__plan_preview_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3834,11 +4083,12 @@ export interface operations {
       };
     };
   };
-  get_trade_plan_context_api_v1_trades__trade_id__planning_context_get: {
+  get_trade_plan_context_api_v1_profiles__profile_id__trades__trade_id__planning_context_get: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3865,11 +4115,12 @@ export interface operations {
       };
     };
   };
-  save_trade_plan_api_v1_trades__trade_id__plan_put: {
+  save_trade_plan_api_v1_profiles__profile_id__trades__trade_id__plan_put: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3900,11 +4151,12 @@ export interface operations {
       };
     };
   };
-  submit_draft_api_v1_trades__trade_id__submit_post: {
+  submit_draft_api_v1_profiles__profile_id__trades__trade_id__submit_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3935,11 +4187,12 @@ export interface operations {
       };
     };
   };
-  open_trade_api_v1_trades__trade_id__open_post: {
+  open_trade_api_v1_profiles__profile_id__trades__trade_id__open_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3966,11 +4219,12 @@ export interface operations {
       };
     };
   };
-  cancel_trade_api_v1_trades__trade_id__cancel_post: {
+  cancel_trade_api_v1_profiles__profile_id__trades__trade_id__cancel_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -3997,11 +4251,12 @@ export interface operations {
       };
     };
   };
-  close_trade_api_v1_trades__trade_id__close_post: {
+  close_trade_api_v1_profiles__profile_id__trades__trade_id__close_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -4032,11 +4287,12 @@ export interface operations {
       };
     };
   };
-  review_trade_api_v1_trades__trade_id__review_put: {
+  review_trade_api_v1_profiles__profile_id__trades__trade_id__review_put: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -4106,11 +4362,12 @@ export interface operations {
       };
     };
   };
-  list_attachments_api_v1_trades__trade_id__attachments_get: {
+  list_attachments_api_v1_profiles__profile_id__trades__trade_id__attachments_get: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
@@ -4137,18 +4394,19 @@ export interface operations {
       };
     };
   };
-  upload_attachment_api_v1_trades__trade_id__attachments_post: {
+  upload_attachment_api_v1_profiles__profile_id__trades__trade_id__attachments_post: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
         trade_id: number;
       };
       cookie?: never;
     };
     requestBody: {
       content: {
-        "multipart/form-data": components["schemas"]["Body_upload_attachment_api_v1_trades__trade_id__attachments_post"];
+        "multipart/form-data": components["schemas"]["Body_upload_attachment_api_v1_profiles__profile_id__trades__trade_id__attachments_post"];
       };
     };
     responses: {
@@ -4172,11 +4430,13 @@ export interface operations {
       };
     };
   };
-  serve_attachment_api_v1_attachments__attachment_id__content_get: {
+  serve_attachment_api_v1_profiles__profile_id__trades__trade_id__attachments__attachment_id__content_get: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
+        trade_id: number;
         attachment_id: number;
       };
       cookie?: never;
@@ -4203,11 +4463,13 @@ export interface operations {
       };
     };
   };
-  delete_attachment_api_v1_attachments__attachment_id__delete: {
+  delete_attachment_api_v1_profiles__profile_id__trades__trade_id__attachments__attachment_id__delete: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        profile_id: number;
+        trade_id: number;
         attachment_id: number;
       };
       cookie?: never;
@@ -4412,6 +4674,90 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["OrderBook"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_trades_api_v1_trades_get: {
+    parameters: {
+      query?: {
+        page?: number;
+        page_size?: number;
+        q?: string;
+        sort?: string | null;
+        order?: "asc" | "desc";
+        visibility?: "all" | "active" | "archived";
+        strategy_id?: number | null;
+        trade_status?: components["schemas"]["TradeStatus"] | null;
+        direction?: components["schemas"]["Direction"] | null;
+        date_from?: string | null;
+        date_to?: string | null;
+        review?: "all" | "reviewed" | "unreviewed";
+        rated?: boolean | null;
+        profile_id?: number | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_TradeListItem_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_profile_analytics_api_v1_profiles__profile_id__analytics_get: {
+    parameters: {
+      query?: {
+        date_from?: string | null;
+        date_to?: string | null;
+        period?: components["schemas"]["AnalyticsPeriod"];
+        strategy_id?: number | null;
+        product?: components["schemas"]["ProductKind"] | null;
+        instrument_id?: number | null;
+        settlement_asset_id?: number | null;
+        strategy_capital_id?: number | null;
+      };
+      header?: never;
+      path: {
+        profile_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AnalyticsResponse"];
         };
       };
       /** @description Validation Error */

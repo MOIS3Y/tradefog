@@ -10,13 +10,16 @@ import AppShell from "@/layouts/AppShell.vue";
   <AppShell>
     <div class="workspace trade-workspace">
       <PanelHeading
-        v-if="$route.path !== '/trades'"
+        v-if="$route.params.tradeId"
         :icon="ChartCandlestick"
         :title="$t('journal.detail', { id: $route.params.tradeId })"
         :description="$t('pageDescriptions.trade')"
       />
-      <TradeWorkspace v-if="$route.path === '/trades'" />
-      <TradePage v-else />
+      <TradeWorkspace
+        v-if="!$route.params.tradeId"
+        :key="`list:${$route.path}`"
+      />
+      <TradePage v-else :key="`detail:${$route.path}`" />
     </div>
   </AppShell>
 </template>

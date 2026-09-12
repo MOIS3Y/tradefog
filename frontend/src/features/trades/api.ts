@@ -28,70 +28,94 @@ export type TradeListParams = NonNullable<
 
 export async function listTrades(
   query: TradeListParams = {},
+  profileId?: number,
 ): Promise<Page<TradeListItem>> {
-  const { data, error, response } = await api.GET("/api/v1/trades", {
-    params: { query },
-  });
+  const { profile_id: filter, ...scopedQuery } = query;
+  const { data, error, response } =
+    profileId === undefined
+      ? await api.GET("/api/v1/trades", { params: { query } })
+      : await api.GET("/api/v1/profiles/{profile_id}/trades", {
+          params: { path: { profile_id: profileId }, query: scopedQuery },
+        });
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
-export async function getTrade(id: number): Promise<Trade> {
-  const { data, error, response } = await api.GET("/api/v1/trades/{trade_id}", {
-    params: { path: { trade_id: id } },
-  });
-  if (data === undefined) throw toApiError(error, response);
-  return data;
-}
-
-export async function createTrade(input: TradeCreate): Promise<Trade> {
-  const { data, error, response } = await api.POST("/api/v1/trades", {
-    body: input,
-  });
-  if (data === undefined) throw toApiError(error, response);
-  return data;
-}
-
-export async function updateTrade(
-  id: number,
-  input: TradePatch,
-): Promise<Trade> {
-  const { data, error, response } = await api.PATCH(
-    "/api/v1/trades/{trade_id}",
-    { params: { path: { trade_id: id } }, body: input },
+export async function getTrade(profileId: number, id: number): Promise<Trade> {
+  const { data, error, response } = await api.GET(
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}",
+    {
+      params: { path: { profile_id: profileId, trade_id: id } },
+    },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
-export async function deleteTrade(id: number): Promise<void> {
-  const { error, response } = await api.DELETE("/api/v1/trades/{trade_id}", {
-    params: { path: { trade_id: id } },
-  });
+export async function createTrade(
+  profileId: number,
+  input: TradeCreate,
+): Promise<Trade> {
+  const { data, error, response } = await api.POST(
+    "/api/v1/profiles/{profile_id}/trades",
+    {
+      params: { path: { profile_id: profileId } },
+      body: input,
+    },
+  );
+  if (data === undefined) throw toApiError(error, response);
+  return data;
+}
+
+export async function updateTrade(
+  profileId: number,
+  id: number,
+  input: TradePatch,
+): Promise<Trade> {
+  const { data, error, response } = await api.PATCH(
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}",
+    { params: { path: { profile_id: profileId, trade_id: id } }, body: input },
+  );
+  if (data === undefined) throw toApiError(error, response);
+  return data;
+}
+
+export async function deleteTrade(
+  profileId: number,
+  id: number,
+): Promise<void> {
+  const { error, response } = await api.DELETE(
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}",
+    {
+      params: { path: { profile_id: profileId, trade_id: id } },
+    },
+  );
   if (!response.ok) throw toApiError(error, response);
 }
 
 export async function saveChecklist(
+  profileId: number,
   id: number,
   input: ChecklistWrite,
 ): Promise<Checklist> {
   const { data, error, response } = await api.PUT(
-    "/api/v1/trades/{trade_id}/checklist",
-    { params: { path: { trade_id: id } }, body: input },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/checklist",
+    { params: { path: { profile_id: profileId, trade_id: id } }, body: input },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
 export async function refreshATR(
+  profileId: number,
   id: number,
   value?: string,
   observedSessionRange?: string,
 ): Promise<ATR> {
   const { data, error, response } = await api.POST(
-    "/api/v1/trades/{trade_id}/atr",
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/atr",
     {
-      params: { path: { trade_id: id } },
+      params: { path: { profile_id: profileId, trade_id: id } },
       body: {
         value: value || null,
         observed_session_range: observedSessionRange || null,
@@ -103,107 +127,131 @@ export async function refreshATR(
   return data;
 }
 
-export async function previewPlan(id: number, input: PlanInput): Promise<Plan> {
+export async function previewPlan(
+  profileId: number,
+  id: number,
+  input: PlanInput,
+): Promise<Plan> {
   const { data, error, response } = await api.POST(
-    "/api/v1/trades/{trade_id}/plan/preview",
-    { params: { path: { trade_id: id } }, body: input },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/plan/preview",
+    { params: { path: { profile_id: profileId, trade_id: id } }, body: input },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
-export async function getPlanningContext(id: number): Promise<PlanningContext> {
+export async function getPlanningContext(
+  profileId: number,
+  id: number,
+): Promise<PlanningContext> {
   const { data, error, response } = await api.GET(
-    "/api/v1/trades/{trade_id}/planning-context",
-    { params: { path: { trade_id: id } } },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/planning-context",
+    { params: { path: { profile_id: profileId, trade_id: id } } },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
 export async function savePlan(
+  profileId: number,
   id: number,
   input: components["schemas"]["TradePlanSave"],
 ): Promise<Trade> {
   const { data, error, response } = await api.PUT(
-    "/api/v1/trades/{trade_id}/plan",
-    { params: { path: { trade_id: id } }, body: input },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/plan",
+    { params: { path: { profile_id: profileId, trade_id: id } }, body: input },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
 export async function submitTrade(
+  profileId: number,
   id: number,
   status: "pending_entry" | "open",
 ): Promise<Trade> {
   const { data, error, response } = await api.POST(
-    "/api/v1/trades/{trade_id}/submit",
-    { params: { path: { trade_id: id } }, body: { status } },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/submit",
+    {
+      params: { path: { profile_id: profileId, trade_id: id } },
+      body: { status },
+    },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
-export async function openTrade(id: number): Promise<Trade> {
+export async function openTrade(profileId: number, id: number): Promise<Trade> {
   const { data, error, response } = await api.POST(
-    "/api/v1/trades/{trade_id}/open",
-    { params: { path: { trade_id: id } } },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/open",
+    { params: { path: { profile_id: profileId, trade_id: id } } },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
-export async function cancelTrade(id: number): Promise<Trade> {
+export async function cancelTrade(
+  profileId: number,
+  id: number,
+): Promise<Trade> {
   const { data, error, response } = await api.POST(
-    "/api/v1/trades/{trade_id}/cancel",
-    { params: { path: { trade_id: id } } },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/cancel",
+    { params: { path: { profile_id: profileId, trade_id: id } } },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
 export async function closeTrade(
+  profileId: number,
   id: number,
   input: TradeClose,
 ): Promise<Trade> {
   const { data, error, response } = await api.POST(
-    "/api/v1/trades/{trade_id}/close",
-    { params: { path: { trade_id: id } }, body: input },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/close",
+    { params: { path: { profile_id: profileId, trade_id: id } }, body: input },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
 export async function setReviewed(
+  profileId: number,
   id: number,
   completed: boolean,
 ): Promise<Trade> {
   const { data, error, response } = await api.PUT(
-    "/api/v1/trades/{trade_id}/review",
-    { params: { path: { trade_id: id } }, body: { completed } },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/review",
+    {
+      params: { path: { profile_id: profileId, trade_id: id } },
+      body: { completed },
+    },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
-export async function listAttachments(id: number): Promise<Attachment[]> {
+export async function listAttachments(
+  profileId: number,
+  id: number,
+): Promise<Attachment[]> {
   const { data, error, response } = await api.GET(
-    "/api/v1/trades/{trade_id}/attachments",
-    { params: { path: { trade_id: id } } },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/attachments",
+    { params: { path: { profile_id: profileId, trade_id: id } } },
   );
   if (data === undefined) throw toApiError(error, response);
   return data;
 }
 
 export async function uploadAttachment(
+  profileId: number,
   id: number,
   upload: File,
 ): Promise<Attachment> {
   const { data, error, response } = await api.POST(
-    "/api/v1/trades/{trade_id}/attachments",
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/attachments",
     {
-      params: { path: { trade_id: id } },
+      params: { path: { profile_id: profileId, trade_id: id } },
       body: { upload } as never,
       bodySerializer(body) {
         const form = new FormData();
@@ -216,10 +264,18 @@ export async function uploadAttachment(
   return data;
 }
 
-export async function deleteAttachment(id: number): Promise<void> {
+export async function deleteAttachment(
+  profileId: number,
+  tradeId: number,
+  id: number,
+): Promise<void> {
   const { error, response } = await api.DELETE(
-    "/api/v1/attachments/{attachment_id}",
-    { params: { path: { attachment_id: id } } },
+    "/api/v1/profiles/{profile_id}/trades/{trade_id}/attachments/{attachment_id}",
+    {
+      params: {
+        path: { profile_id: profileId, trade_id: tradeId, attachment_id: id },
+      },
+    },
   );
   if (!response.ok) throw toApiError(error, response);
 }

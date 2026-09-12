@@ -103,7 +103,7 @@ it("links to the selected strategy and keeps inputs on retry", async () => {
     ".position-setup-actions a",
   )!;
   expect(link.getAttribute("href")).toContain(
-    "profile=3&tab=strategies&strategy=7",
+    "/profiles/3/strategies?strategy=7",
   );
   expect(link.target).toBe("_blank");
   const actions = document.querySelectorAll(

@@ -39,7 +39,7 @@ it.each(["manual", undefined] as const)(
       render: () =>
         h(
           TradeMarketWorkspace,
-          { instrument, tradeId: 1, venueType: provider },
+          { instrument, profileId: 2, tradeId: 1, venueType: provider },
           {
             default: () =>
               h(

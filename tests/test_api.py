@@ -74,7 +74,7 @@ async def test_trade_attachments_remain_private_after_profile_refactor(
         + "QVR42mP8/x8AAwMCAO+aK1cAAAAASUVORK5CYII="
     )
     response = await client.post(
-        f"/api/v1/trades/{trade['id']}/attachments",
+        f"/api/v1/profiles/{trade['profile_id']}/trades/{trade['id']}/attachments",
         files={"upload": ("chart.png", payload, "image/png")},
     )
     assert response.status_code == 201, response.text
@@ -87,7 +87,7 @@ async def test_trade_attachments_remain_private_after_profile_refactor(
     assert (
         await client.get(item["content_url"], headers=headers)
     ).status_code == 404
-    path = f"/api/v1/attachments/{item['id']}"
+    path = item["content_url"].removesuffix("/content")
     assert (await client.delete(path, headers=headers)).status_code == 404
     assert (await client.delete(path)).status_code == 204
     assert (await client.get(item["content_url"])).status_code == 404
@@ -111,9 +111,8 @@ async def test_profiles_isolate_assets_wallets_and_strategies(
     )
     assert response.status_code == 404
     response = await client.post(
-        "/api/v1/trades",
+        f"/api/v1{first['root']}/trades",
         json={
-            "profile_id": first["profile"]["id"],
             "strategy_id": second["strategy"]["id"],
             "instrument_id": first["instrument"]["id"],
             "trade_date": "2026-09-10",
@@ -281,19 +280,24 @@ async def test_bybit_import_and_atr_share_provider_without_funding(
         )
         trade = await post(
             profile_client,
-            "/trades",
+            f"/profiles/{profile['id']}/trades",
             {
-                "profile_id": profile["id"],
                 "strategy_id": strategy["id"],
                 "instrument_id": instrument["id"],
                 "trade_date": "2026-09-10",
                 "direction": "long",
             },
         )
-        atr = await post(profile_client, f"/trades/{trade['id']}/atr", {})
+        atr = await post(
+            profile_client,
+            f"/profiles/{trade['profile_id']}/trades/{trade['id']}/atr",
+            {},
+        )
         assert Decimal(atr["value"]) == Decimal(expected_atr)
         loaded = (
-            await profile_client.get(f"/api/v1/trades/{trade['id']}")
+            await profile_client.get(
+                f"/api/v1/profiles/{trade['profile_id']}/trades/{trade['id']}"
+            )
         ).json()
         assert loaded["preparation"]["atr_source"] == "auto"
         assert loaded["preparation"]["atr_value"] == atr["value"]

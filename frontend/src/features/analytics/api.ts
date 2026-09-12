@@ -23,23 +23,27 @@ export interface AnalyticsFilters {
 /** Fetch one exact, server-calculated analytical cohort. */
 export async function getAnalytics(
   filters: AnalyticsFilters,
+  profileId?: number,
 ): Promise<Analytics> {
   const custom = filters.period === "custom";
-  const { data, error, response } = await api.GET("/api/v1/analytics", {
-    params: {
-      query: {
-        period: filters.period,
-        date_from: custom ? filters.dateFrom || undefined : undefined,
-        date_to: custom ? filters.dateTo || undefined : undefined,
-        profile_id: filters.profileId ?? undefined,
-        strategy_id: filters.strategyId ?? undefined,
-        product: filters.product ?? undefined,
-        instrument_id: filters.instrumentId ?? undefined,
-        settlement_asset_id: filters.settlementAssetId ?? undefined,
-        strategy_capital_id: filters.strategyCapitalId ?? undefined,
-      },
-    },
-  });
+  const query = {
+    period: filters.period,
+    date_from: custom ? filters.dateFrom || undefined : undefined,
+    date_to: custom ? filters.dateTo || undefined : undefined,
+    profile_id: filters.profileId ?? undefined,
+    strategy_id: filters.strategyId ?? undefined,
+    product: filters.product ?? undefined,
+    instrument_id: filters.instrumentId ?? undefined,
+    settlement_asset_id: filters.settlementAssetId ?? undefined,
+    strategy_capital_id: filters.strategyCapitalId ?? undefined,
+  };
+  const { profile_id: filter, ...scopedQuery } = query;
+  const { data, error, response } =
+    profileId === undefined
+      ? await api.GET("/api/v1/analytics", { params: { query } })
+      : await api.GET("/api/v1/profiles/{profile_id}/analytics", {
+          params: { path: { profile_id: profileId }, query: scopedQuery },
+        });
   if (data === undefined) throw toApiError(error, response);
   return data;
 }

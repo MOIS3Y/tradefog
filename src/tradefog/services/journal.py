@@ -38,6 +38,26 @@ async def get_owned[Model: JournalModel](
     return item
 
 
+async def get_profile_trade(
+    session: AsyncSession,
+    trade_id: int,
+    profile_id: int,
+    owner_id: int,
+    *,
+    for_update: bool = False,
+) -> Trade:
+    """Resolve a trade within both its owner's and its profile's boundary."""
+    statement = owned_select(Trade, owner_id).where(
+        Trade.id == trade_id, Trade.profile_id == profile_id
+    )
+    if for_update:
+        statement = statement.with_for_update()
+    trade = await session.scalar(statement)
+    if trade is None:
+        not_found("Trade")
+    return trade
+
+
 async def wallet_balance(
     session: AsyncSession,
     wallet_asset: TradingAsset,

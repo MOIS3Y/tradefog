@@ -88,9 +88,8 @@ async def draft(
     """Create and persist typed price anchors."""
     trade = await post(
         client,
-        "/trades",
+        f"/profiles/{market['profile']['id']}/trades",
         {
-            "profile_id": market["profile"]["id"],
             "strategy_id": market["strategy"]["id"],
             "instrument_id": market["instrument"]["id"],
             "trade_date": "2026-09-10",
@@ -98,7 +97,7 @@ async def draft(
         },
     )
     response = await client.put(
-        f"/api/v1/trades/{trade['id']}/plan",
+        f"/api/v1/profiles/{trade['profile_id']}/trades/{trade['id']}/plan",
         json={
             "planned_entry": "100",
             "planned_stop": "110" if direction == "short" else "90",
@@ -118,9 +117,8 @@ async def test_trade_sorting_by_id_and_date(
     for trade_date in ("2026-09-10", "2026-09-10", "2026-09-09"):
         trade = await post(
             client,
-            "/trades",
+            f"/profiles/{market['profile']['id']}/trades",
             {
-                "profile_id": market["profile"]["id"],
                 "strategy_id": market["strategy"]["id"],
                 "instrument_id": market["instrument"]["id"],
                 "trade_date": trade_date,
@@ -155,16 +153,15 @@ async def test_draft_without_allocation_can_recover(
     assert response.status_code == 200, response.text
     trade = await post(
         client,
-        "/trades",
+        f"/profiles/{market['profile']['id']}/trades",
         {
-            "profile_id": market["profile"]["id"],
             "strategy_id": market["strategy"]["id"],
             "instrument_id": market["instrument"]["id"],
             "trade_date": "2026-09-10",
             "direction": "long",
         },
     )
-    path = f"/api/v1/trades/{trade['id']}"
+    path = f"/api/v1/profiles/{trade['profile_id']}/trades/{trade['id']}"
     response = await client.get(path + "/planning-context")
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == (
@@ -202,7 +199,9 @@ async def test_full_close_preserves_inventory_and_counts_net_pnl_once(
     trade = await draft(client, market, direction)
     identifier = trade["id"]
     submitted = await post(
-        client, f"/trades/{identifier}/submit", {"status": "open"}
+        client,
+        f"{market['root']}/trades/{identifier}/submit",
+        {"status": "open"},
     )
     assert Decimal(submitted["snapshot"]["quantity"]) == 1
     wallet = (await client.get("/api/v1" + market["root"] + "/assets")).json()
@@ -214,11 +213,13 @@ async def test_full_close_preserves_inventory_and_counts_net_pnl_once(
         inventory
     )
     assert (
-        await client.post(f"/api/v1/trades/{identifier}/cancel")
+        await client.post(
+            f"/api/v1{market['root']}/trades/{identifier}/cancel"
+        )
     ).status_code == 409
     closed = await post(
         client,
-        f"/trades/{identifier}/close",
+        f"{market['root']}/trades/{identifier}/close",
         {
             "actual_exit_price": "115",
             "realized_pnl": "-15",
@@ -228,7 +229,7 @@ async def test_full_close_preserves_inventory_and_counts_net_pnl_once(
     assert closed["status"] == "closed"
     assert (
         await client.post(
-            f"/api/v1/trades/{identifier}/close",
+            f"/api/v1{market['root']}/trades/{identifier}/close",
             json={"actual_exit_price": "115", "realized_pnl": "-15"},
         )
     ).status_code == 409
@@ -251,32 +252,36 @@ async def test_buyback_requires_inventory_and_clears_stale_atr(
     identifier = trade["id"]
     preview = await post(
         client,
-        f"/trades/{identifier}/plan/preview",
+        f"{market['root']}/trades/{identifier}/plan/preview",
         {"planned_entry": "100", "planned_stop": "110"},
     )
     assert not preview["capital_sufficient"]
     assert len(preview["reservations"]) == 2
     assert (
         await client.post(
-            f"/api/v1/trades/{identifier}/submit", json={"status": "open"}
+            f"/api/v1{market['root']}/trades/{identifier}/submit",
+            json={"status": "open"},
         )
     ).status_code == 409
     await post(
         client,
-        f"/trades/{identifier}/atr",
+        f"{market['root']}/trades/{identifier}/atr",
         {"value": "20", "observed_session_range": "10"},
     )
     changed = await client.patch(
-        f"/api/v1/trades/{identifier}", json={"trade_date": "2026-09-09"}
+        f"/api/v1{market['root']}/trades/{identifier}",
+        json={"trade_date": "2026-09-09"},
     )
     assert changed.status_code == 200
     assert changed.json()["atr"] is None
     assert (
-        await client.post(f"/api/v1/trades/{identifier}/atr", json={})
+        await client.post(
+            f"/api/v1{market['root']}/trades/{identifier}/atr", json={}
+        )
     ).status_code == 422
-    assert (await post(client, f"/trades/{identifier}/cancel", {}))[
-        "status"
-    ] == "cancelled"
+    assert (
+        await post(client, f"{market['root']}/trades/{identifier}/cancel", {})
+    )["status"] == "cancelled"
 
 
 async def test_competing_buybacks_cannot_double_reserve(
@@ -290,7 +295,8 @@ async def test_competing_buybacks_cannot_double_reserve(
     responses = await asyncio.gather(
         *[
             client.post(
-                f"/api/v1/trades/{item['id']}/submit", json={"status": "open"}
+                f"/api/v1/profiles/{item['profile_id']}/trades/{item['id']}/submit",
+                json={"status": "open"},
             )
             for item in (first, second)
         ]
@@ -306,7 +312,7 @@ async def test_typed_preparation_and_reservations_persist(
     trade = await draft(profile_client, market)
     await post(
         profile_client,
-        f"/trades/{trade['id']}/submit",
+        f"/profiles/{trade['profile_id']}/trades/{trade['id']}/submit",
         {"status": "pending_entry"},
     )
     async with profile_app.state.database.session() as session:
@@ -318,7 +324,7 @@ async def test_typed_preparation_and_reservations_persist(
         )
     assert (
         await profile_client.put(
-            f"/api/v1/trades/{trade['id']}/checklist",
+            f"/api/v1/profiles/{trade['profile_id']}/trades/{trade['id']}/checklist",
             json={"market_sentiment": "POSITIVE"},
         )
     ).status_code == 409
@@ -330,7 +336,7 @@ async def test_partial_plan_and_loss_beyond_virtual_balance(
     """Persist incomplete inputs and record a real loss beyond planned risk."""
     market = await setup_market(profile_client)
     trade = await draft(profile_client, market)
-    path = f"/api/v1/trades/{trade['id']}"
+    path = f"/api/v1/profiles/{trade['profile_id']}/trades/{trade['id']}"
     response = await profile_client.put(
         path + "/plan", json={"planned_entry": "100"}
     )
@@ -368,7 +374,7 @@ async def test_inventory_withdrawal_cannot_spend_reserved_units(
     trade = await draft(profile_client, market)
     await post(
         profile_client,
-        f"/trades/{trade['id']}/submit",
+        f"/profiles/{trade['profile_id']}/trades/{trade['id']}/submit",
         {"status": "pending_entry"},
     )
     withdrawal = {
@@ -383,7 +389,11 @@ async def test_inventory_withdrawal_cannot_spend_reserved_units(
             json=withdrawal,
         )
     ).status_code == 409
-    await post(profile_client, f"/trades/{trade['id']}/cancel", {})
+    await post(
+        profile_client,
+        f"/profiles/{trade['profile_id']}/trades/{trade['id']}/cancel",
+        {},
+    )
     assert (
         await profile_client.post(
             "/api/v1"

@@ -14,7 +14,7 @@ import Decimal from "decimal.js";
 import type { EChartsCoreOption } from "echarts/core";
 import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import AppSelect, { type SelectOption } from "@/components/AppSelect.vue";
 import EmptyState from "@/components/EmptyState.vue";
@@ -40,6 +40,7 @@ import {
 } from "@/features/analytics/chartData";
 import {
   getWallet,
+  getProfile,
   listProfiles,
   listStrategies,
 } from "@/features/profiles/api";
@@ -54,6 +55,8 @@ interface TooltipParameter {
 
 const { t, locale } = useI18n();
 const router = useRouter();
+const route = useRoute();
+const activeProfileId = Number(route.params.profileId) || null;
 const tabs: Tab[] = ["overview", "discipline", "money"];
 const activeTab = ref<Tab>("overview");
 const advancedOpen = ref(false);
@@ -63,7 +66,7 @@ const filters = reactive<AnalyticsFilters>({
   period: "all_time",
   dateFrom: null,
   dateTo: null,
-  profileId: null,
+  profileId: activeProfileId,
   strategyId: null,
   product: null,
   instrumentId: null,
@@ -71,11 +74,53 @@ const filters = reactive<AnalyticsFilters>({
   strategyCapitalId: null,
 });
 
+const queryFields = {
+  period: "period",
+  dateFrom: "date_from",
+  dateTo: "date_to",
+  profileId: "profile_id",
+  strategyId: "strategy_id",
+  product: "product",
+  instrumentId: "instrument_id",
+  settlementAssetId: "settlement_asset_id",
+  strategyCapitalId: "strategy_capital_id",
+} as const;
+for (const [field, parameter] of Object.entries(queryFields)) {
+  if (field === "profileId" && activeProfileId !== null) continue;
+  const value = route.query[parameter];
+  if (typeof value !== "string") continue;
+  Object.assign(filters, {
+    [field]: field.endsWith("Id") ? Number(value) || null : value,
+  });
+}
+productChoice.value = filters.product ?? "all";
+watch(
+  () => ({ ...filters }),
+  (value) => {
+    const query = Object.fromEntries(
+      Object.entries(queryFields)
+        .filter(([field]) => field !== "profileId" || activeProfileId === null)
+        .map(([field, parameter]) => [
+          parameter,
+          value[field as keyof AnalyticsFilters] ?? undefined,
+        ]),
+    );
+    void router.replace({ query });
+  },
+);
+
 const profilesQuery = useQuery({
-  queryKey: ["profiles"],
-  queryFn: listProfiles,
+  queryKey: ["profiles", "analytics-options", activeProfileId ?? "overview"],
+  queryFn: () =>
+    activeProfileId
+      ? getProfile(activeProfileId).then((profile) => [profile])
+      : listProfiles(),
 });
-const profiles = computed(() => profilesQuery.data.value ?? []);
+const profiles = computed(() =>
+  (profilesQuery.data.value ?? []).filter(
+    (profile) => activeProfileId === null || profile.id === activeProfileId,
+  ),
+);
 const strategiesQuery = useQuery({
   queryKey: computed(() => [
     "analytics-strategies",
@@ -193,9 +238,13 @@ const customDateError = computed(() => {
   return null;
 });
 const analyticsQuery = useQuery({
-  queryKey: computed(() => ["analytics", { ...filters }]),
+  queryKey: computed(() => [
+    "analytics",
+    activeProfileId ?? "overview",
+    { ...filters },
+  ]),
   enabled: computed(() => customDateError.value === null),
-  queryFn: () => getAnalytics({ ...filters }),
+  queryFn: () => getAnalytics({ ...filters }, activeProfileId ?? undefined),
 });
 const analytics = computed(() => analyticsQuery.data.value ?? null);
 const selectedMoney = computed(
@@ -250,7 +299,7 @@ function resetFilters(): void {
     period: "all_time",
     dateFrom: null,
     dateTo: null,
-    profileId: null,
+    profileId: activeProfileId,
     strategyId: null,
     product: null,
     instrumentId: null,
@@ -534,7 +583,14 @@ function allocationIdentity(allocationId: number): {
 }
 
 function openTrade(tradeId: number): void {
-  void router.push(`/trades/${tradeId}`);
+  const point = analyticsQuery.data.value?.trajectory.find(
+    (item) => item.trade_id === tradeId,
+  );
+  if (point)
+    void router.push({
+      path: `/profiles/${point.profile_id}/trades/${tradeId}`,
+      query: { returnTo: route.fullPath },
+    });
 }
 </script>
 
@@ -547,6 +603,7 @@ function openTrade(tradeId: number): void {
         :label="$t('analytics.filters.period')"
       />
       <SearchableSelect
+        v-if="activeProfileId === null"
         v-model="filters.profileId"
         :options="profileOptions"
         :placeholder="$t('analytics.filters.allProfiles')"

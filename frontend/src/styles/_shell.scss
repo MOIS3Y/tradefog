@@ -17,7 +17,6 @@
     }
 
     .sidebar__label,
-    .position-diagram,
     .account-card__identity {
       display: none;
     }
@@ -127,84 +126,6 @@
 
   .sign-out__icon {
     display: none;
-  }
-
-  .position-diagram {
-    margin: 2.2rem 0 1.8rem;
-    padding: 0.75rem 0.65rem 0.5rem;
-    border: 1px solid var(--tf-line-soft);
-    border-radius: var(--tf-radius-md);
-    background: linear-gradient(145deg, rgb(20 29 38 / 78%), transparent);
-  }
-
-  .position-diagram__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    color: var(--tf-ink-faint);
-    font-family: var(--tf-mono);
-    font-size: 0.48rem;
-    letter-spacing: 0.05em;
-  }
-
-  .position-diagram__status {
-    color: var(--tf-action);
-  }
-
-  .position-diagram svg {
-    display: block;
-    width: 100%;
-    height: 108px;
-    margin-top: 0.35rem;
-    overflow: visible;
-
-    text {
-      fill: var(--tf-ink-faint);
-      font-family: var(--tf-mono);
-      font-size: 6px;
-    }
-  }
-
-  .position-diagram__profit {
-    fill: rgb(53 217 144 / 8%);
-  }
-
-  .position-diagram__risk {
-    fill: rgb(241 110 118 / 8%);
-  }
-
-  .position-diagram__take,
-  .position-diagram__stop {
-    stroke-dasharray: 3 4;
-    stroke-width: 1;
-  }
-
-  .position-diagram__take {
-    stroke: rgb(53 217 144 / 56%);
-  }
-
-  .position-diagram__entry {
-    stroke: rgb(231 237 242 / 42%);
-    stroke-width: 1;
-  }
-
-  .position-diagram__stop {
-    stroke: rgb(241 110 118 / 58%);
-  }
-
-  .position-diagram__price {
-    fill: none;
-    stroke: var(--tf-ink-soft);
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-width: 1.35;
-  }
-
-  .position-diagram__point {
-    fill: var(--tf-ink-strong);
-    stroke: var(--tf-action);
-    stroke-width: 1.5;
-    filter: drop-shadow(0 0 5px var(--tf-action));
   }
 
   .primary-nav {

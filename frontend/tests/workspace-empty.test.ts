@@ -94,7 +94,7 @@ function state() {
 
 it.each([
   [0, 0, "Начните с торгового профиля", "/profiles"],
-  [1, 0, "У вас пока нет сделок", "/trades"],
+  [1, 0, "У вас пока нет сделок", "/profiles"],
   [0, 1, "Нет активных торговых профилей", "/profiles"],
 ] as const)(
   "guides an empty journal with %i active and %i archived profiles",
@@ -110,22 +110,6 @@ it.each([
     );
     state()?.querySelector<HTMLElement>("a, button")?.click();
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe(target));
-    if (active) {
-      await vi.waitFor(() =>
-        expect(document.querySelector(".tf-form-dialog")).not.toBeNull(),
-      );
-      document
-        .querySelector<HTMLButtonElement>(".tf-form-dialog__close")!
-        .click();
-      await vi.waitFor(() =>
-        expect(document.querySelector(".tf-form-dialog")).toBeNull(),
-      );
-      expect(router.currentRoute.value.query).toEqual({
-        sort: "quality_rating",
-        order: "asc",
-        page_size: "50",
-      });
-    }
   },
 );
 

@@ -22,6 +22,24 @@ import ruanalytics from "./locales/ru/analytics";
 
 export const messages = {
   en: {
+    profileCards: {
+      active: "Active",
+      archived: "Archived",
+      trades: "Trades",
+      latest: "Latest trade",
+      noTrades: "No trades yet",
+      noDescription: "Add a description in profile settings.",
+      setup: "Setup",
+      retry: "Journal unavailable · Retry",
+    },
+    context: {
+      label: "Active profile",
+      chooseProfile: "Choose a profile",
+      unsavedTitle: "Unsaved changes",
+      unsavedBody: "Leave this page and discard your unsaved changes?",
+      discard: "Leave without saving",
+      stay: "Stay",
+    },
     ...ensettings,
     ...encommon,
     ...enshell,
@@ -34,6 +52,24 @@ export const messages = {
     ...enanalytics,
   },
   ru: {
+    profileCards: {
+      active: "Активен",
+      archived: "В архиве",
+      trades: "Сделок",
+      latest: "Последняя сделка",
+      noTrades: "Ещё нет",
+      noDescription: "Добавьте описание в настройках профиля.",
+      setup: "Настройки",
+      retry: "Журнал недоступен · Повторить",
+    },
+    context: {
+      label: "Активный профиль",
+      chooseProfile: "Выбрать профиль",
+      unsavedTitle: "Несохранённые изменения",
+      unsavedBody: "Покинуть страницу и потерять несохранённые изменения?",
+      discard: "Выйти без сохранения",
+      stay: "Остаться",
+    },
     ...rusettings,
     ...rucommon,
     ...rushell,

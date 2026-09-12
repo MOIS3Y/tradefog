@@ -11,9 +11,9 @@ from tradefog.config.database import DatabaseSettings, SQLiteSettings
 from tradefog.config.root import Settings
 from tradefog.main import create_app
 from tradefog.market.contracts import (
-    MarketFailure,
     InstrumentPage,
     InstrumentSpec,
+    MarketFailure,
     MarketProduct,
 )
 from tradefog.market.providers.bybit_public import (

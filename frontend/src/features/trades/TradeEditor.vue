@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLeaveGuard } from "@/composables/useLeaveGuard";
 import {
   Activity,
   ArchiveX,
@@ -114,8 +115,8 @@ const checklist = reactive<ChecklistWrite>({
 let normalizationTimer: ReturnType<typeof setTimeout> | null = null;
 const isDraft = computed(() => props.trade.status === "draft");
 const planningQuery = useQuery({
-  queryKey: ["trade-plan-context", props.trade.id],
-  queryFn: () => getPlanningContext(props.trade.id),
+  queryKey: ["trade-plan-context", props.trade.profile_id, props.trade.id],
+  queryFn: () => getPlanningContext(props.trade.profile_id, props.trade.id),
   enabled: isDraft,
   staleTime: 30_000,
   refetchOnWindowFocus: (query) =>
@@ -131,10 +132,8 @@ const allocationRequired = computed(
 /** Open setup separately so unsaved draft inputs remain intact. */
 function capitalSetup(tab: "strategies" | "wallet") {
   return {
-    path: "/profiles",
+    path: `/profiles/${props.trade.profile_id}/${tab}`,
     query: {
-      profile: props.trade.profile_id,
-      tab,
       strategy: props.trade.strategy_id,
       asset: props.instrument?.settlement_asset_id,
     },
@@ -394,7 +393,10 @@ function synchronizeEditor(trade: Trade): void {
 }
 
 function acceptTrade(trade: Trade, synchronize = false): void {
-  if (synchronize) synchronizeEditor(trade);
+  if (synchronize) {
+    synchronizeEditor(trade);
+    savedEditor.value = editorState();
+  }
   emit("updated", trade);
 }
 
@@ -461,19 +463,40 @@ function normalizeCloseExit(): void {
 }
 
 async function persistChanges(): Promise<Trade> {
-  let trade = await updateTrade(props.trade.id, {
+  let trade = await updateTrade(props.trade.profile_id, props.trade.id, {
     description_markdown: notes.value || null,
     ...(isDraft.value ? { direction: direction.value } : {}),
   });
   if (!isDraft.value) return trade;
-  const savedChecklist = await saveChecklist(props.trade.id, checklist);
+  const savedChecklist = await saveChecklist(
+    props.trade.profile_id,
+    props.trade.id,
+    checklist,
+  );
   trade = { ...trade, checklist: savedChecklist };
-  trade = await savePlan(props.trade.id, {
+  trade = await savePlan(props.trade.profile_id, props.trade.id, {
     planned_entry: planInput.value.planned_entry || null,
     planned_stop: planInput.value.planned_stop || null,
   });
   return trade;
 }
+
+const editorState = () =>
+  JSON.stringify({
+    notes: notes.value,
+    direction: direction.value,
+    entry: entry.value,
+    stop: stop.value,
+    checklist: { ...checklist },
+  });
+const savedEditor = ref(editorState());
+useLeaveGuard(
+  computed(
+    () =>
+      editorState() !== savedEditor.value ||
+      (closeOpen.value && Object.values(closeForm).some(Boolean)),
+  ),
+);
 
 const saveMutation = useMutation({
   mutationFn: persistChanges,
@@ -486,6 +509,7 @@ const saveMutation = useMutation({
 const atrMutation = useMutation({
   mutationFn: (manual: boolean) =>
     refreshATR(
+      props.trade.profile_id,
       props.trade.id,
       manual ? manualATR.value : undefined,
       manual ? manualSessionRange.value : undefined,
@@ -503,13 +527,14 @@ const lifecycleMutation = useMutation({
     if (action === "pending" || action === "open-now") {
       await persistChanges();
       return submitTrade(
+        props.trade.profile_id,
         props.trade.id,
         action === "pending" ? "pending_entry" : "open",
       );
     }
     return action === "open"
-      ? openTrade(props.trade.id)
-      : cancelTrade(props.trade.id);
+      ? openTrade(props.trade.profile_id, props.trade.id)
+      : cancelTrade(props.trade.profile_id, props.trade.id);
   },
   onSuccess: (trade) => {
     confirmAction.value = null;
@@ -521,7 +546,7 @@ const lifecycleMutation = useMutation({
 });
 const closeMutation = useMutation({
   mutationFn: () =>
-    closeTrade(props.trade.id, {
+    closeTrade(props.trade.profile_id, props.trade.id, {
       realized_pnl: closeForm.realized_pnl,
       actual_exit_price: closeForm.actual_exit_price,
       total_commission: closeForm.total_commission || null,
@@ -537,13 +562,19 @@ const closeMutation = useMutation({
 });
 const reviewMutation = useMutation({
   mutationFn: () =>
-    setReviewed(props.trade.id, props.trade.review_completed_at === null),
+    setReviewed(
+      props.trade.profile_id,
+      props.trade.id,
+      props.trade.review_completed_at === null,
+    ),
   onSuccess: (trade) => acceptTrade(trade),
   onError: (error) => reportError(error, t("trades.saveFailed")),
 });
 const ratingMutation = useMutation({
   mutationFn: (qualityRating: number | null) =>
-    updateTrade(props.trade.id, { quality_rating: qualityRating }),
+    updateTrade(props.trade.profile_id, props.trade.id, {
+      quality_rating: qualityRating,
+    }),
   onSuccess: (trade) => {
     acceptTrade(trade);
     toasts.success({ title: t("trades.rating.saved") });
@@ -551,14 +582,24 @@ const ratingMutation = useMutation({
   onError: (error) => reportError(error, t("trades.rating.failed")),
 });
 const deleteMutation = useMutation({
-  mutationFn: () => deleteTrade(props.trade.id),
+  mutationFn: () => deleteTrade(props.trade.profile_id, props.trade.id),
   onSuccess: () => {
     confirmAction.value = null;
-    emit("deleted");
+    savedEditor.value = editorState();
     toasts.success({ title: t("trades.deleted") });
   },
   onError: (error) => reportError(error, t("trades.deleteFailed")),
 });
+
+/** Navigate only after deletion has settled and released the write guard. */
+async function removeDraft(): Promise<void> {
+  try {
+    await deleteMutation.mutateAsync();
+    emit("deleted");
+  } catch {
+    // The mutation displays the server error and keeps the draft visible.
+  }
+}
 
 onBeforeUnmount(() => {
   if (normalizationTimer !== null) clearTimeout(normalizationTimer);
@@ -684,6 +725,7 @@ onBeforeUnmount(() => {
     <div class="trade-workgrid">
       <section class="trade-module trade-module--position">
         <TradeMarketWorkspace
+          :profile-id="trade.profile_id"
           :trade-id="trade.id"
           :instrument="instrument"
           :venue-type="profile?.venue_type"
@@ -1157,7 +1199,10 @@ onBeforeUnmount(() => {
             class="trade-notes"
             :placeholder="$t('trades.notes.placeholder')"
           ></textarea>
-          <TradeAttachments :trade-id="trade.id" />
+          <TradeAttachments
+            :profile-id="trade.profile_id"
+            :trade-id="trade.id"
+          />
         </div>
       </section>
     </div>
@@ -1214,7 +1259,7 @@ onBeforeUnmount(() => {
     @update:open="confirmAction = null"
     @confirm="
       confirmAction === 'delete'
-        ? deleteMutation.mutate()
+        ? removeDraft()
         : lifecycleMutation.mutate('cancel')
     "
   />

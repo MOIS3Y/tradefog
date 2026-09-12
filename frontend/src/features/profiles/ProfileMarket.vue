@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useDialogLeaveGuard } from "@/composables/useLeaveGuard";
 /** Profile-local market setup: selected imports or manual specifications. */
 import { computed, reactive, ref, watch } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
@@ -259,6 +260,7 @@ const action = useMutation({
   },
   onError: failed,
 });
+useDialogLeaveGuard(dialog, () => form);
 </script>
 
 <template>

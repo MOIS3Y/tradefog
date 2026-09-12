@@ -46,9 +46,7 @@ from tradefog.services.journal import (
 )
 from tradefog.services.pagination import paginate
 
-router = APIRouter(
-    prefix="/profiles/{profile_id}", tags=["Profile instruments"]
-)
+router = APIRouter(prefix="/profiles/{profile_id}")
 
 
 class InstrumentListQuery(ListQuery):
@@ -85,7 +83,9 @@ async def flush_unique(session: SessionDependency) -> None:
         conflict("Profile identity already exists or is still referenced")
 
 
-@router.get("/assets", response_model=Page[AssetResponse])
+@router.get(
+    "/assets", response_model=Page[AssetResponse], tags=["Profiles · Assets"]
+)
 async def list_assets(
     profile_id: int,
     session: SessionDependency,
@@ -146,7 +146,12 @@ async def get_asset_record(
     return item
 
 
-@router.post("/assets", response_model=AssetResponse, status_code=201)
+@router.post(
+    "/assets",
+    response_model=AssetResponse,
+    status_code=201,
+    tags=["Profiles · Assets"],
+)
 async def create_asset(
     profile_id: int,
     request: AssetWrite,
@@ -163,7 +168,11 @@ async def create_asset(
     return await asset_response(session, item)
 
 
-@router.patch("/assets/{asset_id}", response_model=AssetResponse)
+@router.patch(
+    "/assets/{asset_id}",
+    response_model=AssetResponse,
+    tags=["Profiles · Assets"],
+)
 async def update_asset(
     profile_id: int,
     asset_id: int,
@@ -206,7 +215,9 @@ async def update_asset(
     return await asset_response(session, item)
 
 
-@router.delete("/assets/{asset_id}", status_code=204)
+@router.delete(
+    "/assets/{asset_id}", status_code=204, tags=["Profiles · Assets"]
+)
 async def delete_asset(
     profile_id: int,
     asset_id: int,
@@ -237,7 +248,11 @@ async def delete_asset(
     await session.flush()
 
 
-@router.get("/instruments", response_model=Page[InstrumentResponse])
+@router.get(
+    "/instruments",
+    response_model=Page[InstrumentResponse],
+    tags=["Profiles · Instruments"],
+)
 async def list_instruments(
     profile_id: int,
     session: SessionDependency,
@@ -280,7 +295,11 @@ async def list_instruments(
     )
 
 
-@router.get("/instruments/{instrument_id}", response_model=InstrumentResponse)
+@router.get(
+    "/instruments/{instrument_id}",
+    response_model=InstrumentResponse,
+    tags=["Profiles · Instruments"],
+)
 async def get_instrument(
     profile_id: int,
     instrument_id: int,
@@ -336,7 +355,10 @@ async def get_instrument_record(
 
 
 @router.post(
-    "/instruments", response_model=InstrumentResponse, status_code=201
+    "/instruments",
+    response_model=InstrumentResponse,
+    status_code=201,
+    tags=["Profiles · Instruments"],
 )
 async def create_instrument(
     profile_id: int,
@@ -397,7 +419,9 @@ async def create_instrument(
 
 
 @router.patch(
-    "/instruments/{instrument_id}", response_model=InstrumentResponse
+    "/instruments/{instrument_id}",
+    response_model=InstrumentResponse,
+    tags=["Profiles · Instruments"],
 )
 async def update_instrument(
     profile_id: int,
@@ -435,7 +459,9 @@ async def update_instrument(
 
 
 @router.post(
-    "/instruments/{instrument_id}/refresh", response_model=InstrumentResponse
+    "/instruments/{instrument_id}/refresh",
+    response_model=InstrumentResponse,
+    tags=["Profiles · Instruments"],
 )
 async def refresh_instrument(
     profile_id: int,
@@ -461,7 +487,11 @@ async def refresh_instrument(
     return (await instrument_responses(session, [item]))[0]
 
 
-@router.delete("/instruments/{instrument_id}", status_code=204)
+@router.delete(
+    "/instruments/{instrument_id}",
+    status_code=204,
+    tags=["Profiles · Instruments"],
+)
 async def delete_instrument(
     profile_id: int,
     instrument_id: int,
@@ -542,7 +572,11 @@ async def asset_response(
     )
 
 
-@router.get("/assets/{asset_id}", response_model=AssetResponse)
+@router.get(
+    "/assets/{asset_id}",
+    response_model=AssetResponse,
+    tags=["Profiles · Assets"],
+)
 async def get_asset(
     profile_id: int,
     asset_id: int,

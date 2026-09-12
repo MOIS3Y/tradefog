@@ -64,6 +64,7 @@ describe("paginated journal", () => {
                 items: [
                   {
                     id: 7,
+                    profile_id: 1,
                     profile_name: "Main",
                     strategy_name: "Breakout",
                     pair_symbol: "BTC/USDT",
@@ -90,7 +91,10 @@ describe("paginated journal", () => {
       history: createMemoryHistory(),
       routes: [
         { path: "/trades", component: TradeWorkspace },
-        { path: "/trades/:id", component: { template: "<div />" } },
+        {
+          path: "/profiles/:profileId/trades/:id",
+          component: { template: "<div />" },
+        },
       ],
     });
     await router.push(
@@ -147,7 +151,7 @@ describe("paginated journal", () => {
     await nextTick();
     const link = document.querySelector<HTMLAnchorElement>(".journal-table a")!;
     const target = new URL(link.href);
-    expect(target.pathname).toBe("/trades/7");
+    expect(target.pathname).toBe("/profiles/1/trades/7");
     expect(target.searchParams.get("returnTo")).toBe(
       router.currentRoute.value.fullPath,
     );

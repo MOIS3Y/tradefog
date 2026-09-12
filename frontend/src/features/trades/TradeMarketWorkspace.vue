@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** Removable bridge: market panels surround, but never own, position inputs. */
-import { useQueryClient } from "@tanstack/vue-query";
+import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, defineAsyncComponent } from "vue";
 import type {
   Instrument,
@@ -13,6 +13,7 @@ import { resolveMarket } from "@/features/market-chart/registry";
 import type { MarketInstrument } from "@/features/market-chart/types";
 
 const props = defineProps<{
+  profileId: number;
   tradeId: number;
   instrument?: Instrument;
   venueType?: VenueType;
@@ -42,12 +43,14 @@ const storageKey = computed(
 );
 
 /** Reuse private attachments; no market component knows journal API routes. */
-async function saveSnapshot(file: File): Promise<void> {
-  await uploadAttachment(props.tradeId, file);
+async function storeSnapshot(file: File): Promise<void> {
+  await uploadAttachment(props.profileId, props.tradeId, file);
   await client.invalidateQueries({
-    queryKey: ["trade-attachments", props.tradeId],
+    queryKey: ["trade-attachments", props.profileId, props.tradeId],
   });
 }
+const snapshotMutation = useMutation({ mutationFn: storeSnapshot });
+const saveSnapshot = (file: File) => snapshotMutation.mutateAsync(file);
 </script>
 
 <template>

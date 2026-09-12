@@ -26,3 +26,6 @@ api_router.include_router(trades.router, prefix="/v1")
 api_router.include_router(analytics.router, prefix="/v1")
 api_router.include_router(attachments.router, prefix="/v1")
 api_router.include_router(venues.router, prefix="/v1")
+
+api_router.include_router(trades.overview_router, prefix="/v1")
+api_router.include_router(analytics.profile_router, prefix="/v1")

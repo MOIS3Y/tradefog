@@ -46,7 +46,7 @@ from tradefog.services.journal import (
 )
 from tradefog.services.pagination import paginate, search_text
 
-router = APIRouter(prefix="/profiles", tags=["Journal"])
+router = APIRouter(prefix="/profiles")
 
 
 async def flush_unique(session: SessionDependency, message: str) -> None:
@@ -102,7 +102,7 @@ async def allocation_has_snapshot(
     return await session.scalar(statement) is not None
 
 
-@router.get("", response_model=Page[ProfileResponse])
+@router.get("", response_model=Page[ProfileResponse], tags=["Profiles"])
 async def list_profiles(
     session: SessionDependency,
     user: CurrentUserDependency,
@@ -140,6 +140,7 @@ async def list_profiles(
     "",
     response_model=ProfileResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["Profiles"],
 )
 async def create_profile(
     request: ProfileCreate,
@@ -159,7 +160,7 @@ async def create_profile(
     return profile
 
 
-@router.get("/{profile_id}", response_model=ProfileResponse)
+@router.get("/{profile_id}", response_model=ProfileResponse, tags=["Profiles"])
 async def get_profile(
     profile_id: int,
     session: SessionDependency,
@@ -174,7 +175,9 @@ async def get_profile(
     )
 
 
-@router.patch("/{profile_id}", response_model=ProfileResponse)
+@router.patch(
+    "/{profile_id}", response_model=ProfileResponse, tags=["Profiles"]
+)
 async def update_profile(
     profile_id: int,
     request: ProfilePatch,
@@ -196,7 +199,9 @@ async def update_profile(
     return profile
 
 
-@router.delete("/{profile_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{profile_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Profiles"]
+)
 async def delete_profile(
     profile_id: int,
     session: SessionDependency,
@@ -248,6 +253,7 @@ async def delete_profile(
 @router.get(
     "/{profile_id}/assets/{asset_id}/operations",
     response_model=Page[WalletOperationResponse],
+    tags=["Profiles · Operations"],
 )
 async def list_wallet_operations(
     profile_id: int,
@@ -286,6 +292,7 @@ async def list_wallet_operations(
     "/{profile_id}/assets/{asset_id}/operations",
     response_model=WalletOperationResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["Profiles · Operations"],
 )
 async def create_wallet_operation(
     profile_id: int,
@@ -328,6 +335,7 @@ async def create_wallet_operation(
 @router.patch(
     "/{profile_id}/assets/{asset_id}/operations/{operation_id}",
     response_model=WalletOperationResponse,
+    tags=["Profiles · Operations"],
 )
 async def update_wallet_operation_note(
     profile_id: int,
@@ -358,7 +366,11 @@ async def update_wallet_operation_note(
     return operation
 
 
-@router.get("/{profile_id}/strategies", response_model=Page[StrategyResponse])
+@router.get(
+    "/{profile_id}/strategies",
+    response_model=Page[StrategyResponse],
+    tags=["Profiles · Strategies"],
+)
 async def list_strategies(
     profile_id: int,
     session: SessionDependency,
@@ -400,6 +412,7 @@ async def list_strategies(
     "/{profile_id}/strategies",
     response_model=StrategyResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["Profiles · Strategies"],
 )
 async def create_strategy(
     profile_id: int,
@@ -431,7 +444,9 @@ async def create_strategy(
 
 
 @router.patch(
-    "/{profile_id}/strategies/{strategy_id}", response_model=StrategyResponse
+    "/{profile_id}/strategies/{strategy_id}",
+    response_model=StrategyResponse,
+    tags=["Profiles · Strategies"],
 )
 async def update_strategy(
     profile_id: int,
@@ -496,6 +511,7 @@ async def update_strategy(
 @router.delete(
     "/{profile_id}/strategies/{strategy_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    tags=["Profiles · Strategies"],
 )
 async def delete_strategy(
     profile_id: int,
@@ -536,6 +552,7 @@ async def delete_strategy(
     "/{profile_id}/strategies/{strategy_id}/allocations",
     response_model=StrategyCapitalResponse,
     status_code=status.HTTP_201_CREATED,
+    tags=["Profiles · Allocations"],
 )
 async def create_allocation(
     profile_id: int,
@@ -599,6 +616,7 @@ async def create_allocation(
 @router.patch(
     "/{profile_id}/strategies/{strategy_id}/allocations/{allocation_id}",
     response_model=StrategyCapitalResponse,
+    tags=["Profiles · Allocations"],
 )
 async def update_allocation(
     profile_id: int,
@@ -692,7 +710,9 @@ def require_asset_profile(item: TradingAsset, profile_id: int) -> None:
 
 
 @router.get(
-    "/{profile_id}/strategies/{strategy_id}", response_model=StrategyResponse
+    "/{profile_id}/strategies/{strategy_id}",
+    response_model=StrategyResponse,
+    tags=["Profiles · Strategies"],
 )
 async def get_strategy(
     profile_id: int,
@@ -710,6 +730,7 @@ async def get_strategy(
 @router.get(
     "/{profile_id}/strategies/{strategy_id}/allocations",
     response_model=Page[StrategyCapitalResponse],
+    tags=["Profiles · Allocations"],
 )
 async def list_allocations(
     profile_id: int,

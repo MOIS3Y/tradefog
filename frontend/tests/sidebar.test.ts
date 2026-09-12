@@ -1,6 +1,7 @@
 /** Sidebar preferences must not replace page state or mobile navigation. */
 import { afterEach, expect, it, vi } from "vitest";
 import { createApp, h, nextTick, type App } from "vue";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
 import AppShell from "@/layouts/AppShell.vue";
@@ -20,6 +21,15 @@ afterEach(() => {
 
 /** Mount a real shell with controllable breakpoint events. */
 async function mount() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify({ items: [], total: 0 }), {
+          headers: { "Content-Type": "application/json" },
+        }),
+    ),
+  );
   const media = new EventTarget();
   Object.assign(media, { matches: true });
   vi.stubGlobal("matchMedia", () => media);
@@ -34,7 +44,16 @@ async function mount() {
     render: () =>
       h(AppShell, null, { default: () => h("input", { id: "draft" }) }),
   });
-  app.use(createPinia()).use(router).use(i18n).mount("#root");
+  app
+    .use(createPinia())
+    .use(router)
+    .use(i18n)
+    .use(VueQueryPlugin, {
+      queryClient: new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      }),
+    })
+    .mount("#root");
   await nextTick();
   return { media, router };
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useDialogLeaveGuard } from "@/composables/useLeaveGuard";
 import {
   Archive,
   ArchiveRestore,
@@ -301,6 +302,8 @@ function openAllocation(allocation: Allocation | null): void {
   });
   allocationDialogOpen.value = true;
 }
+useDialogLeaveGuard(strategyDialogOpen, () => strategyForm);
+useDialogLeaveGuard(allocationDialogOpen, () => allocationForm);
 </script>
 
 <template>

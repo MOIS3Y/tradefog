@@ -22,11 +22,10 @@ from tradefog.domain.checklists import (
 from tradefog.domain.enums import ATRSource, Direction, TradeStatus
 
 
-class TradeListQuery(ListQuery):
+class ProfileTradeListQuery(ListQuery):
     """Server-side journal filters independent of pagination."""
 
     order: Literal["asc", "desc"] = "desc"
-    profile_id: int | None = Field(default=None, gt=0)
     strategy_id: int | None = Field(default=None, gt=0)
     trade_status: TradeStatus | None = None
     direction: Direction | None = None
@@ -41,6 +40,12 @@ class TradeListQuery(ListQuery):
         if self.date_from and self.date_to and self.date_from > self.date_to:
             raise ValueError("date_from must not exceed date_to")
         return self
+
+
+class TradeListQuery(ProfileTradeListQuery):
+    """Add an optional profile filter for the owner-wide overview."""
+
+    profile_id: int | None = Field(default=None, gt=0)
 
 
 class TradeListItem(BaseModel):
@@ -94,7 +99,6 @@ class ChecklistResponse(ChecklistWrite):
 class TradeCreate(TradeInput):
     """Create the editable identity and context of a draft trade."""
 
-    profile_id: int = Field(gt=0)
     strategy_id: int = Field(gt=0)
     instrument_id: int = Field(gt=0)
     trade_date: date

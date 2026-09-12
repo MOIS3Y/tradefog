@@ -15,7 +15,7 @@ from tradefog.domain.enums import WalletOperationKind
 from tradefog.services.journal import get_owned
 from tradefog.services.pagination import paginate
 
-router = APIRouter(prefix="/profiles", tags=["Journal"])
+router = APIRouter(prefix="/profiles", tags=["Profiles · Operations"])
 
 
 class OperationListQuery(ListQuery):

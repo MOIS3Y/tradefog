@@ -2,6 +2,28 @@
 
 from pydantic import JsonValue
 
+API_TAGS: list[dict[str, str]] = [
+    {"name": name}
+    for name in (
+        "Auth",
+        "Profiles",
+        "Profiles · Assets",
+        "Profiles · Instruments",
+        "Profiles · Strategies",
+        "Profiles · Allocations",
+        "Profiles · Operations",
+        "Profiles · Trades",
+        "Profiles · Trade preparation",
+        "Profiles · Trade lifecycle",
+        "Profiles · Attachments",
+        "Profiles · Analytics",
+        "Overview · Trades",
+        "Overview · Analytics",
+        "Venues",
+        "System",
+    )
+]
+
 API_DESCRIPTION = """
 Tradefog is a personal trading journal. Wallet operations and trade lifecycle
 actions record journal facts; they do not transfer funds or place exchange
